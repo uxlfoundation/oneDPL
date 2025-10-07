@@ -13,17 +13,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "support/test_config.h"
+
 #include "oneapi/dpl/execution"
 #include "oneapi/dpl/algorithm"
 #include "oneapi/dpl/iterator"
-#include "oneapi/dpl/complex"
 
-#include "support/test_config.h"
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/scan_serial_impl.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
-#    include <CL/sycl.hpp>
+#include "support/utils_sycl_defs.h"
 
 using namespace oneapi::dpl::execution;
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -35,7 +36,7 @@ using namespace TestUtils;
 
 DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
 {
-    DEFINE_TEST_CONSTRUCTOR(test_inclusive_scan_by_segment)
+    DEFINE_TEST_CONSTRUCTOR(test_inclusive_scan_by_segment, 1.0f, 1.0f)
 
     template <typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     void initialize_data(Iterator1 host_keys, Iterator2 host_vals, Iterator3 host_val_res, Size n)
@@ -90,7 +91,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         if (n < 1)
             return;
 
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         ::std::vector<ValT> expected_val_res(n);
         inclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res),
@@ -112,24 +113,22 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
                        is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 val_res_first, Iterator3 /*val_res_last*/, Size n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes, Size> host_res(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
-
         // call algorithm with no optional arguments
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
         auto res1 =
-            oneapi::dpl::inclusive_scan_by_segment(new_policy, keys_first, keys_last, vals_first, val_res_first);
+            oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first, val_res_first);
         exec.queue().wait_and_throw();
 
+        EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, device policy");
         retrieve_data(host_keys, host_vals, host_res);
         check_values(host_keys.get(), host_vals.get(), host_res.get(), n);
 
@@ -137,11 +136,11 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::inclusive_scan_by_segment(new_policy2, keys_first, keys_last, vals_first,
+        auto res2 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 1), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate());
         exec.queue().wait_and_throw();
 
+        EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, with predicate, device policy");
         retrieve_data(host_keys, host_vals, host_res);
         check_values(host_keys.get(), host_vals.get(), host_res.get(), n, BinaryPredicate());
 
@@ -149,11 +148,11 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy3 = make_new_policy<new_kernel_name<Policy, 2>>(exec);
-        auto res3 = oneapi::dpl::inclusive_scan_by_segment(new_policy3, keys_first, keys_last, vals_first,
+        auto res3 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY_IDX(exec, 2), keys_first, keys_last, vals_first,
                                                            val_res_first, BinaryPredicate(), BinaryOperation());
         exec.queue().wait_and_throw();
 
+        EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, with predicate and operator, device policy");
         retrieve_data(host_keys, host_vals, host_res);
         check_values(host_keys.get(), host_vals.get(), host_res.get(), n, BinaryPredicate(), BinaryOperation());
     }
@@ -166,34 +165,34 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         !oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>> &&
 #endif
             is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Iterator3 val_res_first, Iterator3 /*val_res_last*/, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator1>::value_type KeyT;
-
         // call algorithm with no optional arguments
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res1 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first);
+        auto res1 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first);
+        EXPECT_EQ(n, std::distance(val_res_first, res1), "wrong return value, no predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n);
 
         // call algorithm with predicate
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res2 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first,
+        auto res2 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first,
                                                            BinaryPredicate());
+        EXPECT_EQ(n, std::distance(val_res_first, res2), "wrong return value, with predicate, host policy");
         check_values(keys_first, vals_first, val_res_first, n, BinaryPredicate());
 
         // call algorithm with predicate and operator
         initialize_data(keys_first, vals_first, val_res_first, n);
-        auto res3 = oneapi::dpl::inclusive_scan_by_segment(exec, keys_first, keys_last, vals_first, val_res_first,
+        auto res3 = oneapi::dpl::inclusive_scan_by_segment(CLONE_TEST_POLICY(exec), keys_first, keys_last, vals_first, val_res_first,
                                                            BinaryPredicate(), BinaryOperation());
+        EXPECT_EQ(n, std::distance(val_res_first, res3), "wrong return value, with predicate and operator, host policy");
         check_values(keys_first, vals_first, val_res_first, n, BinaryPredicate(), BinaryOperation());
     }
 
     // specialization for non-random_access iterators
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size>
     ::std::enable_if_t<!is_base_of_iterator_category_v<::std::random_access_iterator_tag, Iterator3>>
-    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Iterator2 vals_first, Iterator2 vals_last,
-               Iterator3 val_res_first, Iterator3 val_res_last, Size n)
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Iterator3, Iterator3, Size)
     {
     }
 };
@@ -223,7 +222,7 @@ main()
     }
 
     {
-        using ValueType = ::std::complex<float>;
+        using ValueType = MatrixPoint<float>;
         using BinaryPredicate = UserBinaryPredicate<ValueType>;
         using BinaryOperation = MaxFunctor<ValueType>;
 

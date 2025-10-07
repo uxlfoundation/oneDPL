@@ -21,8 +21,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 using dpl::lower_bound;
 
 bool
@@ -41,28 +39,30 @@ kernel_test()
         sycl::buffer<bool, 1> buffer1(&ret, item1);
         sycl::buffer<bool, 1> buffer2(&check, item1);
         sycl::buffer<int, 1> buffer3(array, itemN);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest1>([=]() {
-                int arr[] = {0, 0, 0, 0, 1, 1, 1, 1};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access[0], arr, N);
-                if (check_access[0])
-                {
-                    auto ret = true;
-                    for (int i = 0; i < 5; ++i)
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest1>([=]() {
+                    int arr[] = {0, 0, 0, 0, 1, 1, 1, 1};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access[0], arr, N);
+                    if (check_access[0])
                     {
-                        for (int j = 4; j < 7; ++j)
+                        auto ret = true;
+                        for (int i = 0; i < 5; ++i)
                         {
-                            ret &= (lower_bound(&access[0] + i, &access[0] + j, 1) == &access[0] + 4);
+                            for (int j = 4; j < 7; ++j)
+                            {
+                                ret &= (lower_bound(&access[0] + i, &access[0] + j, 1) == &access[0] + 4);
+                            }
                         }
+                        ret_access[0] = ret;
                     }
-                    ret_access[0] = ret;
-                }
-            });
-        }).wait();
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(tmp, array, N);
@@ -70,15 +70,12 @@ kernel_test()
         return false;
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of lower_bound in kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

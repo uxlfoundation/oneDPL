@@ -22,7 +22,6 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     {
         auto ret = true;
         {
@@ -48,7 +47,6 @@ main()
 
         EXPECT_TRUE(ret, "Wrong result of work with dpl::array::begin");
     }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

@@ -16,6 +16,31 @@
 #ifndef _TEST_CONFIG_H
 #define _TEST_CONFIG_H
 
+// Any include from standard library required to have correct state of _GLIBCXX_RELEASE
+#if __has_include(<version>)
+#   include <version>
+#else
+#   include <ciso646>
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// *** When updating we must audit each usage to ensure that the issue still exists in the latest version ***
+
+//
+// This section contains macros representing the "Latest" version of compilers, STL implementations, etc. for use in
+// broken macros to represent the latest version of something which still has an ongoing issue. The intention is to
+// update this section regularly to reflect the latest version.
+//
+// When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
+// before updating to the newest version in this section.
+
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250300
+
+#define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 #define _PSTL_TEST_STRING(X) _PSTL_TEST_STRING_AUX(oneapi/dpl/X)
 #define _PSTL_TEST_STRING_AUX(X) #X
 //to support the optional including: <algorithm>, <memory>, <numeric> or <pstl/algorithm>, <pstl/memory>, <pstl/numeric>
@@ -30,9 +55,6 @@
     (!_DEBUG && __INTEL_COMPILER >= 1800 && __INTEL_COMPILER < 1900 && _MSC_VER == 1910)
 // ICC 18 doesn't vectorize the loop
 #define _PSTL_ICC_18_TEST_EARLY_EXIT_MONOTONIC_RELEASE_BROKEN (!_DEBUG && __INTEL_COMPILER && __INTEL_COMPILER == 1800)
-// clang 900.0.38 produces fatal error: error in backend: Section too large
-#define _PSTL_CLANG_TEST_BIG_OBJ_DEBUG_32_BROKEN                                                                      \
-    (__i386__ && PSTL_USE_DEBUG && __clang__ && _PSTL_CLANG_VERSION <= 90000)
 // ICC 18 generates wrong result with omp simd early_exit
 #define _PSTL_ICC_18_TEST_EARLY_EXIT_AVX_RELEASE_BROKEN                                                               \
     (!_DEBUG && __INTEL_COMPILER == 1800 && __AVX__ && !__AVX2__ && !__AVX512__)
@@ -41,11 +63,11 @@
     (!PSTL_USE_DEBUG && (__linux__ || __APPLE__) && __INTEL_COMPILER == 1900)
 // ICC 19 generates wrong result with UDS on Windows
 #define _PSTL_ICC_19_TEST_SIMD_UDS_WINDOWS_RELEASE_BROKEN (__INTEL_COMPILER == 1900 && _MSC_VER && !_DEBUG)
-// ICPC compiler generates wrong "openMP simd" code for a user defined scan operation(UDS) for MacOS, Linuxand Windows
+// ICPC compiler generates wrong "openMP simd" code for a user defined scan operation(UDS)
 #define _PSTL_ICC_TEST_SIMD_UDS_BROKEN                                                                                \
     (__INTEL_COMPILER && __INTEL_COMPILER_BUILD_DATE < 20211123)
 // ICC 18,19 generate wrong result
-#define _PSTL_ICC_18_19_TEST_SIMD_MONOTONIC_WINDOWS_RELEASE_BROKEN													  \
+#define _PSTL_ICC_18_19_TEST_SIMD_MONOTONIC_WINDOWS_RELEASE_BROKEN                                                    \
     ((__INTEL_COMPILER == 1800 || __INTEL_COMPILER == 1900) && _MSC_VER && !_DEBUG)
 // ICC 18,19 generate wrong result with for_loop_strided and reverse iterators
 #define _PSTL_ICC_18_19_TEST_REVERSE_ITERATOR_WITH_STRIDE_BROKEN                                                      \
@@ -54,16 +76,25 @@
 #define _PSTL_STD_UNINITIALIZED_FILL_BROKEN (_MSC_VER == 1900)
 // GCC10 produces wrong answer calling exclusive_scan using vectorized polices
 #define TEST_GCC10_EXCLUSIVE_SCAN_BROKEN (_GLIBCXX_RELEASE == 10)
+// GCC7 std::get doesn't return const rvalue reference from const rvalue reference of tuple
+#define _PSTL_TEST_GCC7_RVALUE_TUPLE_GET_BROKEN (_GLIBCXX_RELEASE > 0 && _GLIBCXX_RELEASE < 8)
 
 #define _PSTL_SYCL_TEST_USM 1
 
-// Enable test when the DPC++ backend is available
-#if ((defined(CL_SYCL_LANGUAGE_VERSION) || defined(SYCL_LANGUAGE_VERSION)) &&                                         \
-     (__has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>))) &&                                             \
-    (!defined(ONEDPL_USE_DPCPP_BACKEND) || ONEDPL_USE_DPCPP_BACKEND != 0)
-#define TEST_DPCPP_BACKEND_PRESENT 1
+#define TEST_SYCL_HEADER_PRESENT (__has_include(<sycl/sycl.hpp>) || __has_include(<CL/sycl.hpp>))
+#define TEST_SYCL_LANGUAGE_VERSION_PRESENT (SYCL_LANGUAGE_VERSION || CL_SYCL_LANGUAGE_VERSION)
+#define TEST_SYCL_AVAILABLE (TEST_SYCL_HEADER_PRESENT && TEST_SYCL_LANGUAGE_VERSION_PRESENT)
+
+// If SYCL is available, and DPCPP backend is not explicitly turned off, enable its testing
+#if TEST_SYCL_AVAILABLE && !defined(ONEDPL_USE_DPCPP_BACKEND)
+#    define TEST_DPCPP_BACKEND_PRESENT 1
+// If DPCPP backend was explicitly requested, enable its testing, even if SYCL availability has not been proven
+// this can be used to force DPCPP backend testing for environments where SYCL_LANGUAGE_VERSION is not predefined
+#elif ONEDPL_USE_DPCPP_BACKEND
+#    define TEST_DPCPP_BACKEND_PRESENT 1
+// Define to 0 in other cases since some tests may rely at the macro value at runtime
 #else
-#define TEST_DPCPP_BACKEND_PRESENT 0
+#    define TEST_DPCPP_BACKEND_PRESENT 0
 #endif
 
 #ifdef __SYCL_UNNAMED_LAMBDA__
@@ -87,6 +118,15 @@
 #define TEST_LONG_RUN 0
 #endif
 
+// Enable check compilation with different policy value category
+#ifndef TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+#    define TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY (!__SYCL_UNNAMED_LAMBDA__ || TEST_EXPLICIT_KERNEL_NAMES)
+#endif
+
+#ifndef TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+#    define TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS 1
+#endif
+
 // Enable test when the TBB backend is available
 #if !defined(ONEDPL_USE_TBB_BACKEND) || ONEDPL_USE_TBB_BACKEND
 #define TEST_TBB_BACKEND_PRESENT 1
@@ -104,6 +144,25 @@
 #endif
 #endif //!defined(_ENABLE_RANGES_TESTING)
 
+#if (__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && __has_include(<version>)
+#    include <version>
+#    define TEST_STD_FEATURE_MACROS_PRESENT 1
+#endif
+
+#if TEST_STD_FEATURE_MACROS_PRESENT
+// Make sure _ENABLE_STD_RANGES_TESTING is always defined for the use at runtime, e.g. by TestUtils::done
+// Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
+#   if __cpp_lib_ranges >= 201911L && !(__clang__ && __clang_major__ < 16)
+#       define _ENABLE_STD_RANGES_TESTING 1
+#   else
+#       define _ENABLE_STD_RANGES_TESTING 0
+#   endif
+#   define TEST_CPP20_SPAN_PRESENT (__cpp_lib_span >= 202002L)
+#else
+#   define _ENABLE_STD_RANGES_TESTING 0
+#   define TEST_CPP20_SPAN_PRESENT 0
+#endif // TEST_STD_FEATURE_MACROS_PRESENT
+
 #define TEST_HAS_NO_INT128
 #define _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE (_MSVC_STL_VERSION < 143)
 
@@ -117,29 +176,154 @@
 
 #define _PSTL_MSVC_LESS_THAN_CPP20_COMPLEX_CONSTEXPR_BROKEN (_MSC_VER && __cplusplus < 202002L && _MSVC_LANG < 202002L)
 
-#define _PSTL_ICC_TEST_COMPLEX_ASIN_MINUS_INF_NAN_BROKEN_SIGNBIT __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_COSH_MINUS_INF_MINUS_ZERO_BROKEN_SIGNBIT __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_COSH_MINUS_ZERO_MINUS_ZERO_BROKEN_SIGNBIT __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_POW_COMPLEX_COMPLEX_PASS_BROKEN_TEST_EDGES __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_POW_COMPLEX_SCALAR_PASS_BROKEN_TEST_EDGES __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_POW_SCALAR_COMPLEX_PASS_BROKEN_TEST_EDGES __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES __INTEL_LLVM_COMPILER
-#define _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES __INTEL_LLVM_COMPILER
+#define _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER (__INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+
+#define _PSTL_ICC_TEST_COMPLEX_ASIN_MINUS_INF_NAN_BROKEN_SIGNBIT          _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_COSH_MINUS_INF_MINUS_ZERO_BROKEN_SIGNBIT   _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_COSH_MINUS_ZERO_MINUS_ZERO_BROKEN_SIGNBIT  _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_POW_COMPLEX_COMPLEX_PASS_BROKEN_TEST_EDGES _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_POW_COMPLEX_SCALAR_PASS_BROKEN_TEST_EDGES  _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_POW_SCALAR_COMPLEX_PASS_BROKEN_TEST_EDGES  _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES       _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES                    _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+#define _PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES                     (20240201 < __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_ICC_TEST_COMPLEX_EXP_BROKEN_TEST_EDGES_LATEST              (20240201 < __INTEL_LLVM_COMPILER && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+#define _PSTL_TEST_COMPLEX_ACOS_BROKEN_IN_KERNEL                         (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_TEST_COMPLEX_EXP_BROKEN                                    (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+#define _PSTL_TEST_COMPLEX_TANH_BROKEN_IN_KERNEL                         (__SYCL_DEVICE_ONLY__ && __INTEL_LLVM_COMPILER < 20250100)
+
+
 #define _PSTL_ICC_TEST_COMPLEX_ISINF_BROKEN (_MSVC_STL_VERSION && __INTEL_LLVM_COMPILER)
 #define _PSTL_ICC_TEST_COMPLEX_ISNAN_BROKEN (_MSVC_STL_VERSION && __INTEL_LLVM_COMPILER)
+
+#define _PSTL_TEST_COMPLEX_OP_BROKEN (_MSVC_STL_VERSION && _MSVC_STL_VERSION <= _PSTL_TEST_LATEST_MSVC_STL_VERSION)
+
+#define _PSTL_TEST_COMPLEX_ACOS_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_ACOSH_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_ASINH_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_ATANH_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_COS_BROKEN   _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_COSH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_LOG10_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_SIN_BROKEN   _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_SINH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_TANH_BROKEN  _PSTL_TEST_COMPLEX_OP_BROKEN
+
+#define _PSTL_TEST_COMPLEX_OP_USING_DOUBLE (_MSVC_STL_VERSION && _MSVC_STL_VERSION <= _PSTL_TEST_LATEST_MSVC_STL_VERSION)
+#define _PSTL_TEST_COMPLEX_OP_ACOS_USING_DOUBLE               _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ACOSH_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ASIN_USING_DOUBLE               _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_ASINH_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_LOG_USING_DOUBLE                _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_LOG10_USING_DOUBLE              _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+#define _PSTL_TEST_COMPLEX_OP_POW_SCALAR_COMPLEX_USING_DOUBLE _PSTL_TEST_COMPLEX_OP_USING_DOUBLE
+
+// oneAPI DPC++ compiler 2025.0.0 and earlier is unable to eliminate a "dead" function call to an undefined function
+// within a sycl kernel which MSVC uses to allow comparisons with literal zero without warning
+#define _PSTL_TEST_COMPARISON_BROKEN                                                                                   \
+    ((__cplusplus >= 202002L || _MSVC_LANG >= 202002L) && _MSVC_STL_VERSION >= 143 && _MSVC_STL_UPDATE >= 202303L &&   \
+    __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER < 20250100)
+
+#define _PSTL_TEST_COMPLEX_TIMES_COMPLEX_BROKEN (_PSTL_TEST_COMPLEX_OP_BROKEN || _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER)
+#define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN _PSTL_TEST_COMPLEX_OP_BROKEN
+#define _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER _PSTL_TEST_COMPLEX_OP_BROKEN_IN_INTEL_LLVM_COMPILER
+
+#define _PSTL_ICC_TEST_UNDERLYING_TYPE_BROKEN (_GLIBCXX_RELEASE && _GLIBCXX_RELEASE < 9)
+
+// Known limitation:
+// Due to specifics of Microsoft* Visual C++, some standard floating-point math functions require device support for double precision.
+#define _PSTL_ICC_TEST_COMPLEX_MSVC_MATH_DOUBLE_REQ _MSC_VER
 
 #define _PSTL_CLANG_TEST_COMPLEX_ACOS_IS_NAN_CASE_BROKEN __clang__
 #define _PSTL_CLANG_TEST_COMPLEX_ATAN_IS_CASE_BROKEN __clang__
 #define _PSTL_CLANG_TEST_COMPLEX_SIN_IS_CASE_BROKEN __clang__
 
-#define TEST_DYNAMIC_SELECTION_AVAILABLE (__INTEL_LLVM_COMPILER >= 20230000)
+#define TEST_DYNAMIC_SELECTION_AVAILABLE (TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER >= 20230000)
 
 // oneAPI DPC++ compiler in 2023.2 release build crashes during optimization of reduce_by_segment.pass.cpp
 // with TBB backend.
 #if !PSTL_USE_DEBUG && TEST_TBB_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER)
-#   define _PSTL_ICPX_TEST_RED_BY_SEG_OPTIMIZER_CRASH (__INTEL_LLVM_COMPILER == 20230200)
+#   define _PSTL_ICPX_TEST_RED_BY_SEG_OPTIMIZER_CRASH ((__INTEL_LLVM_COMPILER >= 20230200) && (__INTEL_LLVM_COMPILER <= 20240100))
 #else
 #   define _PSTL_ICPX_TEST_RED_BY_SEG_OPTIMIZER_CRASH 0
 #endif
+
+// If the workaround macro for the 64-bit type bug is not defined by the user, then exclude 64-bit type testing
+// in reduce_by_segment.pass.cpp.
+// TODO: When a driver fix is provided to resolve this issue, consider altering this macro or checking the driver version at runtime
+// of the underlying sycl::device to determine whether to include or exclude 64-bit type tests.
+#if !PSTL_USE_DEBUG && defined(__INTEL_LLVM_COMPILER)
+#    define _PSTL_ICPX_TEST_RED_BY_SEG_BROKEN_64BIT_TYPES 1
+#endif
+
+// Group reduction produces wrong results with multiplication of 64-bit for certain driver versions
+// TODO: When a driver fix is provided to resolve this issue, consider altering this macro or checking the driver version at runtime
+// of the underlying sycl::device to determine whether to include or exclude 64-bit type tests.
+#define _PSTL_GROUP_REDUCTION_MULT_INT64_BROKEN 1
+
+// oneAPI DPC++ compiler 2022.2 an below show an internal compiler error during the backend code generation of
+// minmax_element.pass.cpp affecting min_element, max_element, and minmax_element calls.
+
+#define _PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN                                                                     \
+    (TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER > 0 && __INTEL_LLVM_COMPILER < 20220300)
+
+// oneAPI DPC++ compiler fails to compile the sum of an integer and an iterator to a usm-allocated std vector when
+// building for an FPGA device.  This prevents fpga compilation of usm-allocated std vector wrapped in zip, transform,
+// and permutation iterators (as a map).
+#if (TEST_DPCPP_BACKEND_PRESENT && defined(ONEDPL_FPGA_DEVICE) && defined(__INTEL_LLVM_COMPILER) &&                   \
+        __INTEL_LLVM_COMPILER < 20250100)
+#    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 1
+#else
+#    define _PSTL_ICPX_FPGA_TEST_USM_VECTOR_ITERATOR_BROKEN 0
+#endif
+
+// A specific kernel compilation order causes incorrect results on Windows with the DPCPP backend. For now, we reorder
+// the test while the issue is being reported to the compiler team. Once it is resolved, this macro can be removed
+// or limited to older compiler versions.
+#define _PSTL_RED_BY_SEG_WINDOWS_COMPILE_ORDER_BROKEN                                                                  \
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER < 20250100)
+
+// Intel(R) oneAPI DPC++/C++ compiler produces 'Unexpected kernel lambda size issue' error
+#define _PSTL_LAMBDA_PTR_TO_MEMBER_WINDOWS_BROKEN                                                                      \
+    (_MSC_VER && TEST_DPCPP_BACKEND_PRESENT && __INTEL_LLVM_COMPILER <= _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER)
+
+// To prevent the assertion from Microsoft STL implementation about the comparison of iterators from different containers
+#define _PSTL_TEST_ITERATORS_POSSIBLY_EQUAL_BROKEN (_DEBUG && _MSC_VER)
+
+#if TEST_ONLY_HETERO_POLICIES && !TEST_DPCPP_BACKEND_PRESENT
+#    error "TEST_ONLY_HETERO_POLICIES is passed but device backend is not available"
+#endif
+
+//There are issues with stable_sort for libcpp with iterators with a deleted comma operator, disable no_comma compile
+// only tests. Also, since this adds significant amount of code compilation to the build, lets be more conservative
+// about when we try to test this. Since debug build mode and unnamed lambda support dont change the code in any way
+// which should interact with what we are testing for here, lets disable it for those cases for time / build space.
+#if !defined(_LIBCPP_VERSION) && !PSTL_USE_DEBUG && (TEST_UNNAMED_LAMBDAS || !TEST_DPCPP_BACKEND_PRESENT)
+#   define TEST_NO_COMMA_ITERATORS 1
+#else
+#   define TEST_NO_COMMA_ITERATORS 0
+#endif
+
+// For icpx versions prior to 2024.1, we encounter compilation issues in device_copyable.pass tests for device copyable
+// specializations of kernel submitters. It is a test only issue.
+#if TEST_DPCPP_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER < 20240100
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 1
+#else
+#   define _PSTL_ICPX_DEVICE_COPYABLE_SUBMITTER_BROKEN 0
+#endif
+
+// There is a bug in the libc++ at the time of writing this comment with 21 being the latest major release
+// 23 is set to avoid frequent bump-ups.
+// See: https://github.com/llvm/llvm-project/blob/6096d35ea93c75f648a253a00775b4d74915c819/libcxx/include/__algorithm/ranges_set_union.h#L94
+// This line does not take into account that the iterator-based implementation may arbitrary call comp(a, b) or comp(b, a)
+// TODO: report it or contribute.
+#if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION <= 230000
+#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 1
+#else
+#    define _PSTL_LIBCPP_RANGE_SET_BROKEN 0
+#endif
+
+// Drop view throws exceptions in libstdc++ 10
+#define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
 #endif // _TEST_CONFIG_H

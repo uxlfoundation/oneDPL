@@ -27,9 +27,11 @@ using namespace TestUtils;
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
+#include "support/utils_device_copyable.h"
+
 DEFINE_TEST(test_copy)
 {
-    DEFINE_TEST_CONSTRUCTOR(test_copy)
+    DEFINE_TEST_CONSTRUCTOR(test_copy, 1.0f, 1.0f)
 
     template <typename ExecutionPolicy, typename Iterator1, typename Iterator2, typename Size, typename TExpectedValue>
     void operator()(ExecutionPolicy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Size n, TExpectedValue expected_value)
@@ -46,30 +48,6 @@ DEFINE_TEST(test_copy)
         }
     }
 }; // struct test_copy
-
-template <typename Iterator>
-struct test_copy_if
-{
-    size_t expected_buffer_size;
-    Iterator result_begin;
-public:
-    test_copy_if(size_t buf_size, Iterator res_begin)
-        : expected_buffer_size(buf_size), result_begin(res_begin) {}
-
-    template <typename ExecutionPolicy, typename Iterator1, typename Iterator2>
-    void operator()(ExecutionPolicy&& /* exec */, Iterator1 /* first1 */, Iterator1 /* last1 */, Iterator2 /* first2 */) {
-        using value_type = typename ::std::iterator_traits<Iterator1>::value_type;
-        auto predicate = [](value_type val) { return val <= 10; };
-
-        Iterator res_begin = result_begin;
-        for(int i = 0; i != expected_buffer_size; ++i) {
-            if ((i + 1) <= 10 ) {
-                EXPECT_EQ(i + 1, *res_begin, "Wrong result from copy_if with transform_iterator");
-                ++res_begin;
-            }
-        }
-    }
-}; // struct test_copy_if
 
 void test_simple_copy(size_t buffer_size)
 {
@@ -94,7 +72,7 @@ void test_simple_copy(size_t buffer_size)
     ::std::fill_n(host_source_begin, buffer_size, identity);
 
     test_copy<int> test(test_base_data);
-    TestUtils::invoke_on_all_hetero_policies<0>()(test, tr_sycl_source_begin, tr_sycl_source_end, sycl_result_begin, buffer_size, identity + 1);
+    invoke_on_all_hetero_policies<0>()(test, tr_sycl_source_begin, tr_sycl_source_end, sycl_result_begin, buffer_size, identity + 1);
 }
 
 void test_ignore_copy(size_t buffer_size)
@@ -126,7 +104,7 @@ void test_ignore_copy(size_t buffer_size)
     ::std::fill_n(host_result_begin, buffer_size, ignored);
 
     test_copy<int> test(test_base_data);
-    TestUtils::invoke_on_all_hetero_policies<1>()(test, sycl_source_begin, sycl_source_end, tr_sycl_result_begin, buffer_size, ignored);
+    invoke_on_all_hetero_policies<1>()(test, sycl_source_begin, sycl_source_end, tr_sycl_result_begin, buffer_size, ignored);
 }
 
 void test_multi_transform_copy(size_t buffer_size)
@@ -159,17 +137,49 @@ void test_multi_transform_copy(size_t buffer_size)
     ::std::fill_n(host_source_begin, buffer_size, identity);
 
     test_copy<int> test(test_base_data);
-    TestUtils::invoke_on_all_hetero_policies<2>()(test, tr3_sycl_source_begin, tr3_sycl_source_end, sycl_result_begin, buffer_size, identity + 3);
+    invoke_on_all_hetero_policies<2>()(test, tr3_sycl_source_begin, tr3_sycl_source_end, sycl_result_begin, buffer_size, identity + 3);
 }
 
+void
+test_copyable()
+{
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::counting_iterator<int>>,
+                  "counting_iterator is not device copyable");
+
+    auto trans_count = ::dpl::make_transform_iterator(oneapi::dpl::counting_iterator<int>(0), [](auto i) { return i; });
+    static_assert(sycl::is_device_copyable_v<decltype(trans_count)>,
+                  "transform_iterator is not device copyable with a counting iterator and noop lambda");
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+
+    int* ptr = sycl::malloc_shared<int>(1, q);
+    auto trans_array = ::dpl::make_transform_iterator(ptr, [](auto i) { return i; });
+    static_assert(sycl::is_device_copyable_v<decltype(trans_array)>,
+                  "transform_iterator is not device copyable with a pointer and noop lambda");
+    sycl::free(ptr, q);
+
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::transform_iterator<constant_iterator_device_copyable, noop_device_copyable>>,
+                  "transform_iterator is not device copyable with device copyable types");
+
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::transform_iterator<int*, noop_non_device_copyable>>,
+                  "transform_iterator is device copyable with non device copyable types");
+
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::transform_iterator<constant_iterator_non_device_copyable, noop_device_copyable>>,
+                  "transform_iterator is device copyable with non device copyable types");
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    size_t max_n = 10000;
-    for (size_t n = 1; n <= max_n; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    test_copyable();
+
+    size_t max_size = 10000;
+    for (size_t n = 1; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
         test_simple_copy(n);
         test_ignore_copy(n);
@@ -177,5 +187,5 @@ main()
     }
 #endif
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return done(TEST_DPCPP_BACKEND_PRESENT);
 }

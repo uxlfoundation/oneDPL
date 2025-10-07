@@ -40,7 +40,7 @@ void test_edges()
             assert(std::isfinite(r) && r > 0);
             break;
         case inf:
-#ifndef _PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES
+#if !_PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES            // testcases[33]
             assert(std::isinf(r) && r > 0);
 #endif // _PSTL_ICC_TEST_COMPLEX_NORM_MINUS_INF_NAN_BROKEN_TEST_EDGES
             break;

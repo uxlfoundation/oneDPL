@@ -13,7 +13,12 @@
 #include "../pstl/onedpl_config.h"
 
 #include "kt/kernel_param.h"
-#include "kt/esimd_radix_sort.h"
+
+#if __has_include(<sycl/ext/intel/esimd.hpp>)
+#    include "kt/esimd_radix_sort.h"
+#endif
+
 #include "kt/gpu_radix_sort.h"
+#include "kt/single_pass_scan.h"
 
 #endif // _ONEDPL_KERNEL_TEMPLATES

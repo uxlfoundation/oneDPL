@@ -19,9 +19,7 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
-// A comparison, equalivalent to std::greater<int> without the
+// A comparison, equivalent to std::greater<int> without the
 // dependency on <functional>.
 struct gt
 {
@@ -55,38 +53,40 @@ kernel_test()
         sycl::buffer<int, 1> buffer2(A, itemN);
         sycl::buffer<int, 1> buffer3(C, itemN);
         sycl::buffer<bool, 1> buffer4(&check, item1);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto access2 = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto access3 = buffer3.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer4.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest>([=]() {
-                const int A1[] = {1, 2, 3, 3, 3, 5, 8};
-                const int C1[] = {8, 5, 3, 3, 3, 2, 1};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access2[0], A1, N);
-                check_access[0] &= TestUtils::check_data(&access3[0], C1, N);
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto access2 = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto access3 = buffer3.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer4.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest>([=]() {
+                    const int A1[] = {1, 2, 3, 3, 3, 5, 8};
+                    const int C1[] = {8, 5, 3, 3, 3, 2, 1};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access2[0], A1, N);
+                    check_access[0] &= TestUtils::check_data(&access3[0], C1, N);
 
-                if (check_access[0])
-                {
-                    auto itBegin2 = &access2[0];
-                    auto itEnd2 = &access2[0] + N;
+                    if (check_access[0])
+                    {
+                        auto itBegin2 = &access2[0];
+                        auto itEnd2 = &access2[0] + N;
 
-                    ret_access[0] = (binary_search(itBegin2, itEnd2, 5));
-                    ret_access[0] &= (binary_search(itBegin2, itEnd2, first));
-                    ret_access[0] &= (binary_search(itBegin2, itEnd2, last));
-                    ret_access[0] &= (!binary_search(itBegin2, itEnd2, 4));
+                        ret_access[0] = (binary_search(itBegin2, itEnd2, 5));
+                        ret_access[0] &= (binary_search(itBegin2, itEnd2, first));
+                        ret_access[0] &= (binary_search(itBegin2, itEnd2, last));
+                        ret_access[0] &= (!binary_search(itBegin2, itEnd2, 4));
 
-                    auto itBegin3 = &access3[0];
-                    auto itEnd3 = &access3[0] + N;
+                        auto itBegin3 = &access3[0];
+                        auto itEnd3 = &access3[0] + N;
 
-                    ret_access[0] &= (binary_search(itBegin3, itEnd3, 5, gt()));
-                    ret_access[0] &= (binary_search(itBegin3, itEnd3, first, gt()));
-                    ret_access[0] &= (binary_search(itBegin3, itEnd3, last, gt()));
-                    ret_access[0] &= (!binary_search(itBegin3, itEnd3, 4, gt()));
-                }
-            });
-        }).wait();
+                        ret_access[0] &= (binary_search(itBegin3, itEnd3, 5, gt()));
+                        ret_access[0] &= (binary_search(itBegin3, itEnd3, first, gt()));
+                        ret_access[0] &= (binary_search(itBegin3, itEnd3, last, gt()));
+                        ret_access[0] &= (!binary_search(itBegin3, itEnd3, 4, gt()));
+                    }
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(A, A1, N);
@@ -95,15 +95,12 @@ kernel_test()
         return false;
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of binary_search in kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

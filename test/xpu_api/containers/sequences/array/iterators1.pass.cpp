@@ -24,7 +24,6 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = true;
     {
         sycl::queue deviceQueue = TestUtils::get_test_queue();
@@ -58,7 +57,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::begin / dpl::array::cbegin");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

@@ -14,7 +14,56 @@
 #include <chrono>
 #include <random>
 #include <algorithm>
+#include <iostream>
+#if TEST_DYNAMIC_SELECTION_AVAILABLE
 
+namespace TestUtils
+{
+template <typename Op, ::std::size_t CallNumber>
+struct unique_kernel_name;
+
+template <typename Policy, int idx>
+using new_kernel_name = unique_kernel_name<std::decay_t<Policy>, idx>;
+} // namespace TestUtils
+
+static inline void
+build_universe(std::vector<sycl::queue>& u)
+{
+    try
+    {
+        auto device_default = sycl::device(sycl::default_selector_v);
+        sycl::queue default_queue(device_default);
+        u.push_back(default_queue);
+    }
+    catch (const sycl::exception&)
+    {
+        std::cout << "SKIPPED: Unable to run with default_selector\n";
+    }
+
+    try
+    {
+        auto device_gpu = sycl::device(sycl::gpu_selector_v);
+        sycl::queue gpu_queue(device_gpu);
+        u.push_back(gpu_queue);
+    }
+    catch (const sycl::exception&)
+    {
+        std::cout << "SKIPPED: Unable to run with gpu_selector\n";
+    }
+
+    try
+    {
+        auto device_cpu = sycl::device(sycl::cpu_selector_v);
+        sycl::queue cpu_queue(device_cpu);
+        u.push_back(cpu_queue);
+    }
+    catch (const sycl::exception&)
+    {
+        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+    }
+}
+
+#endif // TEST_DYNAMIC_SELECTION_AVAILABLE
 template <typename Policy, typename T>
 int
 test_initialization(const std::vector<T>& u)
@@ -23,7 +72,6 @@ test_initialization(const std::vector<T>& u)
     using my_policy_t = Policy;
     my_policy_t p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
-    auto u2s = u2.size();
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
         std::cout << "ERROR: provided resources and queried resources are not equal\n";
@@ -46,7 +94,6 @@ test_initialization(const std::vector<T>& u)
     }
     p2.initialize(u);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
-    auto u3s = u3.size();
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
         std::cout << "ERROR: reported resources and queried resources are not equal after deferred initialization\n";
@@ -108,7 +155,7 @@ test_select(UniverseContainer u, ResourceFunction&& f)
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -134,7 +181,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int off
                     return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
             };
             auto s = oneapi::dpl::experimental::select(p);
-            auto e = oneapi::dpl::experimental::submit(s, func);
+            oneapi::dpl::experimental::submit(s, func);
         }
         oneapi::dpl::experimental::wait(p.get_submission_group());
     }
@@ -171,7 +218,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -249,7 +296,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, int off
 
 template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, int offset = 0)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
 {
     using my_policy_t = Policy;
     my_policy_t p{u};
@@ -317,5 +364,6 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, int offset = 0)
     std::cout << "submit_and_wait: OK\n";
     return 0;
 }
+
 
 #endif /* _ONEDPL_TEST_DYNAMIC_SELECTION_UTILS_H */

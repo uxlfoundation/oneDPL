@@ -19,18 +19,15 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 struct NoDefault
 {
     NoDefault() {}
     NoDefault(int) {}
 };
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = true;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -39,14 +36,12 @@ main()
             auto ret_acc = buf.get_access<sycl::access::mode::write>(cgh);
             cgh.single_task<class KernelTest1>([=]() {
                 {
-                    typedef float T;
-                    typedef dpl::array<T, 3> C;
+                    typedef dpl::array<float, 3> C;
                     C c;
                     ret_acc[0] &= (c.size() == 3);
                 }
                 {
-                    typedef int T;
-                    typedef dpl::array<T, 0> C;
+                    typedef dpl::array<int, 0> C;
                     C c;
                     ret_acc[0] &= (c.size() == 0);
                 }
@@ -64,7 +59,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

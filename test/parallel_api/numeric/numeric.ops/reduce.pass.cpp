@@ -19,6 +19,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #include "support/utils.h"
+#include "support/utils_device_copyable.h"
 
 using namespace TestUtils;
 
@@ -29,7 +30,7 @@ struct test_long_reduce
     void
     operator()(Policy&& exec, Iterator first, Iterator last, T init, BinaryOp binary, T expected)
     {
-        T result_r = ::std::reduce(exec, first, last, init, binary);
+        T result_r = std::reduce(std::forward<Policy>(exec), first, last, std::move(init), binary);
         EXPECT_EQ(expected, result_r, "bad result from reduce(exec, first, last, init, binary_op)");
     }
 };
@@ -53,6 +54,15 @@ test_long_form(T init, BinaryOp binary_op, F f)
 
         invoke_on_all_policies<0>()(test_long_reduce<T>(), in.begin(), in.end(), init, binary_op, expected);
         invoke_on_all_policies<1>()(test_long_reduce<T>(), in.cbegin(), in.cend(), init, binary_op, expected);
+        if constexpr (std::is_same_v<BinaryOp, std::plus<T>>)
+        {
+            invoke_on_all_policies<2>()(test_long_reduce<T>(), in.begin(), in.end(), NoDefaultCtorWrapper<T>{init},
+                                        std::plus<NoDefaultCtorWrapper<T>>{}, NoDefaultCtorWrapper<T>{expected});
+            // Test with MoveOnlyWrapper on host policies
+            iterator_invoker<std::random_access_iterator_tag, /*reverse_iterator=*/std::false_type>()(
+                oneapi::dpl::execution::par_unseq, test_long_reduce<T>(), in.begin(), in.end(),
+                MoveOnlyWrapper<T>{init}, std::plus<MoveOnlyWrapper<T>>{}, MoveOnlyWrapper<T>{expected});
+        }
     }
 }
 
@@ -64,8 +74,8 @@ struct test_short_reduce
     {
         using namespace std;
 
-        Sum r0 = init + reduce(exec, first, last);
-        EXPECT_EQ(expected, r0, "bad result from reduce(exec, first, last)");
+        Sum r0 = init + reduce(std::forward<Policy>(exec), first, last);
+        EXPECT_EQ(expected, r0, "bad result from reduce(std::forward<Policy>(exec), first, last)");
     }
 };
 
@@ -77,8 +87,8 @@ struct test_short_reduce_init
     {
         using namespace std;
 
-        Sum r1 = reduce(exec, first, last, init);
-        EXPECT_EQ(expected, r1, "bad result from reduce(exec, first, last, init)");
+        Sum r1 = reduce(std::forward<Policy>(exec), first, last, init);
+        EXPECT_EQ(expected, r1, "bad result from reduce(std::forward<Policy>(exec), first, last, init)");
     }
 };
 
@@ -101,6 +111,22 @@ test_short_forms()
     }
 }
 
+void
+test_differing_init_type()
+{
+    using InitType = std::uint64_t;
+    using InputType = std::uint32_t;
+    // Test is designed to check compilation issues, so only a single test run is sufficient.
+    std::size_t n = 10042;
+    Sequence<InputType> in(n, [](std::size_t) { return 1; });
+    InitType init = 42;
+    InitType expected = init + n;
+
+    invoke_on_all_policies<0>()(test_long_reduce<InitType>(), in.begin(), in.end(), init, std::plus<>{}, expected);
+    invoke_on_all_policies<1>()(test_long_reduce<InputType>(), in.begin(), in.end(), static_cast<InputType>(init),
+                                std::plus<>{}, static_cast<InputType>(expected));
+}
+
 int
 main()
 {
@@ -117,6 +143,10 @@ main()
 
     // Short forms are just facade for long forms, so just test with a single type.
     test_short_forms();
+
+    // Test designed to capture kernel naming issues with the edge case where the init type differs from the sequence
+    // input type with the same binary operator.
+    test_differing_init_type();
 
     return done();
 }

@@ -60,8 +60,8 @@ struct run_unique_copy
         ::std::fill_n(out_first, n, trash);
 
         // Run unique_copy
-        auto i = unique_copy(first, last, expected_first);
-        auto k = unique_copy(exec, first, last, out_first);
+        [[maybe_unused]] auto i = unique_copy(first, last, expected_first);
+        auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -73,7 +73,7 @@ struct run_unique_copy
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
 
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from unique_copy");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy effect");
 #endif
     }
@@ -119,8 +119,8 @@ struct run_unique_copy_predicate
         ::std::fill_n(out_first, n, trash);
 
         // Run unique_copy with predicate
-        auto i = unique_copy(first, last, expected_first, pred);
-        auto k = unique_copy(exec, first, last, out_first, pred);
+        [[maybe_unused]] auto i = unique_copy(first, last, expected_first, pred);
+        auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first, pred);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy with predicate effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -132,7 +132,7 @@ struct run_unique_copy_predicate
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
 
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from unique_copy with predicate");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy with predicate");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy with predicate effect");
 #endif
     }
@@ -178,7 +178,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        unique_copy(exec, input_iter, input_iter, out_iter, non_const(::std::equal_to<T>()));
+        unique_copy(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(std::equal_to<T>()));
     }
 };
 

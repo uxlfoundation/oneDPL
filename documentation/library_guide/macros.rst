@@ -8,6 +8,10 @@ Use these macros to get the current version of |onedpl_long| (|onedpl_short|).
 ================================= ==============================
 Macro                             Description
 ================================= ==============================
+``ONEDPL_SPEC_VERSION``           The version of the `specification
+                                  <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/>`_
+                                  that the implementation is compliant with.
+--------------------------------- ------------------------------
 ``ONEDPL_VERSION_MAJOR``          A decimal number for the major version of the library.
 --------------------------------- ------------------------------
 ``ONEDPL_VERSION_MINOR``          A decimal number for the minor version.
@@ -27,6 +31,26 @@ Macro                             Description
 ``_PSTL_VERSION_PATCH``           ``_PSTL_VERSION % 10``: The patch number.
 ================================= ==============================
 
+.. _feature-macros:
+
+Feature Macros
+==============
+Use these macros to test presence of specific |onedpl_short| functionality.
+
+================================== ===============================================
+Macro                              Macro values and the functionality
+================================== ===============================================
+``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
+
+                                   * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine
+---------------------------------- -----------------------------------------------
+``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
+
+                                   * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
+                                   * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
+                                   * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
+================================== ===============================================
+
 Additional Macros
 ==================
 Use these macros to control aspects of |onedpl_short| usage. You can set them in your program code
@@ -38,9 +62,7 @@ Macro                              Description
 ``PSTL_USE_NONTEMPORAL_STORES``    This macro enables the use of ``#pragma vector nontemporal``
                                    for write-only data when algorithms such as ``std::copy``, ``std::fill``, etc.,
                                    are executed with unsequenced policies.
-                                   For further details about the pragma,
-                                   see the `vector page in the Intel® oneAPI DPC++/C++ Compiler Developer Guide and Reference
-                                   <https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/current/vector.html>`_.
+                                   For further details about the pragma, see the |vector_pragma|_.
                                    If the macro evaluates to a non-zero value,
                                    the use of ``#pragma vector nontemporal`` is enabled.
                                    By default, the macro is not defined.
@@ -83,22 +105,32 @@ Macro                              Description
                                    If all parallel backends are disabled by setting respective macros to 0, algorithms
                                    with parallel policies are executed sequentially by the calling thread.
 ---------------------------------- ------------------------------
-``ONEDPL_USE_DPCPP_BACKEND``       This macro enables the use of the device execution policies.
-                                   When the macro is not defined (by default)
-                                   or evaluates to non-zero, device policies are enabled.
-                                   When the macro is set to 0 there is no dependency on
-                                   the |dpcpp_cpp| and runtime libraries.
-                                   Trying to use device policies will lead to compilation errors.
+``ONEDPL_USE_DPCPP_BACKEND``       This macro enables the use of device execution policies.
+
+                                   When the macro is not defined (default),
+                                   device policies are enabled only if SYCL support can be detected;
+                                   otherwise, they are disabled.
+                                   If the macro is set to a non-zero value, device policies are enabled unconditionally.
+                                   Setting the macro to 0 disables device policies.
+
+                                   When device policies are disabled, no SYCL dependency is introduced,
+                                   and their usage will lead to compilation errors.
 ---------------------------------- ------------------------------
 ``ONEDPL_USE_PREDEFINED_POLICIES`` This macro enables the use of predefined device policy objects,
                                    such as ``dpcpp_default`` and ``dpcpp_fpga``. When the macro is not defined (by default)
                                    or evaluates to non-zero, predefined policies objects can be used.
                                    When the macro is set to 0, predefined policies objects and make functions
-                                   without arguments, when ``make_device_policy()``,
-                                   ``make_fpga_policy()``, are not available.
+                                   without arguments (``make_device_policy()`` and ``make_fpga_policy()``) are not available.
 ---------------------------------- ------------------------------
 ``ONEDPL_ALLOW_DEFERRED_WAITING``  This macro allows waiting for completion of certain algorithms executed with
                                    device policies to be deferred. (Disabled by default.)
+
+                                   When the macro evaluates to non-zero, a call to a oneDPL algorithm with
+                                   a device policy might return before the computation completes on the device.
+
+                                   .. Warning:: Before accessing data produced or modified by the call, waiting
+                                      for completion of all tasks in the corresponding SYCL queue is required;
+                                      otherwise, the program behavior is undefined.
 ---------------------------------- ------------------------------
 ``ONEDPL_FPGA_DEVICE``             Use this macro to build your code containing |onedpl_short| parallel
                                    algorithms for FPGA devices. (Disabled by default.)

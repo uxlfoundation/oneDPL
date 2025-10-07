@@ -23,6 +23,8 @@
 #include <type_traits>
 
 #include "parallel_backend_utils.h"
+#include "execution_impl.h"
+#include "utils.h"
 
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
@@ -53,39 +55,12 @@ namespace __tbb_backend
 not an initialize array, because initialization/destruction
 would make the span be at least O(N). */
 // tbb::allocator can improve performance in some cases.
-template <typename _ExecutionPolicy, typename _Tp>
-class __buffer_impl
-{
-    tbb::tbb_allocator<_Tp> _M_allocator;
-    _Tp* _M_ptr;
-    const ::std::size_t _M_buf_size;
-    __buffer_impl(const __buffer_impl&) = delete;
-    void
-    operator=(const __buffer_impl&) = delete;
-
-  public:
-    static_assert(::std::is_same_v<_ExecutionPolicy, ::std::decay_t<_ExecutionPolicy>>);
-
-    //! Try to obtain buffer of given size to store objects of _Tp type
-    __buffer_impl(const ::std::size_t __n) : _M_allocator(), _M_ptr(_M_allocator.allocate(__n)), _M_buf_size(__n) {}
-    //! True if buffer was successfully obtained, zero otherwise.
-    operator bool() const { return _M_ptr != nullptr; }
-    //! Return pointer to buffer, or nullptr if buffer could not be obtained.
-    _Tp*
-    get() const
-    {
-        return _M_ptr;
-    }
-    //! Destroy buffer
-    ~__buffer_impl() { _M_allocator.deallocate(_M_ptr, _M_buf_size); }
-};
-
-template <typename _ExecutionPolicy, typename _Tp>
-using __buffer = __buffer_impl<::std::decay_t<_ExecutionPolicy>, _Tp>;
+template <typename _Tp>
+using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, tbb::tbb_allocator>;
 
 // Wrapper for tbb::task
 inline void
-__cancel_execution()
+__cancel_execution(oneapi::dpl::__internal::__tbb_backend_tag)
 {
 #if TBB_INTERFACE_VERSION <= 12000
     tbb::task::self().group()->cancel_group_execution();
@@ -118,10 +93,13 @@ class __parallel_for_body
 // wrapper over tbb::parallel_for
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
-__parallel_for(_ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f)
+__parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
+               std::size_t __grainsize = 1 /*matches the default grainsize value of tbb::blocked_range according to
+               the specification*/)
 {
     tbb::this_task_arena::isolate([=]() {
-        tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last), __parallel_for_body<_Index, _Fp>(__f));
+        tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last, __grainsize),
+                          __parallel_for_body<_Index, _Fp>(__f));
     });
 }
 
@@ -129,8 +107,8 @@ __parallel_for(_ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f)
 // wrapper over tbb::parallel_reduce
 template <class _ExecutionPolicy, class _Value, class _Index, typename _RealBody, typename _Reduction>
 _Value
-__parallel_reduce(_ExecutionPolicy&&, _Index __first, _Index __last, const _Value& __identity,
-                  const _RealBody& __real_body, const _Reduction& __reduction)
+__parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last,
+                  const _Value& __identity, const _RealBody& __real_body, const _Reduction& __reduction)
 {
     return tbb::this_task_arena::isolate([__first, __last, &__identity, &__real_body, &__reduction]() -> _Value {
         return tbb::parallel_reduce(
@@ -154,21 +132,21 @@ __parallel_reduce(_ExecutionPolicy&&, _Index __first, _Index __last, const _Valu
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 struct __par_trans_red_body
 {
-    alignas(_Tp) char _M_sum_storage[sizeof(_Tp)]; // Holds generalized non-commutative sum when has_sum==true
-    _Rp _M_brick_reduce;                           // Most likely to have non-empty layout
+    std::optional<_Tp> __lazy_sum;
+    _Rp _M_brick_reduce;
     _Up _M_u;
     _Cp _M_combine;
     bool _M_has_sum; // Put last to minimize size of class
-    _Tp&
+    _Tp
     sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *(_Tp*)_M_sum_storage;
+        return std::move(__lazy_sum.value());
     }
     __par_trans_red_body(_Up __u, _Tp __init, _Cp __c, _Rp __r)
         : _M_brick_reduce(__r), _M_u(__u), _M_combine(__c), _M_has_sum(true)
     {
-        new (_M_sum_storage) _Tp(__init);
+        __lazy_sum.emplace(std::move(__init));
     }
 
     __par_trans_red_body(__par_trans_red_body& __left, tbb::split)
@@ -176,17 +154,11 @@ struct __par_trans_red_body
     {
     }
 
-    ~__par_trans_red_body()
-    {
-        // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
-        if (_M_has_sum)
-            sum().~_Tp();
-    }
-
     void
     join(__par_trans_red_body& __rhs)
     {
-        sum() = _M_combine(sum(), __rhs.sum());
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_combine(std::move(__sum), std::move(__rhs.__lazy_sum.value()));
     }
 
     void
@@ -197,23 +169,24 @@ struct __par_trans_red_body
         if (!_M_has_sum)
         {
             __TBB_ASSERT(__range.size() > 1, "there should be at least 2 elements");
-            new (&_M_sum_storage)
-                _Tp(_M_combine(_M_u(__i), _M_u(__i + 1))); // The condition i+1 < j is provided by the grain size of 3
+            __lazy_sum.emplace(_M_combine(_M_u(__i), _M_u(__i + 1)));
             _M_has_sum = true;
             ::std::advance(__i, 2);
             if (__i == __j)
                 return;
         }
-        sum() = _M_brick_reduce(__i, __j, sum());
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_brick_reduce(__i, __j, std::move(__sum));
     }
 };
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 _Tp
-__parallel_transform_reduce(_ExecutionPolicy&&, _Index __first, _Index __last, _Up __u, _Tp __init, _Cp __combine,
-                            _Rp __brick_reduce)
+__parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first,
+                            _Index __last, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce)
 {
-    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, __init, __combine, __brick_reduce);
+    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, std::move(__init), __combine,
+                                                                           __brick_reduce);
     // The grain size of 3 is used in order to provide minimum 2 elements for each body
     tbb::this_task_arena::isolate(
         [__first, __last, &__body]() { tbb::parallel_reduce(tbb::blocked_range<_Index>(__first, __last, 3), __body); });
@@ -379,8 +352,8 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
 // T must have a trivial constructor and destructor.
 template <class _ExecutionPolicy, typename _Index, typename _Tp, typename _Rp, typename _Cp, typename _Sp, typename _Ap>
 void
-__parallel_strict_scan(_ExecutionPolicy&&, _Index __n, _Tp __initial, _Rp __reduce, _Cp __combine, _Sp __scan,
-                       _Ap __apex)
+__parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
+                       _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
     tbb::this_task_arena::isolate([=, &__combine]() {
         if (__n > 1)
@@ -389,7 +362,7 @@ __parallel_strict_scan(_ExecutionPolicy&&, _Index __n, _Tp __initial, _Rp __redu
             const _Index __slack = 4;
             _Index __tilesize = (__n - 1) / (__slack * __p) + 1;
             _Index __m = (__n - 1) / __tilesize;
-            __tbb_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__m + 1);
+            __tbb_backend::__buffer<_Tp> __buf(__m + 1);
             _Tp* __r = __buf.get();
             __tbb_backend::__upsweep(_Index(0), _Index(__m + 1), __tilesize, __r, __n - __m * __tilesize, __reduce,
                                      __combine);
@@ -397,7 +370,7 @@ __parallel_strict_scan(_ExecutionPolicy&&, _Index __n, _Tp __initial, _Rp __redu
             // When __apex is a no-op and __combine has no side effects, a good optimizer
             // should be able to eliminate all code between here and __apex.
             // Alternatively, provide a default value for __apex that can be
-            // recognized by metaprogramming that conditionlly executes the following.
+            // recognized by metaprogramming that conditionally executes the following.
             size_t __k = __m + 1;
             _Tp __t = __r[__k - 1];
             while ((__k &= __k - 1))
@@ -419,8 +392,8 @@ __parallel_strict_scan(_ExecutionPolicy&&, _Index __n, _Tp __initial, _Rp __redu
 
 template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
 _Tp
-__parallel_transform_scan(_ExecutionPolicy&&, _Index __n, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce,
-                          _Sp __scan)
+__parallel_transform_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __n, _Up __u,
+                          _Tp __init, _Cp __combine, _Rp __brick_reduce, _Sp __scan)
 {
     __trans_scan_body<_Index, _Up, _Tp, _Cp, _Rp, _Sp> __body(__u, __init, __combine, __brick_reduce, __scan);
     auto __range = tbb::blocked_range<_Index>(0, __n);
@@ -437,7 +410,6 @@ __parallel_transform_scan(_ExecutionPolicy&&, _Index __n, _Up __u, _Tp __init, _
 //
 // These are used by parallel implementations but do not depend on them.
 //------------------------------------------------------------------------
-#define _ONEDPL_MERGE_CUT_OFF 2000
 
 template <typename _Func>
 class __func_task;
@@ -536,7 +508,7 @@ class __root_task
     friend class __func_task<_Func>;
 };
 
-#else  // TBB_INTERFACE_VERSION <= 12000
+#else  // TBB_INTERFACE_VERSION > 12000
 class __task : public tbb::detail::d1::task
 {
   protected:
@@ -670,10 +642,16 @@ class __func_task : public __task
 
         assert(__parent != nullptr);
         assert(__parent->_M_refcount.load(::std::memory_order_relaxed) > 0);
-        if (--__parent->_M_refcount == 0)
+
+        auto __refcount = --__parent->_M_refcount;
+
+        // Placing the deallocation after the refcount decrement allows another thread to proceed with tree
+        // folding concurrently with this task cleanup.
+        __alloc.deallocate(this, *__ed);
+
+        if (__refcount == 0)
         {
             assert(__next == nullptr);
-            __alloc.deallocate(this, *__ed);
             return __parent;
         }
 
@@ -731,14 +709,16 @@ class __root_task : public __task
 };
 #endif // TBB_INTERFACE_VERSION <= 12000
 
+inline constexpr std::size_t __merge_cut_off = 2000;
+
 template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _Compare, typename _Cleanup,
           typename _LeafMerge>
 class __merge_func
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::value_type _ValueType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
 
     _RandomAccessIterator1 _M_x_beg;
     _RandomAccessIterator2 _M_z_beg;
@@ -748,9 +728,7 @@ class __merge_func
     _SizeType _M_zs;
     _Compare _M_comp;
     _LeafMerge _M_leaf_merge;
-    _SizeType _M_nsort; //number of elements to be sorted for partial_sort alforithm
-
-    static const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
+    _SizeType _M_nsort; //number of elements to be sorted for partial_sort algorithm
 
     bool _root;   //means a task is merging root task
     bool _x_orig; //"true" means X(or left ) subrange is in the original container; false - in the buffer
@@ -804,7 +782,7 @@ class __merge_func
         {
             if (__last1 - __first1 < __merge_cut_off)
             {
-                for (; __first1 != __last1; ++__first1, ++__first2)
+                for (; __first1 != __last1; ++__first1, (void)++__first2)
                     __move_value_construct()(__first1, __first2);
                 return __first2;
             }
@@ -877,13 +855,13 @@ class __merge_func
     x_less_y()
     {
         auto __nx = (_M_xe - _M_xs);
-        auto __ny = (_M_ye - _M_ys);
+        [[maybe_unused]] auto __ny = (_M_ye - _M_ys);
 
         assert(__nx > 0 && __ny > 0);
         assert(_M_nsort > 0);
 
-        auto __kx = ::std::min(_M_nsort, __nx);
-        auto __ky = ::std::min(_M_nsort, __ny);
+        auto __kx = std::min(_M_nsort, __nx);
+        [[maybe_unused]] auto __ky = std::min(_M_nsort, __ny);
 
         assert(_x_orig == _y_orig);
 
@@ -902,7 +880,7 @@ class __merge_func
     move_x_range()
     {
         const auto __nx = (_M_xe - _M_xs);
-        const auto __ny = (_M_ye - _M_ys);
+        [[maybe_unused]] const auto __ny = (_M_ye - _M_ys);
         assert(__nx > 0 && __ny > 0);
 
         if (_x_orig)
@@ -920,7 +898,7 @@ class __merge_func
     move_y_range()
     {
         const auto __nx = (_M_xe - _M_xs);
-        const auto __ny = (_M_ye - _M_ys);
+        [[maybe_unused]] const auto __ny = (_M_ye - _M_ys);
 
         if (_y_orig)
             __move_range_construct()(_M_x_beg + _M_ys, _M_x_beg + _M_ye, _M_z_beg + _M_zs + __nx);
@@ -1115,9 +1093,9 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
 class __stable_sort_func
 {
   public:
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
   private:
     _RandomAccessIterator1 _M_xs, _M_xe, _M_x_beg;
@@ -1125,7 +1103,7 @@ class __stable_sort_func
     _Compare _M_comp;
     _LeafSort _M_leaf_sort;
     bool _M_root;
-    _SizeType _M_nsort; //zero or number of elements to be sorted for partial_sort alforithm
+    _SizeType _M_nsort; //zero or number of elements to be sorted for partial_sort algorithm
 
   public:
     __stable_sort_func(_RandomAccessIterator1 __xs, _RandomAccessIterator1 __xe, _RandomAccessIterator2 __zs,
@@ -1146,9 +1124,8 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
 __task*
 __stable_sort_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, _LeafSort>::operator()(__task* __self)
 {
-    typedef __merge_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, __utils::__serial_destroy,
-                         __utils::__serial_move_merge>
-        _MergeTaskType;
+    using _MergeTaskType = __merge_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare,
+                                        __utils::__serial_destroy, __utils::__serial_move_merge>;
 
     assert(_M_nsort > 0);
 
@@ -1182,19 +1159,19 @@ __stable_sort_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, _Le
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _LeafSort>
 void
-__parallel_stable_sort(_ExecutionPolicy&&, _RandomAccessIterator __xs, _RandomAccessIterator __xe, _Compare __comp,
-                       _LeafSort __leaf_sort, ::std::size_t __nsort)
+__parallel_stable_sort(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _RandomAccessIterator __xs,
+                       _RandomAccessIterator __xe, _Compare __comp, _LeafSort __leaf_sort, ::std::size_t __nsort)
 {
     tbb::this_task_arena::isolate([=, &__nsort]() {
         //sorting based on task tree and parallel merge
-        typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _ValueType;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
+        using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+        using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
         const _DifferenceType __n = __xe - __xs;
 
         const _DifferenceType __sort_cut_off = _ONEDPL_STABLE_SORT_CUT_OFF;
         if (__n > __sort_cut_off)
         {
-            __tbb_backend::__buffer<_ExecutionPolicy, _ValueType> __buf(__n);
+            __tbb_backend::__buffer<_ValueType> __buf(__n);
             __root_task<__stable_sort_func<_RandomAccessIterator, _ValueType*, _Compare, _LeafSort>> __root{
                 __xs, __xe, __buf.get(), true, __comp, __leaf_sort, __nsort, __xs, __buf.get()};
             __task::spawn_root_and_wait(__root);
@@ -1237,11 +1214,10 @@ __task*
 __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3, __M_Compare, _LeafMerge>::
 operator()(__task* __self)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
-    const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
     if (__n <= __merge_cut_off)
     {
         _M_leaf_merge(_M_xs, _M_xe, _M_ys, _M_ye, _M_zs, _M_comp);
@@ -1274,15 +1250,14 @@ operator()(__task* __self)
 template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _RandomAccessIterator3, typename _Compare, typename _LeafMerge>
 void
-__parallel_merge(_ExecutionPolicy&&, _RandomAccessIterator1 __xs, _RandomAccessIterator1 __xe,
-                 _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye, _RandomAccessIterator3 __zs, _Compare __comp,
-                 _LeafMerge __leaf_merge)
+__parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _RandomAccessIterator1 __xs,
+                 _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
+                 _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
-    const _SizeType __merge_cut_off = _ONEDPL_MERGE_CUT_OFF;
     if (__n <= __merge_cut_off)
     {
         // Fall back on serial merge
@@ -1291,9 +1266,8 @@ __parallel_merge(_ExecutionPolicy&&, _RandomAccessIterator1 __xs, _RandomAccessI
     else
     {
         tbb::this_task_arena::isolate([=]() {
-            typedef __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3,
-                                        _Compare, _LeafMerge>
-                _TaskType;
+            using _TaskType = __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2,
+                                                  _RandomAccessIterator3, _Compare, _LeafMerge>;
             __root_task<_TaskType> __root{__xs, __xe, __ys, __ye, __zs, __comp, __leaf_merge};
             __task::spawn_root_and_wait(__root);
         });
@@ -1303,9 +1277,10 @@ __parallel_merge(_ExecutionPolicy&&, _RandomAccessIterator1 __xs, _RandomAccessI
 //------------------------------------------------------------------------
 // parallel_invoke
 //------------------------------------------------------------------------
+
 template <class _ExecutionPolicy, typename _F1, typename _F2>
 void
-__parallel_invoke(_ExecutionPolicy&&, _F1&& __f1, _F2&& __f2)
+__parallel_invoke(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _F1&& __f1, _F2&& __f2)
 {
     //TODO: a version of tbb::this_task_arena::isolate with variadic arguments pack should be added in the future
     tbb::this_task_arena::isolate(
@@ -1315,11 +1290,57 @@ __parallel_invoke(_ExecutionPolicy&&, _F1&& __f1, _F2&& __f2)
 //------------------------------------------------------------------------
 // parallel_for_each
 //------------------------------------------------------------------------
+
 template <class _ExecutionPolicy, class _ForwardIterator, class _Fp>
 void
-__parallel_for_each(_ExecutionPolicy&&, _ForwardIterator __begin, _ForwardIterator __end, _Fp __f)
+__parallel_for_each(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _ForwardIterator __begin,
+                    _ForwardIterator __end, _Fp __f)
 {
     tbb::this_task_arena::isolate([&]() { tbb::parallel_for_each(__begin, __end, __f); });
+}
+
+namespace __detail
+{
+
+// Workaround for VS 2017: declare an alias to the CRTP base template
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage;
+
+template <typename... _Ts>
+using __etls_base = __utils::__enumerable_thread_local_storage_base<__enumerable_thread_local_storage, _Ts...>;
+
+template <typename _ValueType, typename... _Args>
+struct __enumerable_thread_local_storage : public __etls_base<_ValueType, _Args...>
+{
+
+    template <typename... _LocalArgs>
+    __enumerable_thread_local_storage(_LocalArgs&&... __args)
+        : __etls_base<_ValueType, _Args...>({std::forward<_LocalArgs>(__args)...})
+    {
+    }
+
+    static std::size_t
+    get_num_threads()
+    {
+        return tbb::this_task_arena::max_concurrency();
+    }
+
+    static std::size_t
+    get_thread_num()
+    {
+        return tbb::this_task_arena::current_thread_index();
+    }
+};
+
+} // namespace __detail
+
+// enumerable thread local storage should only be created with this make function
+template <typename _ValueType, typename... _Args>
+__detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>
+__make_enumerable_tls(_Args&&... __args)
+{
+    return __detail::__enumerable_thread_local_storage<_ValueType, std::remove_reference_t<_Args>...>(
+        std::forward<_Args>(__args)...);
 }
 
 } // namespace __tbb_backend

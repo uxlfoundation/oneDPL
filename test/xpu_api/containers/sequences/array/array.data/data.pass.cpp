@@ -23,7 +23,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 class Test1;
 
 struct NoDefault
@@ -31,12 +30,10 @@ struct NoDefault
     NoDefault() {}
     NoDefault(int) {}
 };
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = true;
 
     {
@@ -58,27 +55,26 @@ main()
                     typedef float T;
                     typedef dpl::array<T, 0> C;
                     C c = {};
-                    T* p = c.data();
+                    [[maybe_unused]] T* p = c.data();
                 }
                 {
                     typedef float T;
                     typedef dpl::array<const T, 0> C;
                     C c = {{}};
-                    const T* p = c.data();
+                    [[maybe_unused]] const T* p = c.data();
                     static_assert(dpl::is_same<decltype(c.data()), const T*>::value);
                 }
                 {
                     typedef NoDefault T;
                     typedef dpl::array<T, 0> C;
                     C c = {};
-                    T* p = c.data();
+                    [[maybe_unused]] T* p = c.data();
                 }
             });
         });
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::data");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

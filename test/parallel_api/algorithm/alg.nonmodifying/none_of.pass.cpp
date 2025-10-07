@@ -20,6 +20,8 @@
 
 #include "support/utils.h"
 
+#include <type_traits>
+
 /*
   TODO: consider implementing the following tests for a better code coverage
   - correctness
@@ -38,7 +40,7 @@ struct test_none_of
     void
     operator()(ExecutionPolicy&& exec, Iterator begin, Iterator end, Predicate pred, bool expected)
     {
-        auto actualr = ::std::none_of(exec, begin, end, pred);
+        auto actualr = std::none_of(std::forward<ExecutionPolicy>(exec), begin, end, pred);
         EXPECT_EQ(expected, actualr, "result for none_of");
     }
 };
@@ -53,7 +55,9 @@ test(size_t bits)
         Sequence<T> in(n, [n, bits](size_t) { return T(2 * HashBits(n, bits - 1) ^ 1); });
 
         // Even value, or false when T is bool.
-        T spike(2 * HashBits(n, bits - 1));
+        T spike = 0;
+        if constexpr (!std::is_same_v<T, bool>)
+            spike = 2 * HashBits(n, bits - 1);
 
         invoke_on_all_policies<0>()(test_none_of<T>(), in.begin(), in.end(), is_equal_to<T>(spike), true);
         invoke_on_all_policies<1>()(test_none_of<T>(), in.cbegin(), in.cend(), is_equal_to<T>(spike), true);
@@ -79,11 +83,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        none_of(exec, iter, iter, non_const(is_even));
+        TestUtils::IsEven<float64_t> is_even;
+        none_of(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

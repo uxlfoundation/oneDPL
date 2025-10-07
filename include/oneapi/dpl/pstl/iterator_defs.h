@@ -27,87 +27,85 @@ namespace dpl
 namespace __internal
 {
 
-// Internal wrapper around ::std::iterator_traits as it is required to be
-// SFINAE-friendly(not produce "hard" error when _Ip is not an iterator)
-// only starting with C++17. Although many standard library implementations
-// provide it for older versions, we cannot rely on that.
-template <typename _Ip, typename = void>
-struct __iterator_traits
+// If std::iterator_traits<_IteratorType>::iterator_category is well-formed - compare it with _IteratorTag
+template <typename _IteratorTag, typename _IteratorType, typename = void>
+struct __is_iterator_of_category_dispatch : std::false_type
 {
 };
 
-template <typename _Ip>
-struct __iterator_traits<_Ip,
-                         __void_type<typename _Ip::iterator_category, typename _Ip::value_type,
-                                     typename _Ip::difference_type, typename _Ip::pointer, typename _Ip::reference>>
-    : ::std::iterator_traits<_Ip>
+template <typename _IteratorTag, typename _IteratorType>
+struct __is_iterator_of_category_dispatch<_IteratorTag, _IteratorType,
+                                          std::void_t<typename std::iterator_traits<_IteratorType>::iterator_category>>
+    : std::is_base_of<_IteratorTag, typename std::iterator_traits<_IteratorType>::iterator_category>
 {
 };
 
-// Handles _Tp* and const _Tp* specializations
-template <typename _Tp>
-struct __iterator_traits<_Tp*, void> : ::std::iterator_traits<_Tp*>
+// If _IteratorType::iterator_concept is well-formed - compare it with _IteratorTag
+template <typename _IteratorTag, typename _IteratorType, typename = void>
+struct __is_iterator_of_concept_dispatch : __is_iterator_of_category_dispatch<_IteratorTag, _IteratorType>
 {
 };
 
-// Make is_random_access_iterator not to fail with a 'hard' error when it's used in SFINAE with
-// a non-iterator type by providing a default value.
-template <typename _IteratorType, typename = void>
-struct __is_random_access_iterator_impl : ::std::false_type
+template <typename _IteratorTag, typename _IteratorType>
+struct __is_iterator_of_concept_dispatch<_IteratorTag, _IteratorType,
+                                         std::void_t<typename _IteratorType::iterator_concept>>
+    : std::is_base_of<_IteratorTag, typename _IteratorType::iterator_concept>
 {
 };
 
-template <typename _IteratorType>
-struct __is_random_access_iterator_impl<_IteratorType,
-                                        __void_type<typename __iterator_traits<_IteratorType>::iterator_category>>
-    : ::std::is_same<typename __iterator_traits<_IteratorType>::iterator_category, ::std::random_access_iterator_tag>
+// Since C++20 allows user specializations for std::iterator_traits to define
+// iterator_concept alias into the actual iterator category, we need to check it first
+// Primary template std::iterator_traits::iterator_concept does not provide iterator_concept alias
+template <typename _IteratorTag, typename _IteratorType, typename = void>
+struct __is_iterator_of_traits_concept_dispatch : __is_iterator_of_concept_dispatch<_IteratorTag, _IteratorType>
 {
 };
 
-/* iterator */
-template <typename _IteratorType, typename... _OtherIteratorTypes>
-struct __is_random_access_iterator
-    : ::std::conditional_t<__is_random_access_iterator_impl<_IteratorType>::value,
-                           __is_random_access_iterator<_OtherIteratorTypes...>, ::std::false_type>
+template <typename _IteratorTag, typename _IteratorType>
+struct __is_iterator_of_traits_concept_dispatch<
+    _IteratorTag, _IteratorType, std::void_t<typename std::iterator_traits<_IteratorType>::iterator_concept>>
+    : std::is_base_of<_IteratorTag, typename std::iterator_traits<_IteratorType>::iterator_concept>
 {
 };
 
-template <typename _IteratorType>
-struct __is_random_access_iterator<_IteratorType> : __is_random_access_iterator_impl<_IteratorType>
+// Until C++23, std::move_iterator::iterator_concept is std::input_iterator_tag and
+// std::random_access_iterator<std::move_iterator<...>> returns false even if the
+// base iterator is random access. Making the dispatch based on the base iterator type
+// considers std::move_iterator<random-access> a random access iterator
+template <typename _IteratorTag, typename _IteratorType>
+struct __is_iterator_of_move_dispatch : __is_iterator_of_traits_concept_dispatch<_IteratorTag, _IteratorType>
+{
+};
+
+template <typename _IteratorTag, typename _BaseIteratorType>
+struct __is_iterator_of_move_dispatch<_IteratorTag, std::move_iterator<_BaseIteratorType>>
+    : __is_iterator_of_traits_concept_dispatch<_IteratorTag, _BaseIteratorType>
+{
+};
+
+template <typename _IteratorTag, typename... _IteratorTypes>
+struct __is_iterator_of
+    : std::conjunction<__is_iterator_of_move_dispatch<_IteratorTag, std::decay_t<_IteratorTypes>>...>
+{
+};
+
+// Make is_random_access_iterator and is_forward_iterator not to fail with a 'hard' error when it's used in
+// SFINAE with a non-iterator type by providing a default value.
+template <typename... _IteratorTypes>
+struct __is_random_access_iterator : __is_iterator_of<std::random_access_iterator_tag, _IteratorTypes...>
 {
 };
 
 template <typename... _IteratorTypes>
-using __is_random_access_iterator_t = typename __is_random_access_iterator<_IteratorTypes...>::type;
+struct __is_forward_iterator : __is_iterator_of<std::forward_iterator_tag, _IteratorTypes...>
+{
+};
 
 template <typename... _IteratorTypes>
 inline constexpr bool __is_random_access_iterator_v = __is_random_access_iterator<_IteratorTypes...>::value;
 
-// struct for checking if iterator is heterogeneous or not
-template <typename Iter, typename Void = void> // for non-heterogeneous iterators
-struct is_hetero_iterator : ::std::false_type
-{
-};
-
-template <typename Iter> // for heterogeneous iterators
-struct is_hetero_iterator<Iter, ::std::enable_if_t<Iter::is_hetero::value>> : ::std::true_type
-{
-};
-// struct for checking if iterator should be passed directly to device or not
-template <typename Iter, typename Void = void> // for iterators that should not be passed directly
-struct is_passed_directly : ::std::false_type
-{
-};
-
-template <typename Iter> // for iterators defined as direct pass
-struct is_passed_directly<Iter, ::std::enable_if_t<Iter::is_passed_directly::value>> : ::std::true_type
-{
-};
-
-template <typename Iter> // for pointers to objects on device
-struct is_passed_directly<Iter, ::std::enable_if_t<::std::is_pointer_v<Iter>>> : ::std::true_type
-{
-};
+template <typename... _IteratorTypes>
+inline constexpr bool __is_forward_iterator_v = __is_forward_iterator<_IteratorTypes...>::value;
 
 } // namespace __internal
 } // namespace dpl

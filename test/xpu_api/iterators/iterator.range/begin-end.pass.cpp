@@ -47,8 +47,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 template <typename C>
 class ConstContainerTest1;
 template <typename C>
@@ -60,7 +58,7 @@ template <typename C>
 bool
 test_const_container(const C& c, typename C::value_type val)
 {
-    sycl::queue q;
+    sycl::queue q = TestUtils::get_test_queue();
     auto ret = true;
     sycl::range<1> numOfItems{1};
     sycl::buffer<C, 1> buffer1(&c, numOfItems);
@@ -91,7 +89,7 @@ test_const_container(const C& c, typename C::value_type val)
 bool
 test_initializer_list()
 {
-    sycl::queue q;
+    sycl::queue q = TestUtils::get_test_queue();
     auto ret = true;
     sycl::range<1> numOfItems{1};
     sycl::buffer<bool, 1> buffer1(&ret, numOfItems);
@@ -114,7 +112,7 @@ template <typename C>
 bool
 test_container(C& c, typename C::value_type val)
 {
-    sycl::queue q;
+    sycl::queue q = TestUtils::get_test_queue();
     auto ret = true;
     sycl::range<1> numOfItems{1};
     sycl::buffer<C, 1> buffer1(&c, numOfItems);
@@ -145,7 +143,7 @@ test_container(C& c, typename C::value_type val)
 void
 kernel_test()
 {
-    sycl::queue q;
+    sycl::queue q = TestUtils::get_test_queue();
     q.submit([&](sycl::handler& cgh) {
         cgh.single_task<class KernelTest>([=]() {
             {
@@ -187,12 +185,10 @@ kernel_test()
         });
     });
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     std::array<int, 1> a;
     a[0] = 3;
 
@@ -202,8 +198,8 @@ main()
 
     kernel_test();
 
-    EXPECT_TRUE(ret, "Wrong result of dpl::begin / dpl::end in test_container, test_const_container or test_initializer_list");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+    EXPECT_TRUE(
+        ret, "Wrong result of dpl::begin / dpl::end in test_container, test_const_container or test_initializer_list");
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

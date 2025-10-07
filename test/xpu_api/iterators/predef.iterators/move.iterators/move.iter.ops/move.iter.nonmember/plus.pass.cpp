@@ -31,8 +31,6 @@
 #include "support/test_iterators.h"
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 template <class It>
 bool
 test(It i, typename dpl::iterator_traits<It>::difference_type n, It x)
@@ -72,15 +70,12 @@ kernel_test()
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of operator+(...) in kernel_test()");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

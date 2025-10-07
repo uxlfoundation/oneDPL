@@ -28,8 +28,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 template <class It>
 bool
 test(It i)
@@ -52,7 +50,6 @@ kernel_test()
                 char s[] = "123";
                 ret_access[0] &= test(s);
 
-
                 {
                     constexpr const char* p = "123456789";
                     typedef dpl::move_iterator<const char*> MI;
@@ -66,15 +63,12 @@ kernel_test()
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of move_iterator and operator->(...) in kernel_test()");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

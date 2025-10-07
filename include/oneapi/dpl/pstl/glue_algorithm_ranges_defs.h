@@ -18,6 +18,7 @@
 
 #include "../functional"
 #include "execution_defs.h"
+#include "utils_ranges.h"
 
 namespace oneapi
 {

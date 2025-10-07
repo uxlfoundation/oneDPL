@@ -128,6 +128,51 @@ class geometric_distribution
         return result_portion_internal<size_of_type_, _Engine>(__engine, __params, __random_nums);
     }
 
+    friend bool
+    operator==(const geometric_distribution& __x, const geometric_distribution& __y)
+    {
+        return __x.p_ == __y.p_;
+    }
+
+    friend bool
+    operator!=(const geometric_distribution& __x, const geometric_distribution& __y)
+    {
+        return !(__x == __y);
+    }
+
+    template <class CharT, class Traits>
+    friend ::std::basic_ostream<CharT, Traits>&
+    operator<<(::std::basic_ostream<CharT, Traits>& __os, const geometric_distribution& __d)
+    {
+        internal::save_stream_flags<CharT, Traits> __flags(__os);
+
+        __os.setf(std::ios_base::dec | std::ios_base::left);
+        __os.fill(__os.widen(' '));
+
+        return __os << __d.p();
+    }
+
+    friend const sycl::stream&
+    operator<<(const sycl::stream& __os, const geometric_distribution& __d)
+    {
+        return __os << __d.p();
+    }
+
+    template <class CharT, class Traits>
+    friend ::std::basic_istream<CharT, Traits>&
+    operator>>(::std::basic_istream<CharT, Traits>& __is, geometric_distribution& __d)
+    {
+        internal::save_stream_flags<CharT, Traits> __flags(__is);
+
+        __is.setf(std::ios_base::dec);
+
+        double __p;
+        if (__is >> __p)
+            __d.param(geometric_distribution::param_type(__p));
+
+        return __is;
+    }
+
   private:
     // Size of type
     static constexpr int size_of_type_ = internal::type_traits_t<result_type>::num_elems;
@@ -184,7 +229,7 @@ class geometric_distribution
         result_type __res;
         oneapi::dpl::uniform_real_distribution<double> __u;
         double __tmp = sycl::log(1.0 - __params.p());
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = sycl::floor(sycl::log(1.0 - __u(__engine)) / __tmp);
         return __res;
     }

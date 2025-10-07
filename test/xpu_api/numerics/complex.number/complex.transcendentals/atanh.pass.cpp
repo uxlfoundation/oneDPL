@@ -46,9 +46,11 @@ void test_edges()
         }
         else if ( testcases[i].real() == 0 && std::isnan(testcases[i].imag()))
         {
+#if !_PSTL_TEST_COMPLEX_ATANH_BROKEN
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             assert(std::isnan(r.imag()));
+#endif // _PSTL_TEST_COMPLEX_ATANH_BROKEN
         }
         else if (std::abs(testcases[i].real()) == 1 && testcases[i].imag() == 0)
         {
@@ -62,9 +64,9 @@ void test_edges()
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             if (testcases[i].imag() > 0)
-                is_about(r.imag(),  pi/2);
+                assert(is_about(r.imag(),  pi/2));
             else
-                is_about(r.imag(), -pi/2);
+                assert(is_about(r.imag(), -pi/2));
         }
         else if (std::isfinite(testcases[i].real()) && std::isnan(testcases[i].imag()))
         {
@@ -76,24 +78,26 @@ void test_edges()
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             if (std::signbit(testcases[i].imag()))
-                is_about(r.imag(), -pi/2);
+                assert(is_about(r.imag(), -pi/2));
             else
-                is_about(r.imag(),  pi/2);
+                assert(is_about(r.imag(),  pi/2));
         }
         else if (std::isinf(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             if (std::signbit(testcases[i].imag()))
-                is_about(r.imag(), -pi/2);
+                assert(is_about(r.imag(), -pi/2));
             else
-                is_about(r.imag(),  pi/2);
+                assert(is_about(r.imag(),  pi/2));
         }
         else if (std::isinf(testcases[i].real()) && std::isnan(testcases[i].imag()))
         {
+#if !_PSTL_TEST_COMPLEX_ATANH_BROKEN
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             assert(std::isnan(r.imag()));
+#endif // _PSTL_TEST_COMPLEX_ATANH_BROKEN
         }
         else if (std::isnan(testcases[i].real()) && std::isfinite(testcases[i].imag()))
         {
@@ -102,12 +106,14 @@ void test_edges()
         }
         else if (std::isnan(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
+#if !_PSTL_TEST_COMPLEX_ATANH_BROKEN
             assert(r.real() == 0);
             assert(std::signbit(testcases[i].real()) == std::signbit(r.real()));
             if (std::signbit(testcases[i].imag()))
-                is_about(r.imag(), -pi/2);
+                assert(is_about(r.imag(), -pi/2));
             else
-                is_about(r.imag(),  pi/2);
+                assert(is_about(r.imag(),  pi/2));
+#endif // _PSTL_TEST_COMPLEX_ATANH_BROKEN
         }
         else if (std::isnan(testcases[i].real()) && std::isnan(testcases[i].imag()))
         {

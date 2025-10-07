@@ -1,23 +1,26 @@
+.. _iterator-details:
+
 Iterators
 #########
 
-The definitions of the iterators are available through the ``oneapi/dpl/iterator``
+The definitions of the iterators are available through the ``<oneapi/dpl/iterator>``
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
-* ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer
+* ``counting_iterator``: a random-access iterator-like type whose dereferenced result is an prvalue integer
   counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
-  ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type::
+  ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type:
 
-    using namespace oneapi;
+  .. code:: cpp
+
     dpl::counting_iterator<int> count_a(0);
     dpl::counting_iterator<int> count_b = count_a + 10;
     int init = count_a[0]; // OK: init == 0
     *count_b = 7; // ERROR: counting_iterator does not provide write operations
-    auto sum = std::reduce(dpl::execution::dpcpp_default,
+    auto sum = dpl::reduce(dpl::execution::dpcpp_default,
                            count_a, count_b, init); // sum is (0 + 0 + 1 + ... + 9) = 45
 
-* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of
-  ``zip_iterator`` dereferencing is a tuple-like object of an unspecified type that holds the values
+* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of dereferencing
+  ``zip_iterator`` is a temporary tuple-like object of an unspecified type that holds the values
   returned by dereferencing the member iterators, which the ``zip_iterator`` wraps. Arithmetic operations
   performed on a ``zip_iterator`` instance are also applied to each of the member iterators.
 
@@ -26,20 +29,22 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
   The ``zip_iterator`` is useful in defining by key algorithms where input iterators
   representing keys and values are processed as key-value pairs. The example below demonstrates a stable sort
-  by key, where only the keys are compared but both keys and values are swapped::
+  by key, where only the keys are compared but both keys and values are swapped:
 
-    using namespace oneapi;
+  .. code:: cpp
+
     auto zipped_begin = dpl::make_zip_iterator(keys_begin, vals_begin);
-    std::stable_sort(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
+    dpl::stable_sort(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
         [](auto lhs, auto rhs) { return get<0>(lhs) < get<0>(rhs); });
 
   The dereferenced object of ``zip_iterator`` supports the *structured binding* feature (`C++17 and above
   <https://en.cppreference.com/w/cpp/language/structured_binding>`_) for easier access to
-  wrapped iterators values::
+  wrapped iterators values:
 
-    using namespace oneapi;
+  .. code:: cpp
+
     auto zipped_begin = dpl::make_zip_iterator(sequence1.begin(), sequence2.begin(), sequence3.begin());
-    auto found = std::find(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
+    auto found = dpl::find(dpl::execution::dpcpp_default, zipped_begin, zipped_begin + n,
         [](auto tuple_like_obj) {
           auto [e1, e2, e3] = tuple_like_obj;
           return e1 == e2 && e1 == e3;
@@ -57,34 +62,61 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   The ``discard_iterator`` is useful in the implementation of stencil algorithms where the stencil is not part of the
   desired output. An example of this would be a ``copy_if`` algorithm that receives an input iterator range,
   a stencil iterator range, and copies the elements of the input whose corresponding stencil value is 1. Use
-  ``discard_iterator`` so you do not declare a temporary allocation to store the copy of the stencil::
+  ``discard_iterator`` so you do not declare a temporary allocation to store the copy of the stencil:
 
-    using namespace oneapi;
+  .. code:: cpp
+
     auto zipped_first = dpl::make_zip_iterator(first, stencil);
-    std::copy_if(dpl::execution::dpcpp_default,
+    dpl::copy_if(dpl::execution::dpcpp_default,
                  zipped_first, zipped_first + (last - first),
                  dpl::make_zip_iterator(result, dpl::discard_iterator()),
                  [](auto t){return get<1>(t) == 1;}
 
 * ``transform_iterator``: an iterator defined over another iterator whose dereferenced value is the result
-  of a function applied to the corresponding element of the original iterator. Both the type of the original
+  of a function applied to the corresponding element of the base iterator. Both the type of the base
   iterator and the unary function applied during dereference operations are required template parameters of
-  the ``transform_iterator`` class. The ``transform_iterator`` class provides three constructors:
+  the ``transform_iterator`` class.
+
+  The unary functor provided to a ``transform_iterator`` should have a ``const``-qualified call operator which accepts
+  the reference type of the base iterator as argument. The functor's call operator should not have any side effects and
+  should not modify the state of the functor object.
+
+  .. note::
+     When using ``transform_iterator`` with base iterators that return prvalues (temporary objects) upon dereferencing
+     (such as ``counting_iterator`` or ``zip_iterator``), care must be taken with the transform functor. Functors that
+     return references they accepted as input reference arguments (like ``oneapi::dpl::identity`` or ``std::identity``)
+     will create dangling references when applied to prvalues, resulting in undefined behavior. Instead, in these
+     situations, use functors that return values by copy:
+
+     .. code:: cpp
+
+       //  DANGEROUS: identity returns reference to prvalue (dangling reference)
+       auto bad_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, dpl::identity{});
+       
+       //  SAFE: custom functor returns by value
+       auto safe_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, [](auto x) { return x; });
+
+  The ``transform_iterator`` class provides the following constructors:
 
   * ``transform_iterator()``: instantiates the iterator using a default constructed base iterator and unary functor.
-  * ``transform_iterator(iter)``: instantiates the iterator using the base iterator provided and a default constructed unary functor.
+    This constructor participates in overload resolution only if the base iterator and unary functor are both default constructible.
+
+  * ``transform_iterator(iter)``: instantiates the iterator using the base iterator provided and a default constructed
+    unary functor. This constructor participates in overload resolution only if the unary functor is default constructible.
+
   * ``transform_iterator(iter, func)``: instantiates the iterator using the base iterator and unary functor provided.
 
   To simplify the construction of the iterator, ``oneapi::dpl::make_transform_iterator`` is provided. The
-  function receives the original iterator and transform operation instance as arguments, and constructs the
-  ``transform_iterator`` instance::
+  function receives the base iterator and transform operation instance as arguments, and constructs the
+  ``transform_iterator`` instance:
 
-    using namespace oneapi;
+  .. code:: cpp
+
     dpl::counting_iterator<int> first(0);
     dpl::counting_iterator<int> last(10);
     auto transform_first = dpl::make_transform_iterator(first, std::negate<int>());
     auto transform_last = transform_first + (last - first);
-    auto sum = std::reduce(dpl::execution::dpcpp_default,
+    auto sum = dpl::reduce(dpl::execution::dpcpp_default,
                            transform_first, transform_last); // sum is (0 + -1 + ... + -9) = -45
 
 * ``permutation_iterator``: an iterator whose dereferenced value set is defined by the source iterator
@@ -92,10 +124,13 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
   a functor whose index operator defines the mapping from the ``permutation_iterator`` index to the index of the
   source iterator. The ``permutation_iterator`` is useful in implementing applications where noncontiguous
   elements of data represented by an iterator need to be processed by an algorithm as though they were contiguous.
-  An example is copying every other element to an output iterator.
+  An example is copying every other element to an output iterator. The source iterator cannot be a host-side iterator
+  in cases where algorithms are executed with device policies.
 
   The ``make_permutation_iterator`` is provided to simplify construction of iterator instances. The function
-  receives the source iterator and the iterator or function object representing the index map::
+  receives the source iterator and the iterator or function object representing the index map:
+
+  .. code:: cpp
 
     struct multiply_index_by_two {
         template <typename Index>
@@ -107,7 +142,7 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     // compute the number of elements in the range between the first and last that are accessed
     // by the permutation iterator
     size_t num_elements = std::distance(first, last) / 2 + std::distance(first, last) % 2;
-    using namespace oneapi;
     auto permutation_first = dpl::make_permutation_iterator(first, multiply_index_by_two());
     auto permutation_last = permutation_first + num_elements;
-    std::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
+    dpl::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
+

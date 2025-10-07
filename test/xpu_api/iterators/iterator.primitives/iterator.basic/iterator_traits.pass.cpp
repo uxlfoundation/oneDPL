@@ -26,6 +26,15 @@
 //   typedef Category  iterator_category;
 // };
 
+/*
+  Warning  'iterator<std::forward_iterator_tag, A>' is deprecated: warning STL4015: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17.
+  (The <iterator> header is NOT deprecated.)
+  The C++ Standard has never required user-defined iterators to derive from std::iterator. To fix this warning, stop deriving from std::iterator and start providing publicly accessible typedefs named iterator_category,
+  value_type, difference_type, pointer, and reference. Note that value_type is required to be non-const, even for constant iterators.
+  You can define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING or _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS to suppress this warning.
+ */
+#define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/iterator>
@@ -34,7 +43,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 struct A
 {
 };
@@ -46,6 +54,10 @@ template <class T>
 void
 kernelTest()
 {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
     sycl::queue q = TestUtils::get_test_queue();
     q.submit([&](sycl::handler& cgh) {
         cgh.single_task<IteratorTest<T>>([=]() {
@@ -83,15 +95,15 @@ kernelTest()
             }
         });
     });
+#ifdef __clang__
+#    pragma clang diagnostic pop
+#endif
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     kernelTest<A>();
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

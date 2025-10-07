@@ -49,6 +49,8 @@ class __induction_object
   public:
     __induction_object(__value_type __var, _Sp __stride) : __var_(__var), __stride_(__stride) {}
 
+    __induction_object(const __induction_object& __other) = default;
+
     __induction_object&
     operator=(const __induction_object& __other)
     {
@@ -87,6 +89,8 @@ class __induction_object<_Tp, void>
 
   public:
     __induction_object(__value_type __var) : __var_(__var) {}
+
+    __induction_object(const __induction_object& __other) = default;
 
     __induction_object&
     operator=(const __induction_object& __other)

@@ -27,11 +27,11 @@ include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(ONEDPL_FPGA_STATIC_REPORT "Enable the static report generation for the FPGA device" OFF)
-option(ONEDPL_USE_AOT_COMPILATION "Enable the ahead of time compilation" OFF)
+option(ONEDPL_USE_AOT_COMPILATION "Enable ahead of time compilation (deprecated)" OFF)
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/pstl/onedpl_config.h
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/internal/version_impl.h
     _onedpl_version_info
     LIMIT 1024)
 string(REGEX REPLACE ".*#define ONEDPL_VERSION_MAJOR ([0-9]+).*" "\\1" _onedpl_ver_major "${_onedpl_version_info}")
@@ -69,32 +69,56 @@ if (FIND_GXX_EXE)
     execute_process(COMMAND ${FIND_GXX_EXE} -dumpfullversion OUTPUT_VARIABLE _onedpl_gxx_version)
 endif()
 
+# RelWithAsserts has the same flags as Release, but removes NDEBUG.
+# This build type can be enabled via CMAKE_BUILD_TYPE=RelWithAsserts.
+# It is useful to fully cover tests relying on asserts, such as those exported from libc++, or Tested Standard C++ API tests.
+foreach(FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS CMAKE_MODULE_LINKER_FLAGS CMAKE_SHARED_LINKER_FLAGS
+        CMAKE_STATIC_LINKER_FLAGS)
+    if (FLAGS STREQUAL "CMAKE_CXX_FLAGS")
+        string(REGEX REPLACE "(^| )[/-]DNDEBUG( |$)" " " BORROWED_FLAGS "${${FLAGS}_RELEASE}")
+    else()
+        set(BORROWED_FLAGS "${${FLAGS}_RELEASE}")
+    endif()
+    set(${FLAGS}_RELWITHASSERTS "${BORROWED_FLAGS}" CACHE STRING "Flags used during RELWITHASSERTS builds." FORCE)
+endforeach()
 
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
 include(GNUInstallDirs)
 
-# Check SYCL support by the compiler
-check_cxx_compiler_flag("-fsycl" _fsycl_option)
-if (_fsycl_option)
-    CHECK_INCLUDE_FILE_CXX("sycl/sycl.hpp" _sycl_header "-fsycl")
-    if (NOT _sycl_header)
-        CHECK_INCLUDE_FILE_CXX("CL/sycl.hpp" _sycl_header_old "-fsycl")
-    endif()
-    if (_sycl_header OR _sycl_header_old)
-        set(_sycl_support TRUE)
-    endif()
-endif()
+# Detect SYCL support
+if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+    message(STATUS "Checking for SYCL support")
 
-# Exit with an error when DPCPP backend is explicitly set and SYCL is not supported
-if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$" AND NOT _sycl_support)
-    message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -fsycl option or sycl.hpp is not available. It is required if ONEDPL_BACKEND=${ONEDPL_BACKEND}")
+    set(FSYCL_OPTION "-fsycl")
+    check_cxx_compiler_flag(${FSYCL_OPTION} _fsycl_option)
+    if (_fsycl_option)
+        set(FSYCL_OPTION_IF_SUPPORTED ${FSYCL_OPTION})
+    endif()
+
+    CHECK_INCLUDE_FILE_CXX("sycl/sycl.hpp" SYCL_HEADER ${FSYCL_OPTION_IF_SUPPORTED})
+    if (NOT SYCL_HEADER)
+        CHECK_INCLUDE_FILE_CXX("CL/sycl.hpp" SYCL_HEADER_OLD ${FSYCL_OPTION_IF_SUPPORTED})
+    endif()
+    if (SYCL_HEADER OR SYCL_HEADER_OLD)
+        set(SYCL_SUPPORT TRUE)
+    endif()
+
+    if (SYCL_SUPPORT)
+        message(STATUS "SYCL is supported")
+    else()
+        if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+            message(FATAL_ERROR "SYCL is not supported. It is required for ONEDPL_BACKEND=${ONEDPL_BACKEND}")
+        else()
+            message(STATUS "SYCL is not supported")
+        endif()
+    endif()
 endif()
 
 # Set the default backend if one has not been explicitly provided
-if (NOT ONEDPL_BACKEND)
-    if (_sycl_support)
+if (NOT DEFINED ONEDPL_BACKEND)
+    if (SYCL_SUPPORT)
         set(ONEDPL_BACKEND "dpcpp" CACHE STRING "Threading backend")
     else()
         set(ONEDPL_BACKEND "tbb" CACHE STRING "Threading backend")
@@ -108,6 +132,7 @@ endif()
 ###############################################################################
 add_library(oneDPL INTERFACE)
 target_compile_features(oneDPL INTERFACE cxx_std_17)
+target_compile_definitions(oneDPL INTERFACE $<$<CONFIG:Debug>:PSTL_USE_DEBUG=1>)
 
 if (CMAKE_BUILD_TYPE)
     message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
@@ -147,6 +172,14 @@ else()
     message(STATUS "oneDPL: ONEDPL_ENABLE_SIMD is OFF, corresponding compiler flag is not used")
 endif()
 
+if (NOT _ONEDPL_PSTL_OFFLOAD)
+    set(_ONEDPL_PSTL_OFFLOAD "off")
+else()
+    if (NOT ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
+        message(FATAL_ERROR "${ONEDPL_BACKEND} doesn't support pstl offload, dpcpp or dpcpp_only backend required")
+    endif()
+endif()
+
 if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
     string(TOUPPER "${ONEDPL_BACKEND}" ONEDPL_BACKEND_NAME)
     set(SET_BACKEND_${ONEDPL_BACKEND_NAME} TRUE)
@@ -172,25 +205,23 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
     target_compile_definitions(oneDPL INTERFACE
         $<$<CONFIG:Debug>:TBB_USE_DEBUG=1>
-        $<$<CONFIG:Debug>:PSTL_USE_DEBUG>
         $<$<BOOL:${SET_BACKEND_DPCPP_ONLY}>:ONEDPL_USE_TBB_BACKEND=0>
         $<$<BOOL:${SET_BACKEND_TBB}>:ONEDPL_USE_DPCPP_BACKEND=0>
         )
 
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-        # Enable SYCL* with compilers/compiler drivers not passing -fsycl by default
-        if (_sycl_support AND NOT CMAKE_CXX_COMPILER MATCHES ".*(dpcpp-cl|dpcpp)(.exe)?$")
-            message(STATUS "Adding -fsycl compiler option")
-            set(USE_FSYCL_OPTION TRUE)
-        endif()
-
-        # check device type
+        # check device type for oneDPL test targets
         if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW)$")
+            if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
+                message(FATAL_ERROR "PSTL offload does device selection on its own, ONEDPL_DEVICE_TYPE ${ONEDPL_DEVICE_TYPE} is useless.")
+            endif()
             message(STATUS "Using ${ONEDPL_DEVICE_TYPE} device type")
             set(ONEDPL_USE_DEVICE_${ONEDPL_DEVICE_TYPE} TRUE)
-        elseif(DEFINED ONEDPL_DEVICE_BACKEND)
+        elseif (DEFINED ONEDPL_DEVICE_BACKEND)
             message(FATAL_ERROR "Unsupported device type: ${ONEDPL_DEVICE_TYPE}.\n"
                 "Select one of the following devices: CPU, GPU, FPGA_EMU or FPGA_HW")
+        elseif (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
+            # PSTL offload does device selection on its own
         else()
             set(ONEDPL_DEVICE_TYPE "GPU")
             message(STATUS "Using a default device type (GPU)")
@@ -207,15 +238,16 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             message(STATUS "Using a default device backend (*)")
         endif()
 
+        if (INTEL_LLVM_COMPILER AND INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2023.1)
+            set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
+            set(FPGA_DEVICE_TYPE "acc")
+        else()
+            set(DEVICE_SELECTION_VARIABLE "ONEAPI_DEVICE_SELECTOR")
+            set(FPGA_DEVICE_TYPE "fpga")
+        endif()
+
         # set up device selection line basing on ONEDPL_DEVICE_BACKEND and ONEDPL_DEVICE_TYPE values
         if (DEFINED ONEDPL_DEVICE_BACKEND AND DEFINED ONEDPL_DEVICE_TYPE)
-            if (INTEL_LLVM_COMPILER AND INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2023.1)
-                set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
-                set(FPGA_DEVICE_TYPE "acc")
-            else()
-                set(DEVICE_SELECTION_VARIABLE "ONEAPI_DEVICE_SELECTOR")
-                set(FPGA_DEVICE_TYPE "fpga")
-            endif()
             if (ONEDPL_DEVICE_TYPE MATCHES "FPGA")
                 set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${FPGA_DEVICE_TYPE}")
             else()
@@ -237,6 +269,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         if (NOT ONEDPL_USE_AOT_COMPILATION)
             message(STATUS "Using just-in-time compilation")
         else()
+            message(WARNING "ONEDPL_USE_AOT_COMPILATION is deprecated and will be removed in a future release")
             if (NOT ONEDPL_AOT_ARCH)
                 if (ONEDPL_USE_DEVICE_GPU)
                     set(ONEDPL_AOT_ARCH "*")
@@ -244,6 +277,8 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
                 if (ONEDPL_USE_DEVICE_CPU)
                     set(ONEDPL_AOT_ARCH "avx")
                 endif()
+            else()
+                message(WARNING "ONEDPL_AOT_ARCH is deprecated and will be removed in a future release")
             endif()
             message(STATUS "Using ahead-of-time compilation for \"${ONEDPL_AOT_ARCH}\" architecture(s)")
 
@@ -260,7 +295,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific compiler options
         target_compile_options(oneDPL INTERFACE
-            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
+            ${FSYCL_OPTION_IF_SUPPORTED}
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             )
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
@@ -273,6 +308,16 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             endif()
         endif()
 
+        if (DEFINED ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION)
+            if(ONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION)
+                message(STATUS "Adding -DONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=1 option")
+                target_compile_options(oneDPL INTERFACE "-DONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=1")
+            else()
+                message(STATUS "Adding -DONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=0 option")
+                target_compile_options(oneDPL INTERFACE "-DONEDPL_WORKAROUND_FOR_IGPU_64BIT_REDUCTION=0")
+            endif()
+        endif()
+
         # DPC++ specific macro
         target_compile_definitions(oneDPL INTERFACE
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:ONEDPL_FPGA_DEVICE>
@@ -281,7 +326,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific link options
         target_link_libraries(oneDPL INTERFACE
-            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
+            ${FSYCL_OPTION_IF_SUPPORTED}
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
             $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
@@ -306,7 +351,7 @@ elseif(ONEDPL_BACKEND MATCHES "^(omp)$")
         if (OpenMP_CXX_FLAGS MATCHES ".*-fiopenmp.*")
             set(_openmp_flag -fopenmp)
         elseif (OpenMP_CXX_FLAGS MATCHES ".*[-/]Qiopenmp.*")
-            set(_openmp_flag /Qopenmp)
+            set(_openmp_flag -Qopenmp)
         endif()
         if (_openmp_flag)
             message(STATUS "Using ${_openmp_flag} for openMP")
@@ -335,14 +380,6 @@ else()
     endif()
 endif()
 
-if (NOT _ONEDPL_PSTL_OFFLOAD)
-    set(_ONEDPL_PSTL_OFFLOAD "off")
-else()
-    if (NOT ONEDPL_BACKEND MATCHES "^(dpcpp)$")
-        message(FATAL_ERROR "${ONEDPL_BACKEND} doesn't support pstl offload, dpcpp backend required")
-    endif()
-endif()
-
 if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
     if (_ONEDPL_PSTL_OFFLOAD STREQUAL default)
         set(FSYCL_PSTL_OFFLOAD_OPTION "-fsycl-pstl-offload")
@@ -352,35 +389,11 @@ if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
         message(FATAL_ERROR "Unknown value of _ONEDPL_PSTL_OFFLOAD = ${_ONEDPL_PSTL_OFFLOAD}")
     endif()
 
-    check_cxx_compiler_flag(${FSYCL_PSTL_OFFLOAD_OPTION}, _fsycl_pstl_offload_option)
+    check_cxx_compiler_flag("${FSYCL_PSTL_OFFLOAD_OPTION}" _fsycl_pstl_offload_option)
     if (_fsycl_pstl_offload_option)
         message(STATUS "Adding ${FSYCL_PSTL_OFFLOAD_OPTION} compiler option")
         target_compile_options(oneDPL INTERFACE ${FSYCL_PSTL_OFFLOAD_OPTION})
         target_link_libraries(oneDPL INTERFACE ${FSYCL_PSTL_OFFLOAD_OPTION})
-    else()
-        # TODO: remove this "manual" -fsycl-pstl-offload suboption substitution and replace with FATAL_ERROR
-        # message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support ${FSYCL_PSTL_OFFLOAD_OPTION}")
-        message(STATUS "Adding manual ${FSYCL_PSTL_OFFLOAD_OPTION} compiler options")
-        if (_ONEDPL_PSTL_OFFLOAD STREQUAL default)
-            set(PSTL_OFFLOAD_MACRO_VALUE 1)
-        elseif (_ONEDPL_PSTL_OFFLOAD STREQUAL cpu)
-            set(PSTL_OFFLOAD_MACRO_VALUE 2)
-        elseif (_ONEDPL_PSTL_OFFLOAD STREQUAL gpu)
-            set(PSTL_OFFLOAD_MACRO_VALUE 3)
-        else()
-            message(FATAL_ERROR "Unknown value of _ONEDPL_PSTL_OFFLOAD = ${_ONEDPL_PSTL_OFFLOAD}")
-        endif()
-
-        target_include_directories(oneDPL INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/pstl_offload)
-        target_compile_options(oneDPL INTERFACE "-D__SYCL_PSTL_OFFLOAD__=${PSTL_OFFLOAD_MACRO_VALUE}")
-    endif()
-
-    add_subdirectory(src)
-    add_dependencies(oneDPL pstloffload)
-
-    # TODO remove explicit linkage with libpstloffload
-    if (NOT _fsycl_pstl_offload_option)
-        target_link_libraries(oneDPL INTERFACE pstloffload)
     endif()
 endif()
 

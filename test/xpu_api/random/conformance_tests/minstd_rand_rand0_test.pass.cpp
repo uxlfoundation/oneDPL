@@ -5,12 +5,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file incorporates work covered by the following copyright and permission
-// notice:
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-//
 //===----------------------------------------------------------------------===//
 //
 // Abstract:
@@ -29,14 +23,14 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#if TEST_UNNAMED_LAMBDAS
 #include "common_for_conformance_tests.hpp"
 #include <oneapi/dpl/random>
-#endif // TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#endif // TEST_UNNAMED_LAMBDAS
 
 int main() {
 
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#if TEST_UNNAMED_LAMBDAS
 
     sycl::queue queue = TestUtils::get_test_queue();
 
@@ -70,7 +64,7 @@ int main() {
 #endif // TEST_LONG_RUN
     EXPECT_TRUE(!err, "Test FAILED");
 
-#endif // TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#endif // TEST_UNNAMED_LAMBDAS
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS);
+    return TestUtils::done(TEST_UNNAMED_LAMBDAS);
 }

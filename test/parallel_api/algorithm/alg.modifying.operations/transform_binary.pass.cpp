@@ -22,46 +22,6 @@
 
 using namespace TestUtils;
 
-template <typename In1, typename In2, typename Out>
-class TheOperation
-{
-    Out val;
-
-  public:
-    TheOperation(Out v) : val(v) {}
-    Out
-    operator()(const In1& x, const In2& y) const
-    {
-        return Out(val + x - y);
-    }
-};
-
-template <typename InputIterator1, typename InputIterator2, typename OutputIterator>
-void
-check_and_reset(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, OutputIterator out_first)
-{
-    typedef typename ::std::iterator_traits<OutputIterator>::value_type Out;
-    typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
-    for (; first1 != last1; ++first1, ++first2, ++out_first, ++k)
-    {
-        // check
-        Out expected = Out(1.5) + *first1 - *first2;
-        Out actual = *out_first;
-        if (::std::is_floating_point_v<Out>)
-        {
-            EXPECT_TRUE((expected > actual ? expected - actual : actual - expected) < Out(1e-7),
-                        "wrong value in output sequence");
-        }
-        else
-        {
-            EXPECT_EQ(expected, actual, "wrong value in output sequence");
-        }
-        // reset
-        *out_first = k % 7 != 4 ? 7 * k + 5 : 0;
-    }
-}
-
-template <typename T1, typename T2, typename T3>
 struct test_one_policy
 {
     template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,
@@ -70,26 +30,98 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 /* last2 */,
                OutputIterator out_first, OutputIterator /* out_last */, BinaryOp op)
     {
-        ::std::transform(exec, first1, last1, first2, out_first, op);
+        std::transform(std::forward<Policy>(exec), first1, last1, first2, out_first, op);
         check_and_reset(first1, last1, first2, out_first);
+    }
+
+    template <typename InputIterator1, typename InputIterator2, typename OutputIterator>
+    void
+    check_and_reset(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, OutputIterator out_first)
+    {
+        typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
+        for (; first1 != last1; ++first1, (void) ++first2, ++out_first, (void) ++k)
+        {
+            // check
+            using Out = decltype(get_out_type(*out_first));
+            const auto expected = get_expected<Out>(*first1, *first2);
+            auto& actual = get_actual(*out_first);
+            EXPECT_EQ(expected, actual, "wrong value in output sequence");
+            // reset
+            actual = k % 7 != 4 ? 7 * k + 5 : 0;
+        }
+    }
+    template <typename Out, typename InputT1, typename InputT2>
+    Out
+    get_expected(InputT1 val1, InputT2 val2)
+    {
+        return Out(1.5) + val1 - val2;
+    }
+    template <typename OutputT>
+    auto&
+    get_actual(OutputT& val)
+    {
+        return val;
+    }
+
+    template <typename Out, typename T1, typename T2>
+    auto
+    get_expected(oneapi::dpl::__internal::tuple<T1&>&& t1, oneapi::dpl::__internal::tuple<T2&>&& t2)
+    {
+        return Out(1.5) + std::get<0>(t1) - std::get<0>(t2);
+    }
+
+    template <typename T>
+    auto&
+    get_actual(oneapi::dpl::__internal::tuple<T&>&& t)
+    {
+        return std::get<0>(t);
+    }
+
+    template <typename T>
+    constexpr auto
+    get_out_type(T val)
+    {
+        return val;
+    }
+
+    template <typename T>
+    constexpr auto
+    get_out_type(oneapi::dpl::__internal::tuple<T&>&& t)
+    {
+        return std::get<0>(t);;
     }
 };
 
-template <typename In1, typename In2, typename Out, typename Predicate>
+template <::std::size_t CallNumber, typename In1, typename In2, typename Out, typename Predicate,
+          typename _IteratorAdapter = _Identity>
 void
-test(Predicate pred)
+test(Predicate pred, _IteratorAdapter adap = {})
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    // Testing is restricted for debug build + OpenMP backend as without optimization the compiler generates
+    // very slow code leading to test timeouts.
+
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    size_t max_size =
+#if PSTL_USE_DEBUG && ONEDPL_USE_OPENMP_BACKEND
+        10000;
+#else
+        test_sizes.back();
+#endif
+    for (size_t n : test_sizes)
     {
-        Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
-        Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
+        if (n <= max_size)
+        {
+            Sequence<In1> in1(n, [](size_t k) { return k % 5 != 1 ? In1(3 * k + 7) : 0; });
+            Sequence<In2> in2(n, [](size_t k) { return k % 7 != 2 ? In2(5 * k + 5) : 0; });
 
-        Sequence<Out> out(n, [](size_t) { return -1; });
+            Sequence<Out> out(n, [](size_t) { return -1; });
 
-        invoke_on_all_policies<0>()(test_one_policy<In1, In2, Out>(), in1.begin(), in1.end(), in2.begin(), in2.end(),
-                                    out.begin(), out.end(), pred);
-        invoke_on_all_policies<1>()(test_one_policy<In1, In2, Out>(), in1.cbegin(), in1.cend(), in2.cbegin(),
-                                    in2.cend(), out.begin(), out.end(), pred);
+            invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in1.begin()), adap(in1.end()), adap(in2.begin()),
+                                                 adap(in2.end()), adap(out.begin()), adap(out.end()), pred);
+            invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in1.cbegin()), adap(in1.cend()),
+                                                     adap(in2.cbegin()), adap(in2.cend()), adap(out.begin()),
+                                                     adap(out.end()), pred);
+        }
     }
 }
 
@@ -100,10 +132,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() {
-            InputIterator input_iter2 = input_iter;
-            transform(exec, input_iter, input_iter, input_iter2, out_iter, non_const(::std::plus<T>()));
-        });
+        InputIterator input_iter2 = input_iter;
+        transform(std::forward<Policy>(exec), input_iter, input_iter, input_iter2, out_iter, non_const(std::plus<T>()));
     }
 };
 
@@ -111,19 +141,21 @@ int
 main()
 {
     //const operator()
-    test<std::int32_t, std::int32_t, std::int32_t>(TheOperation<std::int32_t, std::int32_t, std::int32_t>(1));
-    test<float32_t, float32_t, float32_t>(TheOperation<float32_t, float32_t, float32_t>(1.5));
+    test<0, std::int32_t, std::int32_t, std::int32_t>(TheOperation<std::int32_t, std::int32_t, std::int32_t>(1));
+    test<10, float32_t, float32_t, float32_t>(TheOperation<float32_t, float32_t, float32_t>(1.5));
     //non-const operator()
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test<std::int32_t, float32_t, float32_t>(non_const(TheOperation<std::int32_t, float32_t, float32_t>(1.5)));
-    test<std::int64_t, float64_t, float32_t>(non_const(TheOperation<std::int64_t, float64_t, float32_t>(1.5)));
+    test<20, std::int32_t, float32_t, float32_t>(non_const(TheOperation<std::int32_t, float32_t, float32_t>(1.5)));
+    test<30, std::int64_t, float64_t, float32_t>(non_const(TheOperation<std::int64_t, float64_t, float32_t>(1.5)));
 #endif
-    // lambda
-    //TODO: wrong value in output sentence with std::int8_t
-    //test<std::int8_t, float64_t, std::int8_t>([](const std::int8_t& x, const float64_t& y) { return std::int8_t(std::int8_t(1.5) + x - y); });
-    test<std::int32_t, float64_t, std::int32_t>([](const std::int32_t& x, const float64_t& y) { return std::int32_t(std::int32_t(1.5) + x - y); });
+    test<40, std::int32_t, float64_t, std::int32_t>([](const std::int32_t& x, const float64_t& y) { return std::int32_t(std::int32_t(1.5) + x - y); });
 
     test_algo_basic_double<std::int16_t>(run_for_rnd_fw<test_non_const<std::int16_t>>());
+
+    //test case for zip iterator
+    test<50, std::int32_t, std::int32_t, std::int32_t>(TheOperationZip<std::int32_t>(1), _ZipIteratorAdapter{});
+
+    test<60, std::uint16_t, std::uint16_t, std::int32_t>(TheOperation<std::uint16_t, std::uint16_t, std::int32_t>(1));
 
     return done();
 }

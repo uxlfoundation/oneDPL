@@ -1,0 +1,50 @@
+name: oneDPL CI Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
+
+jobs:
+  codespell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prerequisites
+        run: |
+          sudo apt update && sudo apt install -y codespell
+      - name: Run scan
+        run: |
+          ${GITHUB_WORKSPACE}/.github/scripts/codespell.sh $(pwd)
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Set the python version to 3.12 to keep imghdr for sphinx. Could upgrade sphinx to 6.2 to use 3.x version.
+          python-version: '3.12'
+      - name: Install prerequisites
+        run: |
+          echo GITHUB_SHA_SHORT=${GITHUB_SHA::8} >> $GITHUB_ENV
+          python -m pip install -r documentation/library_guide/requirements.txt
+      - name: Build documentation
+        run: |
+          mkdir html
+          sphinx-build -b html documentation/library_guide/ html/
+      - name: Archive build directory
+        uses: actions/upload-artifact@v4
+        with:
+            name: onedpl-html-docs-${{ env.GITHUB_SHA_SHORT }}
+            path: html

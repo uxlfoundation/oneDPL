@@ -25,7 +25,6 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = true;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -67,7 +66,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::initializer_list");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

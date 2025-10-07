@@ -44,7 +44,7 @@ struct test_replace_copy
         ::std::fill_n(out_first, n, trash);
         // Run replace_copy
         ::std::replace_copy(first, last, expected_first, old_value, new_value);
-        auto k = ::std::replace_copy(exec, first, last, out_first, old_value, new_value);
+        auto k = std::replace_copy(std::forward<Policy>(exec), first, last, out_first, old_value, new_value);
         EXPECT_EQ_N(expected_first, out_first, n, "wrong replace_copy effect");
         EXPECT_TRUE(out_last == k, "wrong return value from replace_copy");
     }
@@ -65,7 +65,7 @@ struct test_replace_copy_if
         ::std::fill_n(out_first, n, trash);
         // Run replace_copy_if
         replace_copy_if(first, last, expected_first, pred, new_value);
-        auto k = replace_copy_if(exec, first, last, out_first, pred, new_value);
+        auto k = replace_copy_if(std::forward<Policy>(exec), first, last, out_first, pred, new_value);
         EXPECT_EQ_N(expected_first, out_first, n, "wrong replace_copy_if effect");
         EXPECT_TRUE(out_last == k, "wrong return value from replace_copy_if");
     }
@@ -76,7 +76,7 @@ void
 test(T trash, const T& old_value, const T& new_value, Predicate pred, Convert convert)
 {
     // Try sequences of various lengths.
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         Sequence<T> in(n, [&](size_t k) -> T { return convert(n ^ k); });
         Sequence<T> out(n, [=](size_t) { return trash; });
@@ -104,12 +104,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
-        invoke_if(exec, [&]() { replace_copy_if(exec, input_iter, input_iter, out_iter, non_const(is_even), T(0)); });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        replace_copy_if(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(is_even), T(0));
     }
 };
 
@@ -122,6 +118,10 @@ main()
 
     test<std::int32_t>(-666, 42, 99, [](const std::int32_t& x) { return x != 42; },
                   [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : -1 - std::int32_t(j); });
+
+    test<std::uint8_t>(123, 42, 99, [](const std::uint8_t& x) { return x != 42; },
+                  [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? 42 : 255; });
+
 
 #if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), Number(2001, OddTag()), Number(2017, OddTag()), IsMultiple(3, OddTag()),

@@ -2,8 +2,14 @@
 
 We welcome community contributions to oneAPI DPC++ Library (oneDPL). You can:
 
-- Submit your changes directly with a [pull request](https://github.com/oneapi-src/oneDPL/pulls).
-- Log a bug or feedback with an [issue](https://github.com/oneapi-src/oneDPL/issues).
+- Submit your changes directly with a [pull request](https://github.com/uxlfoundation/oneDPL/pulls).
+- Log a bug or feedback with an [issue](https://github.com/uxlfoundation/oneDPL/issues).
+
+# License
+
+oneDPL is licensed under the terms in [LICENSE](https://github.com/uxlfoundation/oneDPL/blob/main/LICENSE.txt).
+By contributing to the project, you agree to the license and copyright terms therein and
+release your contribution under these terms.
 
 # Pull Requests
 
@@ -13,73 +19,53 @@ your change directly to the repository:
 
 - Make sure your code is in line with our
   [coding conventions](#coding-conventions).
+- Test your code locally to identify and resolve simple issues by doing
+  [validation testing](#validation-testing).
 - Submit a
   [pull request](https://docs.github.com/en/free-pro-team@latest/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) into the
-  main branch. You may add a description of your contribution into [CREDITS.txt](https://github.com/oneapi-src/oneDPL/blob/main/CREDITS.txt).
+  main branch. You may add a description of your contribution into [CREDITS.txt](https://github.com/uxlfoundation/oneDPL/blob/main/CREDITS.txt).
+- Contributors that would like to open branches directly in the oneDPL repo instead of working via fork may request
+  write access to the repository by contacting project maintainers on
+  [UXL Foundation Slack](https://slack-invite.uxlfoundation.org/) using the
+  [#onedpl](https://uxlfoundation.slack.com/channels/onedpl) channel.
 
 # Coding Conventions
 
-Running clang-format is required, except in the [test folder](https://github.com/oneapi-src/oneDPL/tree/main/test).
+Running clang-format is required, except in the [test folder](https://github.com/uxlfoundation/oneDPL/tree/main/test).
 
-# License
+# Validation Testing
 
-oneDPL is licensed under the terms in [LICENSE](https://github.com/oneapi-src/oneDPL/blob/release_oneDPL/licensing/LICENSE.txt).
-By contributing to the project, you agree to the license and copyright terms therein and
-release your contribution under these terms.
+The oneDPL test suite is organized in the test directory by the area of code tested.
+* `general` - Basic tests of oneDPL policies and SYCL functionality needed
+* `general/sycl_iterator` - Tests of oneDPL algorithms on SYCL buffers
+* `kt` - Tests of the oneDPL experimental kernel template algorithms that require specific hardware support
+* `parallel_api` - Tests of oneDPL Parallel Algorithms
+* `pstl_offload` - Tests of support for offload using standard execution policies
+* `xpu_api` - Tests of the use of C++ standard APIs in SYCL kernels
 
-# Sign Your Work
+oneDPL validation tests can be configured through CMake to run on different devices including CPU and GPU by specifying the oneDPL backend to use and
+the device type to be used if the DPC++ backend is being tested. The oneTBB and OpenMP backends for oneDPL can be used when the device type is CPU or HOST.
 
-Please use the sign-off line at the end of the patch. Your signature certifies
-that you wrote the patch or otherwise have the right to pass it on as an
-open-source patch. The rules are simple: If you can certify
-the content below (from [developercertificate.org](http://developercertificate.org/)):
+To run oneDPL validation tests with the oneDPL build system you will need CMake and CTest installed. The following example shows how to build and run tests
+using the GPU on your local system using the Intel® oneAPI DPC++ Compiler.
 
+1. Configure the build files by running the following command that creates a build directory named `build_gpu_tests`.
 ```
-Developer Certificate of Origin
-Version 1.1
-
-Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-660 York Street, Suite 102,
-San Francisco, CA 94110 USA
-
-Everyone is permitted to copy and distribute verbatim copies of this
-license document, but changing it is not allowed.
-
-Developer's Certificate of Origin 1.1
-
-By making a contribution to this project, I certify that:
-
-(a) The contribution was created in whole or in part by me and I
-    have the right to submit it under the open source license
-    indicated in the file; or
-
-(b) The contribution is based upon previous work that, to the best
-    of my knowledge, is covered under an appropriate open source
-    license and I have the right under that license to submit that
-    work with modifications, whether created in whole or in part
-    by me, under the same open source license (unless I am
-    permitted to submit under a different license), as indicated
-    in the file; or
-
-(c) The contribution was provided directly to me by some other
-    person who certified (a), (b) or (c) and I have not modified
-    it.
-
-(d) I understand and agree that this project and the contribution
-    are public and that a record of the contribution (including all
-    personal information I submit with it, including my sign-off) is
-    maintained indefinitely and may be redistributed consistent with
-    this project or the open source license(s) involved.
+cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -DONEDPL_DEVICE_TYPE=gpu -DCMAKE_BUILD_TYPE=release -B build_gpu_tests
 ```
 
-Then you can add a line to every git commit message:
+2. Build the tests
+```
+cmake --build build_gpu_tests --target build-onedpl-tests # specify a specific test name (e.g., reduce.pass) to build a single test
+```
 
-    Signed-off-by: Name Surname <user@email.com>
+3. Run the tests from the `build_gpu_tests` directory
+```
+ctest --output-on-failure --timeout 1200 -R ^reduce.pass$ # Add -R testname (e.g., -R ^reduce.pass$) to run just one test.
+```
 
-Use your real name (sorry, no pseudonyms or anonymous contributions.)
+Before submitting a PR to the oneDPL repository please run the tests that exercise the code you have updated. If you need help identifying those tests please
+check with the maintainers on [UXL Foundation Slack](https://slack-invite.uxlfoundation.org/) using the [#onedpl](https://uxlfoundation.slack.com/channels/onedpl) channel
+or ask a question through [GitHub issues](https://github.com/uxlfoundation/oneDPL/issues).
 
-If you set your `user.name` and `user.email` git configs, you can sign your
-commit automatically with `git commit -s`.
-
-
-
+For more details on configurations available for oneDPL testing see the [CMake README](https://github.com/uxlfoundation/oneDPL/blob/main/cmake/README.md).

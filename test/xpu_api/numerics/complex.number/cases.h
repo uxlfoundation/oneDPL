@@ -17,6 +17,8 @@
 #include <cassert>
 #include <type_traits>
 
+// ATTENTION: the indexes of this array are used in the test_edges() function in comments for broken cases
+// So please add new testcases to the end of the array.
 const dpl::complex<double> testcases[] =
 {
     dpl::complex<double>( 1.e-6,  1.e-6),
@@ -234,14 +236,14 @@ template <typename T>
 constexpr auto __tol = std::numeric_limits<T>::epsilon() * 1e5;
 
 template <typename X, typename Y>
-::std::enable_if_t<!std::numeric_limits<X>::is_integer || !std::numeric_limits<Y>::is_integer>
+::std::enable_if_t<!std::numeric_limits<X>::is_integer || !std::numeric_limits<Y>::is_integer, bool>
 is_about(X x, Y y, const X eps = __tol<X>)
 {
-    assert(std::fabs(x - y) <= eps);
+    return std::fabs(x - y) <= eps;
 }
 
 template <typename T>
-::std::enable_if_t<!std::numeric_limits<T>::is_integer>
+::std::enable_if_t<!std::numeric_limits<T>::is_integer, bool>
 is_about(const dpl::complex<T>& x, const dpl::complex<T>& y, const T eps = __tol<T>)
 {
     return is_about(::std::abs(y - x), T(0.), eps);

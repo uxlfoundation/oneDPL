@@ -17,13 +17,18 @@
 #define _ONEDPL_UTILS_H
 
 #include "onedpl_config.h"
+#include "tuple_impl.h" // Internal tuple and get specializations needed by __segmented_scan_fun
 
 #include <new>
-#include <iterator>
-#include <type_traits>
 #include <tuple>
 #include <utility>
 #include <climits>
+#include <iterator>
+#include <functional>
+#include <type_traits>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -40,6 +45,12 @@
 #    endif
 #    include <cstring> // memcpy
 #endif
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+#    include <concepts> // for std::equality_comparable_with
+#endif
+
+#include "functional_impl.h"
 
 namespace oneapi
 {
@@ -70,30 +81,6 @@ __except_handler(_Fp __f) -> decltype(__f())
     }
 }
 
-template <typename _Op>
-struct __invoke_unary_op
-{
-    mutable _Op __op;
-
-    template <typename _Input, typename _Output>
-    void
-    operator()(_Input&& __x, _Output&& __y) const
-    {
-        __y = __op(::std::forward<_Input>(__x));
-    }
-};
-
-//! Unary operator that returns reference to its argument.
-struct __no_op
-{
-    template <typename _Tp>
-    _Tp&&
-    operator()(_Tp&& __a) const
-    {
-        return ::std::forward<_Tp>(__a);
-    }
-};
-
 //! Logical negation of a predicate
 template <typename _Pred>
 class __not_pred
@@ -107,7 +94,7 @@ class __not_pred
     bool
     operator()(_Args&&... __args) const
     {
-        return !_M_pred(::std::forward<_Args>(__args)...);
+        return !std::invoke(_M_pred, std::forward<_Args>(__args)...);
     }
 };
 
@@ -123,7 +110,7 @@ class __reorder_pred
     bool
     operator()(_FTp&& __a, _STp&& __b) const
     {
-        return _M_pred(::std::forward<_STp>(__b), ::std::forward<_FTp>(__a));
+        return std::invoke(_M_pred, std::forward<_STp>(__b), std::forward<_FTp>(__a));
     }
 };
 
@@ -138,6 +125,38 @@ class __pstl_assign
     operator()(const _Xp& __x, _Yp&& __y) const
     {
         ::std::forward<_Yp>(__y) = __x;
+    }
+};
+
+template <typename _F, typename _Proj>
+struct __unary_op
+{
+    //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
+    mutable _F __f;
+    mutable _Proj __proj;
+
+    template <typename _TValue>
+    decltype(auto)
+    operator()(_TValue&& __val) const
+    {
+        return std::invoke(__f, std::invoke(__proj, std::forward<_TValue>(__val)));
+    }
+};
+
+template <typename _F, typename _Proj1, typename _Proj2>
+struct __binary_op
+{
+    //'mutable' is to relax the requirements for a user functor or/and projection type operator() may be non-const
+    mutable _F __f;
+    mutable _Proj1 __proj1;
+    mutable _Proj2 __proj2;
+
+    template <typename _TValue1, typename _TValue2>
+    decltype(auto)
+    operator()(_TValue1&& __val1, _TValue2&& __val2) const
+    {
+        return std::invoke(__f, std::invoke(__proj1, std::forward<_TValue1>(__val1)),
+                           std::invoke(__proj2, std::forward<_TValue2>(__val2)));
     }
 };
 
@@ -221,24 +240,6 @@ class __pstl_max
     }
 };
 
-//! Like a polymorphic lambda for pred(...,value)
-template <typename _Tp, typename _Predicate>
-class __equal_value_by_pred
-{
-    const _Tp _M_value;
-    _Predicate _M_pred;
-
-  public:
-    __equal_value_by_pred(const _Tp& __value, _Predicate __pred) : _M_value(__value), _M_pred(__pred) {}
-
-    template <typename _Arg>
-    bool
-    operator()(_Arg&& __arg) const
-    {
-        return _M_pred(::std::forward<_Arg>(__arg), _M_value);
-    }
-};
-
 //! Like a polymorphic lambda for ==value
 template <typename _Tp>
 class __equal_value
@@ -273,19 +274,101 @@ class __not_equal_value
     }
 };
 
-template <typename _Pred>
-class __transform_functor
+template <typename _Tp>
+class __set_value
 {
-    _Pred _M_pred;
+    const _Tp _M_value;
 
   public:
-    explicit __transform_functor(_Pred __pred) : _M_pred(__pred) {}
+    explicit __set_value(const _Tp& __value) : _M_value(__value) {}
+
+    template <typename _Arg>
+    void
+    operator()(_Arg&& __arg) const
+    {
+        std::forward<_Arg>(__arg) = _M_value;
+    }
+};
+
+//TODO: to do the same fix  for output type (by re-using __transform_functor if applicable) for the other functor below:
+// __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor, __replace_copy_functor
+template <typename _F, typename _RevTag = std::false_type>
+class __transform_functor
+{
+    mutable _F __f;
+
+  public:
+    explicit __transform_functor(_F __f) : __f(std::move(__f)) {}
+
+    template <typename _Input1Type, typename _Input2Type, typename _OutputType>
+    void
+    operator()(_Input1Type&& __x, _Input2Type&& __y, _OutputType&& __output) const
+    {
+        if constexpr (_RevTag())
+            __transform_impl(std::forward<_OutputType>(__output), std::forward<_Input1Type>(__y),
+                             std::forward<_Input2Type>(__x));
+        else
+            __transform_impl(std::forward<_OutputType>(__output), std::forward<_Input1Type>(__x),
+                             std::forward<_Input2Type>(__y));
+    }
+
+    template <typename _InputType, typename _OutputType>
+    void
+    operator()(_InputType&& __x, _OutputType&& __output) const
+    {
+        __transform_impl(std::forward<_OutputType>(__output), std::forward<_InputType>(__x));
+    }
+
+  private:
+    template <typename _OutputType, typename... _Args>
+    void
+    __transform_impl(_OutputType&& __output, _Args&&... __args) const
+    {
+        static_assert(sizeof...(_Args) < 3, "A functor supports either unary or binary transformation");
+        static_assert(::std::is_invocable_v<_F, _Args...>, "A functor cannot be called with the passed arguments");
+        std::forward<_OutputType>(__output) = __f(std::forward<_Args>(__args)...);
+    }
+};
+
+template <typename _UnaryOper, typename _UnaryPred>
+class __transform_if_unary_functor
+{
+    mutable _UnaryOper _M_oper;
+    mutable _UnaryPred _M_pred;
+
+  public:
+    explicit __transform_if_unary_functor(_UnaryOper __op, _UnaryPred __pred)
+        : _M_oper(std::move(__op)), _M_pred(std::move(__pred))
+    {
+    }
+
+    template <typename _Input1Type, typename _OutputType>
+    void
+    operator()(const _Input1Type& x, _OutputType& y) const
+    {
+        if (_M_pred(x))
+            y = _M_oper(x);
+    }
+};
+
+template <typename _BinaryOper, typename _BinaryPred>
+class __transform_if_binary_functor
+{
+    mutable _BinaryOper _M_oper;
+    mutable _BinaryPred _M_pred;
+
+  public:
+    explicit __transform_if_binary_functor(_BinaryOper __op, _BinaryPred __pred)
+        : _M_oper(std::move(__op)), _M_pred(std::move(__pred))
+    {
+    }
 
     template <typename _Input1Type, typename _Input2Type, typename _OutputType>
     void
     operator()(const _Input1Type& x, const _Input2Type& y, _OutputType& z) const
     {
-        z = _M_pred(x, y);
+        if (_M_pred(x, y))
+            z = _M_oper(x, y);
     }
 };
 
@@ -357,130 +440,9 @@ __cmp_iterators_by_values(_ForwardIterator __a, _ForwardIterator __b, _Compare _
     }
 }
 
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
-{
-    auto __n = __last - __first;
-    auto __cur = __n;
-    _Size1 __it;
-    while (__n > 0)
-    {
-        __it = __first;
-        __cur = __n / 2;
-        __it += __cur;
-        if (__comp(__acc[__it], __value))
-        {
-            __n -= __cur + 1, __first = ++__it;
-        }
-        else
-            __n = __cur;
-    }
-    return __first;
-}
-
-template <typename _Acc, typename _Size1, typename _Value, typename _Compare>
-_Size1
-__pstl_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp)
-{
-    return __pstl_lower_bound(__acc, __first, __last, __value,
-                              oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
-                                  oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
-}
-
-// Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
-_Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
-{
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp);
-}
-
-template <typename _IntType, typename _Acc>
-struct _ReverseCounter
-{
-    typedef ::std::make_signed_t<_IntType> difference_type;
-
-    _IntType __my_cn;
-
-    _ReverseCounter&
-    operator++()
-    {
-        --__my_cn;
-        return *this;
-    }
-
-    template <typename _DiffType>
-    _ReverseCounter&
-    operator+=(_DiffType __val)
-    {
-        __my_cn -= __val;
-        return *this;
-    }
-
-    difference_type
-    operator-(const _ReverseCounter& __a)
-    {
-        return __a.__my_cn - __my_cn;
-    }
-
-    operator _IntType() { return __my_cn; }
-
-// TODO: Temporary hotfix. Investigate the necessity of _ReverseCounter
-// Investigate potential user types convertible to integral
-// This is the compile-time trick where we define the conversion operator to sycl::id
-// conditionally. If we can call accessor::operator[] with the type that converts to the
-// same integral type as _ReverseCounter (it means that we can call accessor::operator[]
-// with the _ReverseCounter itself) then we don't need conversion operator to sycl::id.
-// Otherwise, we define conversion operator to sycl::id.
-#if _ONEDPL_BACKEND_SYCL
-    struct __integral
-    {
-        operator _IntType();
-    };
-
-    template <typename _Tp>
-    static auto
-    __check_braces(int) -> decltype(::std::declval<_Tp>()[::std::declval<__integral>()], ::std::false_type{});
-
-    template <typename _Tp>
-    static auto
-    __check_braces(...) -> ::std::true_type;
-
-    class __private_class;
-
-    operator ::std::conditional_t<decltype(__check_braces<_Acc>(0))::value, sycl::id<1>, __private_class>()
-    {
-        return sycl::id<1>(__my_cn);
-    }
-#endif
-};
-
-// Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare>
-_Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp)
-{
-    auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
-    auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
-
-    return __pstl_upper_bound(__a, __beg, __end, __val, __reorder_pred<_Compare>{__comp});
-}
-
 // Aliases for adjacent_find compile-time dispatching
 using __or_semantic = ::std::true_type;
 using __first_semantic = ::std::false_type;
-
-// Define __void_type via this structure to handle redefinition issue.
-// See CWG 1558 for information about it.
-template <typename... _Ts>
-struct __make_void_type
-{
-    using __type = void;
-};
-
-template <typename... _Ts>
-using __void_type = typename __make_void_type<_Ts...>::__type;
 
 // is_callable_object
 template <typename _Tp, typename = void>
@@ -489,7 +451,7 @@ struct __is_callable_object : ::std::false_type
 };
 
 template <typename _Tp>
-struct __is_callable_object<_Tp, __void_type<decltype(&_Tp::operator())>> : ::std::true_type
+struct __is_callable_object<_Tp, ::std::void_t<decltype(&_Tp::operator())>> : ::std::true_type
 {
 };
 
@@ -553,25 +515,10 @@ struct __next_to_last
 template <typename _T, class _Enable = void>
 class __future;
 
-template <typename... _Bs>
-struct __conjunction : ::std::true_type
-{
-};
-
-template <typename _B1>
-struct __conjunction<_B1> : _B1
-{
-};
-
-template <typename _B1, typename... _Bs>
-struct __conjunction<_B1, _Bs...> : ::std::conditional_t<!bool(_B1::value), _B1, __conjunction<_Bs...>>
-{
-};
-
 // empty base class for type erasure
 struct __lifetime_keeper_base
 {
-    virtual ~__lifetime_keeper_base() {}
+    virtual ~__lifetime_keeper_base() = default;
 };
 
 // derived class to keep temporaries (e.g. buffer) alive
@@ -594,7 +541,7 @@ __dpl_bit_cast(const _Src& __src) noexcept
 {
 #if __cpp_lib_bit_cast >= 201806L
     return ::std::bit_cast<_Dst>(__src);
-#elif _ONEDPL_BACKEND_SYCL && _ONEDPL_LIBSYCL_VERSION >= 50300
+#elif _ONEDPL_BACKEND_SYCL && _ONEDPL_SYCL2020_BITCAST_PRESENT
     return sycl::bit_cast<_Dst>(__src);
 #elif __has_builtin(__builtin_bit_cast)
     return __builtin_bit_cast(_Dst, __src);
@@ -612,7 +559,7 @@ __dpl_bit_floor(_T __x) noexcept
 {
     if (__x == 0)
         return 0;
-#if __cpp_lib_int_pow2 >= 202002L
+#if __cpp_lib_int_pow2 >= 202002L && !_ONEDPL_STD_BIT_FLOOR_BROKEN
     return ::std::bit_floor(__x);
 #elif _ONEDPL_BACKEND_SYCL
     // Use the count-leading-zeros function
@@ -646,30 +593,329 @@ __dpl_ceiling_div(_T1 __number, _T2 __divisor)
     return (__number - 1) / __divisor + 1;
 }
 
-// TODO In C++20 we may try to use std::equality_comparable
+template <typename _T>
+std::enable_if_t<std::is_floating_point_v<_T>, bool>
+__dpl_signbit(const _T& __x)
+{
+    return std::signbit(__x);
+}
+
+// This prevents ambiguity with std::signbit for integral types on MSVC without requiring double support
+template <typename _T>
+std::enable_if_t<!std::is_floating_point_v<_T>, bool>
+__dpl_signbit(const _T& __x)
+{
+    using __unsigned_type = std::make_unsigned_t<_T>;
+    static_assert(std::is_signed_v<_T>, "Only signed types have a signbit.");
+    constexpr __unsigned_type __mask = (__unsigned_type{1} << (sizeof(_T) * 8 - 1));
+    return (__x & __mask) != 0;
+}
+
+template <typename _Size, typename _Comparator>
+_Size
+__pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
+{
+    auto __n = __last - __first;
+    auto __cur = __n;
+    _Size __idx;
+    while (__n > 0)
+    {
+        __idx = __first;
+        __cur = __n / 2;
+        __idx += __cur;
+
+        if (__comp(__idx))
+        {
+            __n -= __cur + 1;
+            __first = ++__idx;
+        }
+        else
+            __n = __cur;
+    }
+    return __first;
+}
+
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(__first1, __last1,
+                                   [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+                                       return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]),
+                                                          std::invoke(__proj2, __rng2[__rng2_idx]));
+                                   });
+}
+
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(
+        __first1, __last1, [__rng1, __rng2_it, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]), std::invoke(__proj2, *__rng2_it));
+        });
+}
+
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_upper_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
+}
+
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2_it, __negation_reordered_comp, __proj1, __proj2);
+}
+
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_right_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_upper_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1, __proj2);
+}
+
+// Performs a "biased" binary search targets the split point close to one edge of the range.
+// When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
+// After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
+// resulting in a standard binary search.
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
+          typename _Proj1, typename _Proj2>
+_Size1
+__biased_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx,
+                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    auto __n = __last1 - __first1;
+    std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
+    _Size1 __it = 0;
+    _Size1 __cur_idx = 0;
+
+    while (__n > 0 && __shift_right_div > 1)
+    {
+        _Size1 __biased_step = (__n >> __shift_right_div);
+        if constexpr (__bias_last)
+            __cur_idx = __n - __biased_step - 1;
+        else
+            __cur_idx = __biased_step;
+        __it = __first1 + __cur_idx;
+
+        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__it]), std::invoke(__proj2, __rng2[__rng2_idx])))
+        {
+            __first1 = __it + 1;
+        }
+        else
+        {
+            __last1 = __it;
+        }
+        __n = __last1 - __first1;
+        // get closer and closer to binary search with more iterations
+        __shift_right_div -= 3;
+    }
+    if (__n > 0)
+    {
+        // End up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp,
+                                                               __proj1, __proj2);
+    }
+    return __first1;
+}
+
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
+          typename _Proj1, typename _Proj2>
+_Size1
+__biased_upper_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx,
+                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __biased_lower_bound_idx<__bias_last>(__rng1, __first1, __last1, __rng2, __rng2_idx,
+                                                 __negation_reordered_comp, __proj1, __proj2);
+}
+
+template <typename _IntType, typename _Acc>
+struct _ReverseCounter
+{
+    using difference_type = std::make_signed_t<_IntType>;
+
+    _IntType __my_cn;
+
+    _ReverseCounter&
+    operator++()
+    {
+        --__my_cn;
+        return *this;
+    }
+
+    template <typename _DiffType>
+    _ReverseCounter&
+    operator+=(_DiffType __val)
+    {
+        __my_cn -= __val;
+        return *this;
+    }
+
+    difference_type
+    operator-(const _ReverseCounter& __a)
+    {
+        return __a.__my_cn - __my_cn;
+    }
+
+    operator _IntType() { return __my_cn; }
+
+// TODO: Temporary hotfix. Investigate the necessity of _ReverseCounter
+// Investigate potential user types convertible to integral
+// This is the compile-time trick where we define the conversion operator to sycl::id
+// conditionally. If we can call accessor::operator[] with the type that converts to the
+// same integral type as _ReverseCounter (it means that we can call accessor::operator[]
+// with the _ReverseCounter itself) then we don't need conversion operator to sycl::id.
+// Otherwise, we define conversion operator to sycl::id.
+#if _ONEDPL_BACKEND_SYCL
+    struct __integral
+    {
+        operator _IntType();
+    };
+
+    template <typename _Tp>
+    static auto
+    __check_braces(int) -> decltype(::std::declval<_Tp>()[::std::declval<__integral>()], ::std::false_type{});
+
+    template <typename _Tp>
+    static auto
+    __check_braces(...) -> ::std::true_type;
+
+    class __private_class;
+
+    operator ::std::conditional_t<decltype(__check_braces<_Acc>(0))::value, sycl::id<1>, __private_class>()
+    {
+        return sycl::id<1>(__my_cn);
+    }
+#endif
+};
+
+// Reverse searching for the first element strongly less than a passed value - left bound
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_left_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                      _Proj1 __proj1, _Proj2 __proj2)
+{
+    _ReverseCounter<_Size1, _Rng1> __beg{__last1 - 1};
+    _ReverseCounter<_Size1, _Rng1> __end{__first1 - 1};
+
+    __not_pred<decltype(__comp)> __negation_comp{__comp};
+
+    return __pstl_lower_bound_idx(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2);
+}
+
+// Lower bound implementation based on Shar's algorithm for binary search.
+template <typename _Acc, typename _Size, typename _Value, typename _Compare>
+_Size
+__shars_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp)
+{
+    static_assert(::std::is_unsigned_v<_Size>, "__shars_lower_bound requires an unsigned size type");
+    const _Size __n = __last - __first;
+    if (__n == 0)
+        return __first;
+    _Size __cur_pow2 = __dpl_bit_floor(__n);
+    const _Size __midpoint = __n / 2;
+    // Check the middle element to determine if we should search the first or last
+    // 2^(bit_floor(__n)) - 1 elements.
+    const _Size __shifted_first = __comp(__acc[__midpoint], __value) ? __n + 1 - __cur_pow2 : __first;
+    // Check descending powers of two. If __comp(__acc[__search_idx], __pow) holds for a __cur_pow2, then its
+    // bit must be set in the result.
+    _Size __search_offset{0};
+    for (__cur_pow2 >>= 1; __cur_pow2 > 0; __cur_pow2 >>= 1)
+    {
+        const _Size __search_idx = __shifted_first + (__search_offset | __cur_pow2) - 1;
+        if (__comp(__acc[__search_idx], __value))
+            __search_offset |= __cur_pow2;
+    }
+    return __shifted_first + __search_offset;
+}
+
+template <typename _Acc, typename _Size, typename _Value, typename _Compare>
+_Size
+__shars_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp)
+{
+    return __shars_lower_bound(__acc, __first, __last, __value,
+                               oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__reorder_pred<_Compare>>{
+                                   oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}});
+}
+
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = std::equality_comparable_with<_Iterator1, _Iterator2>;
+
+#else
+
 template <typename _Iterator1, typename _Iterator2, typename = void>
-struct __is_equality_comparable : std::false_type
+struct __has_equality_op : std::false_type
 {
 };
 
-// All with implemented operator ==
 template <typename _Iterator1, typename _Iterator2>
-struct __is_equality_comparable<
-    _Iterator1, _Iterator2,
-    std::void_t<decltype(::std::declval<::std::decay_t<_Iterator1>>() == ::std::declval<::std::decay_t<_Iterator2>>())>>
+struct __has_equality_op<_Iterator1, _Iterator2,
+                         std::void_t<decltype(std::declval<_Iterator1>() == std::declval<_Iterator2>())>>
     : std::true_type
 {
 };
 
 template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl : __has_equality_op<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::reverse_iterator<_Iterator1>, std::reverse_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with_impl<std::move_iterator<_Iterator1>, std::move_iterator<_Iterator2>>
+    : __is_equality_comparable_with_impl<_Iterator1, _Iterator2>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+struct __is_equality_comparable_with
+    : __is_equality_comparable_with_impl<std::decay_t<_Iterator1>, std::decay_t<_Iterator2>>
+{
+};
+
+template <typename _Iterator1, typename _Iterator2>
+inline constexpr bool __is_equality_comparable_with_v = __is_equality_comparable_with<_Iterator1, _Iterator2>::value;
+
+#endif // _ONEDPL_CPP20_CONCEPTS_PRESENT
+
+// Checks if two iterators are possibly equal, i.e. if they can be compared for equality.
+template <typename _Iterator1, typename _Iterator2>
 constexpr bool
 __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
 {
-    if constexpr (__is_equality_comparable<_Iterator1, _Iterator2>::value)
+    if constexpr (__is_equality_comparable_with_v<_Iterator1, _Iterator2>)
     {
         return __it1 == __it2;
     }
-    else if constexpr (__is_equality_comparable<_Iterator2, _Iterator1>::value)
+    else if constexpr (__is_equality_comparable_with_v<_Iterator2, _Iterator1>)
     {
         return __it2 == __it1;
     }
@@ -678,6 +924,209 @@ __iterators_possibly_equal(_Iterator1 __it1, _Iterator2 __it2)
         return false;
     }
 }
+
+// Conditionally sets type to _SpirvT if oneDPL is being compiled to a SPIR-V target with the SYCL backend and _NonSpirvT otherwise.
+template <typename _SpirvT, typename _NonSpirvT>
+struct __spirv_target_conditional :
+#if _ONEDPL_DETECT_SPIRV_COMPILATION
+    _SpirvT
+#else
+    _NonSpirvT
+#endif
+{
+};
+
+// Trait that has a true value if _ONEDPL_DETECT_SPIRV_COMPILATION is set and false otherwise. This may be used within kernels
+// to determine SPIR-V targets.
+inline constexpr bool __is_spirv_target_v = __spirv_target_conditional<::std::true_type, ::std::false_type>::value;
+
+template <typename _T, typename = void>
+struct __is_type_with_iterator_traits : std::false_type
+{
+};
+
+template <typename _T>
+struct __is_type_with_iterator_traits<
+    _T, std::void_t<typename std::iterator_traits<std::remove_reference_t<_T>>::difference_type>> : std::true_type
+{
+};
+
+template <typename _T>
+static constexpr bool __is_type_with_iterator_traits_v = __is_type_with_iterator_traits<_T>::value;
+
+// Storage helper since _Tp may not have a default constructor.
+template <typename _Tp>
+union __lazy_ctor_storage
+{
+    using __value_type = _Tp;
+    _Tp __v;
+    __lazy_ctor_storage() {}
+
+    // Empty destructor, we must explicitly manage destruction of data constructed.
+    // A defaulted destructor of a union would not automatically call destructors of the variant __v, but also does not
+    // support non-trivial destructors for _Tp. This allows us to support non-trivial destructors for _Tp.
+    ~__lazy_ctor_storage() {}
+
+    template <typename _U>
+    void
+    __setup(_U&& init)
+    {
+        new (&__v) _Tp(std::forward<_U>(init));
+    }
+    void
+    __destroy()
+    {
+        __v.~_Tp();
+    }
+};
+
+// Scoped destroyer for __lazy_ctor_storage. It can be used to destroy the a __lazy_ctor_storage when it goes out of
+// scope.
+// Note: Should only be used *after* the storage has been initialized with __setup or some other method to ensure that
+//       data is not destroyed before it is initialized. This is relevant for exception handling which may change the
+//       control flow unexpectedly.
+template <typename _DataType>
+struct __scoped_destroyer
+{
+    oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& ___lazy_ctor_storage_ref;
+    ~__scoped_destroyer()
+    {
+        // Explicitly call destructor of __lazy_ctor_storage
+        ___lazy_ctor_storage_ref.__destroy();
+    }
+};
+
+// To implement __min_nested_type_size, a general utility with an internal tuple
+// specialization, we need to forward declare our internal tuple first as tuple_impl.h
+// already includes this header.
+template <typename... T>
+struct tuple;
+
+// Returns the smallest type within a set of potentially nested template types. This function
+// recursively explores std::tuple and oneapi::dpl::__internal::tuple for the smallest type.
+// For all other types, its size is used directly.
+// E.g. If we consider the type: T = tuple<float, tuple<short, long>, int, double>,
+// then __min_nested_type_size<T>::value returns sizeof(short).
+template <typename _T>
+struct __min_nested_type_size
+{
+    constexpr static std::size_t value = sizeof(_T);
+};
+
+template <typename... _Ts>
+struct __min_nested_type_size<std::tuple<_Ts...>>
+{
+    constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
+};
+
+template <typename... _Ts>
+struct __min_nested_type_size<oneapi::dpl::__internal::tuple<_Ts...>>
+{
+    constexpr static std::size_t value = std::min({__min_nested_type_size<_Ts>::value...});
+};
+
+struct __swap_fn
+{
+    template <typename _Type1, typename _Type2>
+    void
+    operator()(_Type1&& __x, _Type2&& __y) const
+    {
+        using ::std::swap;
+        swap(__x, __y);
+    }
+};
+
+template <typename _T>
+auto
+__get_last_arg(_T __t)
+{
+    return __t;
+}
+
+template <typename _T, typename... _Rest>
+auto
+__get_last_arg(_T, _Rest... __args)
+{
+    return __get_last_arg(__args...);
+}
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _T, typename _Proj>
+struct __count_fn_pred
+{
+    _T __value;
+    _Proj __proj;
+
+    template <typename _TValue>
+    bool
+    operator()(_TValue&& __val) const
+    {
+        return std::ranges::equal_to{}(std::invoke(__proj, std::forward<_TValue>(__val)), __value);
+    }
+};
+#endif
+
+template <typename _ValueType, typename _FlagType, typename _BinaryOp>
+struct __segmented_scan_fun
+{
+    template <typename _T1, typename _T2>
+    _T1
+    operator()(const _T1& __x, const _T2& __y) const
+    {
+        using std::get;
+        using __x_t = std::tuple_element_t<0, _T1>;
+        auto __new_x = get<1>(__y) ? __x_t(get<0>(__y)) : __x_t(__binary_op(get<0>(__x), get<0>(__y)));
+        auto __new_y = get<1>(__x) | get<1>(__y);
+        return _T1(__new_x, __new_y);
+    }
+
+    _BinaryOp __binary_op;
+};
+
+template <typename _T, typename _Predicate>
+struct __replace_if_fun
+{
+    using __result_of = _T;
+
+    template <typename _T1, typename _T2>
+    _T
+    operator()(_T1&& __a, _T2&& __s) const
+    {
+        return __pred(std::forward<_T2>(__s)) ? __new_value : __a;
+    }
+
+    _Predicate __pred;
+    const _T __new_value;
+};
+
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_copy =
+    // Required operation is trivial
+    // If the required operation is trivial, we can skip it.
+    std::is_trivially_constructible_v<_OutValueType, _InRefType> &&
+    // Actual operations are trivial
+    // If the element type is trivially default constructible,
+    // we can assume that its "life" has begun even in the uninitialized memory, and we can assign to it
+    std::is_trivially_default_constructible_v<_OutValueType> &&
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _OutValueType, typename _OutRefType, typename _InRefType>
+inline constexpr bool __trivial_uninitialized_move =
+    std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> && // required operation
+    std::is_trivially_default_constructible_v<_OutValueType> &&                                // actual operations
+    std::is_trivially_assignable_v<_OutRefType, _InRefType>;
+
+template <typename _ValueType, typename _T>
+inline constexpr bool __trivial_uninitialized_fill =
+    std::is_trivially_constructible_v<_ValueType, _T> &&     // required operation
+    std::is_trivially_default_constructible_v<_ValueType> && // actual operations
+    // the value is expected to be converted to the element type by the caller in the actual operation
+    std::is_trivially_copy_assignable_v<_ValueType>;
+
+template <typename _ValueType>
+inline constexpr bool __trivial_uninitialized_value_construct =
+    std::is_trivially_default_constructible_v<_ValueType> && // required operation
+    std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
 
 } // namespace __internal
 } // namespace dpl

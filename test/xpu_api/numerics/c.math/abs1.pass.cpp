@@ -67,10 +67,17 @@ ONEDPL_TEST_NUM_MAIN
     test_abs<std::int32_t, correct_size_int<std::int32_t>::type>();
     test_abs<std::int64_t, correct_size_int<std::int64_t>::type>();
 
-    auto fnc1 = []() { test_abs<long double, long double>(); };
-    IF_LONG_DOUBLE_SUPPORT_L(fnc1);
-    auto fnc2 = []() { test_abs<double, double>(); };
-    IF_DOUBLE_SUPPORT_L(fnc2);
+    if constexpr (HasLongDoubleSupportInCompiletime{})
+    {
+        // This lambda required to avoid compile errors like
+        // test<long double>' requires 128 bit size 'long double' type support, but target 'spir64-unknown-unknown' does not support it
+        auto fnc1 = []() { test_abs<long double, long double>(); };
+        fnc1();
+    };
+    if constexpr (HasDoubleSupportInRuntime{})
+    {
+        test_abs<double, double>();
+    };
 
     test_abs<float, float>();
 

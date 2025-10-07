@@ -31,8 +31,8 @@ struct test_search_n
     {
         using namespace std;
         auto expected = search_n(b, e, count, value, pred);
-        auto actual = search_n(exec, b, e, count, value);
-        EXPECT_TRUE(actual == expected, "wrong return result from search_n");
+        auto actual = search_n(std::forward<ExecutionPolicy>(exec), b, e, count, value);
+        EXPECT_EQ(expected, actual, "wrong return result from search_n");
     }
 };
 
@@ -45,8 +45,8 @@ struct test_search_n_predicate
     {
         using namespace std;
         auto expected = search_n(b, e, count, value, pred);
-        auto actual = search_n(exec, b, e, count, value, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from search_n with a predicate");
+        auto actual = search_n(std::forward<ExecutionPolicy>(exec), b, e, count, value, pred);
+        EXPECT_EQ(expected, actual, "wrong return result from search_n with a predicate");
     }
 };
 
@@ -92,7 +92,7 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        invoke_if(exec, [&]() { search_n(exec, iter, iter, 0, T(0), non_const(::std::equal_to<T>())); });
+        search_n(std::forward<Policy>(exec), iter, iter, 0, T(0), non_const(std::equal_to<T>()));
     }
 };
 

@@ -16,20 +16,32 @@
 #ifndef _TEST_COMPLEX_H
 #define _TEST_COMPLEX_H
 
+#include "test_config.h"
+
 #include <oneapi/dpl/complex>
 
 #include "utils.h"
 #include "utils_invoke.h"
-#include "test_config.h"
 
 #include <type_traits>
 #include <cassert>
+#include <limits>
 
 #if !_PSTL_MSVC_LESS_THAN_CPP20_COMPLEX_CONSTEXPR_BROKEN
 #    define STD_COMPLEX_TESTS_STATIC_ASSERT(arg) static_assert(arg)
 #else
 #    define STD_COMPLEX_TESTS_STATIC_ASSERT(arg) assert(arg)
 #endif // !_PSTL_MSVC_LESS_THAN_CPP20_COMPLEX_CONSTEXPR_BROKEN
+
+constexpr bool
+is_fast_math_switched_on()
+{
+#if defined(__FAST_MATH__)
+    return true;
+#else
+    return false;
+#endif
+}
 
 #define ONEDPL_TEST_NUM_MAIN                                                                          \
 template <typename HasDoubleSupportInRuntime, typename HasLongDoubleSupportInCompiletime>             \
@@ -38,22 +50,25 @@ run_test();                                                                     
                                                                                                       \
 int main(int, char**)                                                                                 \
 {                                                                                                     \
-    run_test<::std::true_type, ::std::true_type>();                                                   \
+    static_assert(!is_fast_math_switched_on(),                                                        \
+                  "Tests of std::complex are not compatible with -ffast-math compiler option.");      \
+                                                                                                      \
+    run_test<std::true_type, std::true_type>();                                                       \
                                                                                                       \
     /* Sometimes we may start test on device, which don't support type double. */                     \
     /* In this case generates run-time error.                                  */                     \
     /* This two types allow us to avoid this situation.                        */                     \
-    using HasDoubleTypeSupportInRuntime = ::std::true_type;                                           \
-    using HasntDoubleTypeSupportInRuntime = ::std::false_type;                                        \
+    using HasDoubleTypeSupportInRuntime = std::true_type;                                             \
+    using HasntDoubleTypeSupportInRuntime = std::false_type;                                          \
                                                                                                       \
     /* long double type generate compile-time error in Kernel code             */                     \
     /* and we never can use this type inside Kernel                            */                     \
-    using HasntLongDoubleSupportInCompiletime = ::std::false_type;                                    \
+    using HasntLongDoubleSupportInCompiletime = std::false_type;                                      \
                                                                                                       \
     TestUtils::run_test_in_kernel(                                                                    \
-        /* labbda for the case when we have support of double type on device */                       \
+        /* lambda for the case when we have support of double type on device */                       \
         [&]() { run_test<HasDoubleTypeSupportInRuntime, HasntLongDoubleSupportInCompiletime>(); },    \
-        /* labbda for the case when we haven't support of double type on device */                    \
+        /* lambda for the case when we haven't support of double type on device */                    \
         [&]() { run_test<HasntDoubleTypeSupportInRuntime, HasntLongDoubleSupportInCompiletime>(); }); \
                                                                                                       \
     return TestUtils::done();                                                                         \
@@ -68,7 +83,7 @@ run_test()
 // Example:
 //     template <class T>
 //     void
-//     test(T x, ::std::enable_if_t<std::is_integral_v<T>>* = 0)
+//     test(T x, std::enable_if_t<std::is_integral_v<T>>* = 0)
 //     {
 //         static_assert((std::is_same_v<decltype(dpl::conj(x)), dpl::complex<double>>));
 //
@@ -91,36 +106,32 @@ run_test()
 //         // ...
 //     }
 #define IF_DOUBLE_SUPPORT(...)                                                                        \
-    TestUtils::invoke_test_if(HasDoubleSupportInRuntime(), []() { __VA_ARGS__; });
-#define IF_DOUBLE_SUPPORT_L(...)                                                                      \
-    TestUtils::invoke_test_if(HasDoubleSupportInRuntime(), __VA_ARGS__);
+    if constexpr (HasDoubleSupportInRuntime{})                                                        \
+    {                                                                                                 \
+        auto __fnc = []() { __VA_ARGS__; };                                                           \
+        __fnc();                                                                                      \
+    }
 
 // We should use this macros to avoid compile-time error in code with long double type in Kernel.
 #define IF_LONG_DOUBLE_SUPPORT(...)                                                                   \
-    TestUtils::invoke_test_if(HasLongDoubleSupportInCompiletime(), []() { __VA_ARGS__; });
-#define IF_LONG_DOUBLE_SUPPORT_L(...)                                                                 \
-    TestUtils::invoke_test_if(HasLongDoubleSupportInCompiletime(), __VA_ARGS__);
+    if constexpr (HasLongDoubleSupportInCompiletime{})                                                \
+    {                                                                                                 \
+        auto __fnc = []() { __VA_ARGS__; };                                                           \
+        __fnc();                                                                                      \
+    }
 
 namespace TestUtils
 {
-    template <typename _FncTest>
-    void
-    invoke_test_if(::std::true_type, _FncTest __fncTest)
-    {
-        __fncTest();
-    }
+    template <typename T>
+    static constexpr float infinity_val = std::numeric_limits<T>::infinity();
 
-    template <typename _FncTest>
-    void
-    invoke_test_if(::std::false_type, _FncTest)
-    {
-    }
+    class TestType;
 
     // Run test in Kernel as single task
     template <typename TFncDoubleHasSupportInRuntime, typename TFncDoubleHasntSupportInRuntime>
     void
-    run_test_in_kernel(TFncDoubleHasSupportInRuntime fncDoubleHasSupportInRuntime,
-                       TFncDoubleHasntSupportInRuntime fncDoubleHasntSupportInRuntime)
+    run_test_in_kernel([[maybe_unused]] TFncDoubleHasSupportInRuntime fncDoubleHasSupportInRuntime,
+                       [[maybe_unused]] TFncDoubleHasntSupportInRuntime fncDoubleHasntSupportInRuntime)
     {
 #if TEST_DPCPP_BACKEND_PRESENT
         try
@@ -130,7 +141,7 @@ namespace TestUtils
             const auto device = deviceQueue.get_device();
 
             // We should run fncDoubleHasSupportInRuntime and fncDoubleHasntSupportInRuntime
-            // in two separate Kernels to have ability compile these Kernels separatelly
+            // in two separate Kernels to have ability compile these Kernels separately
             // by using Intel(R) oneAPI DPC++/C++ Compiler option -fsycl-device-code-split=per_kernel
             // which described at
             // https://www.intel.com/content/www/us/en/develop/documentation/oneapi-gpu-optimization-guide/top/compilation/jitting.html
@@ -138,7 +149,7 @@ namespace TestUtils
             {
                 deviceQueue.submit(
                     [&](sycl::handler& cgh) {
-                        cgh.single_task<TestUtils::new_kernel_name<class TestType, 0>>(
+                        cgh.single_task<TestUtils::new_kernel_name<TestType, 0>>(
                             [fncDoubleHasSupportInRuntime]() { fncDoubleHasSupportInRuntime(); });
                     });
             }
@@ -146,7 +157,7 @@ namespace TestUtils
             {
                 deviceQueue.submit(
                     [&](sycl::handler& cgh) {
-                        cgh.single_task<TestUtils::new_kernel_name<class TestType, 1>>(
+                        cgh.single_task<TestUtils::new_kernel_name<TestType, 1>>(
                             [fncDoubleHasntSupportInRuntime]() { fncDoubleHasntSupportInRuntime(); });
                     });
             }

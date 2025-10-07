@@ -58,6 +58,7 @@ proc ModulesHelp { } {
 
 set dpl_root "$componentroot"
 setenv DPL_ROOT "$dpl_root"
-prepend-path CPATH "$dpl_root/include"
+setenv DPLROOT "$dpl_root"
+prepend-path CPLUS_INCLUDE_PATH "$dpl_root/include"
 prepend-path CMAKE_PREFIX_PATH "$dpl_root/lib/cmake/oneDPL"
 prepend-path PKG_CONFIG_PATH "$dpl_root/lib/pkgconfig"

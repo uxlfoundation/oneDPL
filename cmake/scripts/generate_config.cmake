@@ -34,7 +34,7 @@ endif()
 
 set(ONEDPL_ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
 
-file(READ ${ONEDPL_ROOT}/include/oneapi/dpl/pstl/onedpl_config.h _onedpl_version_info LIMIT 1024)
+file(READ ${ONEDPL_ROOT}/include/oneapi/dpl/internal/version_impl.h _onedpl_version_info LIMIT 1024)
 string(REGEX REPLACE ".*#define ONEDPL_VERSION_MAJOR ([0-9]+).*" "\\1" _onedpl_ver_major "${_onedpl_version_info}")
 string(REGEX REPLACE ".*#define ONEDPL_VERSION_MINOR ([0-9]+).*" "\\1" _onedpl_ver_minor "${_onedpl_version_info}")
 string(REGEX REPLACE ".*#define ONEDPL_VERSION_PATCH ([0-9]+).*" "\\1" _onedpl_ver_patch "${_onedpl_version_info}")

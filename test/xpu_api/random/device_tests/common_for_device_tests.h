@@ -5,12 +5,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file incorporates work covered by the following copyright and permission
-// notice:
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-//
 //===----------------------------------------------------------------------===//
 //
 // Abstract:
@@ -32,7 +26,6 @@ constexpr int N = 96;
 
 template <typename Fp>
 int comparison(Fp* r0, Fp* r1, std::uint32_t length) {
-    Fp coeff;
     int numErrors = 0;
     for (size_t i = 0; i < length; ++i) {
         if constexpr (std::is_integral_v<Fp>) {

@@ -20,6 +20,8 @@
 #include <type_traits>
 #include <functional>
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 
 #include "algorithm_fwd.h"
 
@@ -31,6 +33,7 @@
 #include "parallel_backend.h"
 #include "parallel_impl.h"
 #include "iterator_impl.h"
+#include "functional_impl.h" // for oneapi::dpl::identity
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
@@ -63,23 +66,24 @@ __brick_any_of(const _RandomAccessIterator __first, const _RandomAccessIterator 
     return __unseq_backend::__simd_or(__first, __last - __first, __pred);
 };
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Pred, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_any_of(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Pred __pred,
-                 _IsVector __is_vector, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Pred>
+bool
+__pattern_any_of(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Pred __pred) noexcept
 {
-    return __internal::__brick_any_of(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_any_of(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Pred, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_any_of(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Pred __pred,
-                 _IsVector __is_vector, /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Pred>
+bool
+__pattern_any_of(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                 _RandomAccessIterator __last, _Pred __pred)
 {
     return __internal::__except_handler([&]() {
-        return __internal::__parallel_or(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                         [__pred, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                             return __internal::__brick_any_of(__i, __j, __pred, __is_vector);
+        return __internal::__parallel_or(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                         [__pred](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                                             return __internal::__brick_any_of(__i, __j, __pred, _IsVector{});
                                          });
     });
 }
@@ -91,7 +95,7 @@ template <class _ForwardIterator, class _Size, class _Function>
 _ForwardIterator
 __for_each_n_it_serial(_ForwardIterator __first, _Size __n, _Function __f)
 {
-    for (; __n > 0; ++__first, --__n)
+    for (; __n > 0; ++__first, (void)--__n)
         __f(__first);
     return __first;
 }
@@ -103,7 +107,7 @@ __for_each_n_it_serial(_ForwardIterator __first, _Size __n, _Function __f)
 //------------------------------------------------------------------------
 template <class _ForwardIterator, class _Function>
 void
-__brick_walk1(_ForwardIterator __first, _ForwardIterator __last, _Function __f, /*vector=*/::std::false_type) noexcept
+__brick_walk1(_ForwardIterator __first, _ForwardIterator __last, _Function __f, /*vector=*/::std::false_type)
 {
     ::std::for_each(__first, __last, __f);
 }
@@ -111,9 +115,9 @@ __brick_walk1(_ForwardIterator __first, _ForwardIterator __last, _Function __f, 
 template <class _RandomAccessIterator, class _Function>
 void
 __brick_walk1(_RandomAccessIterator __first, _RandomAccessIterator __last, _Function __f,
-              /*vector=*/::std::true_type) noexcept
+              /*vector=*/::std::true_type)
 {
-    __unseq_backend::__simd_walk_1(__first, __last - __first, __f);
+    __unseq_backend::__simd_walk_n(__last - __first, __f, __first);
 }
 
 template <class _DifferenceType, class _Function>
@@ -134,64 +138,66 @@ __brick_walk1(_DifferenceType __n, _Function __f, ::std::true_type) noexcept
     oneapi::dpl::__internal::__brick_walk1(__n, __f, ::std::false_type{});
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_walk1(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Function __f,
-                _IsVector __is_vector,
-                /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_walk1(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Function __f)
 {
-    __internal::__brick_walk1(__first, __last, __f, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag>);
+
+    __internal::__brick_walk1(__first, __last, __f, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, __is_random_access_iterator_v<_RandomAccessIterator>>
-__pattern_walk1(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Function __f,
-                _IsVector __is_vector,
-                /*parallel=*/::std::true_type)
+template <class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_walk1(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+                _Function __f)
 {
-    __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                      [__f, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                          __internal::__brick_walk1(__i, __j, __f, __is_vector);
-                                      });
-    });
-}
+    using __backend_tag = typename __parallel_forward_tag::__backend_tag;
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<_ExecutionPolicy,
-                                                                       !__is_random_access_iterator_v<_ForwardIterator>>
-__pattern_walk1(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Function __f, _IsVector,
-                /*parallel=*/::std::true_type)
-{
-    typedef typename ::std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
+    using _ReferenceType = typename std::iterator_traits<_ForwardIterator>::reference;
     auto __func = [&__f](_ReferenceType arg) { __f(arg); };
     __internal::__except_handler([&]() {
-        __par_backend::__parallel_for_each(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __func);
+        __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                           __func);
     });
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_walk_brick(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Brick __brick,
-                     /*parallel=*/::std::false_type) noexcept
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Function>
+void
+__pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                _RandomAccessIterator __last, _Function __f)
 {
-    const auto __is_vector = __internal::__is_vectorization_preferred<_ExecutionPolicy, _ForwardIterator>(__exec);
-    __brick(__first, __last, __is_vector);
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                      [__f](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                                          __internal::__brick_walk1(__i, __j, __f, _IsVector{});
+                                      });
+    });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_walk_brick(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                     _Brick __brick,
-                     /*parallel=*/::std::true_type)
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Brick>
+void
+__pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                     _Brick __brick) noexcept
 {
-    const auto __is_vector = __internal::__is_vectorization_preferred<_ExecutionPolicy, _RandomAccessIterator>(__exec);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __brick(__first, __last, typename _Tag::__is_vector{});
+}
+
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
+void
+__pattern_walk_brick(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                     _RandomAccessIterator __last, _Brick __brick)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                      [__brick, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                          __brick(__i, __j, __is_vector);
-                                      });
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j, _IsVector{}); });
     });
 }
 
@@ -209,50 +215,50 @@ __brick_walk1_n(_ForwardIterator __first, _Size __n, _Function __f, /*_IsVectorT
 template <class _RandomAccessIterator, class _DifferenceType, class _Function>
 _RandomAccessIterator
 __brick_walk1_n(_RandomAccessIterator __first, _DifferenceType __n, _Function __f,
-                /*vectorTag=*/::std::true_type) noexcept
+                /*vectorTag=*/::std::true_type)
 {
-    return __unseq_backend::__simd_walk_1(__first, __n, __f);
+    return __unseq_backend::__simd_walk_n(__n, __f, __first);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_walk1_n(_ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Function __f, _IsVector __is_vector,
-                  /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
+_ForwardIterator
+__pattern_walk1_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Function __f)
 {
-    return __internal::__brick_walk1_n(__first, __n, __f, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_walk1_n(__first, __n, __f, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_walk1_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n, _Function __f,
-                  _IsVector __is_vector,
-                  /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Function>
+_RandomAccessIterator
+__pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n,
+                  _Function __f)
 {
-    oneapi::dpl::__internal::__pattern_walk1(::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f,
-                                             __is_vector, ::std::true_type());
+    oneapi::dpl::__internal::__pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
+                                             __f);
     return __first + __n;
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_walk_brick_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Brick __brick,
-                       /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
+_ForwardIterator
+__pattern_walk_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Brick __brick) noexcept
 {
-    const auto __is_vector = __internal::__is_vectorization_preferred<_ExecutionPolicy, _ForwardIterator>(__exec);
-    return __brick(__first, __n, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick(__first, __n, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_walk_brick_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n, _Brick __brick,
-                       /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Brick>
+_RandomAccessIterator
+__pattern_walk_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n,
+                       _Brick __brick)
 {
-    const auto __is_vector = __internal::__is_vectorization_preferred<_ExecutionPolicy, _RandomAccessIterator>(__exec);
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     return __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
-                                      [__brick, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                          __brick(__i, __j - __i, __is_vector);
-                                      });
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
+            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j - __i, _IsVector{}); });
         return __first + __n;
     });
 }
@@ -267,7 +273,7 @@ _ForwardIterator2
 __brick_walk2(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f,
               /*vector=*/::std::false_type) noexcept
 {
-    for (; __first1 != __last1; ++__first1, ++__first2)
+    for (; __first1 != __last1; ++__first1, (void)++__first2)
         __f(*__first1, *__first2);
     return __first2;
 }
@@ -278,7 +284,7 @@ __brick_walk2(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
               _Function __f,
               /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_2(__first1, __last1 - __first1, __first2, __f);
+    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2);
 }
 
 template <class _ForwardIterator1, class _Size, class _ForwardIterator2, class _Function>
@@ -286,7 +292,7 @@ _ForwardIterator2
 __brick_walk2_n(_ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2, _Function __f,
                 /*vector=*/::std::false_type) noexcept
 {
-    for (; __n > 0; --__n, ++__first1, ++__first2)
+    for (; __n > 0; --__n, (void)++__first1, ++__first2)
         __f(*__first1, *__first2);
     return __first2;
 }
@@ -296,51 +302,54 @@ _RandomAccessIterator2
 __brick_walk2_n(_RandomAccessIterator1 __first1, _Size __n, _RandomAccessIterator2 __first2, _Function __f,
                 /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_2(__first1, __n, __first2, __f);
+    return __unseq_backend::__simd_walk_n(__n, __f, __first1, __first2);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator2>
-__pattern_walk2(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                _Function __f, _IsVector __is_vector, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
+_ForwardIterator2
+__pattern_walk2(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                _ForwardIterator2 __first2, _Function __f) noexcept
 {
-    return __internal::__brick_walk2(__first1, __last1, __first2, __f, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag>);
+
+    return __internal::__brick_walk2(__first1, __last1, __first2, __f, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Function,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, __is_random_access_iterator_v<_RandomAccessIterator1, _RandomAccessIterator2>,
-    _RandomAccessIterator2>
-__pattern_walk2(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                _RandomAccessIterator2 __first2, _Function __f, _IsVector __is_vector, /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Function>
+_RandomAccessIterator2
+__pattern_walk2(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Function __f)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [__f, __first1, __first2, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                __internal::__brick_walk2(__i, __j, __first2 + (__i - __first1), __f, __is_vector);
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+            [__f, __first1, __first2](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                __internal::__brick_walk2(__i, __j, __first2 + (__i - __first1), __f, _IsVector{});
             });
         return __first2 + (__last1 - __first1);
     });
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, !__is_random_access_iterator_v<_ForwardIterator1, _ForwardIterator2>, _ForwardIterator2>
-__pattern_walk2(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                _ForwardIterator2 __first2, _Function __f, _IsVector, /*parallel=*/::std::true_type)
+template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function>
+_ForwardIterator2
+__pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
 {
+    using __backend_tag = typename __parallel_forward_tag::__backend_tag;
+
     return __internal::__except_handler([&]() {
         using _iterator_tuple = zip_forward_iterator<_ForwardIterator1, _ForwardIterator2>;
         auto __begin = _iterator_tuple(__first1, __first2);
         auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2());
 
-        typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-        typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
+        using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+        using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
 
-        __par_backend::__parallel_for_each(::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
-                                           [&__f](const ::std::tuple<_ReferenceType1, _ReferenceType2>& __val) {
+        __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                                           [&__f](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
                                                __f(::std::get<0>(__val), ::std::get<1>(__val));
                                            });
 
@@ -352,51 +361,50 @@ __pattern_walk2(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardI
     });
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2, class _Function,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator2>
-__pattern_walk2_n(_ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2, _Function __f,
-                  _IsVector __is_vector, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
+          class _Function>
+_ForwardIterator2
+__pattern_walk2_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2,
+                  _Function __f) noexcept
 {
-    return __internal::__brick_walk2_n(__first1, __n, __first2, __f, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_walk2_n(__first1, __n, __first2, __f, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _Size, class _RandomAccessIterator2,
-          class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_walk2_n(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _Size __n,
-                  _RandomAccessIterator2 __first2, _Function __f, _IsVector __is_vector, /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _Size,
+          class _RandomAccessIterator2, class _Function>
+_RandomAccessIterator2
+__pattern_walk2_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                  _Size __n, _RandomAccessIterator2 __first2, _Function __f)
 {
-    return __internal::__pattern_walk2(::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n, __first2,
-                                       __f, __is_vector, ::std::true_type());
+    return __internal::__pattern_walk2(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                                       __first2, __f);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator2>
-__pattern_walk2_brick(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                      _ForwardIterator2 __first2, _Brick __brick, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>
+_ForwardIterator2
+__pattern_walk2_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                      _ForwardIterator2 __first2, _Brick __brick) noexcept
 {
-    const auto __is_vector =
-        __internal::__is_vectorization_preferred<_ExecutionPolicy, _ForwardIterator1, _ForwardIterator2>(__exec);
-    return __brick(__first1, __last1, __first2, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag>);
+
+    return __brick(__first1, __last1, __first2, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, __is_random_access_iterator_v<_RandomAccessIterator1, _RandomAccessIterator2>,
-    _RandomAccessIterator2>
-__pattern_walk2_brick(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                      _RandomAccessIterator2 __first2, _Brick __brick, /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Brick>
+_RandomAccessIterator2
+__pattern_walk2_brick(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                      _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _Brick __brick)
 {
-    const auto __is_vector =
-        __internal::__is_vectorization_preferred<_ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2>(
-            __exec);
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     return __except_handler([&]() {
         __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [&__is_vector, __first1, __first2, __brick](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                __brick(__i, __j, __first2 + (__i - __first1), __is_vector);
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+            [__first1, __first2, __brick](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                __brick(__i, __j, __first2 + (__i - __first1), _IsVector{});
             });
         return __first2 + (__last1 - __first1);
     });
@@ -404,21 +412,22 @@ __pattern_walk2_brick(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1
 
 //TODO: it postponed till adding more or less effective parallel implementation
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, !__is_random_access_iterator_v<_ForwardIterator1, _ForwardIterator2>, _ForwardIterator2>
-__pattern_walk2_brick(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                      _ForwardIterator2 __first2, _Brick __brick, /*parallel=*/::std::true_type)
+_ForwardIterator2
+__pattern_walk2_brick(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                      _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Brick __brick)
 {
+    using __backend_tag = typename __parallel_forward_tag::__backend_tag;
+
     using _iterator_tuple = zip_forward_iterator<_ForwardIterator1, _ForwardIterator2>;
     auto __begin = _iterator_tuple(__first1, __first2);
     auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2());
 
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-    typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
+    using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+    using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
 
     return __except_handler([&]() {
-        __par_backend::__parallel_for_each(::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
-                                           [__brick](const ::std::tuple<_ReferenceType1, _ReferenceType2>& __val) {
+        __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                                           [__brick](::std::tuple<_ReferenceType1, _ReferenceType2> __val) {
                                                __brick(::std::get<0>(__val),
                                                        ::std::forward<_ReferenceType2>(::std::get<1>(__val)));
                                            });
@@ -431,33 +440,33 @@ __pattern_walk2_brick(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Fo
     });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _Size, class _RandomAccessIterator2, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_walk2_brick_n(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _Size __n,
-                        _RandomAccessIterator2 __first2, _Brick __brick, /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _Size,
+          class _RandomAccessIterator2, class _Brick>
+_RandomAccessIterator2
+__pattern_walk2_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                        _Size __n, _RandomAccessIterator2 __first2, _Brick __brick)
 {
-    const auto __is_vector =
-        __internal::__is_vectorization_preferred<_ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2>(
-            __exec);
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     return __except_handler([&]() {
         __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-            [&__is_vector, __first1, __first2, __brick](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                __brick(__i, __j - __i, __first2 + (__i - __first1), __is_vector);
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+            [__first1, __first2, __brick](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                __brick(__i, __j - __i, __first2 + (__i - __first1), _IsVector{});
             });
         return __first2 + __n;
     });
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2, class _Brick>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator2>
-__pattern_walk2_brick_n(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2,
-                        _Brick __brick, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
+          class _Brick>
+_ForwardIterator2
+__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n,
+                        _ForwardIterator2 __first2, _Brick __brick) noexcept
 {
-    const auto __is_vector =
-        __internal::__is_vectorization_preferred<_ExecutionPolicy, _ForwardIterator1, _ForwardIterator2>(__exec);
-    return __brick(__first1, __n, __first2, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick(__first1, __n, __first2, typename _Tag::__is_vector{});
 }
 
 //------------------------------------------------------------------------
@@ -470,7 +479,7 @@ _ForwardIterator3
 __brick_walk3(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
               _ForwardIterator3 __first3, _Function __f, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first1 != __last1; ++__first1, ++__first2, ++__first3)
+    for (; __first1 != __last1; ++__first1, (void)++__first2, ++__first3)
         __f(*__first1, *__first2, *__first3);
     return __first3;
 }
@@ -480,64 +489,62 @@ _RandomAccessIterator3
 __brick_walk3(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
               _RandomAccessIterator3 __first3, _Function __f, /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_walk_3(__first1, __last1 - __first1, __first2, __first3, __f);
+    return __unseq_backend::__simd_walk_n(__last1 - __first1, __f, __first1, __first2, __first3);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3,
-          class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator3>
-__pattern_walk3(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                _ForwardIterator3 __first3, _Function __f, _IsVector __is_vector,
-                /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3,
+          class _Function>
+_ForwardIterator3
+__pattern_walk3(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f) noexcept
 {
-    return __internal::__brick_walk3(__first1, __last1, __first2, __first3, __f, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag>);
+
+    return __internal::__brick_walk3(__first1, __last1, __first2, __first3, __f, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy,
-    __is_random_access_iterator_v<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>,
-    _RandomAccessIterator3>
-__pattern_walk3(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                _RandomAccessIterator2 __first2, _RandomAccessIterator3 __first3, _Function __f, _IsVector __is_vector,
-                /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Function>
+_RandomAccessIterator3
+__pattern_walk3(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator3 __first3,
+                _Function __f)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [__f, __first1, __first2, __first3, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+            [__f, __first1, __first2, __first3](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
                 __internal::__brick_walk3(__i, __j, __first2 + (__i - __first1), __first3 + (__i - __first1), __f,
-                                          __is_vector);
+                                          _IsVector{});
             });
         return __first3 + (__last1 - __first1);
     });
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator3,
-          class _Function, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy_conditional<
-    _ExecutionPolicy, !__is_random_access_iterator_v<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>,
-    _ForwardIterator3>
-__pattern_walk3(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f, _IsVector,
-                /*parallel=*/::std::true_type)
+          class _Function>
+_ForwardIterator3
+__pattern_walk3(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f)
 {
+    using __backend_tag = typename __parallel_forward_tag::__backend_tag;
+
     return __internal::__except_handler([&]() {
         using _iterator_tuple = zip_forward_iterator<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>;
         auto __begin = _iterator_tuple(__first1, __first2, __first3);
         auto __end = _iterator_tuple(__last1, /*dummy parameter*/ _ForwardIterator2(),
                                      /*dummy parameter*/ _ForwardIterator3());
 
-        typedef typename ::std::iterator_traits<_ForwardIterator1>::reference _ReferenceType1;
-        typedef typename ::std::iterator_traits<_ForwardIterator2>::reference _ReferenceType2;
-        typedef typename ::std::iterator_traits<_ForwardIterator3>::reference _ReferenceType3;
+        using _ReferenceType1 = typename std::iterator_traits<_ForwardIterator1>::reference;
+        using _ReferenceType2 = typename std::iterator_traits<_ForwardIterator2>::reference;
+        using _ReferenceType3 = typename std::iterator_traits<_ForwardIterator3>::reference;
 
-        __par_backend::__parallel_for_each(
-            ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
-            [&](const ::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3>& __val) {
-                __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val));
-            });
+        __par_backend::__parallel_for_each(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __begin, __end,
+                                           [&](::std::tuple<_ReferenceType1, _ReferenceType2, _ReferenceType3> __val) {
+                                               __f(::std::get<0>(__val), ::std::get<1>(__val), ::std::get<2>(__val));
+                                           });
 
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
@@ -545,6 +552,34 @@ __pattern_walk3(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardI
             ;
         return ::std::get<2>(__begin.base());
     });
+}
+
+//------------------------------------------------------------------------
+// transform_if
+//------------------------------------------------------------------------
+
+template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _Function>
+_ForwardIterator2
+__pattern_walk2_transform_if(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                             _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __func) noexcept
+{
+    static_assert(__is_host_dispatch_tag_v<_Tag>);
+
+    return __pattern_walk2(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __func);
+}
+
+template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _ForwardIterator3, typename _Function>
+_ForwardIterator3
+__pattern_walk3_transform_if(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                             _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3,
+                             _Function __func) noexcept
+{
+    static_assert(__is_host_dispatch_tag_v<_Tag>);
+
+    return __pattern_walk3(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __first3,
+                           __func);
 }
 
 //------------------------------------------------------------------------
@@ -571,32 +606,35 @@ __brick_equal(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
                .first == __last1;
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_equal(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                _ForwardIterator2 __last2, _BinaryPredicate __p, _IsVector __is_vector, /* is_parallel = */
-                ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+bool
+__pattern_equal(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                _ForwardIterator2 __first2, _ForwardIterator2 __last2, _BinaryPredicate __p) noexcept
 {
-    return __internal::__brick_equal(__first1, __last1, __first2, __last2, __p, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_equal(__first1, __last1, __first2, __last2, __p, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_equal(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _BinaryPredicate __p,
-                _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+bool
+__pattern_equal(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                _BinaryPredicate __p)
 {
     if (__last1 - __first1 != __last2 - __first2)
         return false;
 
+    if (__last1 - __first1 == 0)
+        return true;
+
     return __internal::__except_handler([&]() {
         return !__internal::__parallel_or(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [__first1, __first2, __p, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+            [__first1, __first2, __p](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
                 return !__internal::__brick_equal(__i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
-                                                  __p, __is_vector);
+                                                  __p, _IsVector{});
             });
     });
 }
@@ -622,27 +660,27 @@ __brick_equal(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
                .first == __last1;
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_equal(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                _BinaryPredicate __p, _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+bool
+__pattern_equal(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                _ForwardIterator2 __first2, _BinaryPredicate __p) noexcept
 {
-    return __internal::__brick_equal(__first1, __last1, __first2, __p, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_equal(__first1, __last1, __first2, __p, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_equal(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                _RandomAccessIterator2 __first2, _BinaryPredicate __p, _IsVector __is_vector,
-                /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+bool
+__pattern_equal(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _BinaryPredicate __p)
 {
     return __internal::__except_handler([&]() {
         return !__internal::__parallel_or(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-            [__first1, __first2, __p, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                return !__internal::__brick_equal(__i, __j, __first2 + (__i - __first1), __p, __is_vector);
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+            [__first1, __first2, __p](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                return !__internal::__brick_equal(__i, __j, __first2 + (__i - __first1), __p, _IsVector{});
             });
     });
 }
@@ -663,33 +701,34 @@ _RandomAccessIterator
 __brick_find_if(_RandomAccessIterator __first, _RandomAccessIterator __last, _Predicate __pred,
                 /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
     return __unseq_backend::__simd_first(
         __first, _SizeType(0), __last - __first,
         [&__pred](_RandomAccessIterator __it, _SizeType __i) { return __pred(__it[__i]); });
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_find_if(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred,
-                  _IsVector __is_vector,
-                  /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
+_ForwardIterator
+__pattern_find_if(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                  _Predicate __pred) noexcept
 {
-    return __internal::__brick_find_if(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_find_if(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Predicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_find_if(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                  _Predicate __pred, _IsVector __is_vector,
-                  /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Predicate>
+_RandomAccessIterator
+__pattern_find_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                  _RandomAccessIterator __last, _Predicate __pred)
 {
     return __except_handler([&]() {
-        return __parallel_find(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                               [__pred, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                   return __brick_find_if(__i, __j, __pred, __is_vector);
-                               },
-                               ::std::true_type{});
+        return __parallel_find(
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__pred](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                return __brick_find_if(__i, __j, __pred, _IsVector{});
+            },
+            ::std::true_type{});
     });
 }
 
@@ -706,7 +745,6 @@ __find_subrange(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
                 _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last, _BinaryPredicate __pred,
                 bool __b_first, _IsVector __is_vector) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::value_type _ValueType;
     auto __n2 = __s_last - __s_first;
     if (__n2 < 1)
     {
@@ -723,8 +761,9 @@ __find_subrange(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
     while (__first != __last && (__global_last - __first >= __n2))
     {
         // find position of *s_first in [first, last) (it can be start of subsequence)
-        __first = __internal::__brick_find_if(
-            __first, __last, __equal_value_by_pred<_ValueType, _BinaryPredicate&>(*__s_first, __pred), __is_vector);
+        auto __u_pred =
+            [__pred, __s_first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__s_first); };
+        __first = __internal::__brick_find_if(__first, __last, __u_pred, __is_vector);
 
         // if position that was found previously is the start of subsequence
         // then we can exit the loop (b_first == true) or keep the position
@@ -771,7 +810,8 @@ __find_subrange(_RandomAccessIterator __first, _RandomAccessIterator __last, _Ra
         return __last;
     }
 
-    auto __unary_pred = __equal_value_by_pred<_Tp, _BinaryPredicate&>(__value, __pred);
+    auto __unary_pred =
+        [__pred, &__value](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), __value); };
     while (__first != __last && (static_cast<_Size>(__global_last - __first) >= __count))
     {
         __first = __internal::__brick_find_if(__first, __last, __unary_pred, __is_vector);
@@ -811,40 +851,39 @@ __brick_find_end(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, 
     return __find_subrange(__first, __last, __last, __s_first, __s_last, __pred, false, ::std::true_type());
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator1>
-__pattern_find_end(_ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
-                   _ForwardIterator2 __s_last, _BinaryPredicate __pred, _IsVector __is_vector,
-                   /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+_ForwardIterator1
+__pattern_find_end(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last,
+                   _ForwardIterator2 __s_first, _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_find_end(__first, __last, __s_first, __s_last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_find_end(__first, __last, __s_first, __s_last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator1>
-__pattern_find_end(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                   _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last, _BinaryPredicate __pred,
-                   _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+_RandomAccessIterator1
+__pattern_find_end(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                   _RandomAccessIterator1 __last, _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last,
+                   _BinaryPredicate __pred)
 {
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res = __internal::__pattern_equal(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                       __s_first, __pred, __is_vector, ::std::true_type());
+        const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                       __s_first, __pred);
         return __res ? __first : __last;
     }
     else
     {
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_find(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                               [__last, __s_first, __s_last, __pred,
-                                                __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                                                   return __internal::__find_subrange(__i, __j, __last, __s_first,
-                                                                                      __s_last, __pred, false,
-                                                                                      __is_vector);
-                                               },
-                                               ::std::false_type{});
+            return __internal::__parallel_find(
+                __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                [__last, __s_first, __s_last, __pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                    return __internal::__find_subrange(__i, __j, __last, __s_first, __s_last, __pred, false,
+                                                       _IsVector{});
+                },
+                ::std::false_type{});
         });
     }
 }
@@ -868,28 +907,29 @@ __brick_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forw
     return __unseq_backend::__simd_find_first_of(__first, __last, __s_first, __s_last, __pred);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator1>
-__pattern_find_first_of(_ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last,
-                        _ForwardIterator2 __s_first, _ForwardIterator2 __s_last, _BinaryPredicate __pred,
-                        _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+_ForwardIterator1
+__pattern_find_first_of(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last,
+                        _ForwardIterator2 __s_first, _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_find_first_of(__first, __last, __s_first, __s_last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_find_first_of(__first, __last, __s_first, __s_last, __pred,
+                                             typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator1>
-__pattern_find_first_of(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
-                        _ForwardIterator2 __s_first, _ForwardIterator2 __s_last, _BinaryPredicate __pred,
-                        _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+_RandomAccessIterator1
+__pattern_find_first_of(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                        _RandomAccessIterator1 __last, _RandomAccessIterator2 __s_first,
+                        _RandomAccessIterator2 __s_last, _BinaryPredicate __pred)
 {
     return __internal::__except_handler([&]() {
         return __internal::__parallel_find(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__s_first, __s_last, &__pred, __is_vector](_ForwardIterator1 __i, _ForwardIterator1 __j) {
-                return __internal::__brick_find_first_of(__i, __j, __s_first, __s_last, __pred, __is_vector);
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__s_first, __s_last, &__pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                return __internal::__brick_find_first_of(__i, __j, __s_first, __s_last, __pred, _IsVector{});
             },
             ::std::true_type{});
     });
@@ -914,41 +954,39 @@ __brick_search(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIter
     return __internal::__find_subrange(__first, __last, __last, __s_first, __s_last, __pred, true, ::std::true_type());
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator1>
-__pattern_search(_ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
-                 _ForwardIterator2 __s_last, _BinaryPredicate __pred, _IsVector __is_vector,
-                 /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredicate>
+_ForwardIterator1
+__pattern_search(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first, _ForwardIterator1 __last,
+                 _ForwardIterator2 __s_first, _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_search(__first, __last, __s_first, __s_last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_search(__first, __last, __s_first, __s_last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator1>
-__pattern_search(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                 _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last, _BinaryPredicate __pred,
-                 _IsVector __is_vector,
-                 /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+_RandomAccessIterator1
+__pattern_search(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                 _RandomAccessIterator1 __last, _RandomAccessIterator2 __s_first, _RandomAccessIterator2 __s_last,
+                 _BinaryPredicate __pred)
 {
     if (__last - __first == __s_last - __s_first)
     {
-        const bool __res = __internal::__pattern_equal(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                                       __s_first, __pred, __is_vector, ::std::true_type());
+        const bool __res = __internal::__pattern_equal(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                       __s_first, __pred);
         return __res ? __first : __last;
     }
     else
     {
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_find(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                               [__last, __s_first, __s_last, __pred,
-                                                __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                                                   return __internal::__find_subrange(__i, __j, __last, __s_first,
-                                                                                      __s_last, __pred, true,
-                                                                                      __is_vector);
-                                               },
-                                               ::std::true_type{});
+            return __internal::__parallel_find(
+                __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                [__last, __s_first, __s_last, __pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                    return __internal::__find_subrange(__i, __j, __last, __s_first, __s_last, __pred, true,
+                                                       _IsVector{});
+                },
+                /*_IsFirst=*/::std::true_type{});
         });
     }
 }
@@ -972,38 +1010,36 @@ __brick_search_n(_RandomAccessIterator __first, _RandomAccessIterator __last, _S
     return __internal::__find_subrange(__first, __last, __last, __count, __value, __pred, ::std::true_type());
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Tp, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_search_n(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Size __count,
-                   const _Tp& __value, _BinaryPredicate __pred, _IsVector __is_vector,
-                   /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Tp, class _BinaryPredicate>
+_ForwardIterator
+__pattern_search_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Size __count,
+                   const _Tp& __value, _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_search_n(__first, __last, __count, __value, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_search_n(__first, __last, __count, __value, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_search_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                   _Size __count, const _Tp& __value, _BinaryPredicate __pred, _IsVector __is_vector,
-                   /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp,
+          class _BinaryPredicate>
+_RandomAccessIterator
+__pattern_search_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                   _RandomAccessIterator __last, _Size __count, const _Tp& __value, _BinaryPredicate __pred)
 {
     if (static_cast<_Size>(__last - __first) == __count)
     {
-        const bool __result = !__internal::__pattern_any_of(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [&__value, &__pred](const _Tp& __val) { return !__pred(__val, __value); }, __is_vector,
-            /*is_parallel*/ ::std::true_type());
+        const bool __result = !__internal::__pattern_any_of(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
+            __last, [&__value, __pred](auto&& __val) mutable { return !__pred(std::forward<decltype(__val)>(__val),
+            __value); });
         return __result ? __first : __last;
     }
     else
     {
-        return __internal::__except_handler([&__exec, __first, __last, __count, &__value, __pred, __is_vector]() {
+        return __internal::__except_handler([__tag, &__exec, __first, __last, __count, &__value, __pred]() {
             return __internal::__parallel_find(
-                ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                [__last, __count, &__value, __pred, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                    return __internal::__find_subrange(__i, __j, __last, __count, __value, __pred, __is_vector);
+                __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                [__last, __count, &__value, __pred](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                    return __internal::__find_subrange(__i, __j, __last, __count, __value, __pred, _IsVector{});
                 },
                 ::std::true_type{});
         });
@@ -1017,8 +1053,8 @@ __pattern_search_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Ra
 // clear that doing so is worth the trouble and extra layers of call chain.
 // Sometimes a little duplication for sake of regularity is better than the alternative.
 
-template <typename _ExecutionPolicy>
-struct __brick_copy_n<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag>
+struct __brick_copy_n<_Tag, std::enable_if_t<oneapi::dpl::__internal::__is_host_dispatch_tag_v<_Tag>>>
 {
     template <typename _RandomAccessIterator1, typename _Size, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1042,10 +1078,9 @@ struct __brick_copy_n<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_hos
 // copy
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy>
-struct __brick_copy<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag>
+struct __brick_copy<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1075,10 +1110,9 @@ struct __brick_copy<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_
 // move
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy>
-struct __brick_move<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag>
+struct __brick_move<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
-
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
     operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1095,14 +1129,17 @@ struct __brick_move<_ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_
     {
         return ::std::move(__first, __last, __result);
     }
+
+    template <typename _ReferenceType1, typename _ReferenceType2>
+    void
+    operator()(_ReferenceType1&& __val, _ReferenceType2&& __result) const
+    {
+        __result = ::std::move(__val);
+    }
 };
 
-template <typename _ExecutionPolicy, typename _Dummy = void>
-struct __brick_move_destroy;
-
-template <typename _ExecutionPolicy>
-struct __brick_move_destroy<_ExecutionPolicy,
-                            oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag, typename = std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
+struct __brick_move_destroy
 {
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
@@ -1124,7 +1161,7 @@ struct __brick_move_destroy<_ExecutionPolicy,
     {
         using _IteratorValueType = typename ::std::iterator_traits<_Iterator>::value_type;
 
-        for (; __first != __last; ++__first, ++__result)
+        for (; __first != __last; ++__first, (void)++__result)
         {
             *__result = ::std::move(*__first);
             (*__first).~_IteratorValueType();
@@ -1190,7 +1227,7 @@ __brick_calc_mask_1(_ForwardIterator __first, _ForwardIterator __last, bool* __r
     static_assert(__is_random_access_iterator_v<_ForwardIterator>,
                   "Pattern-brick error. Should be a random access iterator.");
 
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         *__mask = __pred(*__first);
         if (*__mask)
@@ -1215,7 +1252,7 @@ void
 __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, bool* __mask,
                      _Assigner __assigner, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         if (*__mask)
         {
@@ -1242,7 +1279,7 @@ void
 __brick_partition_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator1 __out_true,
                           _OutputIterator2 __out_false, bool* __mask, /*vector=*/::std::false_type) noexcept
 {
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         if (*__mask)
         {
@@ -1270,48 +1307,51 @@ __brick_partition_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1
 #endif
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_copy_if(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
-                  _UnaryPredicate __pred, _IsVector __is_vector, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _UnaryPredicate>
+_OutputIterator
+__pattern_copy_if(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
+                  _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_copy_if(__first, __last, __result, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_copy_if(__first, __last, __result, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _UnaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_copy_if(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                  _RandomAccessIterator2 __result, _UnaryPredicate __pred, _IsVector __is_vector,
-                  /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _UnaryPredicate>
+_RandomAccessIterator2
+__pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                  _RandomAccessIterator1 __last, _RandomAccessIterator2 __result, _UnaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
-        __par_backend::__buffer<_ExecutionPolicy, bool> __mask_buf(__n);
-        return __internal::__except_handler([&__exec, __n, __first, __result, __is_vector, __pred, &__mask_buf]() {
+        __par_backend::__buffer<bool> __mask_buf(__n);
+        return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
-                ::std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                            __mask + __i, __pred, __is_vector)
+                                                                            __mask + __i, __pred, _IsVector{})
                         .first;
                 },
                 ::std::plus<_DifferenceType>(),                                              // Combine
                 [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
                     __internal::__brick_copy_by_mask(
                         __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
-                        [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, __is_vector);
+                        [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
                 },
                 [&__m](_DifferenceType __total) { __m = __total; });
             return __result + __m;
         });
     }
     // trivial sequence - use serial algorithm
-    return __internal::__brick_copy_if(__first, __last, __result, __pred, __is_vector);
+    return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
 }
 
 //------------------------------------------------------------------------
@@ -1333,23 +1373,23 @@ __brick_count(_ForwardIterator __first, _ForwardIterator __last, _Predicate __pr
     return ::std::count_if(__first, __last, __pred);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<
-    _ExecutionPolicy, typename ::std::iterator_traits<_ForwardIterator>::difference_type>
-__pattern_count(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred,
-                /* is_parallel */ ::std::false_type, _IsVector __is_vector) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
+typename ::std::iterator_traits<_ForwardIterator>::difference_type
+__pattern_count(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) noexcept
 {
-    return __internal::__brick_count(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_count(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Predicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<
-    _ExecutionPolicy, typename ::std::iterator_traits<_RandomAccessIterator>::difference_type>
-__pattern_count(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                _Predicate __pred,
-                /* is_parallel */ ::std::true_type, _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Predicate>
+typename ::std::iterator_traits<_RandomAccessIterator>::difference_type
+__pattern_count(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                _RandomAccessIterator __last, _Predicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
 
     //trivial pre-checks
     if (__first == __last)
@@ -1357,9 +1397,10 @@ __pattern_count(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Rando
 
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, _SizeType(0),
-            [__pred, __is_vector](_RandomAccessIterator __begin, _RandomAccessIterator __end, _SizeType __value)
-                -> _SizeType { return __value + __internal::__brick_count(__begin, __end, __pred, __is_vector); },
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, _SizeType(0),
+            [__pred](_RandomAccessIterator __begin, _RandomAccessIterator __end, _SizeType __value) -> _SizeType {
+                return __value + __internal::__brick_count(__begin, __end, __pred, _IsVector{});
+            },
             ::std::plus<_SizeType>());
     });
 }
@@ -1385,32 +1426,36 @@ __brick_unique(_RandomAccessIterator __first, _RandomAccessIterator __last, _Bin
     return ::std::unique(__first, __last, __pred);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _BinaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_unique(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _BinaryPredicate __pred,
-                 _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _BinaryPredicate>
+_ForwardIterator
+__pattern_unique(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                 _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_unique(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_unique(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
 // That function is shared between two algorithms - remove_if (__pattern_remove_if) and unique (pattern unique). But a mask calculation is different.
 // So, a caller passes _CalcMask brick into remove_elements.
-template <class _ExecutionPolicy, class _ForwardIterator, class _CalcMask, class _IsVector>
-_ForwardIterator
-__remove_elements(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _CalcMask __calc_mask,
-                  _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _CalcMask>
+_RandomAccessIterator
+__remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                  _RandomAccessIterator __last, _CalcMask __calc_mask)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator>::difference_type _DifferenceType;
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _Tp;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     _DifferenceType __n = __last - __first;
-    __par_backend::__buffer<_ExecutionPolicy, bool> __mask_buf(__n);
+    __par_backend::__buffer<bool> __mask_buf(__n);
     // 1. find a first iterator that should be removed
     return __internal::__except_handler([&]() {
         bool* __mask = __mask_buf.get();
         _DifferenceType __min = __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), _DifferenceType(0), __n, __n,
-            [__first, __mask, &__calc_mask, __is_vector](_DifferenceType __i, _DifferenceType __j,
-                                                         _DifferenceType __local_min) -> _DifferenceType {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), _DifferenceType(0), __n, __n,
+            [__first, __mask, &__calc_mask](_DifferenceType __i, _DifferenceType __j,
+                                            _DifferenceType __local_min) -> _DifferenceType {
                 // Create mask
                 __calc_mask(__mask + __i, __mask + __j, __first + __i);
 
@@ -1420,8 +1465,8 @@ __remove_elements(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardI
                     return __local_min;
                 }
                 // find first iterator that should be removed
-                bool* __result = __internal::__brick_find_if(__mask + __i, __mask + __j,
-                                                             [](bool __val) { return !__val; }, __is_vector);
+                bool* __result = __internal::__brick_find_if(
+                    __mask + __i, __mask + __j, [](bool __val) { return !__val; }, _IsVector{});
                 if (__result - __mask == __j)
                 {
                     return __local_min;
@@ -1440,47 +1485,42 @@ __remove_elements(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardI
         __n -= __min;
         __first += __min;
 
-        __par_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__n);
+        __par_backend::__buffer<_Tp> __buf(__n);
         _Tp* __result = __buf.get();
         __mask += __min;
         _DifferenceType __m{};
         // 2. Elements that doesn't satisfy pred are moved to result
         __par_backend::__parallel_strict_scan(
-            ::std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-            [__mask, __is_vector](_DifferenceType __i, _DifferenceType __len) {
-                return __internal::__brick_count(__mask + __i, __mask + __i + __len, [](bool __val) { return __val; },
-                                                 __is_vector);
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+            [__mask](_DifferenceType __i, _DifferenceType __len) {
+                return __internal::__brick_count(
+                    __mask + __i, __mask + __i + __len, [](bool __val) { return __val; }, _IsVector{});
             },
             ::std::plus<_DifferenceType>(),
             [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) {
                 __internal::__brick_copy_by_mask(
                     __first + __i, __first + __i + __len, __result + __initial, __mask + __i,
-                    [](_ForwardIterator __x, _Tp* __z) {
-                        if constexpr (::std::is_trivial_v<_Tp>)
-                            *__z = ::std::move(*__x);
-                        else
-                            ::new (::std::addressof(*__z)) _Tp(::std::move(*__x));
-                    },
-                    __is_vector);
+                    [](_RandomAccessIterator __x, _Tp* __z) { ::new (std::addressof(*__z)) _Tp(std::move(*__x)); },
+                    _IsVector{});
             },
             [&__m](_DifferenceType __total) { __m = __total; });
 
         // 3. Elements from result are moved to [first, last)
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __result, __result + __m,
-                                      [__result, __first, __is_vector](_Tp* __i, _Tp* __j) {
-                                          __brick_move_destroy<_ExecutionPolicy>{}(__i, __j, __first + (__i - __result),
-                                                                                   __is_vector);
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
+                                      __result + __m, [__result, __first](_Tp* __i, _Tp* __j) {
+                                          __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                                              __i, __j, __first + (__i - __result), _IsVector{});
                                       });
         return __first + __m;
     });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _BinaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_unique(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                 _BinaryPredicate __pred, _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _BinaryPredicate>
+_RandomAccessIterator
+__pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                 _RandomAccessIterator __last, _BinaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename std::iterator_traits<_RandomAccessIterator>::reference;
 
     if (__first == __last)
     {
@@ -1489,16 +1529,15 @@ __pattern_unique(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Rand
     if (__first + 1 == __last || __first + 2 == __last)
     {
         // Trivial sequence - use serial algorithm
-        return __internal::__brick_unique(__first, __last, __pred, __is_vector);
+        return __internal::__brick_unique(__first, __last, __pred, _IsVector{});
     }
     return __internal::__remove_elements(
-        ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
-        [&__pred, __is_vector](bool* __b, bool* __e, _RandomAccessIterator __it) {
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), ++__first, __last,
+        [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
             __internal::__brick_walk3(
                 __b, __e, __it - 1, __it,
-                [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) { __x = !__pred(__y, __z); }, __is_vector);
-        },
-        __is_vector);
+                [&__pred](bool& __x, _ReferenceType __y, _ReferenceType __z) { __x = !__pred(__y, __z); }, _IsVector{});
+        });
 }
 
 //------------------------------------------------------------------------
@@ -1525,13 +1564,14 @@ __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __las
 #endif
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_unique_copy(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
-                      _BinaryPredicate __pred, _IsVector __is_vector, /*parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
+_OutputIterator
+__pattern_unique_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                      _OutputIterator __result, _BinaryPredicate __pred) noexcept
 {
-    return __internal::__brick_unique_copy(__first, __last, __result, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_unique_copy(__first, __last, __result, __pred, typename _Tag::__is_vector{});
 }
 
 template <class _DifferenceType, class _RandomAccessIterator, class _BinaryPredicate>
@@ -1540,7 +1580,7 @@ __brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     _BinaryPredicate __pred, /*vector=*/::std::false_type) noexcept
 {
     _DifferenceType __count = 0;
-    for (; __first != __last; ++__first, ++__mask)
+    for (; __first != __last; ++__first, (void)++__mask)
     {
         *__mask = !__pred(*__first, *(__first - 1));
         __count += *__mask;
@@ -1556,25 +1596,26 @@ __brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last,
     return __unseq_backend::__simd_calc_mask_2(__first, __last - __first, __mask, __pred);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_unique_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                      _RandomAccessIterator2 __result, _BinaryPredicate __pred, _IsVector __is_vector,
-                      /*parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _BinaryPredicate>
+_RandomAccessIterator2
+__pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                      _RandomAccessIterator1 __last, _RandomAccessIterator2 __result, _BinaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(2) < __n)
     {
-        __par_backend::__buffer<_ExecutionPolicy, bool> __mask_buf(__n);
+        __par_backend::__buffer<bool> __mask_buf(__n);
         if (_DifferenceType(2) < __n)
         {
-            return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __is_vector, &__mask_buf]() {
+            return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
-                    ::std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                     [=](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
                         _DifferenceType __extra = 0;
                         if (__i == 0)
@@ -1587,7 +1628,7 @@ __pattern_unique_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
                             ++__extra;
                         }
                         return __internal::__brick_calc_mask_2<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                                __mask + __i, __pred, __is_vector) +
+                                                                                __mask + __i, __pred, _IsVector{}) +
                                __extra;
                     },
                     ::std::plus<_DifferenceType>(),                                              // Combine
@@ -1595,7 +1636,7 @@ __pattern_unique_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
                         // Phase 2 is same as for __pattern_copy_if
                         __internal::__brick_copy_by_mask(
                             __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
-                            [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, __is_vector);
+                            [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
                     },
                     [&__m](_DifferenceType __total) { __m = __total; });
                 return __result + __m;
@@ -1603,7 +1644,7 @@ __pattern_unique_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
         }
     }
     // trivial sequence - use serial algorithm
-    return __internal::__brick_unique_copy(__first, __last, __result, __pred, __is_vector);
+    return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
 }
 
 //------------------------------------------------------------------------
@@ -1622,14 +1663,15 @@ void
 __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last,
                 /*__is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename std::iterator_traits<_RandomAccessIterator>::reference;
 
     const auto __n = (__last - __first) / 2;
-    __unseq_backend::__simd_walk_2(__first, __n, ::std::reverse_iterator<_RandomAccessIterator>(__last),
+    __unseq_backend::__simd_walk_n(__n,
                                    [](_ReferenceType __x, _ReferenceType __y) {
                                        using ::std::swap;
                                        swap(__x, __y);
-                                   });
+                                   },
+                                   __first, std::reverse_iterator<_RandomAccessIterator>(__last));
 }
 
 // this brick is called in parallel version, so we can use iterator arithmetic
@@ -1638,10 +1680,10 @@ void
 __brick_reverse(_BidirectionalIterator __first, _BidirectionalIterator __last, _BidirectionalIterator __d_last,
                 /*is_vector=*/::std::false_type) noexcept
 {
-    for (--__d_last; __first != __last; ++__first, --__d_last)
+    for (; __first != __last; ++__first)
     {
         using ::std::iter_swap;
-        iter_swap(__first, __d_last);
+        iter_swap(__first, --__d_last);
     }
 }
 
@@ -1651,34 +1693,43 @@ void
 __brick_reverse(_RandomAccessIterator __first, _RandomAccessIterator __last, _RandomAccessIterator __d_last,
                 /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename std::iterator_traits<_RandomAccessIterator>::reference;
 
-    __unseq_backend::__simd_walk_2(__first, __last - __first, ::std::reverse_iterator<_RandomAccessIterator>(__d_last),
+    __unseq_backend::__simd_walk_n(__last - __first,
                                    [](_ReferenceType __x, _ReferenceType __y) {
                                        using ::std::swap;
                                        swap(__x, __y);
-                                   });
+                                   },
+                                   __first, std::reverse_iterator<_RandomAccessIterator>(__d_last));
 }
 
-template <class _ExecutionPolicy, class _BidirectionalIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_reverse(_ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last,
-                  _IsVector _is_vector,
-                  /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator>
+void
+__pattern_reverse(_Tag, _ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last) noexcept
 {
-    __internal::__brick_reverse(__first, __last, _is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __internal::__brick_reverse(__first, __last, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_reverse(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                  _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator>
+void
+__pattern_reverse(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                  _RandomAccessIterator __last)
 {
-    __par_backend::__parallel_for(
-        ::std::forward<_ExecutionPolicy>(__exec), __first, __first + (__last - __first) / 2,
-        [__is_vector, __first, __last](_RandomAccessIterator __inner_first, _RandomAccessIterator __inner_last) {
-            __internal::__brick_reverse(__inner_first, __inner_last, __last - (__inner_first - __first), __is_vector);
-        });
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    if (__first == __last)
+        return;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + (__last - __first) / 2,
+            [__first, __last](_RandomAccessIterator __inner_first, _RandomAccessIterator __inner_last) {
+                __internal::__brick_reverse(__inner_first, __inner_last, __last - (__inner_first - __first),
+                                            _IsVector{});
+            });
+    });
 }
 
 //------------------------------------------------------------------------
@@ -1698,35 +1749,45 @@ _RandomAccessIterator2
 __brick_reverse_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __d_first,
                      /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference _ReferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference _ReferenceType2;
+    using _ReferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::reference;
+    using _ReferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::reference;
 
-    return __unseq_backend::__simd_walk_2(::std::reverse_iterator<_RandomAccessIterator1>(__last), __last - __first,
-                                          __d_first, [](_ReferenceType1 __x, _ReferenceType2 __y) { __y = __x; });
+    return __unseq_backend::__simd_walk_n(__last - __first,
+        [](_ReferenceType1 __x, _ReferenceType2 __y) { __y = __x; },
+        std::reverse_iterator<_RandomAccessIterator1>(__last), __d_first);
 }
 
-template <class _ExecutionPolicy, class _BidirectionalIterator, class _OutputIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_reverse_copy(_ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last,
-                       _OutputIterator __d_first, _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _OutputIterator>
+_OutputIterator
+__pattern_reverse_copy(_Tag, _ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last,
+                       _OutputIterator __d_first) noexcept
 {
-    return __internal::__brick_reverse_copy(__first, __last, __d_first, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_reverse_copy(__first, __last, __d_first, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_reverse_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                       _RandomAccessIterator2 __d_first, _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+_RandomAccessIterator2
+__pattern_reverse_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                       _RandomAccessIterator1 __last, _RandomAccessIterator2 __d_first)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     auto __len = __last - __first;
-    __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                  [__is_vector, __first, __len, __d_first](_RandomAccessIterator1 __inner_first,
-                                                                           _RandomAccessIterator1 __inner_last) {
-                                      __internal::__brick_reverse_copy(__inner_first, __inner_last,
-                                                                       __d_first + (__len - (__inner_last - __first)),
-                                                                       __is_vector);
-                                  });
-    return __d_first + __len;
+
+    if (__len == 0)
+        return __d_first;
+
+    return __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__first, __len, __d_first](_RandomAccessIterator1 __inner_first, _RandomAccessIterator1 __inner_last) {
+                __internal::__brick_reverse_copy(__inner_first, __inner_last,
+                                                 __d_first + (__len - (__inner_last - __first)), _IsVector{});
+            });
+        return __d_first + __len;
+    });
 }
 
 //------------------------------------------------------------------------
@@ -1781,43 +1842,47 @@ __brick_rotate(_RandomAccessIterator __first, _RandomAccessIterator __middle, _R
     return __ret;
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_rotate(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
-                 _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator>
+_ForwardIterator
+__pattern_rotate(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
+                 _ForwardIterator __last) noexcept
 {
-    return __internal::__brick_rotate(__first, __middle, __last, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_rotate(__first, __middle, __last, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_rotate(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __middle,
-                 _RandomAccessIterator __last, _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator>
+_RandomAccessIterator
+__pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                 _RandomAccessIterator __middle, _RandomAccessIterator __last)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     auto __n = __last - __first;
     auto __m = __middle - __first;
     if (__m <= __n / 2)
     {
-        __par_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__n - __m);
-        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, __is_vector, &__buf]() {
+        __par_backend::__buffer<_Tp> __buf(__n - __m);
+        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, &__buf]() {
             _Tp* __result = __buf.get();
-            __par_backend::__parallel_for(
-                ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
-                [__middle, __result, __is_vector](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                    __internal::__brick_uninitialized_move(__b, __e, __result + (__b - __middle), __is_vector);
-                });
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
+                                          [__middle, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                                              __internal::__brick_uninitialized_move(
+                                                  __b, __e, __result + (__b - __middle), _IsVector{});
+                                          });
 
-            __par_backend::__parallel_for(
-                ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
-                [__last, __middle, __is_vector](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                    __internal::__brick_move<_ExecutionPolicy>{}(__b, __e, __b + (__last - __middle), __is_vector);
-                });
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
+                                          [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                                              __internal::__brick_move<__parallel_tag<_IsVector>>{}(
+                                                  __b, __e, __b + (__last - __middle), _IsVector{});
+                                          });
 
-            __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __result, __result + (__n - __m),
-                                          [__first, __result, __is_vector](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<_ExecutionPolicy>{}(
-                                                  __b, __e, __first + (__b - __result), __is_vector);
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
+                                          __result + (__n - __m), [__first, __result](_Tp* __b, _Tp* __e) {
+                                              __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                                                  __b, __e, __first + (__b - __result), _IsVector{});
                                           });
 
             return __first + (__last - __middle);
@@ -1825,25 +1890,25 @@ __pattern_rotate(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Rand
     }
     else
     {
-        __par_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__m);
-        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, __is_vector, &__buf]() {
+        __par_backend::__buffer<_Tp> __buf(__m);
+        return __internal::__except_handler([&__exec, __n, __m, __first, __middle, __last, &__buf]() {
             _Tp* __result = __buf.get();
-            __par_backend::__parallel_for(
-                ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
-                [__first, __result, __is_vector](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                    __internal::__brick_uninitialized_move(__b, __e, __result + (__b - __first), __is_vector);
-                });
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
+                                          [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                                              __internal::__brick_uninitialized_move(
+                                                  __b, __e, __result + (__b - __first), _IsVector{});
+                                          });
 
-            __par_backend::__parallel_for(
-                ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
-                [__first, __middle, __is_vector](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                    __internal::__brick_move<_ExecutionPolicy>{}(__b, __e, __first + (__b - __middle), __is_vector);
-                });
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
+                                          [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
+                                              __internal::__brick_move<__parallel_tag<_IsVector>>{}(
+                                                  __b, __e, __first + (__b - __middle), _IsVector{});
+                                          });
 
-            __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __result, __result + __m,
-                                          [__n, __m, __first, __result, __is_vector](_Tp* __b, _Tp* __e) {
-                                              __brick_move_destroy<_ExecutionPolicy>{}(
-                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), __is_vector);
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
+                                          __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
+                                              __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
                                           });
 
             return __first + (__last - __middle);
@@ -1855,63 +1920,69 @@ __pattern_rotate(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Rand
 // rotate_copy
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
 _OutputIterator
-__brick_rotate_copy(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle, _ForwardIterator __last,
-                    _OutputIterator __result, /*__is_vector=*/::std::false_type) noexcept
+__brick_rotate_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __middle,
+                    _ForwardIterator __last, _OutputIterator __result) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     return ::std::rotate_copy(__first, __middle, __last, __result);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
 _RandomAccessIterator2
-__brick_rotate_copy(_ExecutionPolicy&&, _RandomAccessIterator1 __first, _RandomAccessIterator1 __middle,
-                    _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                    /*__is_vector=*/::std::true_type) noexcept
+__brick_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1 __first,
+                    _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last,
+                    _RandomAccessIterator2 __result) noexcept
 {
-    _RandomAccessIterator2 __res = __brick_copy<_ExecutionPolicy>{}(__middle, __last, __result, ::std::true_type());
-    return __internal::__brick_copy<_ExecutionPolicy>{}(__first, __middle, __res, ::std::true_type());
+    _RandomAccessIterator2 __res = __brick_copy<__parallel_tag<_IsVector>>{}(__middle, __last, __result);
+    return __internal::__brick_copy<__parallel_tag<_IsVector>>{}(__first, __middle, __res);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_rotate_copy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __middle,
-                      _ForwardIterator __last, _OutputIterator __result, _IsVector __is_vector,
-                      /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator>
+_OutputIterator
+__pattern_rotate_copy(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __middle,
+                      _ForwardIterator __last, _OutputIterator __result) noexcept
 {
-    return __internal::__brick_rotate_copy(::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
-                                           __result, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_rotate_copy(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __last,
+                                           __result);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_rotate_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __middle,
-                      _RandomAccessIterator1 __last, _RandomAccessIterator2 __result, _IsVector __is_vector,
-                      /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2>
+_RandomAccessIterator2
+__pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                      _RandomAccessIterator1 __middle, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result)
 {
-    __par_backend::__parallel_for(
-        ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        [__first, __last, __middle, __result, __is_vector](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
-            __internal::__brick_copy<_ExecutionPolicy> __copy{};
-            if (__b > __middle)
-            {
-                __copy(__b, __e, __result + (__b - __middle), __is_vector);
-            }
-            else
-            {
-                _RandomAccessIterator2 __new_result = __result + ((__last - __middle) + (__b - __first));
-                if (__e < __middle)
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    return __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__first, __last, __middle, __result](_RandomAccessIterator1 __b, _RandomAccessIterator1 __e) {
+                __internal::__brick_copy<__parallel_tag<_IsVector>> __copy{};
+                if (__b > __middle)
                 {
-                    __copy(__b, __e, __new_result, __is_vector);
+                    __copy(__b, __e, __result + (__b - __middle), _IsVector{});
                 }
                 else
                 {
-                    __copy(__b, __middle, __new_result, __is_vector);
-                    __copy(__middle, __e, __result, __is_vector);
+                    _RandomAccessIterator2 __new_result = __result + ((__last - __middle) + (__b - __first));
+                    if (__e < __middle)
+                    {
+                        __copy(__b, __e, __new_result, _IsVector{});
+                    }
+                    else
+                    {
+                        __copy(__b, __middle, __new_result, _IsVector{});
+                        __copy(__middle, __e, __result, _IsVector{});
+                    }
                 }
-            }
-        });
-    return __result + (__last - __first);
+            });
+        return __result + (__last - __first);
+    });
 }
 
 //------------------------------------------------------------------------
@@ -1931,7 +2002,7 @@ bool
 __brick_is_partitioned(_RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryPredicate __pred,
                        /*is_vector=*/::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
     if (__first == __last)
     {
         return true;
@@ -1953,19 +2024,23 @@ __brick_is_partitioned(_RandomAccessIterator __first, _RandomAccessIterator __la
     }
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_is_partitioned(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _UnaryPredicate __pred,
-                         _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate>
+bool
+__pattern_is_partitioned(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                         _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_is_partitioned(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_is_partitioned(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_is_partitioned(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                         _UnaryPredicate __pred, _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate>
+bool
+__pattern_is_partitioned(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                         _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     //trivial pre-checks
     if (__first == __last)
         return true;
@@ -2003,9 +2078,9 @@ __pattern_is_partitioned(_ExecutionPolicy&& __exec, _RandomAccessIterator __firs
         const _ReduceType __identity{__not_init, __last};
 
         _ReduceType __result = __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __identity,
-            [&__pred, __combine, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j,
-                                              _ReduceType __value) -> _ReduceType {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __identity,
+            [&__pred, __combine](_RandomAccessIterator __i, _RandomAccessIterator __j,
+                                 _ReduceType __value) -> _ReduceType {
                 if (__value.__val == __broken)
                     return _ReduceType{__broken, __i};
 
@@ -2015,11 +2090,11 @@ __pattern_is_partitioned(_ExecutionPolicy&& __exec, _RandomAccessIterator __firs
                 {
                     // find first element that don't satisfy pred
                     _RandomAccessIterator __x =
-                        __internal::__brick_find_if(__i + 1, __j, __not_pred<_UnaryPredicate&>(__pred), __is_vector);
+                        __internal::__brick_find_if(__i + 1, __j, __not_pred<_UnaryPredicate&>(__pred), _IsVector{});
                     if (__x != __j)
                     {
                         // find first element after "x" that satisfy pred
-                        _RandomAccessIterator __y = __internal::__brick_find_if(__x + 1, __j, __pred, __is_vector);
+                        _RandomAccessIterator __y = __internal::__brick_find_if(__x + 1, __j, __pred, _IsVector{});
                         // if it was found then range isn't partitioned by pred
                         if (__y != __j)
                             return _ReduceType{__broken, __i};
@@ -2033,7 +2108,7 @@ __pattern_is_partitioned(_ExecutionPolicy&& __exec, _RandomAccessIterator __firs
                 { // if first element doesn't satisfy pred
                     // then we should find the first element that satisfy pred.
                     // If we found it then range isn't partitioned by pred
-                    if (__internal::__brick_find_if(__i + 1, __j, __pred, __is_vector) != __j)
+                    if (__internal::__brick_find_if(__i + 1, __j, __pred, _IsVector{}) != __j)
                         return _ReduceType{__broken, __i};
 
                     __res = _ReduceType{__all_false, __i};
@@ -2079,19 +2154,22 @@ __brick_partition(_RandomAccessIterator __first, _RandomAccessIterator __last, _
     return ::std::partition(__first, __last, __pred);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_partition(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _UnaryPredicate __pred,
-                    _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate>
+_ForwardIterator
+__pattern_partition(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                    _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_partition(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_partition(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                    _UnaryPredicate __pred, _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate>
+_RandomAccessIterator
+__pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                    _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     // partitioned range: elements before pivot satisfy pred (true part),
     //                    elements after pivot don't satisfy pred (false part)
@@ -2106,7 +2184,7 @@ __pattern_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _R
         _PartitionRange __init{__last, __last, __last};
 
         // lambda for merging two partitioned ranges to one partitioned range
-        auto __reductor = [&__exec, __is_vector](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
+        auto __reductor = [&__exec](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
             auto __size1 = __val1.__end - __val1.__pivot;
             auto __size2 = __val2.__pivot - __val2.__begin;
             auto __new_begin = __val2.__begin - (__val1.__end - __val1.__begin);
@@ -2121,10 +2199,10 @@ __pattern_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _R
             else if (__size2 > __size1)
             {
                 __par_backend::__parallel_for(
-                    ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size1,
-                    [__val1, __val2, __size1, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size1,
+                    [__val1, __val2, __size1](_RandomAccessIterator __i, _RandomAccessIterator __j) {
                         __internal::__brick_swap_ranges(__i, __j, (__val2.__pivot - __size1) + (__i - __val1.__pivot),
-                                                        __is_vector);
+                                                        _IsVector{});
                     });
                 return {__new_begin, __val2.__pivot - __size1, __val2.__end};
             }
@@ -2132,20 +2210,20 @@ __pattern_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _R
             else
             {
                 __par_backend::__parallel_for(
-                    ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size2,
-                    [__val1, __val2, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                        __internal::__brick_swap_ranges(__i, __j, __val2.__begin + (__i - __val1.__pivot), __is_vector);
+                    __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size2,
+                    [__val1, __val2](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                        __internal::__brick_swap_ranges(__i, __j, __val2.__begin + (__i - __val1.__pivot), _IsVector{});
                     });
                 return {__new_begin, __val1.__pivot + __size2, __val2.__end};
             }
         };
 
         _PartitionRange __result = __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
-            [__pred, __is_vector, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
-                                              _PartitionRange __value) -> _PartitionRange {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
+            [__pred, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
+                                 _PartitionRange __value) -> _PartitionRange {
                 //1. serial partition
-                _RandomAccessIterator __pivot = __internal::__brick_partition(__i, __j, __pred, __is_vector);
+                _RandomAccessIterator __pivot = __internal::__brick_partition(__i, __j, __pred, _IsVector{});
 
                 // 2. merging of two ranges (left and right respectively)
                 return __reductor(__value, {__i, __pivot, __j});
@@ -2176,21 +2254,23 @@ __brick_stable_partition(_RandomAccessIterator __first, _RandomAccessIterator __
     return ::std::stable_partition(__first, __last, __pred);
 }
 
-template <class _ExecutionPolicy, class _BidirectionalIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _BidirectionalIterator>
-__pattern_stable_partition(_ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last,
-                           _UnaryPredicate __pred, _IsVector __is_vector,
-                           /*is_parallelization=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _UnaryPredicate>
+_BidirectionalIterator
+__pattern_stable_partition(_Tag, _ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __last,
+                           _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_stable_partition(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_stable_partition(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_stable_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                           _UnaryPredicate __pred, _IsVector __is_vector,
-                           /*is_parallelization=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate>
+_RandomAccessIterator
+__pattern_stable_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                           _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     // partitioned range: elements before pivot satisfy pred (true part),
     //                    elements after pivot don't satisfy pred (false part)
     struct _PartitionRange
@@ -2204,7 +2284,7 @@ __pattern_stable_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __fi
         _PartitionRange __init{__last, __last, __last};
 
         // lambda for merging two partitioned ranges to one partitioned range
-        auto __reductor = [__is_vector](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
+        auto __reductor = [](_PartitionRange __val1, _PartitionRange __val2) -> _PartitionRange {
             auto __size1 = __val1.__end - __val1.__pivot;
             auto __new_begin = __val2.__begin - (__val1.__end - __val1.__begin);
 
@@ -2217,17 +2297,17 @@ __pattern_stable_partition(_ExecutionPolicy&& __exec, _RandomAccessIterator __fi
             // then we should swap the false part of left range and last part of true part of right range
             else
             {
-                __internal::__brick_rotate(__val1.__pivot, __val2.__begin, __val2.__pivot, __is_vector);
+                __internal::__brick_rotate(__val1.__pivot, __val2.__begin, __val2.__pivot, _IsVector{});
                 return {__new_begin, __val2.__pivot - __size1, __val2.__end};
             }
         };
 
         _PartitionRange __result = __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
-            [&__pred, __is_vector, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
-                                               _PartitionRange __value) -> _PartitionRange {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __init,
+            [&__pred, __reductor](_RandomAccessIterator __i, _RandomAccessIterator __j,
+                                  _PartitionRange __value) -> _PartitionRange {
                 //1. serial stable_partition
-                _RandomAccessIterator __pivot = __internal::__brick_stable_partition(__i, __j, __pred, __is_vector);
+                _RandomAccessIterator __pivot = __internal::__brick_stable_partition(__i, __j, __pred, _IsVector{});
 
                 // 2. merging of two ranges (left and right respectively)
                 return __reductor(__value, {__i, __pivot, __j});
@@ -2263,40 +2343,42 @@ __brick_partition_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __
 #endif
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator1, class _OutputIterator2,
-          class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_OutputIterator1, _OutputIterator2>>
-__pattern_partition_copy(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
-                         _OutputIterator1 __out_true, _OutputIterator2 __out_false, _UnaryPredicate __pred,
-                         _IsVector __is_vector, /*is_parallelization=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator1, class _OutputIterator2,
+          class _UnaryPredicate>
+::std::pair<_OutputIterator1, _OutputIterator2>
+__pattern_partition_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                         _OutputIterator1 __out_true, _OutputIterator2 __out_false, _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_partition_copy(__first, __last, __out_true, __out_false, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_partition_copy(__first, __last, __out_true, __out_false, __pred,
+                                              typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_RandomAccessIterator2, _RandomAccessIterator3>>
-__pattern_partition_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                         _RandomAccessIterator2 __out_true, _RandomAccessIterator3 __out_false, _UnaryPredicate __pred,
-                         _IsVector __is_vector, /*is_parallelization=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _UnaryPredicate>
+::std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
+__pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                         _RandomAccessIterator1 __last, _RandomAccessIterator2 __out_true,
+                         _RandomAccessIterator3 __out_false, _UnaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
-    typedef ::std::pair<_DifferenceType, _DifferenceType> _ReturnType;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _ReturnType = std::pair<_DifferenceType, _DifferenceType>;
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
-        __par_backend::__buffer<_ExecutionPolicy, bool> __mask_buf(__n);
-        return __internal::__except_handler([&__exec, __n, __first, __out_true, __out_false, __is_vector, __pred,
-                                             &__mask_buf]() {
+        __par_backend::__buffer<bool> __mask_buf(__n);
+        return __internal::__except_handler([&__exec, __n, __first, __out_true, __out_false, __pred, &__mask_buf]() {
             bool* __mask = __mask_buf.get();
             _ReturnType __m{};
             __par_backend::__parallel_strict_scan(
-                ::std::forward<_ExecutionPolicy>(__exec), __n, ::std::make_pair(_DifferenceType(0), _DifferenceType(0)),
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
+                std::make_pair(_DifferenceType(0), _DifferenceType(0)),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                            __mask + __i, __pred, __is_vector);
+                                                                            __mask + __i, __pred, _IsVector{});
                 },
                 [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
                     return ::std::make_pair(__x.first + __y.first, __x.second + __y.second);
@@ -2304,64 +2386,44 @@ __pattern_partition_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __fir
                 [=](_DifferenceType __i, _DifferenceType __len, _ReturnType __initial) { // Scan
                     __internal::__brick_partition_by_mask(__first + __i, __first + (__i + __len),
                                                           __out_true + __initial.first, __out_false + __initial.second,
-                                                          __mask + __i, __is_vector);
+                                                          __mask + __i, _IsVector{});
                 },
                 [&__m](_ReturnType __total) { __m = __total; });
             return ::std::make_pair(__out_true + __m.first, __out_false + __m.second);
         });
     }
     // trivial sequence - use serial algorithm
-    return __internal::__brick_partition_copy(__first, __last, __out_true, __out_false, __pred, __is_vector);
+    return __internal::__brick_partition_copy(__first, __last, __out_true, __out_false, __pred, _IsVector{});
 }
 
 //------------------------------------------------------------------------
 // sort
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector,
-          class _IsMoveConstructible>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_sort(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
-               _IsVector /*is_vector*/, /*is_parallel=*/::std::false_type, _IsMoveConstructible) noexcept
+template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _LeafSort>
+void
+__pattern_sort(_Tag, _ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
+               _LeafSort __leaf_sort) noexcept
 {
-    ::std::sort(__first, __last, __comp);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __leaf_sort(__first, __last, __comp);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
-               _IsVector /*is_vector*/, /*is_parallel=*/::std::true_type, /*is_move_constructible=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _LeafSort>
+void
+__pattern_sort(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+               _RandomAccessIterator __last, _Compare __comp, _LeafSort __leaf_sort)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     __internal::__except_handler([&]() {
-        __par_backend::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
-                                              [](_RandomAccessIterator __first, _RandomAccessIterator __last,
-                                                 _Compare __comp) { ::std::sort(__first, __last, __comp); },
-                                              __last - __first);
-    });
-}
-
-//------------------------------------------------------------------------
-// stable_sort
-//------------------------------------------------------------------------
-
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_stable_sort(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
-                      _IsVector /*is_vector*/, /*is_parallel=*/::std::false_type) noexcept
-{
-    ::std::stable_sort(__first, __last, __comp);
-}
-
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_stable_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                      _Compare __comp, _IsVector /*is_vector*/, /*is_parallel=*/::std::true_type)
-{
-    __internal::__except_handler([&]() {
-        __par_backend::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
-                                              [](_RandomAccessIterator __first, _RandomAccessIterator __last,
-                                                 _Compare __comp) { ::std::stable_sort(__first, __last, __comp); },
-                                              __last - __first);
+        __par_backend::__parallel_stable_sort(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
+            [__leaf_sort](_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp) {
+                __leaf_sort(__first, __last, __comp);
+            },
+            __last - __first);
     });
 }
 
@@ -2369,41 +2431,40 @@ __pattern_stable_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, 
 // sort_by_key
 //------------------------------------------------------------------------
 
-template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first,
+template <typename _Tag, typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _Compare, typename _LeafSort>
+void
+__pattern_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1 __keys_first,
                       _RandomAccessIterator1 __keys_last, _RandomAccessIterator2 __values_first, _Compare __comp,
-                      _IsVector /*vector=*/, /*is_parallel=*/::std::false_type) noexcept
+                      _LeafSort __leaf_sort) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f =
-        [__comp](const auto& __a, const auto& __b) { return __comp(::std::get<0>(__a), ::std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
 
-    ::std::sort(__beg, __end, __cmp_f);
+    __leaf_sort(__beg, __end, __cmp_f);
 }
 
-template <typename _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
-          typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first,
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _Compare, typename _LeafSort>
+void
+__pattern_sort_by_key(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_first,
                       _RandomAccessIterator1 __keys_last, _RandomAccessIterator2 __values_first, _Compare __comp,
-                      _IsVector /*vector=*/, /*is_parallel=*/::std::true_type)
+                      _LeafSort __leaf_sort)
 {
-    static_assert(::std::is_move_constructible_v<typename ::std::iterator_traits<_RandomAccessIterator1>::value_type>
-        && ::std::is_move_constructible_v<typename ::std::iterator_traits<_RandomAccessIterator2>::value_type>,
-        "The keys and values should be move constructible in case of parallel execution.");
-
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f =
-        [__comp](const auto& __a, const auto& __b) { return __comp(::std::get<0>(__a), ::std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
+
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     __internal::__except_handler([&]() {
-        __par_backend::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __beg, __end, __cmp_f,
-                                              [](auto __first, auto __last, auto __cmp)
-                                                { ::std::sort(__first, __last, __cmp); },__end - __beg);
+        __par_backend::__parallel_stable_sort(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __beg, __end, __cmp_f,
+            [__leaf_sort](auto __first, auto __last, auto __cmp) { __leaf_sort(__first, __last, __cmp); },
+            __end - __beg);
     });
 }
 
@@ -2411,27 +2472,30 @@ __pattern_sort_by_key(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __keys_f
 // partial_sort
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_partial_sort(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __middle,
-                       _RandomAccessIterator __last, _Compare __comp, _IsVector,
-                       /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+void
+__pattern_partial_sort(_Tag, _ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __middle,
+                       _RandomAccessIterator __last, _Compare __comp) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     ::std::partial_sort(__first, __middle, __last, __comp);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_partial_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __middle,
-                       _RandomAccessIterator __last, _Compare __comp, _IsVector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+void
+__pattern_partial_sort(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                       _RandomAccessIterator __middle, _RandomAccessIterator __last, _Compare __comp)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     const auto __n = __middle - __first;
     if (__n == 0)
         return;
 
     __except_handler([&]() {
         __par_backend::__parallel_stable_sort(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __comp,
             [__n](_RandomAccessIterator __begin, _RandomAccessIterator __end, _Compare __comp) {
                 if (__n < __end - __begin)
                     ::std::partial_sort(__begin, __begin + __n, __end, __comp);
@@ -2446,22 +2510,25 @@ __pattern_partial_sort(_ExecutionPolicy&& __exec, _RandomAccessIterator __first,
 // partial_sort_copy
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_partial_sort_copy(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
-                            _RandomAccessIterator __d_first, _RandomAccessIterator __d_last, _Compare __comp, _IsVector,
-                            /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _RandomAccessIterator, class _Compare>
+_RandomAccessIterator
+__pattern_partial_sort_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                            _RandomAccessIterator __d_first, _RandomAccessIterator __d_last, _Compare __comp) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     return ::std::partial_sort_copy(__first, __last, __d_first, __d_last, __comp);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Compare,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator2>
-__pattern_partial_sort_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first, _RandomAccessIterator1 __last,
-                            _RandomAccessIterator2 __d_first, _RandomAccessIterator2 __d_last, _Compare __comp,
-                            _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Compare>
+_RandomAccessIterator2
+__pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
+                            _RandomAccessIterator1 __last, _RandomAccessIterator2 __d_first,
+                            _RandomAccessIterator2 __d_last, _Compare __comp)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     if (__last == __first || __d_last == __d_first)
     {
         return __d_first;
@@ -2472,14 +2539,13 @@ __pattern_partial_sort_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __
         if (__n2 >= __n1)
         {
             __par_backend::__parallel_stable_sort(
-                ::std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
-                [__first, __d_first, __is_vector](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j,
-                                                  _Compare __comp) {
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __d_first, __d_first + __n1, __comp,
+                [__first, __d_first](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j, _Compare __comp) {
                     _RandomAccessIterator1 __i1 = __first + (__i - __d_first);
                     _RandomAccessIterator1 __j1 = __first + (__j - __d_first);
 
                     // 1. Copy elements from input to output
-                    __brick_copy<_ExecutionPolicy>{}(__i1, __j1, __i, __is_vector);
+                    __brick_copy<__parallel_tag<_IsVector>>{}(__i1, __j1, __i, _IsVector{});
                     // 2. Sort elements in output sequence
                     ::std::sort(__i, __j, __comp);
                 },
@@ -2488,40 +2554,41 @@ __pattern_partial_sort_copy(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __
         }
         else
         {
-            typedef typename ::std::iterator_traits<_RandomAccessIterator1>::value_type _T1;
-            typedef typename ::std::iterator_traits<_RandomAccessIterator2>::value_type _T2;
-            __par_backend::__buffer<_ExecutionPolicy, _T1> __buf(__n1);
+            using _T1 = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
+            using _T2 = typename std::iterator_traits<_RandomAccessIterator2>::value_type;
+            __par_backend::__buffer<_T1> __buf(__n1);
             _T1* __r = __buf.get();
 
-            __par_backend::__parallel_stable_sort(::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
-                                                  [__n2, __first, __r](_T1* __i, _T1* __j, _Compare __comp) {
-                                                      _RandomAccessIterator1 __it = __first + (__i - __r);
+            __par_backend::__parallel_stable_sort(
+                __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n1, __comp,
+                [__n2, __first, __r](_T1* __i, _T1* __j, _Compare __comp) {
+                    _RandomAccessIterator1 __it = __first + (__i - __r);
 
-                                                      // 1. Copy elements from input to raw memory
-                                                      for (_T1* __k = __i; __k != __j; ++__k, ++__it)
-                                                      {
-                                                          ::new (__k) _T2(*__it);
-                                                      }
+                    // 1. Copy elements from input to raw memory
+                    for (_T1* __k = __i; __k != __j; ++__k, (void)++__it)
+                    {
+                        ::new (__k) _T2(*__it);
+                    }
 
-                                                      // 2. Sort elements in temporary buffer
-                                                      if (__n2 < __j - __i)
-                                                          ::std::partial_sort(__i, __i + __n2, __j, __comp);
-                                                      else
-                                                          ::std::sort(__i, __j, __comp);
-                                                  },
-                                                  __n2);
+                    // 2. Sort elements in temporary buffer
+                    if (__n2 < __j - __i)
+                        ::std::partial_sort(__i, __i + __n2, __j, __comp);
+                    else
+                        ::std::sort(__i, __j, __comp);
+                },
+                __n2);
 
             // 3. Move elements from temporary buffer to output
-            __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
-                                          [__r, __d_first, __is_vector](_T1* __i, _T1* __j) {
-                                              __brick_move_destroy<_ExecutionPolicy>{}(
-                                                  __i, __j, __d_first + (__i - __r), __is_vector);
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n2,
+                                          [__r, __d_first](_T1* __i, _T1* __j) {
+                                              __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                                                  __i, __j, __d_first + (__i - __r), _IsVector{});
                                           });
 
             if constexpr (!::std::is_trivially_destructible_v<_T1>)
-                __par_backend::__parallel_for(
-                    ::std::forward<_ExecutionPolicy>(__exec), __r + __n2, __r + __n1,
-                    [__is_vector](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, __is_vector); });
+                __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
+                                              __r + __n1,
+                                              [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); });
 
             return __d_first + __n2;
         }
@@ -2547,28 +2614,31 @@ __brick_adjacent_find(_ForwardIterator __first, _ForwardIterator __last, _Binary
     return ::std::adjacent_find(__first, __last, __pred);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _BinaryPredicate, class _IsVector, class _Semantic>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_adjacent_find(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _BinaryPredicate __pred,
-                        /* is_parallel */ ::std::false_type, _IsVector __is_vector, _Semantic) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _BinaryPredicate, class _Semantic>
+_ForwardIterator
+__pattern_adjacent_find(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                        _BinaryPredicate __pred, _Semantic) noexcept
 {
-    return __internal::__brick_adjacent_find(__first, __last, __pred, __is_vector, _Semantic::value);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_adjacent_find(__first, __last, __pred, typename _Tag::__is_vector{}, _Semantic::value);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _BinaryPredicate, class _IsVector, class _Semantic>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_adjacent_find(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                        _BinaryPredicate __pred, /* is_parallel */ ::std::true_type, _IsVector __is_vector,
-                        _Semantic __or_semantic)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _BinaryPredicate, class _Semantic>
+_RandomAccessIterator
+__pattern_adjacent_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                        _RandomAccessIterator __last, _BinaryPredicate __pred, _Semantic __or_semantic)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     if (__last - __first < 2)
         return __last;
 
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __last,
-            [__last, __pred, __is_vector, __or_semantic](_RandomAccessIterator __begin, _RandomAccessIterator __end,
-                                                         _RandomAccessIterator __value) -> _RandomAccessIterator {
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __last,
+            [__last, __pred, __or_semantic](_RandomAccessIterator __begin, _RandomAccessIterator __end,
+                                            _RandomAccessIterator __value) -> _RandomAccessIterator {
                 // TODO: investigate performance benefits from the use of shared variable for the result,
                 // checking (compare_and_swap idiom) its __value at __first.
                 if (__or_semantic && __value < __last)
@@ -2587,7 +2657,7 @@ __pattern_adjacent_find(_ExecutionPolicy&& __exec, _RandomAccessIterator __first
 
                     //correct the global result iterator if the "brick" returns a local "__last"
                     const _RandomAccessIterator __res =
-                        __internal::__brick_adjacent_find(__begin, __end, __pred, __is_vector, __or_semantic);
+                        __internal::__brick_adjacent_find(__begin, __end, __pred, _IsVector{}, __or_semantic);
                     if (__res < __end)
                         __value = __res;
                 }
@@ -2604,20 +2674,20 @@ __pattern_adjacent_find(_ExecutionPolicy&& __exec, _RandomAccessIterator __first
 // nth_element
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_nth_element(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __nth,
-                      _RandomAccessIterator __last, _Compare __comp, _IsVector,
-                      /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+void
+__pattern_nth_element(_Tag, _ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __nth,
+                      _RandomAccessIterator __last, _Compare __comp) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     ::std::nth_element(__first, __nth, __last, __comp);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_nth_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __nth,
-                      _RandomAccessIterator __last, _Compare __comp, _IsVector __is_vector,
-                      /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+void
+__pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                      _RandomAccessIterator __nth, _RandomAccessIterator __last, _Compare __comp)
 {
     if (__first == __last || __nth == __last)
     {
@@ -2625,14 +2695,12 @@ __pattern_nth_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, 
     }
 
     using ::std::iter_swap;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     _RandomAccessIterator __x;
     do
     {
-        __x = __internal::__pattern_partition(::std::forward<_ExecutionPolicy>(__exec), __first + 1, __last,
-                                              [&__comp, __first](const _Tp& __x) { return __comp(__x, *__first); },
-                                              __is_vector,
-                                              /*is_parallel=*/::std::true_type());
+        __x = __internal::__pattern_partition(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first + 1, __last,
+                                              [&__comp, __first](const _Tp& __x) { return __comp(__x, *__first); });
         --__x;
         if (__x != __first)
         {
@@ -2660,8 +2728,8 @@ __pattern_nth_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, 
 //------------------------------------------------------------------------
 // fill, fill_n
 //------------------------------------------------------------------------
-template <typename _Tp, typename _ExecutionPolicy>
-struct __brick_fill<_Tp, _ExecutionPolicy, oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag, typename _Tp>
+struct __brick_fill<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
     const _Tp& __value;
 
@@ -2682,33 +2750,34 @@ struct __brick_fill<_Tp, _ExecutionPolicy, oneapi::dpl::__internal::__enable_if_
     }
 };
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Tp, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_fill(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value,
-               /*is_parallel=*/::std::false_type, _IsVector __is_vector) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Tp>
+void
+__pattern_fill(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value) noexcept
 {
-    __internal::__brick_fill<_Tp, _ExecutionPolicy>{__value}(__first, __last, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __internal::__brick_fill<_Tag, _Tp>{__value}(__first, __last, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Tp, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_fill(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-               const _Tp& __value,
-               /*is_parallel=*/::std::true_type, _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Tp>
+_RandomAccessIterator
+__pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+               _RandomAccessIterator __last, const _Tp& __value)
 {
-    return __internal::__except_handler([&__exec, __first, __last, &__value, __is_vector]() {
-        __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [&__value, __is_vector](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
-                __internal::__brick_fill<_Tp, _ExecutionPolicy>{__value}(__begin, __end, __is_vector);
-            });
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    return __internal::__except_handler([&__exec, __first, __last, &__value]() {
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                      [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
+                                          __internal::__brick_fill<__parallel_tag<_IsVector>, _Tp>{__value}(
+                                              __begin, __end, _IsVector{});
+                                      });
         return __last;
     });
 }
 
-template <typename _Tp, typename _ExecutionPolicy>
-struct __brick_fill_n<_Tp, _ExecutionPolicy,
-                      oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>>
+template <class _Tag, typename _Tp>
+struct __brick_fill_n<_Tag, _Tp, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
     const _Tp& __value;
 
@@ -2729,21 +2798,22 @@ struct __brick_fill_n<_Tp, _ExecutionPolicy,
     }
 };
 
-template <class _ExecutionPolicy, class _OutputIterator, class _Size, class _Tp, class _IsVector>
+template <class _Tag, class _ExecutionPolicy, class _OutputIterator, class _Size, class _Tp>
 _OutputIterator
-__pattern_fill_n(_ExecutionPolicy&&, _OutputIterator __first, _Size __count, const _Tp& __value,
-                 /*is_parallel=*/::std::false_type, _IsVector __is_vector) noexcept
+__pattern_fill_n(_Tag, _ExecutionPolicy&&, _OutputIterator __first, _Size __count, const _Tp& __value) noexcept
 {
-    return __internal::__brick_fill_n<_Tp, _ExecutionPolicy>{__value}(__first, __count, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_fill_n<_Tag, _Tp>{__value}(__first, __count, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp, class _IsVector>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Tp>
 _RandomAccessIterator
-__pattern_fill_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __count, const _Tp& __value,
-                 /*is_parallel=*/::std::true_type, _IsVector __is_vector)
+__pattern_fill_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                 _Size __count, const _Tp& __value)
 {
-    return __internal::__pattern_fill(::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __value,
-                                      ::std::true_type(), __is_vector);
+    return __internal::__pattern_fill(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count,
+                                      __value);
 }
 
 //------------------------------------------------------------------------
@@ -2765,24 +2835,26 @@ __brick_generate(_ForwardIterator __first, _ForwardIterator __last, _Generator _
     ::std::generate(__first, __last, __g);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _Generator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_generate(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Generator __g,
-                   /*is_parallel=*/::std::false_type, _IsVector __is_vector) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Generator>
+void
+__pattern_generate(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Generator __g) noexcept
 {
-    __internal::__brick_generate(__first, __last, __g, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __internal::__brick_generate(__first, __last, __g, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Generator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_generate(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                   _Generator __g,
-                   /*is_parallel=*/::std::true_type, _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Generator>
+_RandomAccessIterator
+__pattern_generate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                   _RandomAccessIterator __last, _Generator __g)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     return __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                                      [__g, __is_vector](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
-                                          __internal::__brick_generate(__begin, __end, __g, __is_vector);
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                      [__g](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
+                                          __internal::__brick_generate(__begin, __end, __g, _IsVector{});
                                       });
         return __last;
     });
@@ -2803,23 +2875,24 @@ __brick_generate_n(OutputIterator __first, Size __count, _Generator __g, /* is_v
     return ::std::generate_n(__first, __count, __g);
 }
 
-template <class _ExecutionPolicy, class _OutputIterator, class _Size, class _Generator, class _IsVector>
+template <class _Tag, class _ExecutionPolicy, class _OutputIterator, class _Size, class _Generator>
 _OutputIterator
-__pattern_generate_n(_ExecutionPolicy&&, _OutputIterator __first, _Size __count, _Generator __g,
-                     /*is_parallel=*/::std::false_type, _IsVector __is_vector) noexcept
+__pattern_generate_n(_Tag, _ExecutionPolicy&&, _OutputIterator __first, _Size __count, _Generator __g) noexcept
 {
-    return __internal::__brick_generate_n(__first, __count, __g, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_generate_n(__first, __count, __g, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Generator, class _IsVector>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Generator>
 _RandomAccessIterator
-__pattern_generate_n(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __count, _Generator __g,
-                     /*is_parallel=*/::std::true_type, _IsVector __is_vector)
+__pattern_generate_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                     _Size __count, _Generator __g)
 {
     static_assert(__is_random_access_iterator_v<_RandomAccessIterator>,
                   "Pattern-brick error. Should be a random access iterator.");
-    return __internal::__pattern_generate(::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count, __g,
-                                          ::std::true_type(), __is_vector);
+    return __internal::__pattern_generate(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __count,
+                                          __g);
 }
 
 //------------------------------------------------------------------------
@@ -2846,39 +2919,73 @@ __brick_remove_if(_RandomAccessIterator __first, _RandomAccessIterator __last, _
 #endif
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_remove_if(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _UnaryPredicate __pred,
-                    _IsVector __is_vector, /*is_parallel*/ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _UnaryPredicate>
+_ForwardIterator
+__pattern_remove_if(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                    _UnaryPredicate __pred) noexcept
 {
-    return __internal::__brick_remove_if(__first, __last, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_remove_if(__first, __last, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_remove_if(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                    _UnaryPredicate __pred, _IsVector __is_vector, /*is_parallel*/ ::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryPredicate>
+_RandomAccessIterator
+__pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                    _RandomAccessIterator __last, _UnaryPredicate __pred)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::reference _ReferenceType;
+    using _ReferenceType = typename std::iterator_traits<_RandomAccessIterator>::reference;
 
     if (__first == __last || __first + 1 == __last)
     {
         // Trivial sequence - use serial algorithm
-        return __internal::__brick_remove_if(__first, __last, __pred, __is_vector);
+        return __internal::__brick_remove_if(__first, __last, __pred, _IsVector{});
     }
 
     return __internal::__remove_elements(
-        ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-        [&__pred, __is_vector](bool* __b, bool* __e, _RandomAccessIterator __it) {
-            __internal::__brick_walk2(__b, __e, __it, [&__pred](bool& __x, _ReferenceType __y) { __x = !__pred(__y); },
-                                      __is_vector);
-        },
-        __is_vector);
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+        [&__pred](bool* __b, bool* __e, _RandomAccessIterator __it) {
+            __internal::__brick_walk2(
+                __b, __e, __it, [&__pred](bool& __x, _ReferenceType __y) { __x = !__pred(__y); }, _IsVector{});
+        });
 }
 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
+template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::pair<_Iterator1, _Iterator2>
+__serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
+                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
+    {
+        if (__x == __x_e)
+        {
+            assert(__y != __y_e);
+            *__k = *__y;
+            ++__y;
+        }
+        else if (__y == __y_e)
+        {
+            assert(__x != __x_e);
+            *__k = *__x;
+            ++__x;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
+        {
+            *__k = *__y;
+            ++__y;
+        }
+        else
+        {
+            *__k = *__x;
+            ++__x;
+        }
+    }
+    return {__x, __y};
+}
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
@@ -2899,30 +3006,117 @@ __brick_merge(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _
     return ::std::merge(__first1, __last1, __first2, __last2, __d_first, __comp);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_merge(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                _ForwardIterator2 __last2, _OutputIterator __d_first, _Compare __comp, _IsVector __is_vector,
-                /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
+          class _Compare>
+_OutputIterator
+__pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __d_first,
+                _Compare __comp) noexcept
 {
-    return __internal::__brick_merge(__first1, __last1, __first2, __last2, __d_first, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_merge(__first1, __last1, __first2, __last2, __d_first, __comp,
+                                     typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator3>
-__pattern_merge(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _RandomAccessIterator3 __d_first,
-                _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
+          typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
+std::pair<_It1, _It2>
+___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
+                      _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    __par_backend::__parallel_merge(
-        ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first, __comp,
-        [__is_vector](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
-                      _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
-            return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, __is_vector);
-        });
-    return __d_first + (__last1 - __first1) + (__last2 - __first2);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp,
+                                  __proj1, __proj2);
+}
+
+inline constexpr std::size_t __merge_path_cut_off = 2000;
+
+template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
+          typename _Index2, typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
+std::pair<_It1, _It2>
+___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
+                      _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    _It1 __it_res_1;
+    _It2 __it_res_2;
+
+    __internal::__except_handler([&]() {
+        __par_backend::__parallel_for(
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index3(0), __n_out,
+            [=, &__it_res_1, &__it_res_2](_Index3 __i, _Index3 __j) {
+                //a start merging point on the merge path; for each thread
+                _Index1 __r = 0; //row index
+                _Index2 __c = 0; //column index
+
+                if (__i > 0)
+                {
+                    //calc merge path intersection:
+                    const _Index3 __d_size =
+                        std::abs(std::max<_Index2>(0, __i - __n_2) - (std::min<_Index1>(__i, __n_1) - 1)) + 1;
+
+                    auto __get_row = [__i, __n_1](auto __d) { return std::min<_Index1>(__i, __n_1) - __d - 1; };
+                    auto __get_column = [__i, __n_1](auto __d) {
+                        return std::max<_Index1>(0, __i - __n_1 - 1) + __d + (__i / (__n_1 + 1) > 0 ? 1 : 0);
+                    };
+
+                    oneapi::dpl::counting_iterator<_Index3> __it_d(0);
+
+                    auto __res_d = *std::lower_bound(__it_d, __it_d + __d_size, 1, [&](auto __d, auto __val) {
+                        auto __r = __get_row(__d);
+                        auto __c = __get_column(__d);
+
+                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
+                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
+
+                        return __res < __val;
+                    });
+
+                    //intersection point
+                    __r = __get_row(__res_d);
+                    __c = __get_column(__res_d);
+                    ++__r; //to get a merge matrix ceil, lying on the current diagonal
+                }
+
+                //serial merge n elements, starting from input x and y, to [i, j) output range
+                auto [__res1, __res2] = __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c,
+                                                               __it_2 + __n_2, __it_out + __i, __it_out + __j, __comp,
+                                                               __proj1, __proj2);
+
+                if (__j == __n_out)
+                {
+                    __it_res_1 = __res1;
+                    __it_res_2 = __res2;
+                }
+            },
+            __merge_path_cut_off); //grainsize
+    });
+
+    return {__it_res_1, __it_res_2};
+}
+
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__pattern_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                _RandomAccessIterator3 __d_first, _Compare __comp)
+{
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    return __internal::__except_handler([&]() {
+        __par_backend::__parallel_merge(
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __d_first,
+            __comp,
+            [](_RandomAccessIterator1 __f1, _RandomAccessIterator1 __l1, _RandomAccessIterator2 __f2,
+               _RandomAccessIterator2 __l2, _RandomAccessIterator3 __f3, _Compare __comp) {
+                return __internal::__brick_merge(__f1, __l1, __f2, __l2, __f3, __comp, _IsVector{});
+            });
+        return __d_first + (__last1 - __first1) + (__last2 - __first2);
+    });
 }
 
 //------------------------------------------------------------------------
@@ -2945,43 +3139,43 @@ __brick_inplace_merge(_RandomAccessIterator __first, _RandomAccessIterator __mid
     ::std::inplace_merge(__first, __middle, __last, __comp);
 }
 
-template <class _ExecutionPolicy, class _BidirectionalIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_inplace_merge(_ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __middle,
-                        _BidirectionalIterator __last, _Compare __comp, _IsVector __is_vector,
-                        /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator, class _Compare>
+void
+__pattern_inplace_merge(_Tag, _ExecutionPolicy&&, _BidirectionalIterator __first, _BidirectionalIterator __middle,
+                        _BidirectionalIterator __last, _Compare __comp) noexcept
 {
-    __internal::__brick_inplace_merge(__first, __middle, __last, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    __internal::__brick_inplace_merge(__first, __middle, __last, __comp, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy>
-__pattern_inplace_merge(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __middle,
-                        _RandomAccessIterator __last, _Compare __comp, _IsVector __is_vector,
-                        /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+void
+__pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                        _RandomAccessIterator __middle, _RandomAccessIterator __last, _Compare __comp)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     if (__first == __last || __first == __middle || __middle == __last)
     {
         return;
     }
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _Tp;
+
+    using _Tp = typename std::iterator_traits<_RandomAccessIterator>::value_type;
     auto __n = __last - __first;
-    __par_backend::__buffer<_ExecutionPolicy, _Tp> __buf(__n);
+    __par_backend::__buffer<_Tp> __buf(__n);
     _Tp* __r = __buf.get();
     __internal::__except_handler([&]() {
         auto __move_values = [](_RandomAccessIterator __x, _Tp* __z) {
-            if constexpr (::std::is_trivial_v<_Tp>)
-                *__z = ::std::move(*__x);
-            else
-                ::new (::std::addressof(*__z)) _Tp(::std::move(*__x));
+            ::new (std::addressof(*__z)) _Tp(std::move(*__x));
         };
 
         auto __move_sequences = [](_RandomAccessIterator __first1, _RandomAccessIterator __last1, _Tp* __first2) {
-            return __internal::__brick_uninitialized_move(__first1, __last1, __first2, _IsVector());
+            return __internal::__brick_uninitialized_move(__first1, __last1, __first2, _IsVector{});
         };
 
         __par_backend::__parallel_merge(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __middle, __last, __r, __comp,
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __middle, __last, __r, __comp,
             [__n, __move_values, __move_sequences](_RandomAccessIterator __f1, _RandomAccessIterator __l1,
                                                    _RandomAccessIterator __f2, _RandomAccessIterator __l2, _Tp* __f3,
                                                    _Compare __comp) {
@@ -2989,10 +3183,11 @@ __pattern_inplace_merge(_ExecutionPolicy&& __exec, _RandomAccessIterator __first
                                                     __move_sequences, __move_sequences);
                 return __f3 + (__l1 - __f1) + (__l2 - __f2);
             });
-        __par_backend::__parallel_for(
-            ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n, [__r, __first, __is_vector](_Tp* __i, _Tp* __j) {
-                __brick_move_destroy<_ExecutionPolicy>{}(__i, __j, __first + (__i - __r), __is_vector);
-            });
+        __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r, __r + __n,
+                                      [__r, __first](_Tp* __i, _Tp* __j) {
+                                          __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                                              __i, __j, __first + (__i - __r), _IsVector{});
+                                      });
     });
 }
 
@@ -3000,21 +3195,22 @@ __pattern_inplace_merge(_ExecutionPolicy&& __exec, _RandomAccessIterator __first
 // includes
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_includes(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Compare __comp, _IsVector,
-                   /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Compare>
+bool
+__pattern_includes(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Compare __comp) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     return ::std::includes(__first1, __last1, __first2, __last2, __comp);
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Compare,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_includes(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _Compare __comp, _IsVector,
-                   /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Compare>
+bool
+__pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                   _Compare __comp)
 {
     if (__first2 == __last2)
         return true;
@@ -3036,14 +3232,14 @@ __pattern_includes(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _
 
     return __internal::__except_handler([&]() {
         return !__internal::__parallel_or(
-            ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
             [__first1, __last1, __first2, __last2, &__comp](_RandomAccessIterator2 __i, _RandomAccessIterator2 __j) {
                 assert(__j > __i);
                 //assert(__j - __i > 1);
 
                 //1. moving boundaries to "consume" subsequence of equal elements
                 auto __is_equal_sorted = [&__comp](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
-                    //enough one call of __comp due to compared couple belongs to one sorted sequience
+                    //enough one call of __comp due to compared couple belongs to one sorted sequence
                     return !__comp(*__a, *__b);
                 };
 
@@ -3073,15 +3269,20 @@ __pattern_includes(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _
 
 inline constexpr auto __set_algo_cut_off = 1000;
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector, class _SizeFunction, class _SetOP>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__parallel_set_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                  _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                  _SizeFunction __size_func, _SetOP __set_op, _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
+_OutputIterator
+__parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
+                  _Proj2 __proj2)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _DifferenceType;
-    typedef typename ::std::iterator_traits<_OutputIterator>::value_type _T;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
     struct _SetRange
     {
@@ -3093,58 +3294,62 @@ __parallel_set_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Forwar
         }
     };
 
-    const _DifferenceType __n1 = __last1 - __first1;
-    const _DifferenceType __n2 = __last2 - __first2;
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
 
-    __par_backend::__buffer<_ExecutionPolicy, _T> __buf(__size_func(__n1, __n2));
+    __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
 
-    return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __is_vector,
-                                         __comp, __size_func, __set_op, &__buf]() {
+    return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result, __size_func,
+                                         __set_op, &__buf, __comp, __proj1, __proj2]() {
         auto __tmp_memory = __buf.get();
-        _DifferenceType __m{};
-        auto __scan = [=](_DifferenceType, _DifferenceType, const _SetRange& __s) { // Scan
+        _DifferenceType1 __m{};
+        auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s) { // Scan
             if (!__s.empty())
-                __brick_move_destroy<_ExecutionPolicy>{}(__tmp_memory + __s.__buf_pos,
-                                                         __tmp_memory + (__s.__buf_pos + __s.__len),
-                                                         __result + __s.__pos, __is_vector);
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory + __s.__buf_pos,
+                                                                  __tmp_memory + (__s.__buf_pos + __s.__len),
+                                                                  __result + __s.__pos, _IsVector{});
         };
         __par_backend::__parallel_strict_scan(
-            ::std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0}, //-1, 0},
-            [=](_DifferenceType __i, _DifferenceType __len) {                   // Reduce
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0},
+            [=](_DifferenceType1 __i, _DifferenceType1 __len) { // Reduce
                 //[__b; __e) - a subrange of the first sequence, to reduce
-                _ForwardIterator1 __b = __first1 + __i, __e = __first1 + (__i + __len);
+                _RandomAccessIterator1 __b = __first1 + __i;
+                _RandomAccessIterator1 __e = __first1 + (__i + __len);
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b = ::std::upper_bound(__b, __last1, *__b, __comp);
+                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e = ::std::upper_bound(__e, __last1, *__e, __comp);
+                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
                 {
-                    _ForwardIterator2 __bb = __last2;
+                    _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
-                        __bb = ::std::lower_bound(__first2, __last2, *__b, __comp);
+                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                                      __b, __comp, __proj2, __proj1);
 
                     const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                     return _SetRange{0, 0, __buf_pos};
                 }
 
                 //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
-                _ForwardIterator2 __bb = __first2;
+                _RandomAccessIterator2 __bb = __first2;
                 if (__b != __first1)
-                    __bb = ::std::lower_bound(__first2, __last2, *__b, __comp);
+                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                                     __b, __comp, __proj2, __proj1);
 
-                _ForwardIterator2 __ee = __last2;
+                _RandomAccessIterator2 __ee = __last2;
                 if (__e != __last1)
-                    __ee = ::std::lower_bound(__bb, __last2, *__e, __comp);
+                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
+                                                                 __proj2, __proj1);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
                 auto __buffer_b = __tmp_memory + __buf_pos;
-                auto __res = __set_op(__b, __e, __bb, __ee, __buffer_b, __comp);
+                auto __res = __set_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2);
 
                 return _SetRange{0, __res - __buffer_b, __buf_pos};
             },
@@ -3164,64 +3369,69 @@ __parallel_set_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Forwar
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _SetUnionOp, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__parallel_set_union_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                        _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                        _Compare __comp, _SetUnionOp __set_union_op, _IsVector __is_vector)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
+_OutputIterator
+__parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                        _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                        _OutputIterator __result, _SetUnionOp __set_union_op, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _DifferenceType;
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
-    __brick_copy<_ExecutionPolicy> __copy_range{};
+    __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
-        return __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                                 __copy_range, ::std::true_type());
+        return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                 __result, __copy_range);
 
-    // {} {2}: parallel copying justmake  second sequence
+    // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
-        return __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __result,
-                                                 __copy_range, ::std::true_type());
+        return __internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
+                                                 __result, __copy_range);
 
     // testing  whether the sequences are intersected
-    _ForwardIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
+    _RandomAccessIterator1 __left_bound_seq_1 =
+        __first1 + __internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, __first2, __comp,
+                                                  __proj1, __proj2);
 
     if (__left_bound_seq_1 == __last1)
     {
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            ::std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                                  __copy_range, ::std::true_type());
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first2, __last2,
-                                                  __result + __n1, __copy_range, ::std::true_type());
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result + __n1, __copy_range);
             });
         return __result + __n1 + __n2;
     }
 
     // testing  whether the sequences are intersected
-    _ForwardIterator2 __left_bound_seq_2 = ::std::lower_bound(__first2, __last2, *__first1, __comp);
+    _RandomAccessIterator2 __left_bound_seq_2 =
+        __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __first1, __comp,
+                                                  __proj2, __proj1);
 
     if (__left_bound_seq_2 == __last2)
     {
         //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
-            ::std::forward<_ExecutionPolicy>(__exec),
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __result,
-                                                  __copy_range, ::std::true_type());
+            __backend_tag{}, __exec,
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2, __result, __copy_range);
             },
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                  __result + __n2, __copy_range, ::std::true_type());
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1, __result + __n2, __copy_range);
             });
         return __result + __n1 + __n2;
     }
@@ -3232,17 +3442,16 @@ __parallel_set_union_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _
         auto __res_or = __result;
         __result += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         __par_backend::__parallel_invoke(
-            ::std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                  __left_bound_seq_1, __res_or, __copy_range, ::std::true_type());
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    ::std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                    __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op,
-                    __is_vector);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
+                    __proj2);
             });
         return __result;
     }
@@ -3254,24 +3463,23 @@ __parallel_set_union_op(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _
         auto __res_or = __result;
         __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         __par_backend::__parallel_invoke(
-            ::std::forward<_ExecutionPolicy>(__exec),
+            __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
-            [=] {
-                __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                  __left_bound_seq_2, __res_or, __copy_range, ::std::true_type());
+            [=, &__exec] {
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
             },
-            [=, &__result] {
+            [=, &__exec, &__result] {
                 __result = __internal::__parallel_set_op(
-                    ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                    __comp, [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op,
-                    __is_vector);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
+                    __proj2);
             });
         return __result;
     }
 
     return __internal::__parallel_set_op(
-        ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
-        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __is_vector);
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
 }
 
 //------------------------------------------------------------------------
@@ -3284,7 +3492,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
                   _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                   /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <typename _IsVector>
@@ -3305,44 +3513,47 @@ __brick_set_union(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last
                   /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_set_union(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                    _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
-                    _IsVector __is_vector,
-                    /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
+          class _Compare>
+_OutputIterator
+__pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                    _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+                    _Compare __comp) noexcept
 {
-    return __internal::__brick_set_union(__first1, __last1, __first2, __last2, __result, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_set_union(__first1, __last1, __first2, __last2, __result, __comp,
+                                         typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_set_union(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _OutputIterator __result,
-                    _Compare __comp, _IsVector __is_vector, /*__is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _OutputIterator, class _Compare>
+_OutputIterator
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                    _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _OutputIterator __result, _Compare __comp)
 {
-
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
-        return ::std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
+        return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    typedef typename ::std::iterator_traits<_OutputIterator>::value_type _Tp;
+    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
-        ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-           _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp) {
-            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result, __comp,
-                                                               __BrickCopyConstruct<_IsVector>());
+           _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
+           oneapi::dpl::identity) {
+            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
+                                                               __BrickCopyConstruct<_IsVector>(), __comp,
+                                                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
-        __is_vector);
+        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //------------------------------------------------------------------------
@@ -3355,7 +3566,7 @@ __brick_set_intersection(_ForwardIterator1 __first1, _ForwardIterator1 __last1, 
                          _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                          /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3366,29 +3577,34 @@ __brick_set_intersection(_RandomAccessIterator1 __first1, _RandomAccessIterator1
                          /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_set_intersection(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
+          class _Compare>
+_OutputIterator
+__pattern_set_intersection(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                            _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                           _Compare __comp, _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+                           _Compare __comp) noexcept
 {
-    return __internal::__brick_set_intersection(__first1, __last1, __first2, __last2, __result, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_set_intersection(__first1, __last1, __first2, __last2, __result, __comp,
+                                                typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator3>
-__pattern_set_intersection(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                           _RandomAccessIterator3 __result, _Compare __comp, _IsVector __is_vector,
-                           /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                           _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3398,13 +3614,13 @@ __pattern_set_intersection(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __f
         return __result;
 
     // testing  whether the sequences are intersected
-    _RandomAccessIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
+    _RandomAccessIterator1 __left_bound_seq_1 = std::lower_bound(__first1, __last1, *__first2, __comp);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
         return __result;
 
     // testing  whether the sequences are intersected
-    _RandomAccessIterator2 __left_bound_seq_2 = ::std::lower_bound(__first2, __last2, *__first1, __comp);
+    _RandomAccessIterator2 __left_bound_seq_2 = std::lower_bound(__first2, __last2, *__first1, __comp);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
         return __result;
@@ -3413,35 +3629,47 @@ __pattern_set_intersection(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __f
     if (__m1 > __set_algo_cut_off)
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
-        return __internal::__parallel_set_op(
-            ::std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result, __comp,
-            [](_DifferenceType __n, _DifferenceType __m) { return ::std::min(__n, __m); },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp) {
-                return oneapi::dpl::__utils::__set_intersection_construct(__first1, __last1, __first2, __last2,
-                                                                          __result, __comp);
-            },
-            __is_vector);
+        return __internal::__except_handler([&]() {
+            return __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
+                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
+                   oneapi::dpl::identity) {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first1, __last1, __first2, __last2, __result,
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                        /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
+                },
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        });
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
     if (__m2 > __set_algo_cut_off)
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        __result = __internal::__parallel_set_op(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result, __comp,
-            [](_DifferenceType __n, _DifferenceType __m) { return ::std::min(__n, __m); },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp) {
-                return oneapi::dpl::__utils::__set_intersection_construct(__first2, __last2, __first1, __last1,
-                                                                          __result, __comp);
-            },
-            __is_vector);
-        return __result;
+        return __internal::__except_handler([&]() {
+            __result = __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
+                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
+                   oneapi::dpl::identity) {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first2, __last2, __first1, __last1, __result,
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                        /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
+                        oneapi::dpl::identity{});
+                },
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            return __result;
+        });
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return ::std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
+    return std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -3454,7 +3682,7 @@ __brick_set_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                        /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3464,29 +3692,31 @@ __brick_set_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 _
                        /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_set_difference(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
+          class _Compare>
+_OutputIterator
+__pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                          _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                         _Compare __comp, _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+                         _Compare __comp) noexcept
 {
-    return __internal::__brick_set_difference(__first1, __last1, __first2, __last2, __result, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_set_difference(__first1, __last1, __first2, __last2, __result, __comp,
+                                              typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator3>
-__pattern_set_difference(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                         _RandomAccessIterator3 __result, _Compare __comp, _IsVector __is_vector,
-                         /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                         _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType;
+    using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3497,36 +3727,38 @@ __pattern_set_difference(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __fir
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
-        return __pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                     __internal::__brick_copy<_ExecutionPolicy>{}, ::std::true_type());
+        return __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
+                                     __internal::__brick_copy<__parallel_tag<_IsVector>>{});
 
     // testing  whether the sequences are intersected
-    _RandomAccessIterator1 __left_bound_seq_1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
+    _RandomAccessIterator1 __left_bound_seq_1 = std::lower_bound(__first1, __last1, *__first2, __comp);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
-        return __pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                     __internal::__brick_copy<_ExecutionPolicy>{}, ::std::true_type());
+        return __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
+                                     __internal::__brick_copy<__parallel_tag<_IsVector>>{});
 
     // testing  whether the sequences are intersected
-    _RandomAccessIterator2 __left_bound_seq_2 = ::std::lower_bound(__first2, __last2, *__first1, __comp);
+    _RandomAccessIterator2 __left_bound_seq_2 = std::lower_bound(__first2, __last2, *__first1, __comp);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
-        return __internal::__pattern_walk2_brick(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __result,
-                                                 __brick_copy<_ExecutionPolicy>{}, ::std::true_type());
+        return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                 __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
     if (__n1 + __n2 > __set_algo_cut_off)
         return __parallel_set_op(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
             [](_DifferenceType __n, _DifferenceType) { return __n; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp) {
-                return oneapi::dpl::__utils::__set_difference_construct(__first1, __last1, __first2, __last2, __result,
-                                                                        __comp, __BrickCopyConstruct<_IsVector>());
+               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
+               oneapi::dpl::identity) {
+                return oneapi::dpl::__utils::__set_difference_construct(
+                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __is_vector);
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
     // use serial algorithm
-    return ::std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
@@ -3539,7 +3771,7 @@ __brick_set_symmetric_difference(_ForwardIterator1 __first1, _ForwardIterator1 _
                                  _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
                                  /*__is_vector=*/::std::false_type) noexcept
 {
-    return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
@@ -3550,45 +3782,50 @@ __brick_set_symmetric_difference(_RandomAccessIterator1 __first1, _RandomAccessI
                                  /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
-    return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+    return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
-          class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _OutputIterator>
-__pattern_set_symmetric_difference(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
+          class _Compare>
+_OutputIterator
+__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                                    _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                                   _Compare __comp, _IsVector __is_vector, /*is_parallel=*/::std::false_type) noexcept
+                                   _Compare __comp) noexcept
 {
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
     return __internal::__brick_set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp,
-                                                        __is_vector);
+                                                        typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _RandomAccessIterator3, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator3>
-__pattern_set_symmetric_difference(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                                   _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp,
-                                   _IsVector __is_vector, /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _RandomAccessIterator3, class _Compare>
+_RandomAccessIterator3
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                                   _RandomAccessIterator3 __result, _Compare __comp)
 {
-
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
-        return ::std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
+        return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    typedef typename ::std::iterator_traits<_RandomAccessIterator3>::value_type _T;
-    return __internal::__parallel_set_union_op(
-        ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
-        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-           _RandomAccessIterator2 __last2, _T* __result, _Compare __comp) {
-            return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                __first1, __last1, __first2, __last2, __result, __comp, __BrickCopyConstruct<_IsVector>());
-        },
-        __is_vector);
+    using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+    return __internal::__except_handler([&]() {
+        return __internal::__parallel_set_union_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
+               oneapi::dpl::identity) {
+                return oneapi::dpl::__utils::__set_symmetric_difference_construct(
+                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    });
 }
 
 //------------------------------------------------------------------------
@@ -3608,18 +3845,20 @@ _RandomAccessIterator
 __brick_is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
                       /* __is_vector = */ ::std::true_type) noexcept
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _SizeType;
+    using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
     return __unseq_backend::__simd_first(
         __first, _SizeType(0), __last - __first,
         [&__comp](_RandomAccessIterator __it, _SizeType __i) { return __comp(__it[(__i - 1) / 2], __it[__i]); });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_is_heap_until(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                        _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+_RandomAccessIterator
+__pattern_is_heap_until(_Tag, _ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last,
+                        _Compare __comp) noexcept
 {
-    return __internal::__brick_is_heap_until(__first, __last, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_is_heap_until(__first, __last, __comp, typename _Tag::__is_vector{});
 }
 
 template <class _RandomAccessIterator, class _DifferenceType, class _Compare>
@@ -3644,18 +3883,18 @@ __is_heap_until_local(_RandomAccessIterator __first, _DifferenceType __begin, _D
         [&__comp](_RandomAccessIterator __it, _DifferenceType __i) { return __comp(__it[(__i - 1) / 2], __it[__i]); });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_is_heap_until(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                        _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+_RandomAccessIterator
+__pattern_is_heap_until(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                        _RandomAccessIterator __last, _Compare __comp)
 {
     return __internal::__except_handler([&]() {
-        return __parallel_find(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                               [__first, __comp, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
-                                   return __internal::__is_heap_until_local(__first, __i - __first, __j - __first,
-                                                                            __comp, __is_vector);
-                               },
-                               ::std::true_type{});
+        return __parallel_find(
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            [__first, __comp](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+                return __internal::__is_heap_until_local(__first, __i - __first, __j - __first, __comp, _IsVector{});
+            },
+            ::std::true_type{});
     });
 }
 
@@ -3700,24 +3939,26 @@ __is_heap_local(_RandomAccessIterator __first, _DifferenceType __begin, _Differe
                                             });
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_is_heap(_ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
-                  _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+bool
+__pattern_is_heap(_Tag, _ExecutionPolicy&&, _RandomAccessIterator __first, _RandomAccessIterator __last,
+                  _Compare __comp) noexcept
 {
-    return __internal::__brick_is_heap(__first, __last, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_is_heap(__first, __last, __comp, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_is_heap(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                  _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
+bool
+__pattern_is_heap(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                  _RandomAccessIterator __last, _Compare __comp)
 {
     return __internal::__except_handler([&]() {
-        return !__parallel_or(::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-                              [__first, __comp, __is_vector](_RandomAccessIterator __i, _RandomAccessIterator __j) {
+        return !__parallel_or(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                              [__first, __comp](_RandomAccessIterator __i, _RandomAccessIterator __j) {
                                   return !__internal::__is_heap_local(__first, __i - __first, __j - __first, __comp,
-                                                                      __is_vector);
+                                                                      _IsVector{});
                               });
     });
 }
@@ -3739,37 +3980,41 @@ _RandomAccessIterator
 __brick_min_element(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
                     /* __is_vector = */ ::std::true_type) noexcept
 {
-#if (_PSTL_UDR_PRESENT || _ONEDPL_UDR_PRESENT)
+#if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
     return __unseq_backend::__simd_min_element(__first, __last - __first, __comp);
 #else
     return ::std::min_element(__first, __last, __comp);
 #endif
 }
 
-template <typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_min_element(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Compare __comp,
-                      _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
+_ForwardIterator
+__pattern_min_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                      _Compare __comp) noexcept
 {
-    return __internal::__brick_min_element(__first, __last, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_min_element(__first, __last, __comp, typename _Tag::__is_vector{});
 }
 
-template <typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _RandomAccessIterator>
-__pattern_min_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                      _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
+_RandomAccessIterator
+__pattern_min_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                      _RandomAccessIterator __last, _Compare __comp)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     // a trivial case pre-check
     if (__last - __first < 2)
         return __first;
 
     return __internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
+            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, /*identity*/ __last,
             [=](_RandomAccessIterator __begin, _RandomAccessIterator __end,
                 _RandomAccessIterator __init) -> _RandomAccessIterator {
                 const _RandomAccessIterator __subresult =
-                    __internal::__brick_min_element(__begin, __end, __comp, __is_vector);
+                    __internal::__brick_min_element(__begin, __end, __comp, _IsVector{});
                 return __init == __last ? __subresult
                                         : __internal::__cmp_iterators_by_values(__init, __subresult, __comp,
                                                                                 oneapi::dpl::__internal::__pstl_less());
@@ -3802,40 +4047,42 @@ template <typename _RandomAccessIterator, typename _Compare>
 __brick_minmax_element(_RandomAccessIterator __first, _RandomAccessIterator __last, _Compare __comp,
                        /* __is_vector = */ ::std::true_type) noexcept
 {
-#if (_PSTL_UDR_PRESENT || _ONEDPL_UDR_PRESENT)
+#if _ONEDPL_UDR_PRESENT // _PSTL_UDR_PRESENT
     return __unseq_backend::__simd_minmax_element(__first, __last - __first, __comp);
 #else
     return ::std::minmax_element(__first, __last, __comp);
 #endif
 }
 
-template <typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_ForwardIterator, _ForwardIterator>>
-__pattern_minmax_element(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Compare __comp,
-                         _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Compare>
+::std::pair<_ForwardIterator, _ForwardIterator>
+__pattern_minmax_element(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                         _Compare __comp) noexcept
 {
-    return __internal::__brick_minmax_element(__first, __last, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_minmax_element(__first, __last, __comp, typename _Tag::__is_vector{});
 }
 
-template <typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_RandomAccessIterator, _RandomAccessIterator>>
-__pattern_minmax_element(_ExecutionPolicy&& __exec, _RandomAccessIterator __first, _RandomAccessIterator __last,
-                         _Compare __comp, _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare>
+::std::pair<_RandomAccessIterator, _RandomAccessIterator>
+__pattern_minmax_element(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                         _RandomAccessIterator __last, _Compare __comp)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     // a trivial case pre-check
     if (__last - __first < 2)
         return ::std::make_pair(__first, __first);
 
     return __internal::__except_handler([&]() {
-        typedef ::std::pair<_RandomAccessIterator, _RandomAccessIterator> _Result;
+        using _Result = std::pair<_RandomAccessIterator, _RandomAccessIterator>;
 
         return __par_backend::__parallel_reduce(
-            ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            /*identity*/ ::std::make_pair(__last, __last),
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            /*identity*/ std::make_pair(__last, __last),
             [=, &__comp](_RandomAccessIterator __begin, _RandomAccessIterator __end, _Result __init) -> _Result {
-                const _Result __subresult = __internal::__brick_minmax_element(__begin, __end, __comp, __is_vector);
+                const _Result __subresult = __internal::__brick_minmax_element(__begin, __end, __comp, _IsVector{});
                 if (__init.first == __last) // = identity
                     return __subresult;
                 return ::std::make_pair(
@@ -3888,31 +4135,33 @@ __brick_mismatch(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1
     return __unseq_backend::__simd_first(__first1, __n, __first2, __not_pred<_Predicate&>(__pred));
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Predicate, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_ForwardIterator1, _ForwardIterator2>>
-__pattern_mismatch(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Predicate __pred, _IsVector __is_vector,
-                   /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Predicate>
+::std::pair<_ForwardIterator1, _ForwardIterator2>
+__pattern_mismatch(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Predicate __pred) noexcept
 {
-    return __internal::__brick_mismatch(__first1, __last1, __first2, __last2, __pred, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_mismatch(__first1, __last1, __first2, __last2, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Predicate,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy,
-                                                           ::std::pair<_RandomAccessIterator1, _RandomAccessIterator2>>
-__pattern_mismatch(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _Predicate __pred,
-                   _IsVector __is_vector, /* is_parallel = */ ::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Predicate>
+::std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__pattern_mismatch(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                   _Predicate __pred)
 {
+    if (__last1 - __first1 == 0 || __last2 - __first2 == 0)
+        return {__first1, __first2};
+
     return __internal::__except_handler([&]() {
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
         auto __result = __internal::__parallel_find(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-            [__first1, __first2, __pred, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+            __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+            [__first1, __first2, __pred](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
                 return __internal::__brick_mismatch(__i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
-                                                    __pred, __is_vector)
+                                                    __pred, _IsVector{})
                     .first;
             },
             ::std::true_type{});
@@ -3949,8 +4198,8 @@ __brick_lexicographical_compare(_RandomAccessIterator1 __first1, _RandomAccessIt
     }
     else
     {
-        typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference ref_type1;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference ref_type2;
+        using ref_type1 = typename std::iterator_traits<_RandomAccessIterator1>::reference;
+        using ref_type2 = typename std::iterator_traits<_RandomAccessIterator2>::reference;
         --__last1;
         --__last2;
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
@@ -3970,22 +4219,24 @@ __brick_lexicographical_compare(_RandomAccessIterator1 __first1, _RandomAccessIt
     }
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Compare, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_lexicographical_compare(_ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                                  _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Compare __comp,
-                                  _IsVector __is_vector, /* is_parallel = */ ::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Compare>
+bool
+__pattern_lexicographical_compare(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                                  _ForwardIterator2 __first2, _ForwardIterator2 __last2, _Compare __comp) noexcept
 {
-    return __internal::__brick_lexicographical_compare(__first1, __last1, __first2, __last2, __comp, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __internal::__brick_lexicographical_compare(__first1, __last1, __first2, __last2, __comp,
+                                                       typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Compare,
-          class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, bool>
-__pattern_lexicographical_compare(_ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                                  _RandomAccessIterator2 __last2, _Compare __comp, _IsVector __is_vector,
-                                  /* is_parallel = */ ::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _Compare>
+bool
+__pattern_lexicographical_compare(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                                  _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                                  _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                                  _Compare __comp) noexcept
 {
     if (__first2 == __last2)
     { // if second sequence is empty
@@ -3997,31 +4248,35 @@ __pattern_lexicographical_compare(_ExecutionPolicy&& __exec, _RandomAccessIterat
     }
     else
     {
-        typedef typename ::std::iterator_traits<_RandomAccessIterator1>::reference _RefType1;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator2>::reference _RefType2;
-        --__last1;
-        --__last2;
-        auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
-        auto __result = __internal::__parallel_find(
-            ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-            [__first1, __first2, &__comp, __is_vector](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
-                return __internal::__brick_mismatch(__i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
-                                                    [&__comp](const _RefType1 __x, const _RefType2 __y) {
-                                                        return !__comp(__x, __y) && !__comp(__y, __x);
-                                                    },
-                                                    __is_vector)
-                    .first;
-            },
-            ::std::true_type{});
+        using _RefType1 = typename std::iterator_traits<_RandomAccessIterator1>::reference;
+        using _RefType2 = typename std::iterator_traits<_RandomAccessIterator2>::reference;
 
-        if (__result == __last1 && __first2 + (__result - __first1) != __last2)
-        { // if first sequence shorter than second
-            return !__comp(*(__first2 + (__result - __first1)), *__result);
-        }
-        else
-        { // if second sequence shorter than first or both have the same number of elements
-            return __comp(*__result, *(__first2 + (__result - __first1)));
-        }
+        return __internal::__except_handler([&]() {
+            --__last1;
+            --__last2;
+            auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
+            auto __result = __internal::__parallel_find(
+                __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                [__first1, __first2, &__comp](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                    return __internal::__brick_mismatch(
+                               __i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
+                               [&__comp](const _RefType1 __x, const _RefType2 __y) {
+                                   return !__comp(__x, __y) && !__comp(__y, __x);
+                               },
+                               _IsVector{})
+                        .first;
+                },
+                ::std::true_type{});
+
+            if (__result == __last1 && __first2 + (__result - __first1) != __last2)
+            { // if first sequence shorter than second
+                return !__comp(*(__first2 + (__result - __first1)), *__result);
+            }
+            else
+            { // if second sequence shorter than first or both have the same number of elements
+                return __comp(*__result, *(__first2 + (__result - __first1)));
+            }
+        });
     }
 }
 
@@ -4029,14 +4284,15 @@ __pattern_lexicographical_compare(_ExecutionPolicy&& __exec, _RandomAccessIterat
 // swap
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Function, class _IsVector,
-          class _IsParallel>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator2>
-__pattern_swap(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-               _ForwardIterator2 __first2, _Function __f, _IsVector __is_vector, _IsParallel __is_parallel)
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2>
+_ForwardIterator2
+__pattern_swap(_Tag __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+               _ForwardIterator2 __first2)
 {
-    return __pattern_walk2(::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __f, __is_vector,
-                           __is_parallel);
+    static_assert(__is_host_dispatch_tag_v<_Tag>);
+
+    return __pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                           oneapi::dpl::__internal::__swap_fn{});
 }
 
 //------------------------------------------------------------------------
@@ -4062,7 +4318,7 @@ __brick_shift_left(_ForwardIterator __first, _ForwardIterator __last,
         return __first;
 
     //Moving the rest elements from a position number n to the begin of the sequence.
-    for (; __it != __last; ++__it, ++__first)
+    for (; __it != __last; ++__it, (void)++__first)
         *__first = ::std::move(*__it);
 
     return __first;
@@ -4091,37 +4347,42 @@ __brick_shift_left(_ForwardIterator __first, _ForwardIterator __last,
     //1. n >= size/2; there is enough memory to 'total' parallel (SIMD) copying
     if (__n >= __mid)
     {
-        __unseq_backend::__simd_walk_2(__first + __n, __size_res, __first,
-                                       [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); });
+        __unseq_backend::__simd_walk_n(__size_res,
+                                       [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); },
+                                       __first + __n, __first);
     }
     else //2. n < size/2; there is not enough memory to parallel (SIMD) copying; doing SIMD copying by n elements
     {
         for (auto __k = __n; __k < __size; __k += __n)
         {
             auto __end = ::std::min(__k + __n, __size);
-            __unseq_backend::__simd_walk_2(__first + __k, __end - __k, __first + __k - __n,
-                                           [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); });
+            __unseq_backend::__simd_walk_n(__end - __k,
+                                           [](_ReferenceType __x, _ReferenceType __y) { __y = ::std::move(__x); },
+                                           __first + __k, __first + __k - __n);
         }
     }
 
     return __first + __size_res;
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_shift_left(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
-                     typename ::std::iterator_traits<_ForwardIterator>::difference_type __n, _IsVector __is_vector,
-                     /*is_parallel=*/::std::false_type) noexcept
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator>
+_ForwardIterator
+__pattern_shift_left(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
+                     typename ::std::iterator_traits<_ForwardIterator>::difference_type __n) noexcept
 {
-    return __brick_shift_left(__first, __last, __n, __is_vector);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
+
+    return __brick_shift_left(__first, __last, __n, typename _Tag::__is_vector{});
 }
 
-template <class _ExecutionPolicy, class _ForwardIterator, class _IsVector>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _ForwardIterator>
-__pattern_shift_left(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
-                     typename ::std::iterator_traits<_ForwardIterator>::difference_type __n, _IsVector __is_vector,
-                     /*is_parallel=*/::std::true_type)
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator>
+_RandomAccessIterator
+__pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
+                     _RandomAccessIterator __last,
+                     typename ::std::iterator_traits<_RandomAccessIterator>::difference_type __n)
 {
+    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
     //If (n > 0 && n < m), returns first + (m - n). Otherwise, if n  > 0, returns first. Otherwise, returns last.
     if (__n <= 0)
         return __last;
@@ -4129,47 +4390,51 @@ __pattern_shift_left(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Forwa
     if (__n >= __size)
         return __first;
 
-    using _DiffType = typename ::std::iterator_traits<_ForwardIterator>::difference_type;
+    using _DiffType = typename ::std::iterator_traits<_RandomAccessIterator>::difference_type;
 
     _DiffType __mid = __size / 2 + __size % 2;
     _DiffType __size_res = __size - __n;
 
-    //1. n >= size/2; there is enough memory to 'total' parallel copying
-    if (__n >= __mid)
-    {
-        __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __n, __size,
-                                      [__first, __n, __is_vector](_DiffType __i, _DiffType __j) {
-                                          __brick_move<_ExecutionPolicy>{}(__first + __i, __first + __j,
-                                                                           __first + __i - __n, __is_vector);
-                                      });
-    }
-    else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
-    {
-        //TODO: to consider parallel processing by the 'internal' loop (but we may probably get cache locality issues)
-        for (auto __k = __n; __k < __size; __k += __n)
+    return __internal::__except_handler([&]() {
+        //1. n >= size/2; there is enough memory to 'total' parallel copying
+        if (__n >= __mid)
         {
-            auto __end = ::std::min(__k + __n, __size);
-            __par_backend::__parallel_for(::std::forward<_ExecutionPolicy>(__exec), __k, __end,
-                                          [__first, __n, __is_vector](_DiffType __i, _DiffType __j) {
-                                              __brick_move<_ExecutionPolicy>{}(__first + __i, __first + __j,
-                                                                               __first + __i - __n, __is_vector);
+            __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
+                                          [__first, __n](_DiffType __i, _DiffType __j) {
+                                              __brick_move<__parallel_tag<_IsVector>>{}(
+                                                  __first + __i, __first + __j, __first + __i - __n, _IsVector{});
                                           });
         }
-    }
+        else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
+        {
+            //TODO: to consider parallel processing by the 'internal' loop (but we may probably get cache locality issues)
+            for (auto __k = __n; __k < __size; __k += __n)
+            {
+                auto __end = ::std::min(__k + __n, __size);
+                __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
+                                              [__first, __n](_DiffType __i, _DiffType __j) {
+                                                  __brick_move<__parallel_tag<_IsVector>>{}(
+                                                      __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                              });
+            }
+        }
 
-    return __first + __size_res;
+        return __first + __size_res;
+    });
 }
 
-template <class _ExecutionPolicy, class _BidirectionalIterator, class _IsVector, class _IsParallel>
-oneapi::dpl::__internal::__enable_if_host_execution_policy<_ExecutionPolicy, _BidirectionalIterator>
-__pattern_shift_right(_ExecutionPolicy&& __exec, _BidirectionalIterator __first, _BidirectionalIterator __last,
-                      typename ::std::iterator_traits<_BidirectionalIterator>::difference_type __n,
-                      _IsVector __is_vector, _IsParallel is_parallel)
+template <class _Tag, class _ExecutionPolicy, class _BidirectionalIterator>
+_BidirectionalIterator
+__pattern_shift_right(_Tag __tag, _ExecutionPolicy&& __exec, _BidirectionalIterator __first,
+                      _BidirectionalIterator __last,
+                      typename ::std::iterator_traits<_BidirectionalIterator>::difference_type __n)
 {
+    static_assert(__is_host_dispatch_tag_v<_Tag>);
+
     using _ReverseIterator = typename ::std::reverse_iterator<_BidirectionalIterator>;
-    auto __res = oneapi::dpl::__internal::__pattern_shift_left(::std::forward<_ExecutionPolicy>(__exec),
-                                                               _ReverseIterator(__last), _ReverseIterator(__first), __n,
-                                                               __is_vector, is_parallel);
+
+    auto __res = oneapi::dpl::__internal::__pattern_shift_left(
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), _ReverseIterator(__last), _ReverseIterator(__first), __n);
 
     return __res.base();
 }

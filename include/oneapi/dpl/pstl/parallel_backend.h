@@ -18,14 +18,14 @@
 
 // Select a parallel backend
 #if ONEDPL_USE_TBB_BACKEND || (!defined(ONEDPL_USE_TBB_BACKEND) && !ONEDPL_USE_OPENMP_BACKEND && _ONEDPL_TBB_AVAILABLE)
-#    include "parallel_backend_tbb.h"
 #    define _ONEDPL_PAR_BACKEND_TBB 1
+#    include "parallel_backend_tbb.h"
 #elif ONEDPL_USE_OPENMP_BACKEND || (!defined(ONEDPL_USE_OPENMP_BACKEND) && _ONEDPL_OPENMP_AVAILABLE)
-#    include "parallel_backend_omp.h"
 #    define _ONEDPL_PAR_BACKEND_OPENMP 1
+#    include "parallel_backend_omp.h"
 #else
-#    include "parallel_backend_serial.h"
 #    define _ONEDPL_PAR_BACKEND_SERIAL 1
+#    include "parallel_backend_serial.h"
 #endif
 
 #if _ONEDPL_BACKEND_SYCL

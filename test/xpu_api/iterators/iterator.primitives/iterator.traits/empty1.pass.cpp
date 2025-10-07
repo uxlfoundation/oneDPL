@@ -26,7 +26,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 struct not_an_iterator
 {
 };
@@ -62,13 +61,11 @@ kernelTest()
         });
     });
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     kernelTest();
-#endif // TEST_DPCPP_BACKEND_PRESENT
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+
+    return TestUtils::done();
 }

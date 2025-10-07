@@ -65,7 +65,7 @@ struct __difference<_Ip, ::std::enable_if_t<::std::is_integral_v<_Ip>>>
 template <typename _Ip>
 struct __difference<_Ip, ::std::enable_if_t<!::std::is_integral_v<_Ip>>>
 {
-    using __type = typename oneapi::dpl::__internal::__iterator_traits<_Ip>::difference_type;
+    using __type = typename ::std::iterator_traits<_Ip>::difference_type;
 };
 
 // This type is used as a stride value when it's known that stride == 1 at compile time(the case of for_loop and for_loop_n).
@@ -79,9 +79,15 @@ typename __difference<_Ip>::__type
 __calculate_input_sequence_length(const _Ip __first, const _Ip __last, const _Sp __stride)
 {
     assert(__stride != 0);
-
-    return (__stride > 0) ? ((__last - __first + (__stride - 1)) / __stride)
-                          : ((__first - __last - (__stride + 1)) / -__stride);
+    if constexpr (std::is_unsigned_v<_Sp>)
+    {
+        return (__last - __first + (__stride - 1)) / __stride;
+    }
+    else
+    {
+        return (__stride > 0) ? ((__last - __first + (__stride - 1)) / __stride)
+                              : ((__first - __last - (__stride + 1)) / -__stride);
+    }
 }
 
 template <typename _Ip>
@@ -232,9 +238,9 @@ __pattern_for_loop(_ExecutionPolicy&& __exec, _Ip __first, _Ip __last, _Function
 }
 
 template <typename _Ip, typename _Function, typename _Sp, typename _Pack, typename _IndexType>
-::std::enable_if_t<::std::is_same_v<typename oneapi::dpl::__internal::__iterator_traits<_Ip>::iterator_category,
-                                    ::std::bidirectional_iterator_tag>,
-                   _IndexType>
+::std::enable_if_t<
+    ::std::is_same_v<typename ::std::iterator_traits<_Ip>::iterator_category, ::std::bidirectional_iterator_tag>,
+    _IndexType>
 __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pack& __pack, _IndexType) noexcept
 {
     _IndexType __ordinal_position = 0;
@@ -244,7 +250,7 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
 
     if (__stride > 0)
     {
-        for (_IndexType __i = 0; __first != __last; ++__first, ++__i)
+        for (_IndexType __i = 0; __first != __last; ++__first, (void)++__i)
         {
             if (__i % __stride == 0)
             {
@@ -255,7 +261,7 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
     }
     else
     {
-        for (_IndexType __i = 0; __first != __last; --__first, ++__i)
+        for (_IndexType __i = 0; __first != __last; --__first, (void)++__i)
         {
             if (__i % __stride == 0)
             {
@@ -269,18 +275,17 @@ __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pa
 }
 
 template <typename _Ip, typename _Function, typename _Sp, typename _Pack, typename _IndexType>
-::std::enable_if_t<::std::is_same_v<typename oneapi::dpl::__internal::__iterator_traits<_Ip>::iterator_category,
-                                    ::std::forward_iterator_tag> ||
-                       ::std::is_same_v<typename oneapi::dpl::__internal::__iterator_traits<_Ip>::iterator_category,
-                                        ::std::input_iterator_tag>,
-                   _IndexType>
+::std::enable_if_t<
+    ::std::is_same_v<typename ::std::iterator_traits<_Ip>::iterator_category, ::std::forward_iterator_tag> ||
+        ::std::is_same_v<typename ::std::iterator_traits<_Ip>::iterator_category, ::std::input_iterator_tag>,
+    _IndexType>
 __execute_loop_strided(_Ip __first, _Ip __last, _Function __f, _Sp __stride, _Pack& __pack, _IndexType) noexcept
 {
     _IndexType __ordinal_position = 0;
 
     assert(__stride > 0);
 
-    for (_IndexType __i = 0; __first != __last; ++__first, ++__i)
+    for (_IndexType __i = 0; __first != __last; ++__first, (void)++__i)
     {
         if (__i % __stride == 0)
         {
@@ -305,7 +310,7 @@ __pattern_for_loop(_ExecutionPolicy&&, _Ip __first, _Ip __last, _Function __f, _
     __index_type __ordinal_position = 0;
 
     // Avoid check for i % stride on each iteration for the most common case.
-    for (; __first != __last; ++__first, ++__ordinal_position)
+    for (; __first != __last; ++__first, (void)++__ordinal_position)
         __pack.__apply_func(__f, __first, __ordinal_position);
 
     __pack.__finalize(__ordinal_position);
@@ -325,7 +330,7 @@ __pattern_for_loop(_ExecutionPolicy&&, _Ip __first, _Ip __last, _Function __f, _
     if (__stride == 1)
     {
         // Avoid check for i % stride on each iteration for the most common case.
-        for (; __first != __last; ++__first, ++__ordinal_position)
+        for (; __first != __last; ++__first, (void)++__ordinal_position)
             __pack.__apply_func(__f, __first, __ordinal_position);
     }
     else
@@ -398,26 +403,27 @@ __pattern_for_loop_n(_ExecutionPolicy&& __exec, _Ip __first, _Size __n, _Functio
     // Create an identity pack object, operations are done on copies of it.
     const __pack_type __identity{__reduction_pack_tag(), ::std::forward<_Rest>(__rest)...};
 
+    using __backend_tag = typename oneapi::dpl::__internal::__parallel_tag<_IsVector>::__backend_tag;
     oneapi::dpl::__internal::__except_handler([&]() {
-        return __par_backend::__parallel_reduce(::std::forward<_ExecutionPolicy>(__exec), _Size(0), __n, __identity,
-                                                [__is_vector, __first, __f](_Size __i, _Size __j, __pack_type __value) {
-                                                    const auto __subseq_start = __first + __i;
-                                                    const auto __length = __j - __i;
+        return __par_backend::__parallel_reduce(
+                   __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), _Size(0), __n, __identity,
+                   [__is_vector, __first, __f](_Size __i, _Size __j, __pack_type __value) {
+                       const auto __subseq_start = __first + __i;
+                       const auto __length = __j - __i;
 
-                                                    oneapi::dpl::__internal::__brick_walk1(
-                                                        __length,
-                                                        [&__value, __f, __i, __subseq_start](_Size __idx) {
-                                                            __value.__apply_func(__f, __subseq_start + __idx,
-                                                                                 __i + __idx);
-                                                        },
-                                                        __is_vector);
+                       oneapi::dpl::__internal::__brick_walk1(
+                           __length,
+                           [&__value, __f, __i, __subseq_start](_Size __idx) {
+                               __value.__apply_func(__f, __subseq_start + __idx, __i + __idx);
+                           },
+                           __is_vector);
 
-                                                    return __value;
-                                                },
-                                                [](__pack_type __lhs, const __pack_type& __rhs) {
-                                                    __lhs.__combine(__rhs);
-                                                    return __lhs;
-                                                })
+                       return __value;
+                   },
+                   [](__pack_type __lhs, const __pack_type& __rhs) {
+                       __lhs.__combine(__rhs);
+                       return __lhs;
+                   })
             .__finalize(__n);
     });
 }
@@ -433,9 +439,10 @@ __pattern_for_loop_n(_ExecutionPolicy&& __exec, _Ip __first, _Size __n, _Functio
     // Create an identity pack object, operations are done on copies of it.
     const __pack_type __identity{__reduction_pack_tag(), ::std::forward<_Rest>(__rest)...};
 
+    using __backend_tag = typename oneapi::dpl::__internal::__parallel_tag<_IsVector>::__backend_tag;
     oneapi::dpl::__internal::__except_handler([&]() {
         return __par_backend::__parallel_reduce(
-                   ::std::forward<_ExecutionPolicy>(__exec), _Size(0), __n, __identity,
+                   __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), _Size(0), __n, __identity,
                    [__is_vector, __first, __f, __stride](_Size __i, _Size __j, __pack_type __value) {
                        const auto __subseq_start = __first + __i * __stride;
                        const auto __length = __j - __i;
@@ -472,64 +479,39 @@ __pattern_for_loop(_ExecutionPolicy&& __exec, _Ip __first, _Ip __last, _Function
 
 // Helper structure to split code functions for integral and iterator types so the return
 // value can be successfully deduced.
-template <typename _Ip, typename = void>
-struct __use_par_vec_helper;
-
 template <typename _Ip>
-struct __use_par_vec_helper<_Ip, ::std::enable_if_t<::std::is_integral_v<_Ip>>>
+struct __use_par_vec_helper
 {
-    template <typename _ExecutionPolicy>
-    static constexpr auto
-    __use_vector(_ExecutionPolicy&& __exec) -> decltype(__exec.__allow_vector())
-    {
-        return __exec.__allow_vector();
-    }
+    using __it_type = std::conditional_t<std::is_integral_v<_Ip>, _Ip*, _Ip>;
 
-    template <typename _ExecutionPolicy>
-    static constexpr auto
-    __use_parallel(_ExecutionPolicy&& __exec) -> decltype(__exec.__allow_parallel())
-    {
-        return __exec.__allow_parallel();
-    }
-};
-
-template <typename _Ip>
-struct __use_par_vec_helper<_Ip, ::std::enable_if_t<!::std::is_integral_v<_Ip>>>
-{
     template <typename _ExecutionPolicy>
     static constexpr auto
     __use_vector(_ExecutionPolicy&& __exec)
-        -> decltype(oneapi::dpl::__internal::__is_vectorization_preferred<_ExecutionPolicy, _Ip>(
-            ::std::forward<_ExecutionPolicy>(__exec)))
     {
-        return oneapi::dpl::__internal::__is_vectorization_preferred<_ExecutionPolicy, _Ip>(
-            ::std::forward<_ExecutionPolicy>(__exec));
+        using __tag_type = decltype(oneapi::dpl::__internal::__select_backend(__exec, std::declval<__it_type>()));
+        return typename __tag_type::__is_vector{};
     }
 
     template <typename _ExecutionPolicy>
     static constexpr auto
     __use_parallel(_ExecutionPolicy&& __exec)
-        -> decltype(oneapi::dpl::__internal::__is_parallelization_preferred<_ExecutionPolicy, _Ip>(
-            ::std::forward<_ExecutionPolicy>(__exec)))
     {
-        return oneapi::dpl::__internal::__is_parallelization_preferred<_ExecutionPolicy, _Ip>(
-            ::std::forward<_ExecutionPolicy>(__exec));
+        using __tag_type = decltype(oneapi::dpl::__internal::__select_backend(__exec, std::declval<__it_type>()));
+        return oneapi::dpl::__internal::__is_parallel_tag<__tag_type>{};
     }
 };
 
 // Special versions for for_loop: handles both iterators and integral types(treated as random access iterators)
-template <typename _ExecutionPolicy, typename _Ip>
+template <typename _Ip, typename _ExecutionPolicy>
 auto
 __use_vectorization(_ExecutionPolicy&& __exec)
-    -> decltype(__use_par_vec_helper<_Ip>::__use_vector(::std::forward<_ExecutionPolicy>(__exec)))
 {
     return __use_par_vec_helper<_Ip>::__use_vector(::std::forward<_ExecutionPolicy>(__exec));
 }
 
-template <typename _ExecutionPolicy, typename _Ip>
+template <typename _Ip, typename _ExecutionPolicy>
 auto
 __use_parallelization(_ExecutionPolicy&& __exec)
-    -> decltype(__use_par_vec_helper<_Ip>::__use_parallel(::std::forward<_ExecutionPolicy>(__exec)))
 {
     return __use_par_vec_helper<_Ip>::__use_parallel(::std::forward<_ExecutionPolicy>(__exec));
 }
@@ -540,11 +522,10 @@ void
 __for_loop_impl(_ExecutionPolicy&& __exec, _Ip __start, _Ip __finish, _Fp&& __f, _Sp __stride,
                 ::std::tuple<_Rest...>&& __t, ::std::index_sequence<_Is...>)
 {
-    oneapi::dpl::__internal::__pattern_for_loop(
-        ::std::forward<_ExecutionPolicy>(__exec), __start, __finish, __f, __stride,
-        oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
-        oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        ::std::get<_Is>(::std::move(__t))...);
+    oneapi::dpl::__internal::__pattern_for_loop(::std::forward<_ExecutionPolicy>(__exec), __start, __finish, __f,
+                                                __stride, oneapi::dpl::__internal::__use_vectorization<_Ip>(__exec),
+                                                oneapi::dpl::__internal::__use_parallelization<_Ip>(__exec),
+                                                ::std::get<_Is>(::std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Size, typename _Fp, typename _Sp, typename... _Rest,
@@ -553,11 +534,10 @@ void
 __for_loop_n_impl(_ExecutionPolicy&& __exec, _Ip __start, _Size __n, _Fp&& __f, _Sp __stride,
                   ::std::tuple<_Rest...>&& __t, ::std::index_sequence<_Is...>)
 {
-    oneapi::dpl::__internal::__pattern_for_loop_n(
-        ::std::forward<_ExecutionPolicy>(__exec), __start, __n, __f, __stride,
-        oneapi::dpl::__internal::__use_vectorization<_ExecutionPolicy, _Ip>(__exec),
-        oneapi::dpl::__internal::__use_parallelization<_ExecutionPolicy, _Ip>(__exec),
-        ::std::get<_Is>(::std::move(__t))...);
+    oneapi::dpl::__internal::__pattern_for_loop_n(::std::forward<_ExecutionPolicy>(__exec), __start, __n, __f, __stride,
+                                                  oneapi::dpl::__internal::__use_vectorization<_Ip>(__exec),
+                                                  oneapi::dpl::__internal::__use_parallelization<_Ip>(__exec),
+                                                  ::std::get<_Is>(::std::move(__t))...);
 }
 
 template <typename _ExecutionPolicy, typename _Ip, typename _Sp, typename... _Rest>

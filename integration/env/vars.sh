@@ -3,7 +3,7 @@
 
 ##===----------------------------------------------------------------------===##
 #
-# Copyright (C) 2023 Intel Corporation
+# Copyright (C) Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
@@ -68,9 +68,9 @@ fi
 
 # ############################################################################
 
-# Prepend path segment(s) to path-like env vars (PATH, CPATH, etc.).
+# Prepend path segment(s) to path-like env vars (PATH, CPLUS_INCLUDE_PATH, etc.).
 
-# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPATH)
+# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPLUS_INCLUDE_PATH)
 # prepend_manpath() includes dangling ":" needed by MANPATH.
 # PATH > https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
 # MANPATH > https://manpages.debian.org/stretch/man-db/manpath.1.en.html
@@ -176,7 +176,8 @@ fi
 
 _onedpl_scrip_path=$(dirname -- "$(rreadlink "${vars_script_name:-}")")
 DPL_ROOT=$(dirname -- "${_onedpl_scrip_path}") ; export DPL_ROOT
-CPATH=$(prepend_path "${DPL_ROOT}/include" "${CPATH:-}") ; export CPATH
+DPLROOT=$(dirname -- "${_onedpl_scrip_path}") ; export DPLROOT
+CPLUS_INCLUDE_PATH=$(prepend_path "${DPL_ROOT}/include" "${CPLUS_INCLUDE_PATH:-}") ; export CPLUS_INCLUDE_PATH
 PKG_CONFIG_PATH=$(prepend_path "${DPL_ROOT}/lib/pkgconfig" "${PKG_CONFIG_PATH:-}") ; export PKG_CONFIG_PATH
 CMAKE_PREFIX_PATH=$(prepend_path "${DPL_ROOT}/lib/cmake/oneDPL" "${CMAKE_PREFIX_PATH:-}") ; export CMAKE_PREFIX_PATH
 

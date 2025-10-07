@@ -17,6 +17,7 @@
 #define _ONEDPL_GLUE_NUMERIC_RANGES_DEFS_H
 
 #include "execution_defs.h"
+#include "utils_ranges.h"
 
 namespace oneapi
 {

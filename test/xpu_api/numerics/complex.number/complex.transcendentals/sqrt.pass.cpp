@@ -23,7 +23,7 @@ void
 test(const dpl::complex<T>& c, dpl::complex<T> x)
 {
     dpl::complex<T> a = dpl::sqrt(c);
-    is_about(dpl::real(a), dpl::real(x));
+    assert(is_about(dpl::real(a), dpl::real(x)));
     assert(std::abs(dpl::imag(c)) < T(1.e-6));
 }
 
@@ -102,7 +102,11 @@ void test_edges()
 
 ONEDPL_TEST_NUM_MAIN
 {
+#if _PSTL_ICC_TEST_COMPLEX_MSVC_MATH_DOUBLE_REQ
+    IF_DOUBLE_SUPPORT(test<float>())
+#else
     test<float>();
+#endif
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
     IF_DOUBLE_SUPPORT(test_edges())

@@ -19,7 +19,9 @@
 #include <iterator>
 #include <tuple>
 #include <cassert>
+#include <type_traits>
 
+#include "onedpl_config.h"
 #include "utils.h"
 #include "tuple_impl.h"
 
@@ -74,32 +76,73 @@ struct __make_references
     }
 };
 
+template <typename _Iter, typename = void>
+struct __is_legacy_passed_directly : std::false_type
+{
+};
+
+template <typename _Iter>
+struct __is_legacy_passed_directly<_Iter, std::enable_if_t<_Iter::is_passed_directly::value>> : std::true_type
+{
+};
+
+template <typename _T>
+struct __is_reversed_indirectly_device_accessible_it;
+
+template <typename T>
+constexpr auto is_onedpl_indirectly_device_accessible(T)
+    -> std::disjunction<
+#if _ONEDPL_BACKEND_SYCL
+        oneapi::dpl::__internal::__is_known_usm_vector_iter<std::decay_t<T>>,             // USM vector iterator
+#endif // _ONEDPL_BACKEND_SYCL
+        std::is_pointer<std::decay_t<T>>,                                                 // USM pointer
+        oneapi::dpl::__internal::__is_legacy_passed_directly<std::decay_t<T>>,            // legacy passed directly iter
+        oneapi::dpl::__internal::__is_reversed_indirectly_device_accessible_it<std::decay_t<T>>>; // reverse iterator
+
+struct __is_onedpl_indirectly_device_accessible_fn
+{
+    template <typename T>
+    constexpr auto
+    operator()(T t) const -> decltype(is_onedpl_indirectly_device_accessible(t));
+};
+
+inline constexpr __is_onedpl_indirectly_device_accessible_fn __is_onedpl_indirectly_device_accessible;
+
 //zip_iterator version for forward iterator
 //== and != comparison is performed only on the first element of the tuple
+//
+//zip_forward_iterator is implemented as an internal class and should remain so. Users should never encounter
+//this class or be returned a type of its value_type, reference, etc as the tuple-like type used internally
+//is variable dependent on the C++ standard library version and could cause an inconsistent ABI due to resulting
+//layout changes of this class.
 template <typename... _Types>
 class zip_forward_iterator
 {
+    template <typename... _Ts>
+    using __tuple_t =
+#if _ONEDPL_CAN_USE_STD_TUPLE_PROXY_ITERATOR
+        ::std::tuple<_Ts...>;
+#else
+        oneapi::dpl::__internal::tuple<_Ts...>;
+#endif
+
     static const ::std::size_t __num_types = sizeof...(_Types);
-    typedef typename ::std::tuple<_Types...> __it_types;
+    using __it_types = __tuple_t<_Types...>;
 
   public:
-    typedef ::std::make_signed_t<::std::size_t> difference_type;
-    typedef ::std::tuple<typename ::std::iterator_traits<_Types>::value_type...> value_type;
-    typedef ::std::tuple<typename ::std::iterator_traits<_Types>::reference...> reference;
-    typedef ::std::tuple<typename ::std::iterator_traits<_Types>::pointer...> pointer;
-    typedef ::std::forward_iterator_tag iterator_category;
+    using difference_type = std::make_signed_t<std::size_t>;
+    using value_type = __tuple_t<typename std::iterator_traits<_Types>::value_type...>;
+    using reference = __tuple_t<typename std::iterator_traits<_Types>::reference...>;
+    using pointer = __tuple_t<typename std::iterator_traits<_Types>::pointer...>;
+    using iterator_category = std::forward_iterator_tag;
 
     zip_forward_iterator() : __my_it_() {}
-    explicit zip_forward_iterator(_Types... __args) : __my_it_(::std::make_tuple(__args...)) {}
-    zip_forward_iterator(const zip_forward_iterator& __input) : __my_it_(__input.__my_it_) {}
-    zip_forward_iterator&
-    operator=(const zip_forward_iterator& __input)
-    {
-        __my_it_ = __input.__my_it_;
-        return *this;
-    }
+    explicit zip_forward_iterator(_Types... __args) : __my_it_(__tuple_t<_Types...>{__args...}) {}
 
-    reference operator*() const
+    // On windows, this requires clause is necessary so that concepts in MSVC STL do not detect the iterator as
+    // dereferenceable when a source iterator is a sycl_iterator, which is a supported type.
+    reference
+    operator*() const _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<_Types> &&...)
     {
         return __make_references<reference>()(__my_it_, ::std::make_index_sequence<__num_types>());
     }
@@ -147,19 +190,33 @@ namespace oneapi
 {
 namespace dpl
 {
+
+template <typename T>
+struct is_indirectly_device_accessible
+    : decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(std::declval<T>()))
+{
+    static_assert(std::is_same_v<decltype(decltype(oneapi::dpl::__internal::__is_onedpl_indirectly_device_accessible(
+                                     std::declval<T>()))::value),
+                                 const bool>,
+                  "Return type of is_onedpl_indirectly_device_accessible does not have the characteristics of a "
+                  "bool_constant");
+};
+
+template <typename T>
+inline constexpr bool is_indirectly_device_accessible_v = is_indirectly_device_accessible<T>::value;
+
 template <typename _Ip>
 class counting_iterator
 {
     static_assert(::std::is_integral_v<_Ip>, "Cannot instantiate counting_iterator with a non-integer type");
 
   public:
-    typedef ::std::make_signed_t<_Ip> difference_type;
-    typedef _Ip value_type;
-    typedef const _Ip* pointer;
+    using difference_type = std::make_signed_t<_Ip>;
+    using value_type = _Ip;
+    using pointer = const _Ip*;
     // There is no storage behind the iterator, so we return a value instead of reference.
-    typedef _Ip reference;
-    typedef ::std::random_access_iterator_tag iterator_category;
-    using is_passed_directly = ::std::true_type;
+    using reference = _Ip;
+    using iterator_category = std::random_access_iterator_tag;
 
     counting_iterator() : __my_counter_() {}
     explicit counting_iterator(_Ip __init) : __my_counter_(__init) {}
@@ -257,6 +314,12 @@ class counting_iterator
         return !(*this < __it);
     }
 
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(counting_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
+
   private:
     _Ip __my_counter_;
 };
@@ -266,28 +329,24 @@ class zip_iterator
 {
     static_assert(sizeof...(_Types) > 0, "Cannot instantiate zip_iterator with empty template parameter pack");
     static const ::std::size_t __num_types = sizeof...(_Types);
-    typedef oneapi::dpl::__internal::tuple<_Types...> __it_types;
+    using __it_types = oneapi::dpl::__internal::tuple<_Types...>;
 
   public:
-    typedef ::std::make_signed_t<::std::size_t> difference_type;
-    typedef oneapi::dpl::__internal::tuple<typename ::std::iterator_traits<_Types>::value_type...> value_type;
-    typedef oneapi::dpl::__internal::tuple<typename ::std::iterator_traits<_Types>::reference...> reference;
-    typedef ::std::tuple<typename ::std::iterator_traits<_Types>::pointer...> pointer;
-    typedef ::std::random_access_iterator_tag iterator_category;
+    using difference_type = std::make_signed_t<std::size_t>;
+    using value_type = oneapi::dpl::__internal::tuple<typename std::iterator_traits<_Types>::value_type...>;
+    using reference = oneapi::dpl::__internal::tuple<typename std::iterator_traits<_Types>::reference...>;
+    using pointer = std::tuple<typename std::iterator_traits<_Types>::pointer...>;
+    using iterator_category = std::random_access_iterator_tag;
     using is_zip = ::std::true_type;
 
     zip_iterator() : __my_it_() {}
     explicit zip_iterator(_Types... __args) : __my_it_(::std::make_tuple(__args...)) {}
     explicit zip_iterator(std::tuple<_Types...> __arg) : __my_it_(__arg) {}
-    zip_iterator(const zip_iterator& __input) : __my_it_(__input.__my_it_) {}
-    zip_iterator&
-    operator=(const zip_iterator& __input)
-    {
-        __my_it_ = __input.__my_it_;
-        return *this;
-    }
 
-    reference operator*() const
+    // On windows, this requires clause is necessary so that concepts in MSVC STL do not detect the iterator as
+    // dereferenceable when a source iterator is a sycl_iterator, which is a supported type.
+    reference
+    operator*() const _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<_Types> &&...)
     {
         return oneapi::dpl::__internal::__make_references<reference>()(__my_it_,
                                                                        ::std::make_index_sequence<__num_types>());
@@ -393,6 +452,13 @@ class zip_iterator
         return !(*this < __it);
     }
 
+    friend auto
+    is_onedpl_indirectly_device_accessible(zip_iterator)
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<_Types>...>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
+
   private:
     __it_types __my_it_;
 };
@@ -416,27 +482,59 @@ class transform_iterator
 {
   private:
     _Iter __my_it_;
-    const _UnaryFunc __my_unary_func_;
+    _UnaryFunc __my_unary_func_;
+
+    static_assert(std::is_invocable_v<const std::decay_t<_UnaryFunc>, typename std::iterator_traits<_Iter>::reference>,
+                  "_UnaryFunc does not have a const-qualified call operator which accepts the reference type of the "
+                  "base iterator as argument.");
 
   public:
-    typedef typename ::std::iterator_traits<_Iter>::difference_type difference_type;
-    typedef decltype(__my_unary_func_(::std::declval<typename ::std::iterator_traits<_Iter>::reference>())) reference;
-    typedef ::std::remove_reference_t<reference> value_type;
-    typedef typename ::std::iterator_traits<_Iter>::pointer pointer;
-    typedef typename ::std::iterator_traits<_Iter>::iterator_category iterator_category;
+    using difference_type = typename std::iterator_traits<_Iter>::difference_type;
+    using reference = decltype(__my_unary_func_(std::declval<typename std::iterator_traits<_Iter>::reference>()));
+    using value_type = std::remove_reference_t<reference>;
+    using pointer = typename std::iterator_traits<_Iter>::pointer;
+    using iterator_category = typename std::iterator_traits<_Iter>::iterator_category;
 
-    transform_iterator(_Iter __it = _Iter(), _UnaryFunc __unary_func = _UnaryFunc())
-        : __my_it_(__it), __my_unary_func_(__unary_func)
+    //default constructor will only be present if both the unary functor and iterator are default constructible
+    transform_iterator() = default;
+
+    //only enable this constructor if the unary functor is default constructible
+    template <typename _UnaryFuncLocal = _UnaryFunc,
+              std::enable_if_t<std::is_default_constructible_v<_UnaryFuncLocal>, int> = 0>
+    transform_iterator(_Iter __it) : __my_it_(std::move(__it))
     {
     }
-    transform_iterator(const transform_iterator& __input) = default;
+
+    transform_iterator(_Iter __it, _UnaryFunc __unary_func)
+        : __my_it_(std::move(__it)), __my_unary_func_(std::move(__unary_func))
+    {
+    }
+
+    transform_iterator(const transform_iterator&) = default;
     transform_iterator&
     operator=(const transform_iterator& __input)
     {
         __my_it_ = __input.__my_it_;
+
+        // If copy assignment is available, copy the functor, otherwise skip it.
+        // For non-copy assignable functors, this copy assignment operator departs from the sycl 2020 specification
+        // requirement of device copyable types for copy assignment to be the same as a bitwise copy of the object.
+        // TODO: Explore (ABI breaking) change to use std::optional or similar and using copy constructor to implement
+        //       copy assignment to better comply with SYCL 2020 specification.
+        if constexpr (std::is_copy_assignable_v<_UnaryFunc>)
+        {
+            __my_unary_func_ = __input.__my_unary_func_;
+        }
         return *this;
     }
-    reference operator*() const { return __my_unary_func_(*__my_it_); }
+
+    // On windows, this requires clause is necessary so that concepts in MSVC STL do not detect the iterator as
+    // dereferenceable when the source iterator is a sycl_iterator, which is a supported type.
+    reference
+    operator*() const _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<_Iter>)
+    {
+        return __my_unary_func_(*__my_it_);
+    }
     reference operator[](difference_type __i) const { return *(*this + __i); }
     transform_iterator&
     operator++()
@@ -537,6 +635,11 @@ class transform_iterator
     {
         return __my_unary_func_;
     }
+    friend auto
+    is_onedpl_indirectly_device_accessible(transform_iterator) -> oneapi::dpl::is_indirectly_device_accessible<_Iter>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 };
 
 template <typename _Iter, typename _UnaryFunc>
@@ -570,18 +673,17 @@ template <typename SourceIterator, typename _Permutation>
 class permutation_iterator
 {
   public:
-    typedef std::conditional_t<
+    using IndexMap = std::conditional_t<
         !__internal::__is_functor<_Permutation>, _Permutation,
         transform_iterator<counting_iterator<typename ::std::iterator_traits<SourceIterator>::difference_type>,
-                           _Permutation>>
-        IndexMap;
-    typedef typename ::std::iterator_traits<SourceIterator>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<SourceIterator>::value_type value_type;
-    typedef typename ::std::iterator_traits<SourceIterator>::pointer pointer;
-    typedef typename ::std::iterator_traits<SourceIterator>::reference reference;
-    typedef SourceIterator base_type;
-    typedef ::std::random_access_iterator_tag iterator_category;
-    typedef ::std::true_type is_permutation;
+                           _Permutation>>;
+    using difference_type = typename std::iterator_traits<SourceIterator>::difference_type;
+    using value_type = typename std::iterator_traits<SourceIterator>::value_type;
+    using pointer = typename std::iterator_traits<SourceIterator>::pointer;
+    using reference = typename std::iterator_traits<SourceIterator>::reference;
+    using base_type = SourceIterator;
+    using iterator_category = std::random_access_iterator_tag;
+    using is_permutation = std::true_type;
 
     permutation_iterator() = default;
 
@@ -618,7 +720,14 @@ class permutation_iterator
             return my_index;
     }
 
-    reference operator*() const { return my_source_it[*my_index]; }
+    // On windows, this requires clause is necessary so that concepts in MSVC STL do not detect the iterator as
+    // dereferenceable when the source or map iterator is a sycl_iterator, which is a supported type for both.
+    reference
+    operator*() const
+        _ONEDPL_CPP20_REQUIRES(std::indirectly_readable<SourceIterator> && std::indirectly_readable<IndexMap>)
+    {
+        return my_source_it[*my_index];
+    }
 
     reference operator[](difference_type __i) const { return *(*this + __i); }
 
@@ -721,6 +830,14 @@ class permutation_iterator
         return !(*this < it);
     }
 
+    friend auto
+    is_onedpl_indirectly_device_accessible(permutation_iterator)
+        -> std::conjunction<oneapi::dpl::is_indirectly_device_accessible<SourceIterator>,
+                            oneapi::dpl::is_indirectly_device_accessible<permutation_iterator::IndexMap>>
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
+
   private:
     SourceIterator my_source_it;
     IndexMap my_index;
@@ -753,7 +870,7 @@ struct ignore_copyable
     }
 
     bool
-    operator==(const ignore_copyable& other) const
+    operator==(const ignore_copyable&) const
     {
         return true;
     }
@@ -771,12 +888,11 @@ inline constexpr ignore_copyable ignore{};
 class discard_iterator
 {
   public:
-    typedef ::std::ptrdiff_t difference_type;
-    typedef internal::ignore_copyable value_type;
-    typedef void* pointer;
-    typedef value_type reference;
-    typedef ::std::random_access_iterator_tag iterator_category;
-    using is_passed_directly = ::std::true_type;
+    using difference_type = std::ptrdiff_t;
+    using value_type = internal::ignore_copyable;
+    using pointer = void*;
+    using reference = value_type;
+    using iterator_category = std::random_access_iterator_tag;
     using is_discard = ::std::true_type;
 
     discard_iterator() : __my_position_() {}
@@ -884,6 +1000,12 @@ class discard_iterator
         return !(*this < __it);
     }
 
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(discard_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
+
   private:
     difference_type __my_position_;
 };
@@ -897,6 +1019,16 @@ namespace dpl
 {
 namespace __internal
 {
+template <typename _T>
+struct __is_reversed_indirectly_device_accessible_it : std::false_type
+{
+};
+
+template <typename _BaseIter>
+struct __is_reversed_indirectly_device_accessible_it<std::reverse_iterator<_BaseIter>>
+    : oneapi::dpl::is_indirectly_device_accessible<_BaseIter>
+{
+};
 
 struct make_zipiterator_functor
 {
