@@ -121,36 +121,6 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
-// __empty() function
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    return std::ranges::empty(__rng);
-}
-#else
-template <typename _R, typename = void>
-struct __has_empty : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
-{
-};
-
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    if constexpr (__has_empty<_Range>::value)
-        return __rng.empty();
-    else
-        return __rng.begin() == __rng.end();
-}
-#endif
-
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
@@ -298,6 +268,36 @@ using __iterator_t =
     std::ranges::iterator_t<_Rng>;
 #else
     decltype(__begin(std::declval<_Rng>()));
+#endif
+
+// __empty() function
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    return std::ranges::empty(__rng);
+}
+#else
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    if constexpr (__has_empty<_Range>::value)
+        return __rng.empty();
+    else
+        return __begin(__rng) == __end(__rng);
+}
 #endif
 
 template <typename... _Rng>
