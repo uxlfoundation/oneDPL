@@ -67,20 +67,6 @@ using __value_t = decltype(oneapi::dpl::__internal::get_value_type<_R>(0));
 template <typename _Proj, typename _R>
 using __key_t = ::std::remove_cv_t<::std::remove_reference_t<::std::invoke_result_t<_Proj&, __value_t<_R>>>>;
 
-template <typename T, typename = void>
-struct __range_has_raw_ptr_iterator : ::std::false_type
-{
-};
-
-template <typename T>
-struct __range_has_raw_ptr_iterator<T, ::std::void_t<decltype(::std::declval<T&>().begin())>>
-    : ::std::is_pointer<decltype(::std::declval<T&>().begin())>
-{
-};
-
-template <typename T>
-inline constexpr bool __range_has_raw_ptr_iterator_v = __range_has_raw_ptr_iterator<T>::value;
-
 #if _ONEDPL_CPP20_RANGES_PRESENT
 //The following '__range_size' type trait should be used in only the context with std::common_type
 //together with a sized range.
