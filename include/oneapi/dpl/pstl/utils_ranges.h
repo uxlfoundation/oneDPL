@@ -834,7 +834,7 @@ struct __subscription_impl_view_simple : _Base
     operator[](index_type __i)
     {
         // Get pointer to the base class
-        Base* __base = static_cast<Base*>(this);
+        _Base* __base = static_cast<_Base*>(this);
 
         // Evaluate begin() for the base class
         auto __begin = oneapi::dpl::__ranges::__begin(*__base);
@@ -847,7 +847,7 @@ struct __subscription_impl_view_simple : _Base
     operator[](index_type __i) const
     {
         // Get pointer to the base class
-        const Base* __base = static_cast<const Base*>(this);
+        const _Base* __base = static_cast<const _Base*>(this);
 
         // Evaluate begin() for the base class
         auto __begin = oneapi::dpl::__ranges::__begin(*__base);
