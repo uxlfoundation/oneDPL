@@ -10,7 +10,7 @@
 #include "support/test_config.h"
 
 #include _PSTL_TEST_HEADER(execution)
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 #    include _PSTL_TEST_HEADER(async)
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -21,7 +21,7 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     sycl::queue q = policy.queue();
