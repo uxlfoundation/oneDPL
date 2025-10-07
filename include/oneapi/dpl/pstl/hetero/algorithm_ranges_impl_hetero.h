@@ -171,8 +171,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1,
-            oneapi::dpl::__ranges::__get_subscription_view(__rng1),
-            oneapi::dpl::__ranges::__get_subscription_view(__rng2))
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)))
             .__checked_deferrable_wait();
         return __n1;
     }
@@ -181,7 +181,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2,
-        oneapi::dpl::__ranges::__get_subscription_view(__rng2), oneapi::dpl::__ranges::__get_subscription_view(__rng1))
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)))
         .__checked_deferrable_wait();
     return __n2;
 }
@@ -438,7 +439,7 @@ __pattern_search(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
     {
         const bool __res = __ranges::__pattern_equal(
             __tag, __par_backend_hetero::make_wrapped_policy<__equal_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-            oneapi::dpl::__ranges::__get_subscription_view(__rng1),
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), __pred);
         return __res ? 0 : __n1;
     }
@@ -863,7 +864,7 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ra
 
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range>;
 
-    auto&& __rng_s = oneapi::dpl::__ranges::__get_subscription_view(__rng);
+    auto&& __rng_s = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng));
 
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __buf(__n);
     auto __res_rng = oneapi::dpl::__ranges::views::all(__buf.get_buffer());
