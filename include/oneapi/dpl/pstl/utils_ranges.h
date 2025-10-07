@@ -120,42 +120,6 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-
-template <typename _R, typename = void>
-struct __has_size : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
-{
-};
-
-template <typename _Range>
-std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
-__size(_Range&& __rng)
-{
-    return __rng.size();
-}
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::ranges::distance(__rng.begin(), __rng.end());
-}
-#else
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::distance(__rng.begin(), __rng.end());
-}
-#endif
-
 // __begin() / __end() functions
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
@@ -297,6 +261,42 @@ __empty(_Range&& __rng)
         return __rng.empty();
     else
         return __begin(__rng) == __end(__rng);
+}
+#endif
+
+// __size() function
+template <typename _R, typename = void>
+struct __has_size : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+};
+
+template <typename _Range>
+std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
+__size(_Range&& __rng)
+{
+    return __rng.size();
+}
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::ranges::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
+__size(_Range&& __rng)
+{
+    return std::ranges::distance(__begin(__rng), __end(__rng));
+}
+#else
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::ranges::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
+__size(_Range&& __rng)
+{
+    return std::distance(__begin(__rng), __end(__rng));
 }
 #endif
 
