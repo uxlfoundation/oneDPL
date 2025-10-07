@@ -561,10 +561,10 @@ __pattern_copy_if_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_
     return {std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r) + __res_idx};
 }
 
-template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
-auto
-__pattern_copy_if_ranges(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r, _OutRange&& __out_r,
-                         _Pred __pred, _Proj __proj)
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
     return std::ranges::copy_if(std::forward<_InRange>(__in_r), std::ranges::begin(__out_r), __pred, __proj);
 }
@@ -692,8 +692,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         std::invoke(__comp, std::invoke(__proj1, *(__last1 - 1)), std::invoke(__proj2, *(__last2 - 1))))
         return false;
 
-    __first1 += oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
-                                                            std::invoke(__proj2, *__first2), __comp, __proj1);
+    __first1 += oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1, __first2,
+                                                            __comp, __proj1, __proj2);
     if (__first1 == __last1)
         return false;
 
@@ -721,19 +721,18 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 if (__is_equal_sorted(__i, __j - 1))
                     return false;
 
-                __i += oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0}, __last2 - __i,
-                                                                   std::invoke(__proj2, *__i), __comp, __proj2);
+                __i += oneapi::dpl::__internal::__pstl_upper_bound(__i, _DifferenceType2{0}, __last2 - __i, __i, __comp,
+                                                                   __proj2, __proj2);
             }
 
             //1.2 right bound, case "[...aaa]aaaxyz" - searching "x"
             if (__j < __last2 && __is_equal_sorted(__j - 1, __j))
-                __j += oneapi::dpl::__internal::__pstl_upper_bound(__j, _DifferenceType2{0}, __last2 - __j,
-                                                                   std::invoke(__proj2, *__j), __comp, __proj2);
+                __j += oneapi::dpl::__internal::__pstl_upper_bound(__j, _DifferenceType2{0}, __last2 - __j, __j, __comp,
+                                                                   __proj2, __proj2);
 
             //2. testing is __a subsequence of the second range included into the first range
-            auto __b = __first1 +
-                       oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
-                                                                   std::invoke(__proj2, *__i), __comp, __proj1);
+            auto __b = __first1 + oneapi::dpl::__internal::__pstl_lower_bound(
+                                      __first1, _DifferenceType1{0}, __last1 - __first1, __i, __comp, __proj1, __proj2);
 
             return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
         });
@@ -743,8 +742,13 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 // set_union
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_union_return_t =
+    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_union_return_t<_R1, _R2, _OutRange>
 __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                   /*__is_vector=*/std::false_type) noexcept
 {
@@ -753,7 +757,7 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_union_return_t<_R1, _R2, _OutRange>
 __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                   /*__is_vector=*/std::true_type) noexcept
 {
@@ -762,14 +766,9 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
                                   __proj1, __proj2);
 }
 
-template <typename _R1, typename _R2, typename _OutRange>
-using __pattern_set_union_return_t =
-    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                  std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_union_return_t<_R1, _R2, _OutRange>
+__set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                     _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -781,7 +780,7 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_union_return_t<_R1, _R2, _OutRange>
+__set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -819,8 +818,13 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 // set_intersection
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_intersection_return_t =
+    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                         std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::false_type) noexcept
 {
@@ -829,7 +833,7 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::true_type) noexcept
 {
@@ -838,14 +842,9 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
                                          __comp, __proj1, __proj2);
 }
 
-template <typename _R1, typename _R2, typename _OutRange>
-using __pattern_set_intersection_return_t =
-    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                         std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_intersection_return_t<_R1, _R2, _OutRange>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -857,7 +856,7 @@ __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_intersection_return_t<_R1, _R2, _OutRange>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                            _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -885,7 +884,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
         __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
-                                                               std::invoke(__proj2, *__first2), __comp, __proj1);
+                                                               __first2, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
         return {__last1, __last2, __result};
@@ -893,7 +892,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
         __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                               std::invoke(__proj1, *__first1), __comp, __proj2);
+                                                               __first1, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
         return {__last1, __last2, __result};
@@ -914,7 +913,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2);
-            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
         });
     }
 
@@ -934,7 +933,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
                 },
                 __comp, __proj1, __proj2);
-            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
         });
     }
 
@@ -947,8 +946,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _OutRange>
+using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
 {
@@ -957,7 +960,7 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::true_type) noexcept
 {
@@ -966,14 +969,9 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
                                        __comp, __proj1, __proj2);
 }
 
-template <typename _R1, typename _OutRange>
-using __pattern_set_difference_return_t =
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                       std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_difference_return_t<_R1, _OutRange>
+__set_difference_return_t<_R1, _OutRange>
 __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -985,7 +983,7 @@ __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_difference_return_t<_R1, _OutRange>
+__set_difference_return_t<_R1, _OutRange>
 __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1021,7 +1019,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
         __first1 + oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
-                                                               std::invoke(__proj2, *__first2), __comp, __proj1);
+                                                               __first2, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
     {
@@ -1033,7 +1031,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
         __first2 + oneapi::dpl::__internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                               std::invoke(__proj1, *__first1), __comp, __proj2);
+                                                               __first1, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
@@ -1067,8 +1065,14 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 // set_symmetric_difference
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_symmetric_difference_return_t =
+    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                 std::ranges::borrowed_iterator_t<_R2>,
+                                                 std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                  _Proj2 __proj2,
                                  /*__is_vector=*/std::false_type) noexcept
@@ -1078,7 +1082,7 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-auto
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                  _Proj2 __proj2,
                                  /*__is_vector=*/std::true_type) noexcept
@@ -1088,15 +1092,9 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
                                                  std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 }
 
-template <typename _R1, typename _R2, typename _OutRange>
-using __pattern_set_symmetric_difference_return_t =
-    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                 std::ranges::borrowed_iterator_t<_R2>,
-                                                 std::ranges::borrowed_iterator_t<_OutRange>>;
-
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1109,7 +1107,7 @@ __pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& 
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
-__pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1148,9 +1146,13 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 // __pattern_mismatch
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _R1, typename _R2>
+using __mismatch_return_t =
+    std::ranges::mismatch_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>>;
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1,
           typename _Proj2>
-auto
+__mismatch_return_t<_R1, _R2>
 __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred, _Proj1 __proj1,
                    _Proj2 __proj2)
 {
@@ -1161,13 +1163,15 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
     auto __first1 = std::ranges::begin(__r1);
     auto __first2 = std::ranges::begin(__r2);
 
-    return oneapi::dpl::__internal::__pattern_mismatch(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                       __first1 + std::ranges::size(__r1), __first2,
-                                                       __first2 + std::ranges::size(__r2), __bin_pred);
+    const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + std::ranges::size(__r1), __first2,
+        __first2 + std::ranges::size(__r2), __bin_pred);
+
+    return {first, second};
 }
 
 template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Pred, typename _Proj1, typename _Proj2>
-auto
+__mismatch_return_t<_R1, _R2>
 __pattern_mismatch(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Pred __pred,
                    _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1195,7 +1199,7 @@ __pattern_remove_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pre
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
-auto
+std::ranges::borrowed_subrange_t<_R>
 __pattern_remove_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Pred __pred,
                     _Proj __proj)
 {
@@ -1311,8 +1315,12 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
 
+template <typename _R, typename _OutRange>
+using __unique_copy_return_t =
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>;
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
@@ -1326,7 +1334,7 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>
+__unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {

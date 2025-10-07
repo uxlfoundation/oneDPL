@@ -611,9 +611,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
+template <typename _Size, typename _Comparator>
 _Size
-__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -623,7 +623,8 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
         __idx = __first;
         __cur = __n / 2;
         __idx += __cur;
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__idx]), __value))
+
+        if (__comp(__idx))
         {
             __n -= __cur + 1;
             __first = ++__idx;
@@ -634,33 +635,73 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
     return __first;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
-_Size
-__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(__first1, __last1,
+                                   [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+                                       return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]),
+                                                          std::invoke(__proj2, __rng2[__rng2_idx]));
+                                   });
+}
+
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_lower_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
+{
+    return __pstl_lower_bound_impl(
+        __first1, __last1, [__rng1, __rng2_it, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
+            return std::invoke(__comp, std::invoke(__proj1, __rng1[__rng1_idx]), std::invoke(__proj2, *__rng2_it));
+        });
+}
+
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_upper_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __pstl_lower_bound(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
+    return __pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __negation_reordered_comp, __proj1, __proj2);
 }
 
-// Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
-_Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
+template <typename _Rng1, typename _Size1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+_Size1
+__pstl_upper_bound(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1,
+                   _Proj2 __proj2)
 {
-    return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
+    __reorder_pred<_Compare> __reordered_comp{__comp};
+    __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
+
+    return __pstl_lower_bound(__rng1, __first1, __last1, __rng2_it, __negation_reordered_comp, __proj1, __proj2);
+}
+
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_right_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
+{
+    return __pstl_upper_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp, __proj1, __proj2);
 }
 
 // Performs a "biased" binary search targets the split point close to one edge of the range.
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
+          typename _Proj1, typename _Proj2>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__biased_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx,
+                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __n = __last - __first;
+    auto __n = __last1 - __first1;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
     _Size1 __it = 0;
     _Size1 __cur_idx = 0;
@@ -672,36 +713,40 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
             __cur_idx = __n - __biased_step - 1;
         else
             __cur_idx = __biased_step;
-        __it = __first + __cur_idx;
+        __it = __first1 + __cur_idx;
 
-        if (std::invoke(__comp, std::invoke(__proj, __acc[__it]), __value))
+        if (std::invoke(__comp, std::invoke(__proj1, __rng1[__it]), std::invoke(__proj2, __rng2[__rng2_idx])))
         {
-            __first = __it + 1;
+            __first1 = __it + 1;
         }
         else
         {
-            __last = __it;
+            __last1 = __it;
         }
-        __n = __last - __first;
+        __n = __last1 - __first1;
         // get closer and closer to binary search with more iterations
         __shift_right_div -= 3;
     }
     if (__n > 0)
     {
-        //end up fully at binary search
-        return oneapi::dpl::__internal::__pstl_lower_bound(__acc, __first, __last, __value, __comp, __proj);
+        // End up fully at binary search
+        return oneapi::dpl::__internal::__pstl_lower_bound_idx(__rng1, __first1, __last1, __rng2, __rng2_idx, __comp,
+                                                               __proj1, __proj2);
     }
-    return __first;
+    return __first1;
 }
 
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
+template <bool __bias_last = true, typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare,
+          typename _Proj1, typename _Proj2>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
+__biased_upper_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx,
+                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
 
-    return __biased_lower_bound<__bias_last>(__acc, __first, __last, __value, __negation_reordered_comp, __proj);
+    return __biased_lower_bound_idx<__bias_last>(__rng1, __first1, __last1, __rng2, __rng2_idx,
+                                                 __negation_reordered_comp, __proj1, __proj2);
 }
 
 template <typename _IntType, typename _Acc>
@@ -765,16 +810,18 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
-_Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
+          typename _Proj2>
+_Size1
+__pstl_left_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
+                      _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
-    auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};
+    _ReverseCounter<_Size1, _Rng1> __beg{__last1 - 1};
+    _ReverseCounter<_Size1, _Rng1> __end{__first1 - 1};
 
     __not_pred<decltype(__comp)> __negation_comp{__comp};
 
-    return __pstl_lower_bound(__a, __beg, __end, __val, __negation_comp, __proj);
+    return __pstl_lower_bound_idx(__rng1, __beg, __end, __rng2, __rng2_idx, __negation_comp, __proj1, __proj2);
 }
 
 // Lower bound implementation based on Shar's algorithm for binary search.
