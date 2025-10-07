@@ -288,7 +288,7 @@ test_custom_iterators_possibly_equal()
                 "wrong __iterators_possibly_equal result for custom iterator which is not default constructible");
 }
 
-};  // namespace oneapi::dpl::__internal
+}  // namespace oneapi::dpl::__internal
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
