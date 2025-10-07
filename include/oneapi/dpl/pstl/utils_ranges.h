@@ -185,6 +185,110 @@ __size(_Range&& __rng)
 }
 #endif
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _Range>
+auto
+__begin(_Range&& __rng)
+{
+    return std::ranges::begin(__rng);
+}
+
+template <typename _Range>
+auto
+__end(_Range&& __rng)
+{
+    return std::ranges::end(__rng);
+}
+
+#else
+
+template <typename _R, typename = void>
+struct __has_begin_method : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_begin_method<_R, std::void_t<decltype(std::declval<_R>().begin())>> : std::true_type
+{
+};
+
+template <typename _R, typename = void>
+struct __has_adl_begin : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_adl_begin<_R, std::void_t<decltype(begin(std::declval<_R>))>> : std::true_type
+{
+};
+
+template <typename _R, typename = void>
+struct __has_end_method : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_end_method<_R, std::void_t<decltype(std::declval<_R>().end())>> : std::true_type
+{
+};
+
+template <typename _R, typename = void>
+struct __has_adl_end : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_adl_end<_R, std::void_t<decltype(end(std::declval<_R>))>> : std::true_type
+{
+};
+
+template <typename _Range>
+auto
+__begin(_Range&& __rng)
+{
+    if constexpr (__has_begin_method<_Range>::value)
+    {
+        return __rng.begin();
+    }
+    else if constexpr (__has_adl_begin<_Range>::value)
+    {
+        return begin(__rng);
+    }
+    else if constexpr (std::is_array_v<_Range>)
+    {
+        return __rng + 0;
+    }
+    else
+    {
+        static_assert(false, "The implementation of __begin is not found for the range");
+    }
+}
+
+template <typename _Range>
+auto
+__end(_Range&& __rng)
+{
+    if constexpr (__has_end_method<_Range>::value)
+    {
+        return __rng.end();
+    }
+    else if constexpr (__has_adl_end<_Range>::value)
+    {
+        return end(__rng);
+    }
+    else if constexpr (std::is_array_v<_Range>)
+    {
+        return __rng + std::extent_v<std::remove_reference_t<_Range>>;
+    }
+    else
+    {
+        static_assert(false, "The implementation of __end is not found for the range");
+    }
+}
+
+#endif
+
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 
