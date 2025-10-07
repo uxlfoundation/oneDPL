@@ -167,10 +167,6 @@ __begin(_Range&& __rng)
     {
         return __rng.begin();
     }
-    else if constexpr (std::is_array_v<_Range>)
-    {
-        return __rng + 0;
-    }
     else
     {
         static_assert(false, "The implementation of __begin is not found for the range");
@@ -184,10 +180,6 @@ __end(_Range&& __rng)
     if constexpr (__has_end_method<_Range>::value)
     {
         return __rng.end();
-    }
-    else if constexpr (std::is_array_v<_Range>)
-    {
-        return __rng + std::extent_v<std::remove_reference_t<_Range>>;
     }
     else
     {
