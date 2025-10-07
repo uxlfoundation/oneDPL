@@ -150,32 +150,12 @@ struct __has_begin_method<_R, std::void_t<decltype(std::declval<_R>().begin())>>
 };
 
 template <typename _R, typename = void>
-struct __has_adl_begin : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_adl_begin<_R, std::void_t<decltype(begin(std::declval<_R>))>> : std::true_type
-{
-};
-
-template <typename _R, typename = void>
 struct __has_end_method : std::false_type
 {
 };
 
 template <typename _R>
 struct __has_end_method<_R, std::void_t<decltype(std::declval<_R>().end())>> : std::true_type
-{
-};
-
-template <typename _R, typename = void>
-struct __has_adl_end : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_adl_end<_R, std::void_t<decltype(end(std::declval<_R>))>> : std::true_type
 {
 };
 
@@ -186,10 +166,6 @@ __begin(_Range&& __rng)
     if constexpr (__has_begin_method<_Range>::value)
     {
         return __rng.begin();
-    }
-    else if constexpr (__has_adl_begin<_Range>::value)
-    {
-        return begin(__rng);
     }
     else if constexpr (std::is_array_v<_Range>)
     {
@@ -208,10 +184,6 @@ __end(_Range&& __rng)
     if constexpr (__has_end_method<_Range>::value)
     {
         return __rng.end();
-    }
-    else if constexpr (__has_adl_end<_Range>::value)
-    {
-        return end(__rng);
     }
     else if constexpr (std::is_array_v<_Range>)
     {
