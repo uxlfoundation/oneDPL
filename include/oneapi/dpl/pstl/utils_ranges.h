@@ -169,7 +169,7 @@ __begin(_Range&& __rng)
     }
     else
     {
-        static_assert(false, "The implementation of __begin is not found for the range");
+        static_assert(sizeof(__rng) == 0, "The implementation of __begin is not found for the range");
     }
 }
 
@@ -183,7 +183,7 @@ __end(_Range&& __rng)
     }
     else
     {
-        static_assert(false, "The implementation of __end is not found for the range");
+        static_assert(sizeof(__rng) == 0, "The implementation of __end is not found for the range");
     }
 }
 
