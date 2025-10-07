@@ -291,6 +291,15 @@ __end(_Range&& __rng)
 
 #endif
 
+// Range iterator type
+template <typename _Rng>
+using __iterator_t =
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    std::ranges::iterator_t<_Rng>;
+#else
+    decltype(__begin(std::declval<_Rng>()));
+#endif
+
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 
