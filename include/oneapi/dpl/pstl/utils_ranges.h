@@ -768,27 +768,13 @@ struct __subscription_impl_view_simple : _Base
     decltype(auto)
     operator[](index_type __i)
     {
-        // Get pointer to the base class
-        _Base* __base = static_cast<_Base*>(this);
-
-        // Evaluate begin() for the base class
-        auto __it_begin = __begin(*__base);
-
-        // Advance the begin iterator by __i positions and dereference it
-        return *std::next(__it_begin, __i);
+        return *std::next(__begin(static_cast<_Base*>(this)), __i);
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        // Get pointer to the base class
-        const _Base* __base = static_cast<const _Base*>(this);
-
-        // Evaluate begin() for the base class
-        auto __it_begin = __begin(*__base);
-
-        // Advance the begin iterator by __i positions and dereference it
-        return *std::next(__it_begin, __i);
+        return *std::next(__begin(static_cast<const _Base*>(this)), __i);
     }
 };
 
