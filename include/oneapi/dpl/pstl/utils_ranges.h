@@ -760,13 +760,13 @@ struct __subscription_impl_view_simple : _Base
     decltype(auto)
     operator[](index_type __i)
     {
-        return *std::next(__begin(static_cast<_Base*>(this)), __i);
+        return *std::next(__begin(*static_cast<_Base*>(this)), __i);
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        return *std::next(__begin(static_cast<const _Base*>(this)), __i);
+        return *std::next(__begin(*static_cast<const _Base*>(this)), __i);
     }
 };
 
