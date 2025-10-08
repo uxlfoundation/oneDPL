@@ -1340,7 +1340,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
     oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
-    const auto& [__idx_min, __idx_max, __min, __max] =
+    const auto& [__idx_min, __idx_max, __val_min, __val_max] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                        ::std::false_type /*is_commutative*/>(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
@@ -1348,7 +1348,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
             oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)))
             .get();
 
-    return {{__idx_min, __min}, {__idx_max, __max}};
+    return {{__idx_min, __val_min}, {__idx_max, __val_max}};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
