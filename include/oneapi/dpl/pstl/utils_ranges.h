@@ -120,93 +120,30 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-#if _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _Range>
 auto
 __begin(_Range&& __rng)
 {
+#if _ONEDPL_CPP20_RANGES_PRESENT
     return std::ranges::begin(__rng);
-}
-
-template <typename _Range>
-auto
-__end(_Range&& __rng)
-{
-    return std::ranges::end(__rng);
-}
-
 #else
-
-template <typename _R, typename = void>
-struct __has_begin_method : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_begin_method<_R, std::void_t<decltype(std::declval<_R>().begin())>> : std::true_type
-{
-};
-
-template <typename _R, typename = void>
-struct __has_end_method : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_end_method<_R, std::void_t<decltype(std::declval<_R>().end())>> : std::true_type
-{
-};
-
-template <typename _Range>
-auto
-__begin(_Range&& __rng)
-{
-    static_assert(__has_begin_method<_Range>::value, "The implementation of begin() is not found for the range");
-
     return __rng.begin();
+#endif
 }
 
 template <typename _Range>
 auto
 __end(_Range&& __rng)
 {
-    static_assert(__has_end_method<_Range>::value, "The implementation of begin() is not found for the range");
-
-    return __rng.end();
-}
-
-#endif
-
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    return std::ranges::empty(__rng);
-}
+    return std::ranges::end(__rng);
 #else
-template <typename _R, typename = void>
-struct __has_empty : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
-{
-};
-
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    if constexpr (__has_empty<_Range>::value)
-        return __rng.empty();
-    else
-        return __begin(__rng) == __end(__rng);
-}
+    return __rng.end();
 #endif
+}
 
+#if !_ONEDPL_CPP20_RANGES_PRESENT
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
@@ -216,23 +153,50 @@ template <typename _R>
 struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
 {
 };
+#endif
 
 template <typename _Range>
 auto
 __size(_Range&& __rng)
 {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::size(__rng);
+#else
     if constexpr (__has_size<_Range>::value)
     {
         return __rng.size();
     }
     else
     {
-#if _ONEDPL_CPP20_RANGES_PRESENT
-        return std::ranges::distance(__begin(__rng), __end(__rng));
-#else
         return std::distance(__begin(__rng), __end(__rng));
-#endif
     }
+#endif
+}
+
+#if !_ONEDPL_CPP20_RANGES_PRESENT
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+#endif
+
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::empty(__rng);
+#else
+    if constexpr (__has_empty<_Range>::value)
+        return __rng.empty();
+    else
+        return __size(__rng) == 0;
+#endif
 }
 
 template <typename... _Rng>
