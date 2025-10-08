@@ -2035,7 +2035,7 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
     auto __view = views::all_read(std::forward<_Range>(__rng));
     auto __v_begin = __view.begin();
 
-    std::pair<oneapi::dpl::__ranges::__iterator_t<_R>, oneapi::dpl::__ranges::__iterator_t<_R>> __res =
+    std::pair<oneapi::dpl::__ranges::__iterator_t<_Range>, oneapi::dpl::__ranges::__iterator_t<_Range>> __res =
         oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp);
 
