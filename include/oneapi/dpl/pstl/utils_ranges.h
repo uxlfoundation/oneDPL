@@ -143,6 +143,9 @@ __end(_Range&& __rng)
 #endif
 }
 
+template <typename _Range>
+using __iterator_t = decltype(__begin(std::declval<_Range&>()));
+
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
