@@ -782,7 +782,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
     return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
-};
+}
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
