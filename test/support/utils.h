@@ -1348,8 +1348,8 @@ struct MinimalisticRange
     ForwardIterator it_begin;
     ForwardIterator it_end;
 
-    ForwardIterator begin() const { return it_begin; };
-    ForwardIterator end()   const { return it_end;   };
+    ForwardIterator begin() const { return it_begin; }
+    ForwardIterator end()   const { return it_end;   }
 };
 
 #if _ENABLE_STD_RANGES_TESTING
