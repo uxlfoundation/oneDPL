@@ -120,7 +120,6 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-// __begin() / __end() functions
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename _Range>
@@ -179,7 +178,6 @@ __end(_Range&& __rng)
 
 #endif
 
-// __empty() function
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 bool
@@ -209,7 +207,6 @@ __empty(_Range&& __rng)
 }
 #endif
 
-// __size() function
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
