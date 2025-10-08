@@ -163,13 +163,9 @@ __size(_Range&& __rng)
     return std::ranges::size(__rng);
 #else
     if constexpr (__has_size<_Range>::value)
-    {
         return __rng.size();
-    }
     else
-    {
         return std::distance(__begin(__rng), __end(__rng));
-    }
 #endif
 }
 
