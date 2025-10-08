@@ -615,7 +615,7 @@ class __func_task : public __task
         _M_recycle = false;
         __task* __next = _M_func(this);
         return finalize(__next);
-    };
+    }
 
     __task*
     cancel(tbb::detail::d1::execution_data&) override
@@ -681,7 +681,7 @@ class __root_task : public __task
     {
         _M_wait_object.release();
         return nullptr;
-    };
+    }
 
     __task*
     cancel(tbb::detail::d1::execution_data&) override

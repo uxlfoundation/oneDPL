@@ -566,7 +566,7 @@ test_algo_four_sequences()
     test_algo_four_sequences<typename TestName::UsedValueType, TestName, TPolicyInvoker>();
 }
 
-}; // namespace TestUtils
+} // namespace  TestUtils
 
 //--------------------------------------------------------------------------------------------------------------------//
 #if TEST_DPCPP_BACKEND_PRESENT

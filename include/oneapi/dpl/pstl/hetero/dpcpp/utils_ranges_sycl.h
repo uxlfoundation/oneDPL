@@ -122,10 +122,11 @@ struct all_view_fn
     }
 
     template <typename _R>
-    auto
-    operator()(_R&& __r) const -> decltype(std::forward<_R>(__r))
+    decltype(auto)
+    operator()(_R&& __r) const
     {
-        return std::forward<_R>(__r);
+        // Returns __r if it implements operator[] or __subscription_impl_view_simple(__r) otherwise
+        return oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r));
     }
 };
 
@@ -143,10 +144,11 @@ struct all_host_view_fn
 
     // "No operation" overload for another ranges/views
     template <typename _R>
-    auto
-    operator()(_R&& __r) const -> decltype(::std::forward<_R>(__r))
+    decltype(auto)
+    operator()(_R&& __r) const
     {
-        return ::std::forward<_R>(__r);
+        // Returns __r if it implements operator[] or __subscription_impl_view_simple(__r) otherwise
+        return oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r));
     }
 };
 #endif

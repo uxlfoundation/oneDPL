@@ -453,12 +453,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 
     if constexpr (_CheckBounds)
     {
-        if (__idx1 == __in_rng1.size())
+        if (__idx1 == oneapi::dpl::__ranges::__size(__in_rng1))
         {
             if constexpr (_CopyDiffSetB)
             {
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
-                for (; __idx2 < __in_rng2.size() && __idx < __num_eles_min; ++__idx2, ++__idx)
+                for (; __idx2 < oneapi::dpl::__ranges::__size(__in_rng2) && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng2[__idx2]);
                     ++__count;
@@ -467,12 +467,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
             __idx = __num_eles_min;
             return;
         }
-        if (__idx2 == __in_rng2.size())
+        if (__idx2 == oneapi::dpl::__ranges::__size(__in_rng2))
         {
             if constexpr (_CopyDiffSetA)
             {
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
-                for (; __idx1 < __in_rng1.size() && __idx < __num_eles_min; ++__idx1, ++__idx)
+                for (; __idx1 < oneapi::dpl::__ranges::__size(__in_rng1) && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
                     __temp_out.set(__count, __in_rng1[__idx1]);
                     ++__count;
@@ -533,8 +533,8 @@ struct __set_generic_operation
 
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= __in_rng1.size();
-        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= __in_rng2.size();
+        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
+        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
 
         if (!__can_reach_rng1_end && !__can_reach_rng2_end)
         {
@@ -592,8 +592,8 @@ template <bool __return_star, typename _Rng, typename _IdxT>
 auto
 __decode_balanced_path_temp_data_impl(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
-    using SizeT = decltype(__rng.size());
-    using SignedSizeT = std::make_signed_t<decltype(__rng.size())>;
+    using SizeT = decltype(oneapi::dpl::__ranges::__size(__rng));
+    using SignedSizeT = std::make_signed_t<decltype(oneapi::dpl::__ranges::__size(__rng))>;
     const SignedSizeT __tmp = __rng[__id];
     const SizeT __star_offset = oneapi::dpl::__internal::__dpl_signbit(__tmp) ? 1 : 0;
     const SizeT __rng1_idx = std::abs(__tmp);
@@ -616,7 +616,7 @@ __decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, co
 }
 
 template <typename _Rng, typename _IdxT>
-std::tuple<_IdxT, _IdxT, decltype(std::declval<_Rng>().size())>
+std::tuple<_IdxT, _IdxT, decltype(oneapi::dpl::__ranges::__size(std::declval<_Rng>()))>
 __decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
     return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
@@ -646,17 +646,18 @@ struct __get_bounds_partitioned
 
         auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(std::get<0>(__tuple).size())>,
-                                             std::make_unsigned_t<decltype(std::get<1>(__tuple).size())>,
-                                             std::make_unsigned_t<decltype(__rng_tmp_diag.size())>>;
+        using _SizeType = std::common_type_t<
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
         // diagonal index of the tile begin
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
-        const _SizeType __wg_end_idx =
-            std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size, __rng_tmp_diag.size() - 1);
+        const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
+                                                           oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
 
         const auto [begin_rng1, begin_rng2] =
             __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
@@ -681,11 +682,10 @@ struct __get_bounds_simple
         const auto __rng1 = std::get<0>(__tuple); // first sequence
         const auto __rng2 = std::get<1>(__tuple); // second sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2)>;
 
-        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(__rng1.size()), _SizeType{0},
-                               static_cast<_SizeType>(__rng2.size()));
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1)),
+                               _SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng2)));
     }
 };
 
@@ -711,7 +711,7 @@ struct __gen_set_balanced_path
     {
         // back up to balanced path divergence with a biased binary search
         bool __star = false;
-        if (__merge_path_rng1 == 0 || __merge_path_rng2 == __rng2.size())
+        if (__merge_path_rng1 == 0 || __merge_path_rng2 == oneapi::dpl::__ranges::__size(__rng2))
         {
             return std::make_tuple(__merge_path_rng1, __merge_path_rng2, false);
         }
@@ -780,11 +780,13 @@ struct __gen_set_balanced_path
 
         auto __rng1_temp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= __rng1.size() + __rng2.size())
-            __i_elem = __rng1.size() + __rng2.size() - 1; // ensure we do not go out of bounds
+        if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
+        {
+            // ensure we do not go out of bounds
+            __i_elem = oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) - 1;
+        }
         auto [__rng1_lower, __rng1_upper, __rng2_lower, __rng2_upper] = __get_bounds_local(__in_rng, __id);
         //find merge path intersection
         auto [__rng1_pos, __rng2_pos] = oneapi::dpl::__par_backend_hetero::__find_start_point(
@@ -829,7 +831,7 @@ struct __gen_set_balanced_path
         _IndexT __rng2_balanced_pos = 0;
         bool __star = false;
 
-        const auto __total_size = __rng1.size() + __rng2.size();
+        const auto __total_size = oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2);
         const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
 
         if (__id * __diagonal_spacing >= __total_size)
@@ -861,8 +863,10 @@ struct __gen_set_balanced_path
             __star = __local_star;
         }
 
-        _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
-                                             __rng1.size() + __rng2.size() - _IndexT{__id * __diagonal_spacing - 1});
+        _IndexT __eles_to_process =
+            std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
+                     oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
+                         _IndexT{__id * __diagonal_spacing - 1});
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp, __proj1, __proj2);
@@ -898,19 +902,19 @@ struct __gen_set_op_from_known_balanced_path
         // set a temp storage sequence, star value in sign bit
         const auto __rng1_temp_diag = std::get<2>(__tuple);
 
-        using _SizeType = std::common_type_t<std::make_unsigned_t<decltype(__rng1.size())>,
-                                             std::make_unsigned_t<decltype(__rng2.size())>,
-                                             std::make_unsigned_t<decltype(__rng1_temp_diag.size())>>;
+        using _SizeType =
+            oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= __rng1.size() + __rng2.size())
+        if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        std::uint16_t __eles_to_process =
-            static_cast<std::uint16_t>(std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
-                                                static_cast<_SizeType>(__rng1.size() + __rng2.size() - __i_elem + 1)));
+        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
+            std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
+                     static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
+                                            oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
         std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
                                                __comp, __proj1, __proj2);
