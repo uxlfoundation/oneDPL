@@ -163,28 +163,18 @@ template <typename _Range>
 auto
 __begin(_Range&& __rng)
 {
-    if constexpr (__has_begin_method<_Range>::value)
-    {
-        return __rng.begin();
-    }
-    else
-    {
-        static_assert(sizeof(__rng) == 0, "The implementation of __begin is not found for the range");
-    }
+    static_assert(__has_begin_method<_Range>::value, "The implementation of begin() is not found for the range");
+
+    return __rng.begin();
 }
 
 template <typename _Range>
 auto
 __end(_Range&& __rng)
 {
-    if constexpr (__has_end_method<_Range>::value)
-    {
-        return __rng.end();
-    }
-    else
-    {
-        static_assert(sizeof(__rng) == 0, "The implementation of __end is not found for the range");
-    }
+    static_assert(__has_end_method<_Range>::value, "The implementation of begin() is not found for the range");
+
+    return __rng.end();
 }
 
 #endif
