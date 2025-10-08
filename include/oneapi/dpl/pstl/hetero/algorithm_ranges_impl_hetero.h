@@ -1312,9 +1312,16 @@ __pattern_min(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r, _C
 // minmax_element
 //------------------------------------------------------------------------
 
+template <typename _Range>
+using __range_index_and_value =
+    std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>;
+
+template <typename _Range>
+using __pattern_minmax_element_impl_return_t =
+    std::pair<__range_index_and_value<_Range>, __range_index_and_value<_Range>>;
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
-std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
-          std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
+__pattern_minmax_element_impl_return_t<_Range>
 __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     assert(oneapi::dpl::__ranges::__size(__rng) > 0);
@@ -1354,9 +1361,8 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     if (__rng.size() < 2)
         return {__begin, __begin};
 
-    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
-              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
-        __res = __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __rng, __comp);
+    __pattern_minmax_element_impl_return_t<_Range> __res =
+        __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __rng, __comp);
 
     return {__begin + __res.first.first, __begin + __res.second.first};
 }
@@ -1388,10 +1394,8 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_R>>,
-              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_R>>>
-        __res = __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                              std::forward<_R>(__r), __comp_2);
+    __pattern_minmax_element_impl_return_t<_R> __res = __res = __pattern_minmax_element_impl(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp_2);
 
     return {__res.first.second, __res.second.second};
 }
