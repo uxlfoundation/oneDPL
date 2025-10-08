@@ -175,7 +175,7 @@ class auto_tune_policy
         get_policy()
         {
             return policy_;
-        };
+        }
 
         void
         report(const execution_info::task_time_t&, report_duration v) const

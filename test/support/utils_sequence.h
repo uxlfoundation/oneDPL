@@ -61,22 +61,22 @@ public:
     Sequence(size_t size, Func f);
     Sequence(const ::std::initializer_list<T>& data);
 
-    const_iterator               begin   () const { return m_storage.begin();                                };
-    const_iterator               end     () const { return m_storage.end();                                  };
-    iterator                     begin   ()       { return m_storage.begin();                                };
-    iterator                     end     ()       { return m_storage.end();                                  };
-    const_iterator               cbegin  () const { return m_storage.cbegin();                               };
-    const_iterator               cend    () const { return m_storage.cend();                                 };
-    forward_iterator             fbegin  ()       { return forward_iterator(m_storage.begin());              };
-    forward_iterator             fend    ()       { return forward_iterator(m_storage.end());                };
-    const_forward_iterator       cfbegin () const { return const_forward_iterator(m_storage.cbegin());       };
-    const_forward_iterator       cfend   () const { return const_forward_iterator(m_storage.cend());         };
-    const_forward_iterator       fbegin  () const { return const_forward_iterator(m_storage.cbegin());       };
-    const_forward_iterator       fend    () const { return const_forward_iterator(m_storage.cend());         };
-    const_bidirectional_iterator cbibegin() const { return const_bidirectional_iterator(m_storage.cbegin()); };
-    const_bidirectional_iterator cbiend  () const { return const_bidirectional_iterator(m_storage.cend());   };
-    bidirectional_iterator       bibegin ()       { return bidirectional_iterator(m_storage.begin());        };
-    bidirectional_iterator       biend   ()       { return bidirectional_iterator(m_storage.end());          };
+    const_iterator               begin   () const { return m_storage.begin();                                }
+    const_iterator               end     () const { return m_storage.end();                                  }
+    iterator                     begin   ()       { return m_storage.begin();                                }
+    iterator                     end     ()       { return m_storage.end();                                  }
+    const_iterator               cbegin  () const { return m_storage.cbegin();                               }
+    const_iterator               cend    () const { return m_storage.cend();                                 }
+    forward_iterator             fbegin  ()       { return forward_iterator(m_storage.begin());              }
+    forward_iterator             fend    ()       { return forward_iterator(m_storage.end());                }
+    const_forward_iterator       cfbegin () const { return const_forward_iterator(m_storage.cbegin());       }
+    const_forward_iterator       cfend   () const { return const_forward_iterator(m_storage.cend());         }
+    const_forward_iterator       fbegin  () const { return const_forward_iterator(m_storage.cbegin());       }
+    const_forward_iterator       fend    () const { return const_forward_iterator(m_storage.cend());         }
+    const_bidirectional_iterator cbibegin() const { return const_bidirectional_iterator(m_storage.cbegin()); }
+    const_bidirectional_iterator cbiend  () const { return const_bidirectional_iterator(m_storage.cend());   }
+    bidirectional_iterator       bibegin ()       { return bidirectional_iterator(m_storage.begin());        }
+    bidirectional_iterator       biend   ()       { return bidirectional_iterator(m_storage.end());          }
 
     ::std::size_t size() const;
     T* data();

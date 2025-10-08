@@ -1265,9 +1265,13 @@ class __brick_set_op
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
         using std::get;
-        auto __a = get<0>(__inout_acc.tuple()); // first sequence
-        auto __b = get<1>(__inout_acc.tuple()); // second sequence
-        auto __c = get<2>(__inout_acc.tuple()); // mask buffer
+
+        // Get source tuple
+        auto&& __tuple = __inout_acc.tuple();
+
+        auto __a = get<0>(__tuple); // first sequence
+        auto __b = get<1>(__tuple); // second sequence
+        auto __c = get<2>(__tuple); // mask buffer
 
         const _SizeA __a_beg = 0;
         const _SizeB __b_beg = 0;

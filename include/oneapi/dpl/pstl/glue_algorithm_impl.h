@@ -660,7 +660,7 @@ struct __sort_fn
         std::sort(__args...);
     }
 };
-}; // namespace __internal
+} // namespace __internal
 
 // [alg.sort]
 
@@ -693,7 +693,7 @@ struct __stable_sort_fn
         std::stable_sort(__args...);
     }
 };
-}; // namespace __internal
+} // namespace __internal
 
 // [stable.sort]
 
