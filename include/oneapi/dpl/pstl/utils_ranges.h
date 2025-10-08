@@ -143,7 +143,6 @@ __end(_Range&& __rng)
 #endif
 }
 
-#if !_ONEDPL_CPP20_RANGES_PRESENT
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
@@ -153,7 +152,6 @@ template <typename _R>
 struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
 {
 };
-#endif
 
 template <typename _Range>
 auto
@@ -169,7 +167,6 @@ __size(_Range&& __rng)
 #endif
 }
 
-#if !_ONEDPL_CPP20_RANGES_PRESENT
 template <typename _R, typename = void>
 struct __has_empty : std::false_type
 {
@@ -179,7 +176,6 @@ template <typename _R>
 struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
 {
 };
-#endif
 
 template <typename _Range>
 bool
