@@ -775,13 +775,9 @@ decltype(auto)
 __get_subscription_view(_Range&& __rng)
 {
     if constexpr (__has_subscription_op<_Range>::value)
-    {
         return std::forward<_Range>(__rng);
-    }
     else
-    {
         return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
-    }
 }
 
 } // namespace __ranges
