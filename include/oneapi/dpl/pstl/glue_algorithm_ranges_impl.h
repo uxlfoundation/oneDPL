@@ -620,7 +620,7 @@ struct __minmax_element_fn
 
         std::pair<oneapi::dpl::__ranges::__iterator_t<_R>, oneapi::dpl::__ranges::__iterator_t<_R>> __res =
             oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
-                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r, __comp, __proj);
 
         return {__res.first, __res.second};
     }
