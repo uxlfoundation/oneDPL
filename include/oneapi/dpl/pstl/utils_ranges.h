@@ -179,15 +179,6 @@ __end(_Range&& __rng)
 
 #endif
 
-// Range iterator type
-template <typename _Rng>
-using __iterator_t =
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    std::ranges::iterator_t<_Rng>;
-#else
-    decltype(__begin(std::declval<_Rng>()));
-#endif
-
 // __empty() function
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
