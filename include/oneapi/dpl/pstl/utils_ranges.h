@@ -815,10 +815,10 @@ struct __subscription_impl_view_simple : _Base
         _Base* __base = static_cast<_Base*>(this);
 
         // Evaluate begin() for the base class
-        auto __begin = oneapi::dpl::__ranges::__begin(*__base);
+        auto __it_begin = __begin(*__base);
 
         // Advance the begin iterator by __i positions and dereference it
-        return *std::next(__begin, __i);
+        return *std::next(__it_begin, __i);
     }
 
     decltype(auto)
@@ -828,10 +828,10 @@ struct __subscription_impl_view_simple : _Base
         const _Base* __base = static_cast<const _Base*>(this);
 
         // Evaluate begin() for the base class
-        auto __begin = oneapi::dpl::__ranges::__begin(*__base);
+        auto __it_begin = __begin(*__base);
 
         // Advance the begin iterator by __i positions and dereference it
-        return *std::next(__begin, __i);
+        return *std::next(__it_begin, __i);
     }
 };
 
