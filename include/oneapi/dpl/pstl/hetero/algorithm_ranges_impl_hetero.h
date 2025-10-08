@@ -1384,8 +1384,8 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>,
-              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_Range>>>
+    std::pair<std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_R>>,
+              std::pair<oneapi::dpl::__internal::__difference_t<_Range>, oneapi::dpl::__internal::__value_t<_R>>>
         __res = __pattern_minmax_element_impl(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
                                               std::forward<_R>(__r), __comp_2);
 
