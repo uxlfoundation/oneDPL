@@ -1345,7 +1345,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, typename _Compare>
-std::pair<oneapi::dpl::__ranges::__iterator_t<_Range>, oneapi::dpl::__internal::__iterator_t<_Range>>
+std::pair<oneapi::dpl::__ranges::__iterator_t<_Range>, oneapi::dpl::__ranges::__iterator_t<_Range>>
 __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     auto __begin = __rng.begin();
