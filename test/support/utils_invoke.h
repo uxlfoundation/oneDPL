@@ -22,6 +22,7 @@
 #include <mutex>            // for std::once_flag
 #include <stdexcept>        // for std::logic_error
 
+#include "utils_sycl_defs.h"
 #include "iterator_utils.h"
 #include "compile_only_checks.h"
 
@@ -37,19 +38,6 @@ namespace TestUtils
 
 // Implemented in utils_sycl.h, required to include this file.
 sycl::queue get_test_queue();
-
-template <sycl::usm::alloc alloc_type>
-constexpr ::std::size_t
-uniq_kernel_index()
-{
-    return static_cast<::std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
-}
-
-template <typename Op, ::std::size_t CallNumber>
-struct unique_kernel_name;
-
-template <typename Policy, int idx>
-using new_kernel_name = unique_kernel_name<::std::decay_t<Policy>, idx>;
 
 /**
  * make_policy functions test wrappers
