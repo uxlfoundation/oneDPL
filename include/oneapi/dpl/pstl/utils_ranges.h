@@ -121,14 +121,52 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
-bool
-__empty(_Range&& __rng)
+auto
+__begin(_Range&& __rng)
 {
-    return std::ranges::empty(__rng);
-}
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::begin(__rng);
 #else
+    return __rng.begin();
+#endif
+}
+
+template <typename _Range>
+auto
+__end(_Range&& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::end(__rng);
+#else
+    return __rng.end();
+#endif
+}
+
+template <typename _R, typename = void>
+struct __has_size : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+};
+
+template <typename _Range>
+auto
+__size(_Range&& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::size(__rng);
+#else
+    if constexpr (__has_size<_Range>::value)
+        return __rng.size();
+    else
+        return std::distance(__begin(__rng), __end(__rng));
+#endif
+}
+
 template <typename _R, typename = void>
 struct __has_empty : std::false_type
 {
@@ -143,55 +181,22 @@ template <typename _Range>
 bool
 __empty(_Range&& __rng)
 {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::empty(__rng);
+#else
     if constexpr (__has_empty<_Range>::value)
         return __rng.empty();
     else
-        return __rng.begin() == __rng.end();
-}
+        return __size(__rng) == 0;
 #endif
-
-template <typename _R, typename = void>
-struct __has_size : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
-{
-};
-
-template <typename _Range>
-std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
-__size(_Range&& __rng)
-{
-    return __rng.size();
 }
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::ranges::distance(__rng.begin(), __rng.end());
-}
-#else
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::distance(__rng.begin(), __rng.end());
-}
-#endif
 
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 
 template <std::size_t _RngIndex>
-struct __nth_range_size
+class __nth_range_size
 {
-  private:
     template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
     auto
     __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
@@ -754,13 +759,13 @@ struct __subscription_impl_view_simple : _Base
     decltype(auto)
     operator[](index_type __i)
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(__begin(*static_cast<_Base*>(this)), __i);
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(__begin(*static_cast<const _Base*>(this)), __i);
     }
 };
 
@@ -769,13 +774,9 @@ decltype(auto)
 __get_subscription_view(_Range&& __rng)
 {
     if constexpr (__has_subscription_op<_Range>::value)
-    {
         return std::forward<_Range>(__rng);
-    }
     else
-    {
         return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
-    }
 }
 
 } // namespace __ranges
