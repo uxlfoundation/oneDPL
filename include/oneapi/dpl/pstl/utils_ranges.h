@@ -218,29 +218,22 @@ struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::t
 };
 
 template <typename _Range>
-std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
+auto
 __size(_Range&& __rng)
 {
-    return __rng.size();
-}
-
+    if constexpr (__has_size<_Range>::value)
+    {
+        return __rng.size();
+    }
+    else
+    {
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::ranges::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
-__size(_Range&& __rng)
-{
-    return std::ranges::distance(__begin(__rng), __end(__rng));
-}
+        return std::ranges::distance(__begin(__rng), __end(__rng));
 #else
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
-__size(_Range&& __rng)
-{
-    return std::distance(__begin(__rng), __end(__rng));
-}
+        return std::distance(__begin(__rng), __end(__rng));
 #endif
+    }
+}
 
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
