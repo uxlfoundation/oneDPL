@@ -46,7 +46,7 @@ struct test_merge
                std::reverse_iterator<OutputIterator> out_first, std::reverse_iterator<OutputIterator> out_last)
     {
         using namespace std;
-        typedef typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type T;
+        using T = typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type;
         const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, std::greater<T>());
 
         EXPECT_TRUE(res == out_last, "wrong return result from merge with predicate");
@@ -85,7 +85,7 @@ struct test_merge_compare
                Compare /* comp */)
     {
         using namespace std;
-        typedef typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type T;
+        using T = typename std::iterator_traits<std::reverse_iterator<InputIterator1>>::value_type;
         const auto res = merge(std::forward<Policy>(exec), first1, last1, first2, last2, out_first, std::greater<T>());
 
         EXPECT_TRUE(res == out_last, "wrong return result from merge with predicate");

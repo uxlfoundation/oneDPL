@@ -39,7 +39,7 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    typedef typename ::std::iterator_traits<_Index>::difference_type _DifferenceType;
+    using _DifferenceType = typename std::iterator_traits<_Index>::difference_type;
     const _DifferenceType __n = __last - __first;
     _DifferenceType __initial_dist = _IsFirst::value ? __n : -1;
 

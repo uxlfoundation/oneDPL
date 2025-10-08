@@ -68,7 +68,7 @@ DEFINE_TEST(test_upper_bound)
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes,  Size> host_res (*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
+        using ValueT = typename std::iterator_traits<Iterator1>::value_type;
 
         // call algorithm with no optional arguments
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
@@ -102,7 +102,7 @@ DEFINE_TEST(test_upper_bound)
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
                Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
+        using ValueT = typename std::iterator_traits<Iterator1>::value_type;
         // call algorithm with no optional arguments
         initialize_data(first, value_first, result_first, n);
 
