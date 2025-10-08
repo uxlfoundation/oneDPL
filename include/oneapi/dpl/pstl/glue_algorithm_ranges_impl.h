@@ -2031,12 +2031,13 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    auto __begin = __rng.begin();
+    auto __view = views::all_read(std::forward<_Range>(__rng));
+    auto __v_begin = __view.begin();
 
     auto [__it_min, __it_max] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
-        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), views::all_read(__rng), __comp);
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp);
 
-    return {std::distance(__begin, __it_min), std::distance(__begin, __it_max)};
+    return {std::distance(__v_begin, __it_min), std::distance(__v_begin, __it_max)};
 }
 
 template <typename _ExecutionPolicy, typename _Range>

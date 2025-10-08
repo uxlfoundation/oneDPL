@@ -1369,13 +1369,16 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    auto __begin = std::ranges::begin(__r);
+    auto __r_begin = __r.begin();
 
-    const auto [__min_idx, __max_idx] =
-        oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::views::all_read(__r), __comp_2);
+    auto __view = oneapi::dpl::__ranges::views::all_read(__r);
+    auto __v_begin = __view.begin();
 
-    return {__begin + __min_idx, __begin + __max_idx};
+    auto [__it_min, __it_max] = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp_2);
+
+    return {__r_begin + std::ranges::distance(__v_begin, __it_min),
+            __r_begin + std::ranges::distance(__v_begin, __it_max)};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R, typename _Proj, typename _Comp>
