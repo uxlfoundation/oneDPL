@@ -235,7 +235,7 @@ __size(_Range&& __rng)
 #else
 template <typename _Range>
 std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::ranges::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
+                 decltype(std::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
 __size(_Range&& __rng)
 {
     return std::distance(__begin(__rng), __end(__rng));
