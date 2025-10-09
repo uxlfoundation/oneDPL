@@ -1355,7 +1355,7 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _Range, type
 std::pair<oneapi::dpl::__ranges::__iterator_t<_Range>, oneapi::dpl::__ranges::__iterator_t<_Range>>
 __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
-    auto __begin = __rng.begin();
+    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
 
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
     if (oneapi::dpl::__ranges::__size(__rng) < 2)
