@@ -63,7 +63,7 @@ The default implementation of these traits depends on types defined in the Polic
   };
 ```
 
-With this contract, we could also provide a generic `submit_and_wait` implementation that uses `submit` and waits on the result unless overridden.
+With this contract, if `p.submit(f, args…)` is well-formed, we will provide a generic `submit_and_wait` implementation that uses `submit` and waits on the result unless overridden.
 
 This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
 
