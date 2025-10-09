@@ -174,9 +174,13 @@ __size(_Range&& __rng)
     return std::ranges::size(__rng);
 #else
     if constexpr (__has_size<_Range>::value)
+    {
         return __rng.size();
+    }
     else
+    {
         return std::distance(__begin(__rng), __end(__rng));
+    }
 #endif
 }
 
@@ -198,9 +202,13 @@ __empty(_Range&& __rng)
     return std::ranges::empty(__rng);
 #else
     if constexpr (__has_empty<_Range>::value)
+    {
         return __rng.empty();
+    }
     else
+    {
         return __size(__rng) == 0;
+    }
 #endif
 }
 
@@ -215,9 +223,13 @@ class __nth_range_size
     __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
     {
         if constexpr (_RngIndexCurrent == _RngIndex)
+        {
             return __size(__rng);
+        }
         else
+        {
             return __nth_range_size_impl<_RngIndexCurrent + 1>(__rngs...);
+        }
     }
 
   public:
