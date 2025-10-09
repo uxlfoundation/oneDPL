@@ -1347,10 +1347,21 @@ struct MinimalisticRange
 {
     ForwardIterator it_begin;
     ForwardIterator it_end;
-
-    ForwardIterator begin() const { return it_begin; }
-    ForwardIterator end()   const { return it_end;   }
 };
+
+template <typename ForwardIterator>
+ForwardIterator
+begin(const MinimalisticRange<ForwardIterator>& rng)
+{
+    return rng.it_begin;
+}
+
+template <typename ForwardIterator>
+ForwardIterator
+end(const MinimalisticRange<ForwardIterator>& rng)
+{
+    return rng.it_end;
+}
 
 #if _ENABLE_STD_RANGES_TESTING
 
