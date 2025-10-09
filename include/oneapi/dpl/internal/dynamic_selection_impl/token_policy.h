@@ -11,6 +11,7 @@
 #define _ONEDPL_TOKEN_POLICY_H
 
 #include <mutex>
+#include <thread>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 
 #if _DS_BACKEND_SYCL != 0

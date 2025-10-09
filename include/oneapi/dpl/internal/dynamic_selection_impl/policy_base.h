@@ -15,6 +15,7 @@
 #include <vector>
 #include <stdexcept>
 #include <utility>
+#include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 
@@ -51,18 +52,25 @@ class policy_base
     }
 
     void 
-    initialize() 
+    initialize()
     {
         if (!backend_) backend_ = std::make_shared<backend_t>();
         static_cast<Policy*>(this)->initialize_impl();
     }
 
-    template <typename... Args>
     void 
-    initialize(const std::vector<resource_type>& u, Args... args) 
+    initialize(const std::vector<resource_type>& u)
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>(u, args...);
+        if (!backend_) backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity());
         static_cast<Policy*>(this)->initialize_impl();
+    }
+
+    template <typename ResourceAdapter, typename... Args>
+    void
+    initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
+    {
+        if (!backend_) backend_ = std::make_shared<backend_t>(u, adapter);
+        static_cast<Policy*>(this)->initialize_impl(args...);
     }
 
     template <typename... Args>
