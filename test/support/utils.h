@@ -1341,7 +1341,7 @@ struct NoDefaultCtorWrapper {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// A minimalistic range that only provides begin() and end() methods.
+// A minimalistic range that only provides begin() and end() methods as free functions.
 template <typename ForwardIterator>
 struct MinimalisticRange
 {
