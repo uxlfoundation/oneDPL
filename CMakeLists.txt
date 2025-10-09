@@ -218,7 +218,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         if (DEFINED ONEDPL_DEVICE_BACKEND)
             string(TOLOWER "${ONEDPL_DEVICE_BACKEND}" device_backend)
         endif()
-        message(FATAL_ERROR "ONEDPL_DEVICE_TYPE and ONEDPL_DEVICE_BACKEND cmake settings have been removed.\nUse \"ONEAPI_DEVICE_SELECTOR=${device_backend}:${device_type}\" before running instead for the same effect.")
+        message(FATAL_ERROR "ONEDPL_DEVICE_TYPE and ONEDPL_DEVICE_BACKEND cmake settings have been removed.\nUse environment variable \"ONEAPI_DEVICE_SELECTOR=${device_backend}:${device_type}\" before running instead for the same effect.")
     endif()
 
     if (DEFINED ONEDPL_USE_AOT_COMPILATION)
