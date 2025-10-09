@@ -146,6 +146,25 @@ jobs:
             build_type: RelWithAsserts
             backend: omp
             device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: release
+            backend: omp
+            device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: release
+            backend: tbb
+            device_type: HOST
+          - os: ubuntu-24.04-arm
+            cxx_compiler: g++
+            std: 17
+            build_type: serial
+            backend: serial
+            device_type: HOST
+
     steps:
       - uses: actions/checkout@v4
       - name: Set up Intel APT repository
@@ -159,7 +178,12 @@ jobs:
       - name: Install Intel® oneAPI Threading Building Blocks
         if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp')
         run: |
-          sudo apt-get install intel-oneapi-tbb-devel -y
+          if [[ "${{ matrix.os }}" =~ "-arm" ]]; then
+            # oneAPI TBB package is not available for ARM architecture
+            sudo apt-get install libtbb-dev -y
+          else
+            sudo apt-get install intel-oneapi-tbb-devel -y
+          fi
       - name: Install Intel® oneAPI DPC++/C++ Compiler
         if: (matrix.device_type != 'FPGA_EMU' &&
               (matrix.cxx_compiler == 'icpx'  ||

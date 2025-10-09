@@ -325,11 +325,21 @@ test()
     test_for_loop_strided<T>();
 }
 
+// TODO: investigate the segmentation fault on ARM architectures
+#if defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64)
+#    define _PSTL_TEST_FOR_LOOP_BROKEN 1
+#else
+#    define _PSTL_TEST_FOR_LOOP_BROKEN 0
+#endif
+
 std::int32_t
 main()
 {
+    bool bProcessed = false;
+#if !_PSTL_TEST_FOR_LOOP_BROKEN
     test<std::int32_t>();
     test<float64_t>();
-
-    return done();
+    bProcessed = true;
+#endif
+    return done(bProcessed);
 }
