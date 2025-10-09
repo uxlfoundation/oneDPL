@@ -101,3 +101,14 @@ Beyond simplifying the public interface and requirements, these changes may prov
 	- We lose the ability to submit multiple jobs to the same selection, but those jobs could be joined within a single submission instead.
 	- We lose the ability to select and do something with the resource before submitting the job function.
 	- We lose the ability to select and never submit to that selection.
+
+- Should we allow per-resource capacities rather than fixed capacities?
+
+- Bigger design alternative to TokenPolicy (feedback from presentation 10/9/2025):
+  - Shift responsibility of resource availability to the backend resource / backend, not policy. Policy becomes only about selection from available resources.
+    - Policy is only responsible for selection between available resources.
+    - Any selection mechanism (policy) can have scarce resources, and submission must be required to deal with that.
+    - Add get_resource_and_submit() which always suceeds, returns a waitable type but waits for a resource to be available and returns once job is submitted.
+    - Adjust asynchronous submit() to try_submit(), which may fail, but always returns quickly.
+    - submit_and_wait() stays as is.
+    - Use dynamic load after changes with limited resource availability
