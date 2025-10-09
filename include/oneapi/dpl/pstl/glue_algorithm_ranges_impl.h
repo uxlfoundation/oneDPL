@@ -2034,10 +2034,10 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 
     auto __view = views::all_read(std::forward<_Range>(__rng));
     auto __v_begin = __view.begin();
+    using __v_iterator_t = decltype(__v_begin);
 
-    std::pair<oneapi::dpl::__ranges::__iterator_t<_Range>, oneapi::dpl::__ranges::__iterator_t<_Range>> __res =
-        oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
-            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp);
+    std::pair<__v_iterator_t, __v_iterator_t> __res = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp);
 
     return {std::distance(__v_begin, __res.first), std::distance(__v_begin, __res.second)};
 }
