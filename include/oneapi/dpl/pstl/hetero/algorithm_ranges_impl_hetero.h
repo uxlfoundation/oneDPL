@@ -1379,10 +1379,10 @@ __pattern_minmax_element(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     auto __view = oneapi::dpl::__ranges::views::all_read(__r);
     auto __v_begin = __view.begin();
+    using __v_iterator_t = decltype(__v_begin);
 
-    std::pair<oneapi::dpl::__ranges::__iterator_t<_R>, oneapi::dpl::__ranges::__iterator_t<_R>> __res =
-        oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__tag, std::forward<_ExecutionPolicy>(__exec),
-                                                                    __view, __comp_2);
+    std::pair<__v_iterator_t, __v_iterator_t> __res = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp_2);
 
     return {__r_begin + std::ranges::distance(__v_begin, __res.first),
             __r_begin + std::ranges::distance(__v_begin, __res.second)};
@@ -1394,7 +1394,7 @@ __pattern_minmax(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r,
 {
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __comp_2{__comp, __proj, __proj};
 
-    __pattern_minmax_element_impl_return_t<_R> __res = __res = __pattern_minmax_element_impl(
+    __pattern_minmax_element_impl_return_t<_R> __res = __pattern_minmax_element_impl(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp_2);
 
     return {__res.first.second, __res.second.second};
