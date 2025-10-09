@@ -27,7 +27,6 @@ include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(ONEDPL_FPGA_STATIC_REPORT "Enable the static report generation for the FPGA device" OFF)
-option(ONEDPL_USE_AOT_COMPILATION "Enable ahead of time compilation (deprecated)" OFF)
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
@@ -210,7 +209,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         )
 
     # Add error for removed feature ONEDPL_DEVICE_TYPE if used
-    if (ONEDPL_DEVICE_TYPE OR DEFINED ONEDPL_DEVICE_BACKEND)
+    if (DEFINED ONEDPL_DEVICE_TYPE OR DEFINED ONEDPL_DEVICE_BACKEND)
         set(device_backend "*")
         set(device_type "*")
         if (DEFINED ONEDPL_DEVICE_TYPE)
@@ -222,50 +221,13 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         message(FATAL_ERROR "ONEDPL_DEVICE_TYPE and ONEDPL_DEVICE_BACKEND cmake settings have been removed.\nUse \"ONEAPI_DEVICE_SELECTOR=${device_backend}:${device_type}\" before running instead for the same effect.")
     endif()
 
+    if (DEFINED ONEDPL_USE_AOT_COMPILATION)
+        message(FATAL_ERROR "ONEDPL_USE_AOT_COMPILATION is has been removed, instead use -fsycl-targets directly to CMAKE_CXX_FLAGS to specify ahead-of-time compilation targets.")
+    endif()
+
+
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
 
-        # Check correctness of STATIC_REPORT
-        if (ONEDPL_FPGA_STATIC_REPORT)
-            if (NOT ONEDPL_USE_DEVICE_FPGA_HW)
-                message(FATAL_ERROR "Static report can only be generated for FPGA hardware")
-            else()
-                message(STATUS "Static report will be generated")
-            endif()
-        endif()
-
-        # settings for the specific compilation type
-        if (NOT ONEDPL_USE_AOT_COMPILATION)
-            message(STATUS "Using just-in-time compilation")
-        else()
-            message(WARNING "ONEDPL_USE_AOT_COMPILATION is deprecated and will be removed in a future release")
-            if (NOT ONEDPL_AOT_ARCH)
-                if (ONEDPL_USE_DEVICE_GPU)
-                    set(ONEDPL_AOT_ARCH "*")
-                endif()
-                if (ONEDPL_USE_DEVICE_CPU)
-                    set(ONEDPL_AOT_ARCH "avx")
-                endif()
-            else()
-                message(WARNING "ONEDPL_AOT_ARCH is deprecated and will be removed in a future release")
-            endif()
-            message(STATUS "Using ahead-of-time compilation for \"${ONEDPL_AOT_ARCH}\" architecture(s)")
-
-            if (ONEDPL_USE_DEVICE_GPU)
-                # -cl-kernel-debug-enable is not needed since https://github.com/intel/compute-runtime/commit/9c237d99ec49ceb3678c815314bc7c745226e4a2
-                # TODO: remove that option when older driver versions are not expected to be used
-                set(ONEDPL_AOT_EXTRA_BACKEND_OPTIONS "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-internal_options -cl-kernel-debug-enable>")
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_gen -Xs \"-device ${ONEDPL_AOT_ARCH} ${ONEDPL_AOT_EXTRA_BACKEND_OPTIONS}\"")
-            endif()
-            if (ONEDPL_USE_DEVICE_CPU)
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_x86_64 -Xs \"-march=${ONEDPL_AOT_ARCH}\"")
-            endif()
-        endif()
-
-        # DPC++ specific compiler options
-        target_compile_options(oneDPL INTERFACE
-            ${FSYCL_OPTION_IF_SUPPORTED}
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
-            )
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
             if(ONEDPL_USE_UNNAMED_LAMBDA)
                 message(STATUS "Adding -fsycl-unnamed-lambda option")
@@ -286,20 +248,6 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             endif()
         endif()
 
-        # DPC++ specific macro
-        target_compile_definitions(oneDPL INTERFACE
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:ONEDPL_FPGA_DEVICE>
-            $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>:ONEDPL_FPGA_EMULATOR>
-            )
-
-        # DPC++ specific link options
-        target_link_libraries(oneDPL INTERFACE
-            ${FSYCL_OPTION_IF_SUPPORTED}
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
-            $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
-            $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
-            ${ONEDPL_AOT_OPTIONS}
-            )
     endif()
 
 elseif(ONEDPL_BACKEND MATCHES "^(serial)$")
