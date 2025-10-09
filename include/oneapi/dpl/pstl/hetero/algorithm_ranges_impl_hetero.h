@@ -1358,7 +1358,7 @@ __pattern_minmax_element(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
     auto __begin = __rng.begin();
 
     //If size == 1, result is the zero-indexed element. If size == 0, result is 0.
-    if (__rng.size() < 2)
+    if (oneapi::dpl::__ranges::__size(__rng) < 2)
         return {__begin, __begin};
 
     __pattern_minmax_element_impl_return_t<_Range> __res =
