@@ -34,6 +34,41 @@ namespace oneapi
 {
 namespace dpl
 {
+namespace __ranges
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__begin(_Range&& __rng)
+{
+    return std::ranges::begin(__rng);
+}
+#else
+template <typename _Range>
+auto
+__begin(_Range&& __rng) -> decltype(__rng.begin())
+{
+    return __rng.begin();
+}
+#endif
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__end(_Range&& __rng)
+{
+    return std::ranges::end(__rng);
+}
+#else
+template <typename _Range>
+auto
+__end(_Range&& __rng) -> decltype(__rng.end())
+{
+    return __rng.end();
+}
+#endif
+
+} // namespace __ranges
 
 namespace __internal
 {
@@ -44,8 +79,8 @@ get_value_type(int) -> typename ::std::decay_t<_R>::value_type;
 
 template <typename _R>
 auto
-get_value_type(long) ->
-    typename ::std::iterator_traits<::std::decay_t<decltype(::std::declval<_R&>().begin())>>::value_type;
+get_value_type(long) -> typename std::iterator_traits<
+    std::decay_t<decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()))>>::value_type;
 
 template <typename _It>
 auto
@@ -120,28 +155,6 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-
-template <typename _Range>
-auto
-__begin(_Range&& __rng)
-{
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::begin(__rng);
-#else
-    return __rng.begin();
-#endif
-}
-
-template <typename _Range>
-auto
-__end(_Range&& __rng)
-{
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::end(__rng);
-#else
-    return __rng.end();
-#endif
-}
 
 template <typename _R, typename = void>
 struct __has_size : std::false_type

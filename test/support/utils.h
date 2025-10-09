@@ -1345,8 +1345,6 @@ struct NoDefaultCtorWrapper {
 template <typename ForwardIterator>
 struct MinimalisticRange
 {
-    using value_type = typename std::iterator_traits<ForwardIterator>::value_type;
-
     ForwardIterator it_begin;
     ForwardIterator it_end;
 };
