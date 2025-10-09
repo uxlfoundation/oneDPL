@@ -499,7 +499,8 @@ std::pair<oneapi::dpl::__ranges::__iterator_t<_R>, oneapi::dpl::__ranges::__iter
 __pattern_minmax_element(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _Comp __comp,
                          _Proj __proj)
 {
-    return std::ranges::minmax_element(std::forward<_R>(__r), __comp, __proj);
+    auto __res = std::ranges::minmax_element(std::forward<_R>(__r), __comp, __proj);
+    return {__res.min, __res.max};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
