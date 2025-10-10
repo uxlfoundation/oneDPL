@@ -76,7 +76,6 @@ struct __has_size : std::false_type
 template <typename _R>
 struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
 {
-    using __size_t = decltype(std::declval<_R>().size());
 };
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -88,7 +87,7 @@ __size(_Range&& __rng) -> decltype(std::ranges::size(__rng))
 }
 #else
 template <typename _Range>
-std::enable_if_t<__has_size<_Range>::value, typename __has_size<_Range>::__size_t>
+std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
 __size(_Range&& __rng)
 {
     return __rng.size();
