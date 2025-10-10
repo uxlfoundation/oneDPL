@@ -65,10 +65,10 @@ main()
     }
 
     {
-    auto [ex_res1, ex_res2] = std::ranges::mismatch(view2, view1, binary_pred, proj, proj);
+    auto [ex_1, ex_2] = std::ranges::mismatch(view2, view1, binary_pred, proj, proj);
     auto [res1, res2] = dpl_ranges::mismatch(oneapi::dpl::execution::par_unseq, view2, view1, binary_pred, proj, proj);
-    EXPECT_TRUE(ex_res1 == res1, err_msg);
-    EXPECT_TRUE(ex_res2 == res2, err_msg);
+    EXPECT_TRUE(ex_1 == res1, err_msg);
+    EXPECT_TRUE(ex_2 == res2, err_msg);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT

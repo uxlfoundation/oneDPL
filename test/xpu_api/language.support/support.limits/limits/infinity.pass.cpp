@@ -69,6 +69,8 @@ ONEDPL_TEST_NUM_MAIN
     test<__int128_t>(0);
     test<__uint128_t>(0);
 #endif
+TEST_DIAGNOSTIC_PUSH
+TEST_MSVC_DIAGNOSTIC_IGNORED(4723)
     float zero = 0;
     test<float>(1.f/zero);
     if constexpr (HasDoubleSupportInRuntime{})
@@ -82,6 +84,7 @@ ONEDPL_TEST_NUM_MAIN
         auto fnc = [&zero] { test<long double>(1. / zero); };
         fnc();
     }
+TEST_DIAGNOSTIC_POP
 
   return 0;
 }
