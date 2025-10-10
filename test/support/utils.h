@@ -1364,6 +1364,13 @@ end(MinimalisticRange<ForwardIterator>& rng)
     return rng.it_end;
 }
 
+template <typename ForwardIterator>
+auto
+size(MinimalisticRange<ForwardIterator>& rng)
+{
+    return std::ranges::distance(rng.it_begin, rng.it_end);
+}
+
 #if _ENABLE_STD_RANGES_TESTING
 
 static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
