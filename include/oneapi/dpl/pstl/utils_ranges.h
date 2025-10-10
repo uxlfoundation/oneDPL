@@ -41,7 +41,7 @@ template <typename _Range>
 auto
 __begin(_Range&& __rng) -> decltype(std::ranges::begin(__rng))
 {
-    return std::ranges::begin(__rng);
+    return std::ranges::begin(std::forward<_Range>(__rng));
 }
 #else
 template <typename _Range>
@@ -55,9 +55,9 @@ __begin(_Range&& __rng) -> decltype(__rng.begin())
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 auto
-__end(_Range&& __rng) -> decltype(std::ranges::end(__rng))
+__end(_Range&& __rng) -> decltype(std::ranges::end(std::forward<_Range>(__rng)))
 {
-    return std::ranges::end(__rng);
+    return std::ranges::end(std::forward<_Range>(__rng));
 }
 #else
 template <typename _Range>
@@ -81,9 +81,9 @@ struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::t
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 auto
-__size(_Range&& __rng) -> decltype(std::ranges::size(__rng))
+__size(_Range&& __rng) -> decltype(std::ranges::size(std::forward<_Range>(__rng)))
 {
-    return std::ranges::size(__rng);
+    return std::ranges::size(std::forward<_Range>(__rng));
 }
 #else
 template <typename _Range>
