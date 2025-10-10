@@ -248,6 +248,9 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             endif()
         endif()
 
+        # DPC++ specific link options
+        target_link_libraries(oneDPL INTERFACE ${FSYCL_OPTION_IF_SUPPORTED})
+
     endif()
 
 elseif(ONEDPL_BACKEND MATCHES "^(serial)$")
