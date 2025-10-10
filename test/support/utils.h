@@ -1350,23 +1350,23 @@ struct MinimalisticRange
     ForwardIterator it_end;
 };
 
-template <typename ForwardIterator>
-ForwardIterator
-begin(MinimalisticRange<ForwardIterator> rng)
+template <typename Range>
+auto
+begin(Range&& rng)
 {
     return rng.it_begin;
 }
 
-template <typename ForwardIterator>
-ForwardIterator
-end(MinimalisticRange<ForwardIterator> rng)
+template <typename Range>
+auto
+end(Range&& rng)
 {
     return rng.it_end;
 }
 
-template <typename ForwardIterator>
+template <typename Range>
 auto
-size(MinimalisticRange<ForwardIterator> rng)
+size(Range&& rng)
 {
     return std::distance(rng.it_begin, rng.it_end);
 }
