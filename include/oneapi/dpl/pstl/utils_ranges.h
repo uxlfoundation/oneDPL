@@ -68,14 +68,6 @@ __end(_Range&& __rng) -> decltype(__rng.end())
 }
 #endif
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-auto
-__size(_Range&& __rng) -> decltype(std::ranges::size(__rng))
-{
-    return std::ranges::size(__rng);
-}
-#else
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
@@ -87,6 +79,14 @@ struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::t
     using __size_t = decltype(std::declval<_R>().size());
 };
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__size(_Range&& __rng) -> decltype(std::ranges::size(__rng))
+{
+    return std::ranges::size(__rng);
+}
+#else
 template <typename _Range>
 std::enable_if_t<__has_size<_Range>::value, typename __has_size<_Range>::__size_t>
 __size(_Range&& __rng)
@@ -802,6 +802,23 @@ struct __subscription_impl_view_simple : _Base
     operator[](index_type __i) const
     {
         return *std::next(__begin(*static_cast<const _Base*>(this)), __i);
+    }
+
+    auto
+    size() const
+    {
+        if constexpr (__has_size<_Base>::value)
+        {
+            return _Base::size();
+        }
+        else
+        {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+            return oneapi::dpl::__ranges::__size(*static_cast<const _Base*>(this));
+#else
+            return std::distance(__begin(*static_cast<const _Base*>(this)), __end(*static_cast<const _Base*>(this)));
+#endif
+        }
     }
 };
 
