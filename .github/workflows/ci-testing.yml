@@ -316,12 +316,10 @@ jobs:
         run: |
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
-          )
-          else (
+          ) else (
             if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
               call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
-            )
-            else (
+            ) else (
               echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
             )
           )
