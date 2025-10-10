@@ -1340,11 +1340,9 @@ struct NoDefaultCtorWrapper {
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// A minimalistic range that only provides begin() and end() methods as free functions.
-// We tests struct MinimalisticRange only with free standing functions begin() and end().
-// It's enough because begin() and end() methods are covered pretty much everywhere else,
-// e.g. with std::vector as a range.
+// A minimalistic range to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
+// which are not required for a class to be considered a range.
+// Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
 template <typename ForwardIterator>
 struct MinimalisticRange
 {
