@@ -201,7 +201,7 @@ __check_size(...)
     //static_assert should always fail when this overload is chosen, so its condition must depend on
     //the template parameter and evaluate to false
     static_assert(std::is_same_v<_R, void>,
-        "error: the range has no 'get_count' or `size` or `begin/end` methods or `difference_type` type");
+                  "error: the range has no 'get_count' or `size` or `begin/end` methods or `difference_type` type");
 }
 
 template <typename _R>
