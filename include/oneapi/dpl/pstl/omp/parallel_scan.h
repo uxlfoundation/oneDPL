@@ -213,6 +213,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPol
     {
         if (__n)
         {
+            __reduce(_Index(0), __n);
             auto __res = __scan(_Index(0), __n, __initial, __n_out);
             __apex(__res.first, __res.second);
         }
