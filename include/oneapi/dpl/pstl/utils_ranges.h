@@ -34,6 +34,103 @@ namespace oneapi
 {
 namespace dpl
 {
+namespace __ranges
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__begin(_Range&& __rng) -> decltype(std::ranges::begin(__rng))
+{
+    return std::ranges::begin(std::forward<_Range>(__rng));
+}
+#else
+template <typename _Range>
+auto
+__begin(_Range&& __rng) -> decltype(__rng.begin())
+{
+    return __rng.begin();
+}
+#endif
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__end(_Range&& __rng) -> decltype(std::ranges::end(std::forward<_Range>(__rng)))
+{
+    return std::ranges::end(std::forward<_Range>(__rng));
+}
+#else
+template <typename _Range>
+auto
+__end(_Range&& __rng) -> decltype(__rng.end())
+{
+    return __rng.end();
+}
+#endif
+
+template <typename _R, typename = void>
+struct __has_size : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+};
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__size(_Range&& __rng) -> decltype(std::ranges::size(std::forward<_Range>(__rng)))
+{
+    return std::ranges::size(std::forward<_Range>(__rng));
+}
+#else
+template <typename _Range>
+std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
+__size(_Range&& __rng)
+{
+    return __rng.size();
+}
+
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
+__size(_Range&& __rng)
+{
+    return std::distance(__begin(__rng), __end(__rng));
+}
+#endif
+
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::empty(__rng);
+#else
+    if constexpr (__has_empty<_Range>::value)
+    {
+        return __rng.empty();
+    }
+    else
+    {
+        return __size(__rng) == 0;
+    }
+#endif
+}
+
+} // namespace __ranges
 
 namespace __internal
 {
@@ -44,8 +141,8 @@ get_value_type(int) -> typename ::std::decay_t<_R>::value_type;
 
 template <typename _R>
 auto
-get_value_type(long) ->
-    typename ::std::iterator_traits<::std::decay_t<decltype(::std::declval<_R&>().begin())>>::value_type;
+get_value_type(long) -> typename std::iterator_traits<
+                         std::decay_t<decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()))>>::value_type;
 
 template <typename _It>
 auto
@@ -87,21 +184,25 @@ using __range_size_t = typename __range_size<_R>::type;
 
 template <typename _R>
 auto
-__check_size(int) -> decltype(std::declval<_R&>().size());
+__check_size(int) -> decltype(__get_buffer_size(std::declval<_R&>()));
 
 template <typename _R>
 auto
-__check_size(long) -> decltype(std::declval<_R&>().get_count());
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _R>
-auto
-__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
+__check_size(long) -> decltype(oneapi::dpl::__ranges::__size(std::declval<_R&>()));
 
 template <typename _It>
 auto
-__check_size(...) -> typename std::iterator_traits<_It>::difference_type;
+__check_size(long long) -> typename std::iterator_traits<_It>::difference_type;
+
+template <typename _R>
+auto
+__check_size(...)
+{
+    //static_assert should always fail when this overload is chosen, so its condition must depend on
+    //the template parameter and evaluate to false
+    static_assert(std::is_same_v<_R, void>,
+                  "error: the range has no 'get_count' or `size` or `begin/end` methods or `difference_type` type");
+}
 
 template <typename _R>
 using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
@@ -121,85 +222,24 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    return std::ranges::empty(__rng);
-}
-#else
-template <typename _R, typename = void>
-struct __has_empty : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
-{
-};
-
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    if constexpr (__has_empty<_Range>::value)
-        return __rng.empty();
-    else
-        return __rng.begin() == __rng.end();
-}
-#endif
-
-template <typename _R, typename = void>
-struct __has_size : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
-{
-};
-
-template <typename _Range>
-std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
-__size(_Range&& __rng)
-{
-    return __rng.size();
-}
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::ranges::distance(__rng.begin(), __rng.end());
-}
-#else
-template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
-__size(_Range&& __rng)
-{
-    return std::distance(__rng.begin(), __rng.end());
-}
-#endif
-
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 
 template <std::size_t _RngIndex>
-struct __nth_range_size
+class __nth_range_size
 {
-  private:
     template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
     auto
     __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
     {
         if constexpr (_RngIndexCurrent == _RngIndex)
+        {
             return __size(__rng);
+        }
         else
+        {
             return __nth_range_size_impl<_RngIndexCurrent + 1>(__rngs...);
+        }
     }
 
   public:
@@ -754,13 +794,19 @@ struct __subscription_impl_view_simple : _Base
     decltype(auto)
     operator[](index_type __i)
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(__begin(*static_cast<_Base*>(this)), __i);
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(__begin(*static_cast<const _Base*>(this)), __i);
+    }
+
+    auto
+    size() const
+    {
+        return oneapi::dpl::__ranges::__size(*static_cast<const _Base*>(this));
     }
 };
 

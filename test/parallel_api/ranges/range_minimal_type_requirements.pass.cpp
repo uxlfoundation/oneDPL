@@ -62,7 +62,7 @@ struct test_merge
 
         oneapi::dpl::ranges::merge(policy, r1, r2, r3);
         std::string msg = "wrong effect from merge, " + std::string(typeid(Policy).name());
-        EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
+        EXPECT_EQ_N(v3_expected.data(), std::ranges::begin(r3), v3_expected.size(), msg.c_str());
     }
 };
 
@@ -82,7 +82,7 @@ struct test_copy_if
         oneapi::dpl::ranges::copy_if(policy, r1, r3, [](int x) { return x % 2 == 0; });
 
         std::string msg = "wrong effect from copy_if, " + std::string(typeid(Policy).name());
-        EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
+        EXPECT_EQ_N(v3_expected.data(), std::ranges::begin(r3), v3_expected.size(), msg.c_str());
     }
 };
 
@@ -104,7 +104,7 @@ struct test_transform
         oneapi::dpl::ranges::transform(policy, r1, r2, r3, [](int x1, int x2) { return x1 + x2; });
 
         std::string msg = "wrong effect from transform, " + std::string(typeid(Policy).name());
-        EXPECT_EQ_N(v3_expected.data(), r3.begin(), v3_expected.size(), msg.c_str());
+        EXPECT_EQ_N(v3_expected.data(), std::ranges::begin(r3), v3_expected.size(), msg.c_str());
     }
 };
 
