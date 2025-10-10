@@ -28,6 +28,7 @@ env:
   WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/dc2bc071-6e5c-4b48-8fdd-a39d20c25e5a/intel-dpcpp-cpp-compiler-2025.2.0.528_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
+  VS2022_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -316,7 +317,14 @@ jobs:
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
           )
-
+          else (
+            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
+              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+            )
+            else (
+              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
+            )
+          )
           :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
           SETLOCAL ENABLEDELAYEDEXPANSION
 
