@@ -10,7 +10,6 @@ The following variables are provided for oneDPL configuration:
 |------------------------------------------|--------|-----------------------------------------------------------------------------------------------|---------------|
 | ONEDPL_BACKEND                           | STRING | Threading backend; supported values: tbb, dpcpp, dpcpp_only, serial, ...; the default value is defined by compiler: dpcpp for DPC++ and tbb for others | tbb/dpcpp |
 | ONEDPL_USE_UNNAMED_LAMBDA                | BOOL   | Pass `-fsycl-unnamed-lambda`, `-fno-sycl-unnamed-lambda` compile options or nothing           |               |
-| ONEDPL_FPGA_STATIC_REPORT                | BOOL   | Enable the static report generation for the FPGA_HW device type                               | OFF           |
 | ONEDPL_ENABLE_SIMD                       | BOOL   | Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported; the flag is passed to user project compilation string if enabled | ON           |
 | ONEDPL_TEST_EXPLICIT_KERNEL_NAMES   | STRING | Control kernel naming. Affects only oneDPL test targets. Supported values: AUTO, ALWAYS. AUTO: rely on the compiler if "Unnamed SYCL lambda kernels" feature is on, otherwise provide kernel names explicitly; ALWAYS: provide kernel names explicitly | AUTO          |
 | ONEDPL_TEST_WIN_ICX_FIXES     | BOOL   | Affects only oneDPL test targets.  Enable icx, icx-cl workarounds to fix issues in CMake for Windows.                      | ON            |
