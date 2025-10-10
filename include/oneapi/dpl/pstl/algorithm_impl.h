@@ -1346,7 +1346,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
     std::iterator_traits<_RandomAccessIterator1>::difference_type __n = __last - __first;
     while (__m > 0 && __m < __n)
     {
-        _Bound __copied = __simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
+        _Bound __copied = __unseq_backend::__simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
         __n -= __m;
         __first += __m;
         __m -= __copied;
@@ -1354,7 +1354,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
     }
     if (__m > 0) // enough space left for the rest
     {
-        __result += __simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
+        __result += __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
         __first += __n;        
     }
     return {__first, __result};    

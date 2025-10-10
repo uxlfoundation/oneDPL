@@ -88,7 +88,7 @@ __downsweep(_Index __i, _Index __m, _Index __tilesize, _Tp* __r, _Index __lastsi
     if (__m == 1)
     {
         if(__initial < __n_out)
-            __scan(__i * __tilesize, __lastsize, __initial, __n_out - __initial);
+            __res = __scan(__i * __tilesize, __lastsize, __initial, __n_out - __initial);
     }
     else
     {
