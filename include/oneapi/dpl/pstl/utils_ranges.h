@@ -68,6 +68,69 @@ __end(_Range&& __rng) -> decltype(__rng.end())
 }
 #endif
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__size(_Range&& __rng) -> decltype(std::ranges::size(__rng))
+{
+    return std::ranges::size(__rng);
+}
+#else
+template <typename _R, typename = void>
+struct __has_size : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+    using __size_t = decltype(std::declval<_R>().size());
+};
+
+template <typename _Range>
+std::enable_if_t<__has_size<_Range>::value, typename __has_size<_Range>::__size_t>
+__size(_Range&& __rng)
+{
+    return __rng.size();
+}
+
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
+__size(_Range&& __rng)
+{
+    return std::distance(__begin(__rng), __end(__rng));
+}
+#endif
+
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    return std::ranges::empty(__rng);
+#else
+    if constexpr (__has_empty<_Range>::value)
+    {
+        return __rng.empty();
+    }
+    else
+    {
+        return __size(__rng) == 0;
+    }
+#endif
+}
+
 } // namespace __ranges
 
 namespace __internal
@@ -122,21 +185,25 @@ using __range_size_t = typename __range_size<_R>::type;
 
 template <typename _R>
 auto
-__check_size(int) -> decltype(std::declval<_R&>().size());
+__check_size(int) -> decltype(std::declval<_R&>().get_count());
 
 template <typename _R>
 auto
-__check_size(long) -> decltype(std::declval<_R&>().get_count());
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _R>
-auto
-__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
+__check_size(long) -> decltype(oneapi::dpl::__ranges::__size(std::declval<_R&>()));
 
 template <typename _It>
 auto
-__check_size(...) -> typename std::iterator_traits<_It>::difference_type;
+__check_size(long long) -> typename std::iterator_traits<_It>::difference_type;
+
+template <typename _R>
+auto
+__check_size(...)
+{
+    //static_assert should always fail when this overload is chosen, so its condition must depend on
+    //the template parameter and evaluate to false
+    static_assert(std::is_same_v<_R, void>,
+        "error: the range has no 'get_count' or `size` or `begin/end` methods or `difference_type` type");
+}
 
 template <typename _R>
 using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
@@ -155,62 +222,6 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 
 namespace __ranges
 {
-
-template <typename _R, typename = void>
-struct __has_size : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
-{
-};
-
-template <typename _Range>
-auto
-__size(_Range&& __rng)
-{
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::size(__rng);
-#else
-    if constexpr (__has_size<_Range>::value)
-    {
-        return __rng.size();
-    }
-    else
-    {
-        return std::distance(__begin(__rng), __end(__rng));
-    }
-#endif
-}
-
-template <typename _R, typename = void>
-struct __has_empty : std::false_type
-{
-};
-
-template <typename _R>
-struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
-{
-};
-
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-#if _ONEDPL_CPP20_RANGES_PRESENT
-    return std::ranges::empty(__rng);
-#else
-    if constexpr (__has_empty<_Range>::value)
-    {
-        return __rng.empty();
-    }
-    else
-    {
-        return __size(__rng) == 0;
-    }
-#endif
-}
 
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;

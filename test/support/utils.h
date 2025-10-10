@@ -1352,23 +1352,23 @@ struct MinimalisticRange
 
 template <typename ForwardIterator>
 ForwardIterator
-begin(MinimalisticRange<ForwardIterator>& rng)
+begin(MinimalisticRange<ForwardIterator> rng)
 {
     return rng.it_begin;
 }
 
 template <typename ForwardIterator>
 ForwardIterator
-end(MinimalisticRange<ForwardIterator>& rng)
+end(MinimalisticRange<ForwardIterator> rng)
 {
     return rng.it_end;
 }
 
 template <typename ForwardIterator>
 auto
-size(MinimalisticRange<ForwardIterator>& rng)
+size(MinimalisticRange<ForwardIterator> rng)
 {
-    return std::ranges::distance(rng.it_begin, rng.it_end);
+    return std::distance(rng.it_begin, rng.it_end);
 }
 
 #if _ENABLE_STD_RANGES_TESTING
