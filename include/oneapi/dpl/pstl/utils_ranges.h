@@ -80,7 +80,7 @@ get_value_type(int) -> typename ::std::decay_t<_R>::value_type;
 template <typename _R>
 auto
 get_value_type(long) -> typename std::iterator_traits<
-    std::decay_t<decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()))>>::value_type;
+                         std::decay_t<decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()))>>::value_type;
 
 template <typename _It>
 auto
