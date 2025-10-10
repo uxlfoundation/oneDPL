@@ -1351,14 +1351,14 @@ struct MinimalisticRange
 
 template <typename ForwardIterator>
 ForwardIterator
-begin(const MinimalisticRange<ForwardIterator>& rng)
+begin(MinimalisticRange<ForwardIterator>& rng)
 {
     return rng.it_begin;
 }
 
 template <typename ForwardIterator>
 ForwardIterator
-end(const MinimalisticRange<ForwardIterator>& rng)
+end(MinimalisticRange<ForwardIterator>& rng)
 {
     return rng.it_end;
 }
