@@ -71,11 +71,10 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
     assert(std::ranges::size(__in_r) <= std::ranges::size(__out_r)); // for debug purposes only
 
-    oneapi::dpl::__internal::__unary_op<_F, _Proj> __unary_op{__op, __proj};
+    oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__unary_op<_F, _Proj>> __f{{__op, __proj}};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
-        std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r),
-        oneapi::dpl::__internal::__transform_functor<decltype(__unary_op)>{std::move(__unary_op)});
+        std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r), __f);
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _F, typename _Proj>
@@ -98,11 +97,12 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2> __f{__binary_op, __proj1, __proj2};
+    oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__binary_op<_F, _Proj1, _Proj2>>
+        __f{{__binary_op, __proj1, __proj2}};
 
     oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
         std::ranges::begin(__in_r1) + std::ranges::size(__in_r1), std::ranges::begin(__in_r2),
-        std::ranges::begin(__out_r), oneapi::dpl::__internal::__transform_functor<decltype(__f)>{std::move(__f)});
+        std::ranges::begin(__out_r), __f);
 }
 
 template<typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -566,13 +566,13 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 {
     auto __it_in = std::ranges::begin(__in_r);
     auto __it_out = std::ranges::begin(__out_r);
-    for(; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
+    for (; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
     {
-         if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
-         {
-             *__it_out = *__it_in;
-             ++__it_out;
-         }
+        if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
+        {
+            *__it_out = *__it_in;
+            ++__it_out;
+        }
     }
 
     return {__it_in, __it_out};
