@@ -184,7 +184,7 @@ using __range_size_t = typename __range_size<_R>::type;
 
 template <typename _R>
 auto
-__check_size(int) -> decltype(std::declval<_R&>().get_count());
+__check_size(int) -> decltype(__get_buffer_size(std::declval<_R&>()));
 
 template <typename _R>
 auto
