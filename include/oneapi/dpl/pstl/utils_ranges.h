@@ -806,18 +806,7 @@ struct __subscription_impl_view_simple : _Base
     auto
     size() const
     {
-        if constexpr (__has_size<_Base>::value)
-        {
-            return _Base::size();
-        }
-        else
-        {
-#if _ONEDPL_CPP20_RANGES_PRESENT
-            return oneapi::dpl::__ranges::__size(*static_cast<const _Base*>(this));
-#else
-            return std::distance(__begin(*static_cast<const _Base*>(this)), __end(*static_cast<const _Base*>(this)));
-#endif
-        }
+        return oneapi::dpl::__ranges::__size(*static_cast<const _Base*>(this));
     }
 };
 
