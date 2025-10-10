@@ -1308,23 +1308,6 @@ __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputI
     }
 }
 
-template <class _ForwardIterator, class _OutputIterator, class _Bound, class _Assigner>
-std::pair<_ForwardIterator, _OutputIterator>
-__brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _Bound __m,
-                     bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
-{
-    for (; __first != __last && __m >= 0; ++__first, ++__mask)
-    {
-        if (*__mask)
-        {
-            __assigner(__first, __result);
-            ++__result;
-            --__m;
-        }
-    }
-    return {__first, __result};
-}
-
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Assigner>
 void
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
@@ -1338,12 +1321,30 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
-__brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                     _Bound __m, bool* __restrict __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
+std::pair<_Bound, _Bound>
+__brick_copy_by_mask_limited(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
+                     bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
+{
+    _Bound __i = 0, __j = 0;
+    for (; __i < __in_len && __j < __out_len; ++__i, (void)++__first)
+    {
+        if (__mask[__i])
+        {
+            __assigner(__first, __result);
+            ++__j;
+            ++ __result;
+        }
+    }
+    return {__i, __j};
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+std::pair<_Bound, _Bound>
+__brick_copy_by_mask_limited(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
+                     bool* __restrict __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    std::iterator_traits<_RandomAccessIterator1>::difference_type __n = __last - __first;
+    _Bound __n = __in_len, __m = __out_len;
     while (__m > 0 && __m < __n)
     {
         _Bound __copied = __unseq_backend::__simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
@@ -1355,11 +1356,11 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
     if (__m > 0) // enough space left for the rest
     {
         __result += __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
-        __first += __n;
     }
-    return {__first, __result};
+    return {__in_len - __n, __out_len - __m};
 #else
-    return __internal::__brick_copy_by_mask(__first, __last, __result, __m, __mask, __assigner, std::false_type());
+    return __internal::__brick_copy_by_mask_limited(__first, __in_len, __result, __out_len, __mask, __assigner,
+                                                    std::false_type());
 #endif
 }
 
@@ -1474,10 +1475,9 @@ __pattern_limited_copy_if(_Tag, _ExecutionPolicy&& __exec, _RandomAccessIterator
                     std::plus<_DifferenceType>(), // Combine
                     [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial,
                         _DifferenceType __len_out) { // Scan
-                        auto res = __internal::__brick_copy_by_mask(
-                            __first + __i, __first + (__i + __len), __result + __initial, __len_out, __mask + __i,
+                        return __internal::__brick_copy_by_mask_limited(
+                            __first + __i, __len, __result + __initial, __len_out, __mask + __i,
                             [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, __is_vector{});
-                        return std::make_pair(res.first - (__first + __i), res.second - (__result + __initial));
                     },
                     [&__res_in, &__res_out](auto __total_in, auto __total_out) { // Apex
                         __res_in = __total_in; __res_out = __total_out;
