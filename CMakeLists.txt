@@ -227,6 +227,9 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
 
+        #DPC++ specific compiler options
+        target_compile_options(oneDPL INTERFACE ${FSYCL_OPTION_IF_SUPPORTED})
+
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
             if(ONEDPL_USE_UNNAMED_LAMBDA)
                 message(STATUS "Adding -fsycl-unnamed-lambda option")
