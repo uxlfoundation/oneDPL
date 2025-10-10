@@ -459,6 +459,7 @@ __parallel_strict_scan(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
         // Fewer than 2 elements in sequence, or out of memory.  Handle has single block.
         if (__n)
         {
+            __reduce(_Index(0), __n);
             auto __res = __scan(_Index(0), __n, __initial, __n_out);
             __apex(__res.first, __res.second);
         }
