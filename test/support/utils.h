@@ -1342,6 +1342,9 @@ struct NoDefaultCtorWrapper {
 
 ////////////////////////////////////////////////////////////////////////////////
 // A minimalistic range that only provides begin() and end() methods as free functions.
+// We tests struct MinimalisticRange only with free standing functions begin() and end().
+// It's enough because begin() and end() methods are covered pretty much everywhere else,
+// e.g. with std::vector as a range.
 template <typename ForwardIterator>
 struct MinimalisticRange
 {
