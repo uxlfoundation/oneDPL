@@ -1381,14 +1381,6 @@ end(Range&& rng) -> decltype(rng.it_end)
     return rng.it_end;
 }
 
-template <typename Range>
-    requires MinimalisticRangeType<Range>
-auto
-size(Range&& rng) -> decltype(std::distance(rng.it_begin, rng.it_end))
-{
-    return std::distance(rng.it_begin, rng.it_end);
-}
-
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticRange<IteratorOfIntVector>;
 
@@ -1403,12 +1395,6 @@ static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRang
 static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
 static_assert(std::is_same_v< decltype(end  (std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
 static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
-
-// Check all forms of size() function
-static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec  >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
-static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec& >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
-static_assert(std::is_same_v< decltype(size (std::declval<const MinimalisticRangeForIntVec& >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
-static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec&&>())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
 
 static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
 
