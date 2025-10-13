@@ -544,6 +544,37 @@ __pattern_copy(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _I
 // pattern_copy_if
 //---------------------------------------------------------------------------------------------------------------------
 
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
+{
+    auto __it_in = std::ranges::begin(__in_r);
+    auto __it_out = std::ranges::begin(__out_r);
+    for (; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
+    {
+        if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
+        {
+            *__it_out = *__it_in;
+            ++__it_out;
+        }
+    }
+
+    return {__it_in, __it_out};
+}
+
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
+std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
+__pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
+{
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(std::ranges::begin(__in_r),
+        std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
+        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}, /*vector=*/std::true_type{});
+
+    return {__res.first, __res.second};
+}
+
 template <typename _IsVector, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
 std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
@@ -564,37 +595,6 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __pattern_copy_if_ranges(__serial_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
             std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r), __pred, __proj);
     }
-}
-
-template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
-std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _InRange&& __in_r,
-                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
-{
-    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(std::ranges::begin(__in_r),
-        std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}, /*vector=*/std::true_type{});
-
-    return {__res.first, __res.second};
-}
-
-template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
-std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __in_r,
-                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
-{
-    auto __it_in = std::ranges::begin(__in_r);
-    auto __it_out = std::ranges::begin(__out_r);
-    for (; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
-    {
-        if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
-        {
-            *__it_out = *__it_in;
-            ++__it_out;
-        }
-    }
-
-    return {__it_in, __it_out};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
