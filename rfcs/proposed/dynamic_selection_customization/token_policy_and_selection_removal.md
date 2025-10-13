@@ -103,12 +103,14 @@ Beyond simplifying the public interface and requirements, these changes may prov
 	- We lose the ability to select and never submit to that selection.
 
 - Should we allow per-resource capacities rather than fixed capacities?
+  - This is probably worthwhile, and should not be difficult to implement.
 
 - Bigger design alternative to TokenPolicy (feedback from presentation 10/9/2025):
-  - Shift responsibility of resource availability to the backend resource / backend, not policy. Policy becomes only about selection from available resources.
-    - Policy is only responsible for selection between available resources.
-    - Any selection mechanism (policy) can have scarce resources, and submission must be required to deal with that.
-    - Add get_resource_and_submit() which always suceeds, returns a waitable type but waits for a resource to be available and returns once job is submitted.
-    - Adjust asynchronous submit() to try_submit(), which may fail, but always returns quickly.
-    - submit_and_wait() stays as is.
-    - Use dynamic load after changes with limited resource availability
+  Shift the responsibility of resource availability to the backend resource or backend, not policy. Policy becomes only about selection from available resource. Any selection mechanism (policy) can have resources with capacity caps. Use dynamic load after changes with limited resource availability in the backend or resources directly.
+  - Declinin this feedback as it goes against previous decision to keep universes static for the length of the program, and the cost of redesign is too high to consider at this time. 
+
+- Should we consider other flavors of submission variants?
+  - Refactor public API contract for policies to now have 3 submission variants:
+    - 1) `try_submit()`: Attempts to submit a job, and always returns quickly. It may fail if a resource is unavailable, and returns a pair of a boolean and submission object.
+    - 2) `submit()`: Waits for a resource to be available, submits a job, returns a waitable submission object.
+    - 3) `submit_and_wait()`: waits for a resource to be available, submits a job and waits for the completion before returning. 
