@@ -1352,6 +1352,7 @@ struct MinimalisticRange
     ForwardIterator it_end;
 };
 
+#if _MSC_VER
 template <class, template <class...> class>
 struct is_specialization_of : std::false_type
 {
@@ -1380,6 +1381,23 @@ end(Range&& rng) -> decltype(rng.it_end)
 {
     return rng.it_end;
 }
+#else
+// There is a possible bug in libstdc++ 13 and older, libc++ 18 and older,
+// which results in non-satisfied std::ranges::range concept with begin(r&&) and end(r&&) free functions.
+template <typename ForwardIterator>
+auto
+begin(MinimalisticRange<ForwardIterator> rng) -> decltype(rng.it_begin)
+{
+    return rng.it_begin;
+}
+
+template <typename ForwardIterator>
+auto
+end(MinimalisticRange<ForwardIterator> rng) -> decltype(rng.it_end)
+{
+    return rng.it_end;
+}
+#endif
 
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticRange<IteratorOfIntVector>;
