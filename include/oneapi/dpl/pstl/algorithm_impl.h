@@ -1230,7 +1230,8 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
         __m -= __stop - __result;
         __result = __stop;
     }
-    if (__n > 0 && __m >= __n) // enough space left for the rest
+    // The loop above may not decrease __m or __n below 0
+    if (__m >= __n) // enough space left for the rest
     {
         __result = __brick_copy_if(__first, __first + __n, __result, __pred, std::true_type{});
         __first += __n;
@@ -1330,7 +1331,8 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
         __m -= __copied;
         __result += __copied;
     }
-    if (__n > 0 && __m >= n) // enough space left for the rest
+    // The loop above may not decrease __m or __n below 0
+    if (__m >= n) // enough space left for the rest
     {
         __result += __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
     }
