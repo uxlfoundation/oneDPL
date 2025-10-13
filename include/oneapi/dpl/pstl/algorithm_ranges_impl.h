@@ -550,7 +550,7 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
-    auto __res = oneapi::dpl::__internal::__pattern_limited_copy_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+    auto __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(__tag, std::forward<_ExecutionPolicy>(__exec),
         std::ranges::begin(__in_r), std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
         oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 
