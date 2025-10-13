@@ -30,13 +30,29 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+template <typename Policy>
+auto
+createVector(Policy policy)
+{
+    if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value)
+    {
+        return std::vector<int>();
+    }
+    else
+    {
+        return std::vector<int, typename sycl::usm_allocator<int, sycl::usm::alloc::shared>>(
+            typename sycl::usm_allocator<int, sycl::usm::alloc::shared>(policy.queue()));
+    }
+}
+
 struct test_count
 {
     template <typename Policy>
     void
     operator()(Policy policy)
     {
-        std::vector<int> v = {0, 1, 2, 3, 4, 5};
+        auto v = createVector(policy);
+        v = {0, 1, 2, 3, 4, 5};
 
         TestUtils::MinimalisticRange r{v.begin(), v.end()};
         auto count = oneapi::dpl::ranges::count(policy, r, 3);
@@ -51,10 +67,13 @@ struct test_merge
     void
     operator()(Policy policy)
     {
-        std::vector<int> v1 = {0, 2, 4, 6, 8, 10};
-        std::vector<int> v2 = {1, 3, 5, 7, 9, 11};
+        auto v1 = createVector(policy);
+        auto v2 = createVector(policy);
+        auto v3 = createVector(policy);
+        v1 = {0, 2, 4, 6, 8, 10};
+        v2 = {1, 3, 5, 7, 9, 11};
+        v3.resize(12, 42);
         std::vector<int> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-        std::vector<int> v3(12, 42);
 
         TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
         TestUtils::MinimalisticRange r2{v2.begin(), v2.end()};
@@ -72,8 +91,10 @@ struct test_copy_if
     void
     operator()(Policy policy)
     {
-        std::vector<int> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<int> v3(6);
+        auto v1 = createVector(policy);
+        v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        auto v3 = createVector(policy);
+        v3.resize(6);
         std::vector<int> v3_expected = {0, 2, 4, 6, 8, 10};
 
         TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
@@ -92,9 +113,12 @@ struct test_transform
     void
     operator()(Policy policy)
     {
-        std::vector<int> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<int> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<int> v3(v1.size());
+        auto v1 = createVector(policy);
+        v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        auto v2 = createVector(policy);
+        v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        auto v3 = createVector(policy);
+        v3.resize(v1.size());
         std::vector<int> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
         TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
