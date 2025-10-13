@@ -39,7 +39,7 @@ namespace __ranges
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 auto
-__begin(_Range&& __rng) -> decltype(std::ranges::begin(__rng))
+__begin(_Range&& __rng) -> decltype(std::ranges::begin(std::forward<_Range>(__rng)))
 {
     return std::ranges::begin(std::forward<_Range>(__rng));
 }
