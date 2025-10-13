@@ -1340,6 +1340,8 @@ struct NoDefaultCtorWrapper {
     }
 };
 
+#if _ENABLE_STD_RANGES_TESTING
+
 // A minimalistic range to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
 // which are not required for a class to be considered a range.
 // Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
@@ -1350,30 +1352,66 @@ struct MinimalisticRange
     ForwardIterator it_end;
 };
 
+template <class, template <class...> class>
+struct is_specialization_of : std::false_type
+{
+};
+
+template <class... Args,  template <class...> class Impl>
+struct is_specialization_of<Impl<Args...>, Impl> : std::true_type
+{
+};
+
+template <typename T>
+concept MinimalisticRangeType = is_specialization_of<std::remove_cvref_t<T>, MinimalisticRange>::value;
+
 template <typename Range>
+    requires MinimalisticRangeType<Range>
 auto
-begin(Range&& rng)
+begin(Range&& rng) -> decltype(rng.it_begin)
 {
     return rng.it_begin;
 }
 
 template <typename Range>
+    requires MinimalisticRangeType<Range>
 auto
-end(Range&& rng)
+end(Range&& rng) -> decltype(rng.it_end)
 {
     return rng.it_end;
 }
 
 template <typename Range>
+    requires MinimalisticRangeType<Range>
 auto
-size(Range&& rng)
+size(Range&& rng) -> decltype(std::distance(rng.it_begin, rng.it_end))
 {
     return std::distance(rng.it_begin, rng.it_end);
 }
 
-#if _ENABLE_STD_RANGES_TESTING
+using IteratorOfIntVector = typename std::vector<int>::iterator;
+using MinimalisticRangeForIntVec = MinimalisticRange<IteratorOfIntVector>;
+
+// Check all forms of begin() function
+static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec>  ())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(begin(std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
+
+// Check all forms of end() function
+static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec  >())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(end  (std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
+
+// Check all forms of size() function
+static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec  >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
+static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec& >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
+static_assert(std::is_same_v< decltype(size (std::declval<const MinimalisticRangeForIntVec& >())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
+static_assert(std::is_same_v< decltype(size (std::declval<      MinimalisticRangeForIntVec&&>())), typename std::iterator_traits<IteratorOfIntVector>::difference_type>);
 
 static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
+
 // All oneDPL algorithms require at least a random access range
 static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
 
