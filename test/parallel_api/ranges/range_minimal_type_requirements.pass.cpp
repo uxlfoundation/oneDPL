@@ -40,8 +40,12 @@ createVector(Policy policy)
     }
     else
     {
+#if TEST_DPCPP_BACKEND_PRESENT
         return std::vector<int, typename sycl::usm_allocator<int, sycl::usm::alloc::shared>>(
             typename sycl::usm_allocator<int, sycl::usm::alloc::shared>(policy.queue()));
+#else
+        static_assert(false, "Unknown policy type");
+#endif
     }
 }
 
