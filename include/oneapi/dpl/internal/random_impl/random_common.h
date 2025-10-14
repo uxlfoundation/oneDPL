@@ -44,13 +44,41 @@ struct type_traits_t<sycl::vec<_T, _N>>
 template <typename _T>
 using element_type_t = typename type_traits_t<_T>::element_type;
 
-typedef union {
+typedef union
+{
     uint32_t hex[2];
 } dp_union_t;
 
-typedef union {
+typedef union
+{
     uint32_t hex[1];
 } sp_union_t;
+
+template <class _CharT, class _Traits>
+class save_stream_flags
+{
+    using __stream_type = std::basic_ios<_CharT, _Traits>;
+
+  public:
+    save_stream_flags(const save_stream_flags&) = delete;
+    save_stream_flags&
+    operator=(const save_stream_flags&) = delete;
+
+    explicit save_stream_flags(__stream_type& __stream)
+        : __fmtflags_(__stream.flags()), __stream_(__stream), __fill_(__stream.fill())
+    {
+    }
+    ~save_stream_flags()
+    {
+        __stream_.flags(__fmtflags_);
+        __stream_.fill(__fill_);
+    }
+
+  private:
+    typename __stream_type::fmtflags __fmtflags_;
+    __stream_type& __stream_;
+    _CharT __fill_;
+};
 
 } // namespace internal
 } // namespace dpl

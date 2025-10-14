@@ -19,6 +19,11 @@
 #include "ranges/nanorange.hpp"
 #include "ranges/nanorange_ext.h"
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#include <ranges>
+#endif
+
+#include "utils_ranges.h"
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/utils_ranges_sycl.h"
 #endif
@@ -27,13 +32,16 @@ namespace oneapi
 {
 namespace dpl
 {
+
 namespace experimental
 {
 namespace ranges
 {
 
 //custom views
+#if _ONEDPL_BACKEND_SYCL
 using oneapi::dpl::__ranges::all_view;
+#endif // _ONEDPL_BACKEND_SYCL
 using oneapi::dpl::__ranges::guard_view;
 using oneapi::dpl::__ranges::zip_view;
 
@@ -47,11 +55,12 @@ using __nanorange::nano::ranges::transform_view;
 //adaptors
 namespace views
 {
+#if _ONEDPL_BACKEND_SYCL
 using oneapi::dpl::__ranges::views::all;
 using oneapi::dpl::__ranges::views::all_read;
 using oneapi::dpl::__ranges::views::all_write;
-
 using oneapi::dpl::__ranges::views::host_all;
+#endif // _ONEDPL_BACKEND_SYCL
 
 using __nanorange::nano::views::drop;
 using __nanorange::nano::views::fill;

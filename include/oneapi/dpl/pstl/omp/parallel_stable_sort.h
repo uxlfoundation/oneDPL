@@ -54,7 +54,7 @@ __parallel_move_range(_RandomAccessIterator __first1, _RandomAccessIterator __la
     // Perform parallel moving of larger chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first1, __last1);
 
-    _PSTL_PRAGMA(omp taskloop)
+    _ONEDPL_PRAGMA(omp taskloop)
     for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
     {
         oneapi::dpl::__omp_backend::__process_chunk(__policy, __first1, __chunk,
@@ -123,8 +123,9 @@ __parallel_stable_sort_body(_RandomAccessIterator __xs, _RandomAccessIterator __
 
 template <class _ExecutionPolicy, typename _RandomAccessIterator, typename _Compare, typename _LeafSort>
 void
-__parallel_stable_sort(_ExecutionPolicy&& /*__exec*/, _RandomAccessIterator __xs, _RandomAccessIterator __xe,
-                       _Compare __comp, _LeafSort __leaf_sort, std::size_t __nsort = 0)
+__parallel_stable_sort(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& /*__exec*/,
+                       _RandomAccessIterator __xs, _RandomAccessIterator __xe, _Compare __comp, _LeafSort __leaf_sort,
+                       std::size_t __nsort = 0)
 {
     auto __count = static_cast<std::size_t>(__xe - __xs);
     if (__count <= __default_chunk_size || __nsort < __count)
@@ -149,8 +150,8 @@ __parallel_stable_sort(_ExecutionPolicy&& /*__exec*/, _RandomAccessIterator __xs
     }
     else
     {
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait)
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait)
         if (__count <= __nsort)
         {
             oneapi::dpl::__omp_backend::__parallel_stable_sort_body(__xs, __xe, __comp, __leaf_sort);

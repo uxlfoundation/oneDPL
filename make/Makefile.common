@@ -55,7 +55,7 @@ ranges_api ?= 0
 
 ifeq ($(backend), sycl)
     ifeq ($(findstring FPGA, $(device_type)),)
-        export SYCL_DEVICE_FILTER=$(device_type)
+        export ONEAPI_DEVICE_SELECTOR=*:$(device_type)
     endif
 endif
 

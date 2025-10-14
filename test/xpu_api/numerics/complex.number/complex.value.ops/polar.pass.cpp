@@ -55,8 +55,10 @@ void test_edges()
         case zero:
             if (std::signbit(r) || classify(theta) == inf || classify(theta) == NaN)
             {
+#if !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES         // testcases[59]
                 int c = classify(z);
                 assert(c == NaN || c == non_zero_nan);
+#endif // !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
             }
             else
             {
@@ -66,27 +68,35 @@ void test_edges()
         case non_zero:
             if (std::signbit(r) || classify(theta) == inf || classify(theta) == NaN)
             {
+#if !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES         // testcases[1]
                 int c = classify(z);
                 assert(c == NaN || c == non_zero_nan);
+#endif // !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
             }
             else
             {
-                is_about(dpl::abs(z), r);
+                assert(is_about(dpl::abs(z), r));
             }
             break;
         case inf:
             if (r < 0)
             {
+#if !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES         // testcases[55]
                 int c = classify(z);
                 assert(c == NaN || c == non_zero_nan);
+#endif // _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
             }
             else
             {
+#if !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES         // testcases[42]
                 assert(classify(z) == inf);
+#endif // _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
                 if (classify(theta) != NaN && classify(theta) != inf)
                 {
                     assert(classify(dpl::real(z)) != NaN);
+#if !_PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES         // testcases[97]
                     assert(classify(dpl::imag(z)) != NaN);
+#endif // _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
                 }
             }
             break;
@@ -106,9 +116,7 @@ ONEDPL_TEST_NUM_MAIN
     test<float>();
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
-#ifndef _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
     IF_DOUBLE_SUPPORT(test_edges())
-#endif // _PSTL_ICC_TEST_COMPLEX_POLAR_BROKEN_TEST_EDGES
 
   return 0;
 }

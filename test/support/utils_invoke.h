@@ -16,13 +16,27 @@
 #ifndef _UTILS_INVOKE_H
 #define _UTILS_INVOKE_H
 
+#include <oneapi/dpl/execution>
+
 #include <type_traits>
+#include <mutex>            // for std::once_flag
+#include <stdexcept>        // for std::logic_error
 
 #include "iterator_utils.h"
+#include "compile_only_checks.h"
+
+#ifdef ONEDPL_USE_PREDEFINED_POLICIES
+#  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
+#else
+#  define TEST_USE_PREDEFINED_POLICIES 1
+#endif
 
 namespace TestUtils
 {
 #if TEST_DPCPP_BACKEND_PRESENT
+
+// Implemented in utils_sycl.h, required to include this file.
+sycl::queue get_test_queue();
 
 template <sycl::usm::alloc alloc_type>
 constexpr ::std::size_t
@@ -75,7 +89,199 @@ make_fpga_policy(Arg&& arg)
 }
 #endif // _ONEDPL_FPGA_DEVICE
 
+//function is needed to wrap kernel name into another class
+template <typename _NewKernelName, typename _Policy,
+          oneapi::dpl::__internal::__enable_if_device_execution_policy<_Policy, int> = 0>
+auto
+make_new_policy(_Policy&& __exec)
+    -> decltype(TestUtils::make_device_policy<_NewKernelName>(::std::forward<_Policy>(__exec)))
+{
+    return TestUtils::make_device_policy<_NewKernelName>(std::forward<_Policy>(__exec));
+}
+
+// Return new instance of non-hetero policy
+template <typename _NewKernelName, typename _Policy>
+std::enable_if_t<!oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<_Policy>>, std::decay_t<_Policy>>
+make_new_policy(_Policy&& __exec)
+{
+    return __exec;
+}
+
+#if ONEDPL_FPGA_DEVICE
+template <typename _NewKernelName, typename _Policy,
+          oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
+auto
+make_new_policy(_Policy&& __exec)
+    -> decltype(TestUtils::make_fpga_policy<::std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
+        ::std::forward<_Policy>(__exec)))
+{
+    return TestUtils::make_fpga_policy<std::decay_t<_Policy>::unroll_factor, _NewKernelName>(
+        std::forward<_Policy>(__exec));
+}
+#endif
+
+template<typename KernelName>
+auto
+make_new_policy(sycl::queue _queue)
+{
+#if ONEDPL_FPGA_DEVICE
+    return TestUtils::make_fpga_policy</*unroll_factor = */ 1, KernelName>(_queue);
+#else
+    return TestUtils::make_device_policy<KernelName>(_queue);
+#endif
+}
+
+template <typename OutputStream>
+inline void
+log_device_name(OutputStream& os, const sycl::queue& queue);
+
+struct TestPolicyName;
+
+template <int call_id = 0, typename PolicyName = TestPolicyName>
+auto
+get_dpcpp_test_policy()
+{
+    using _NewKernelName = TestUtils::new_kernel_name<PolicyName, call_id>;
+
+    const auto& __arg =
+#    if TEST_USE_PREDEFINED_POLICIES
+#        if ONEDPL_FPGA_DEVICE
+        oneapi::dpl::execution::dpcpp_fpga;
+#        else
+        oneapi::dpl::execution::dpcpp_default;
+#        endif // ONEDPL_FPGA_DEVICE
+#    else
+        get_test_queue();
+#    endif // TEST_USE_PREDEFINED_POLICIES
+
+    try
+    {
+        auto policy = TestUtils::make_new_policy<_NewKernelName>(__arg);
+
+#    if _ONEDPL_DEBUG_SYCL
+
+        static std::once_flag device_name_in_get_dpcpp_test_policy_logged;
+
+        std::call_once(device_name_in_get_dpcpp_test_policy_logged, [&]() {
+            TestUtils::log_device_name(std::cout, policy.queue());
+        });
+#    endif // _ONEDPL_DEBUG_SYCL
+
+        return policy;
+    }
+    catch (const std::exception& exc)
+    {
+        std::cerr << "Exception occurred in get_dpcpp_test_policy()";
+        if (exc.what())
+            std::cerr << ": " << exc.what();
+        std::cerr << std::endl;
+
+        throw;
+    }
+}
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+// struct test_policy_container - a container for policy which return saved policy
+// as l-value or r-value depends on source policy type qualifiers
+template <typename _PolicySource, typename _PolicyNew>
+struct test_policy_container
+{
+    using _PolicyNewDecayed = std::decay_t<_PolicyNew>;
+
+    // Define TestingPolicyType as a type which is either r-value or l-value reference
+    using TestingPolicyType = std::conditional_t<
+        std::is_reference_v<_PolicySource>,
+        std::conditional_t<std::is_rvalue_reference_v<_PolicySource>, _PolicyNewDecayed&&, const _PolicyNewDecayed&>,
+        _PolicyNewDecayed>;
+
+    _PolicyNewDecayed __policy_new;
+    bool __policy_new_returned = false;
+
+    test_policy_container(_PolicyNewDecayed&& __policy_new)
+        : __policy_new(std::move(__policy_new))
+    {
+    }
+
+    // Delete copy constructor to avoid copying of test_policy_container
+    test_policy_container(const test_policy_container&) = delete;
+    test_policy_container(test_policy_container&&) = delete;
+
+    // Delete assignment operator to avoid copying of test_policy_container
+    test_policy_container& operator=(const test_policy_container&) = delete;
+    test_policy_container& operator=(test_policy_container&&) = delete;
+
+    // Return testing policy
+    // Attention: this method can be called only once, because it can returns saved policy as r-value too.
+    TestingPolicyType get()
+    {
+        if (__policy_new_returned)
+            throw std::logic_error("The second call of test_policy_container::get() function");
+
+        __policy_new_returned = true;
+
+        return static_cast<TestingPolicyType>(__policy_new);
+    }
+};
+
+// Clone policy and pass cloned instance as l-value / r-value
+// depends on source policy value category.
+// The source policy state is not changed, so it can be used in the same test.
+#define CLONE_TEST_POLICY(policy_src)                                                                                  \
+        TestUtils::test_policy_container<                                                                              \
+            decltype(policy_src),                                                                                      \
+            std::decay_t<decltype(policy_src)>                                                                         \
+        >(                                                                                                             \
+            std::decay_t<decltype(policy_src)>(policy_src)                                                             \
+         ).get()
+
+#if TEST_DPCPP_BACKEND_PRESENT
+
+// Create copy of hetero policy with new name (appends idx) and pass copied instance as l-value / r-value
+// depends on source policy value category.
+// The source policy state is not changed, so it can be used in the same test
+// ATTENTION: new Kernel name generation depends on TEST_EXPLICIT_KERNEL_NAMES macro state
+#    define CLONE_TEST_POLICY_IDX(policy_src, idx)                                                                     \
+        TestUtils::test_policy_container<                                                                              \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src))    \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<TestUtils::new_kernel_name<decltype(policy_src), idx>>(policy_src)              \
+         ).get()
+
+// Create copy of hetero policy with new name and pass copied instance as l-value / r-value
+// depends on source policy value category.
+// The source policy state is not changed, so it can be used in the same test.
+#    define CLONE_TEST_POLICY_NAME(policy_src, NewKernelName)                                                          \
+        TestUtils::test_policy_container<                                                                              \
+            decltype(policy_src),                                                                                      \
+            decltype(TestUtils::make_new_policy<NewKernelName>(policy_src))                                            \
+        >(                                                                                                             \
+            TestUtils::make_new_policy<NewKernelName>(policy_src)                                                      \
+         ).get()
+
+#else
+
+// Clone policy and pass cloned instance as l-value / r-value
+// depends on source policy value category.
+// The source policy state is not changed, so it can be used in the same test.
+#    define CLONE_TEST_POLICY_IDX(policy_src, idx) CLONE_TEST_POLICY(policy_src)
+
+// Clone policy and pass cloned instance as l-value / r-value
+// depends on source policy value category.
+// The source policy state is not changed, so it can be used in the same test.
+#    define CLONE_TEST_POLICY_NAME(policy_src, NewKernelName) CLONE_TEST_POLICY(policy_src)
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+template <typename Policy, typename Op, typename... Args>
+void 
+invoke_on_all_iterator_t_and_check_compilation(Policy&& policy, Op&& op, Args&&... rest)
+{
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+    TestUtils::check_compilation_no_comma(policy, op, rest...);
+#endif
+    invoke_on_all_iterator_types()(std::forward<Policy>(policy), std::forward<Op>(op), std::forward<Args>(rest)...);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Invoke op(policy,rest...) for each non-hetero policy.
@@ -89,9 +295,9 @@ struct invoke_on_all_host_policies
 
 #if !TEST_ONLY_HETERO_POLICIES
         // Try static execution policies
-        invoke_on_all_iterator_types()(seq,       op, rest...);
-        invoke_on_all_iterator_types()(unseq,     op, rest...);
-        invoke_on_all_iterator_types()(par,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(seq,       op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(unseq,     op, rest...);
+        invoke_on_all_iterator_t_and_check_compilation(par,       op, rest...);
 #if __SYCL_PSTL_OFFLOAD__
         // If standard library does not provide the par_unseq policy, oneDPL would inject
         // oneDPL par_unseq policy into namespace STD and since std::execution::par_unseq
@@ -99,15 +305,12 @@ struct invoke_on_all_host_policies
         if constexpr (!std::is_same_v<oneapi::dpl::execution::parallel_unsequenced_policy,
                                       std::execution::parallel_unsequenced_policy>)
 #endif // __SYCL_PSTL_OFFLOAD__
-            invoke_on_all_iterator_types()(par_unseq, op, ::std::forward<T>(rest)...);
+            invoke_on_all_iterator_t_and_check_compilation(par_unseq, op, ::std::forward<T>(rest)...);
 #endif
     }
 };
 
 #if TEST_DPCPP_BACKEND_PRESENT
-
-// Implemented in utils_sycl.h, required to include this file.
-sycl::queue get_test_queue();
 
 ////////////////////////////////////////////////////////////////////////////////
 // check fp16/fp64 support by a device
@@ -157,21 +360,22 @@ inline void unsupported_types_notifier(const sycl::device& device)
     }
 }
 
+
 // Invoke test::operator()(policy,rest...) for each possible policy.
 template <::std::size_t CallNumber = 0>
 struct invoke_on_all_hetero_policies
 {
-    sycl::queue queue;
-
-    invoke_on_all_hetero_policies(sycl::queue _queue = get_test_queue())
-        : queue(_queue)
-    {
-    }
-
     template <typename Op, typename... Args>
     void
     operator()(Op op, Args&&... rest)
     {
+        auto my_policy = get_dpcpp_test_policy<CallNumber, Op>();
+
+        auto cloned_policy0 = CLONE_TEST_POLICY_IDX(my_policy, 0);
+        auto cloned_policy1 = CLONE_TEST_POLICY_IDX(my_policy, 1);
+
+        sycl::queue queue = my_policy.queue();
+
         // Device may not support some types, e.g. double or sycl::half; test if they are supported or skip otherwise
         if (has_types_support<::std::decay_t<Args>...>(queue.get_device()))
         {
@@ -181,15 +385,22 @@ struct invoke_on_all_hetero_policies
             // For example, param<int*>. In this case the runtime interpreters it as a memory object and
             // performs some checks that fail. As a workaround, define for functors which have this issue
             // __functor_type(see kernel_type definition) type field which doesn't have any pointers in it's name.
-            using kernel_name = unique_kernel_name<Op, CallNumber>;
-            auto my_policy =
-#if ONEDPL_FPGA_DEVICE
-                TestUtils::make_fpga_policy</*unroll_factor = */ 1, kernel_name>(queue);
-#else
-                TestUtils::make_device_policy<kernel_name>(queue);
+            iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                cloned_policy0, op, std::forward<Args>(rest)...);
+
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+            // Check compilation of the kernel with different policy type qualifiers
+            check_compilation(cloned_policy0, [&](auto&& __policy) {
+                iterator_invoker<std::random_access_iterator_tag, /*IsReverse*/ std::false_type>()(
+                    std::forward<decltype(__policy)>(__policy), op, std::forward<Args>(rest)...);
+            });
+#endif // TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+
+#if TEST_CHECK_COMPILATION_WITH_COMMA_OP_DELETED_ITERS
+            // Check compilation of the kernel with comma operator deleted iterators.
+            TestUtils::check_compilation_no_comma(cloned_policy1, op, rest...);
 #endif
-            iterator_invoker<::std::random_access_iterator_tag, /*IsReverse*/ ::std::false_type>()(
-                my_policy, op, ::std::forward<Args>(rest)...);
+
         }
         else
         {

@@ -33,8 +33,6 @@
 
 #define TEST_IGNORE_NODISCARD (void)
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 template <class It>
 bool
 test(It i)
@@ -78,15 +76,12 @@ kernel_test()
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of dpl::move_iterator / dpl::make_move_iterator in kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

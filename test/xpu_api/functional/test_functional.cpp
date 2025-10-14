@@ -16,37 +16,15 @@
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/numeric>
-
 #include <oneapi/dpl/iterator>
-
 #include <oneapi/dpl/functional>
 
-#include <iostream>
+#include <vector>
 
-#ifndef ONEDPL_STANDARD_POLICIES_ONLY
-#    if __has_include(<sycl/sycl.hpp>)
-#        include <sycl/sycl.hpp>
-#    else
-#        include <CL/sycl.hpp>
-#    endif
-#else
-#    include <vector>
-#endif
+#include "support/utils.h"
 
-template<typename Iterator, typename T>
-bool check_values(Iterator first, Iterator last, const T& val)
+int main()
 {
-    return std::all_of(first, last,
-                       [&val](const T& x) { return x == val; });
-}
-
-
-template<typename _T1, typename _T2> void ASSERT_EQUAL(_T1&& X, _T2&& Y) {
-    if(X!=Y)
-        std::cout << "CHECK CORRECTNESS (PSTL WITH SYCL): fail (" << X << "," << Y << ")" << std::endl;
-}
-
-int main() {
 
 #ifdef ONEDPL_STANDARD_POLICIES_ONLY
     {
@@ -59,7 +37,7 @@ int main() {
 
         auto t = std::copy_if( oneapi::dpl::execution::par, data.begin(), data.end(), result.begin(), oneapi::dpl::identity() );
 
-        ASSERT_EQUAL(std::distance(result.begin(),t),4);
+        EXPECT_EQ(std::distance(result.begin(), t), 4, "Wrong distance");
     }
 
     {
@@ -72,14 +50,14 @@ int main() {
 
         std::exclusive_scan( oneapi::dpl::execution::par, data.begin(), data.begin() + 8, result.begin(), T(0) , oneapi::dpl::minimum<T>() );
 
-        ASSERT_EQUAL(result[0], 0);
-        ASSERT_EQUAL(result[1], 0);
-        ASSERT_EQUAL(result[2], -1);
-        ASSERT_EQUAL(result[3], -4);
-        ASSERT_EQUAL(result[4], -4);
-        ASSERT_EQUAL(result[5], -5);
-        ASSERT_EQUAL(result[6], -9);
-        ASSERT_EQUAL(result[7], -9);
+        EXPECT_EQ(result[0], 0, "#1");
+        EXPECT_EQ(result[1], 0, "#1");
+        EXPECT_EQ(result[2], -1, "#1");
+        EXPECT_EQ(result[3], -4, "#1");
+        EXPECT_EQ(result[4], -4, "#1");
+        EXPECT_EQ(result[5], -5, "#1");
+        EXPECT_EQ(result[6], -9, "#1");
+        EXPECT_EQ(result[7], -9, "#1");
     }
 
     {
@@ -92,14 +70,14 @@ int main() {
 
         std::exclusive_scan( oneapi::dpl::execution::par, data.begin(), data.begin() + 8, result.begin(), T(0) , oneapi::dpl::maximum<T>() );
 
-        ASSERT_EQUAL(result[0], 0);
-        ASSERT_EQUAL(result[1], 0);
-        ASSERT_EQUAL(result[2], 1);
-        ASSERT_EQUAL(result[3], 4);
-        ASSERT_EQUAL(result[4], 4);
-        ASSERT_EQUAL(result[5], 5);
-        ASSERT_EQUAL(result[6], 9);
-        ASSERT_EQUAL(result[7], 9);
+        EXPECT_EQ(result[0], 0, "#1");
+        EXPECT_EQ(result[1], 0, "#1");
+        EXPECT_EQ(result[2], 1, "#1");
+        EXPECT_EQ(result[3], 4, "#1");
+        EXPECT_EQ(result[4], 4, "#1");
+        EXPECT_EQ(result[5], 5, "#1");
+        EXPECT_EQ(result[6], 9, "#1");
+        EXPECT_EQ(result[7], 9, "#1");
 
     }
 #else
@@ -129,7 +107,7 @@ int main() {
 
         auto count = std::distance(result_it,t);
 
-        ASSERT_EQUAL(count,4);
+        EXPECT_EQ(count, 4, "#1");
     }
 
     /* MAXIMUM TEST: */
@@ -156,15 +134,15 @@ int main() {
         // call algorithm:
         std::exclusive_scan(new_policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::maximum<T>());
         
-        auto dst = dst_buf.template get_access<sycl::access::mode::read>();
-        ASSERT_EQUAL(dst[0], 0);
-        ASSERT_EQUAL(dst[1], 0);
-        ASSERT_EQUAL(dst[2], 1);
-        ASSERT_EQUAL(dst[3], 4);
-        ASSERT_EQUAL(dst[4], 4);
-        ASSERT_EQUAL(dst[5], 5);
-        ASSERT_EQUAL(dst[6], 9);
-        ASSERT_EQUAL(dst[7], 9);
+        auto dst = dst_buf.template get_host_access(sycl::read_only);
+        EXPECT_EQ(dst[0], 0, "#1");
+        EXPECT_EQ(dst[1], 0, "#1");
+        EXPECT_EQ(dst[2], 1, "#1");
+        EXPECT_EQ(dst[3], 4, "#1");
+        EXPECT_EQ(dst[4], 4, "#1");
+        EXPECT_EQ(dst[5], 5, "#1");
+        EXPECT_EQ(dst[6], 9, "#1");
+        EXPECT_EQ(dst[7], 9, "#1");
     }
 
     /* MINIMUM TEST: */
@@ -192,19 +170,18 @@ int main() {
         // call algorithm:
         std::exclusive_scan(new_policy, src_it, src_end_it, dst_it, T(0), oneapi::dpl::minimum<T>());
     
-        auto dst = dst_buf.template get_access<sycl::access::mode::read>();
-        ASSERT_EQUAL(dst[0], 0);
-        ASSERT_EQUAL(dst[1], 0);
-        ASSERT_EQUAL(dst[2], -1);
-        ASSERT_EQUAL(dst[3], -4);
-        ASSERT_EQUAL(dst[4], -4);
-        ASSERT_EQUAL(dst[5], -5);
-        ASSERT_EQUAL(dst[6], -9);
-        ASSERT_EQUAL(dst[7], -9);
+        auto dst = dst_buf.template get_host_access(sycl::read_only);
+        EXPECT_EQ(dst[0], 0, "#1");
+        EXPECT_EQ(dst[1], 0, "#1");
+        EXPECT_EQ(dst[2], -1, "#1");
+        EXPECT_EQ(dst[3], -4, "#1");
+        EXPECT_EQ(dst[4], -4, "#1");
+        EXPECT_EQ(dst[5], -5, "#1");
+        EXPECT_EQ(dst[6], -9, "#1");
+        EXPECT_EQ(dst[7], -9, "#1");
     }
 #endif
-    std::cout << "done\n";
 
-    return 0;
+    return TestUtils::done();
 }
 

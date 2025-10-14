@@ -143,6 +143,38 @@ class lognormal_distribution
         return result_portion_internal<size_of_type_, _Engine>(__engine, __params, __random_nums);
     }
 
+    friend bool
+    operator==(const lognormal_distribution& __x, const lognormal_distribution& __y)
+    {
+        return __x.nd_ == __y.nd_;
+    }
+
+    friend bool
+    operator!=(const lognormal_distribution& __x, const lognormal_distribution& __y)
+    {
+        return !(__x == __y);
+    }
+
+    template <class CharT, class Traits>
+    friend ::std::basic_ostream<CharT, Traits>&
+    operator<<(::std::basic_ostream<CharT, Traits>& __os, const lognormal_distribution& __d)
+    {
+        return __os << __d.nd_;
+    }
+
+    friend const sycl::stream&
+    operator<<(const sycl::stream& __os, const lognormal_distribution& __d)
+    {
+        return __os << __d.nd_;
+    }
+
+    template <class CharT, class Traits>
+    friend ::std::basic_istream<CharT, Traits>&
+    operator>>(::std::basic_istream<CharT, Traits>& __is, lognormal_distribution& __d)
+    {
+        return __is >> __d.nd_;
+    }
+
   private:
     // Size of type
     static constexpr int size_of_type_ = internal::type_traits_t<result_type>::num_elems;
@@ -199,7 +231,7 @@ class lognormal_distribution
     generate_n_elems(_Engine& __engine, const param_type& __params, unsigned int __N)
     {
         result_type __res = nd_(__engine, normal_distr_param_type(__params.m(), __params.s()), __N);
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = sycl::exp(__res[i]);
         return __res;
     }
@@ -210,7 +242,7 @@ class lognormal_distribution
     generate_n_elems(_Engine& __engine, const param_type& __params, unsigned int __N)
     {
         result_type __res;
-        for (int i = 0; i < __N; i++)
+        for (unsigned int i = 0; i < __N; i++)
             __res[i] = sycl::exp(nd_(__engine, normal_distr_param_type(__params.m(), __params.s())));
         return __res;
     }

@@ -17,6 +17,7 @@
 #define _ONEDPL_SYCL_ITERATOR_H
 
 #include <iterator>
+#include <type_traits>
 #include "../../onedpl_config.h"
 #include "sycl_defs.h"
 
@@ -46,7 +47,6 @@ struct sycl_iterator
     using pointer = T*;
     using reference = T&;
     using iterator_category = ::std::random_access_iterator_tag;
-    using is_hetero = ::std::true_type;
     static constexpr access_mode mode = Mode;
 
     // required for make_sycl_iterator
@@ -61,13 +61,6 @@ struct sycl_iterator
     {
         auto old_iter = sycl_iterator<inMode, T, Allocator>{in.get_buffer(), 0};
         idx = in - old_iter;
-    }
-    sycl_iterator&
-    operator=(const sycl_iterator& in)
-    {
-        buffer = in.buffer;
-        idx = in.idx;
-        return *this;
     }
     sycl_iterator
     operator+(difference_type forward) const
@@ -114,31 +107,91 @@ struct sycl_iterator
         return *this - it < 0;
     }
 
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
+    // proper handling by oneapi::dpl::__ranges::__get_sycl_range
     sycl::buffer<T, dim, Allocator>
     get_buffer() const
     {
         return buffer;
     }
+
+    // This function is required for types for which oneapi::dpl::__ranges::is_hetero_iterator = true to ensure
+    // proper handling by oneapi::dpl::__ranges::__get_sycl_range
+    Size
+    get_idx() const
+    {
+        return idx;
+    }
+
+    // While sycl_iterator cannot be "passed directly" because it is not device_copyable or a random access iterator,
+    // it does represent indirectly device accessible data.
+    friend std::true_type
+    is_onedpl_indirectly_device_accessible(sycl_iterator)
+    {
+        return {}; //minimal body provided to avoid warnings of non-template-friend in g++
+    }
 };
 
-// mode converter when property::noinit present
-template <access_mode __mode>
-struct _ModeConverter
+// map access_mode tag to access_mode value
+// TODO: consider removing the logic for discard_read_write and discard_write which are deprecated in SYCL 2020
+template <typename _ModeTagT, typename _NoInitT = void>
+struct __access_mode_resolver
 {
-    static constexpr access_mode __value = __mode;
 };
 
-template <>
-struct _ModeConverter<access_mode::read_write>
+template <typename _NoInitT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::read_only)>, _NoInitT>
 {
-    static constexpr access_mode __value = access_mode::discard_read_write;
+    static constexpr access_mode __value = access_mode::read;
 };
 
-template <>
-struct _ModeConverter<access_mode::write>
+template <typename _NoInitT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::write_only)>, _NoInitT>
 {
-    static constexpr access_mode __value = access_mode::discard_write;
+    static constexpr access_mode __value =
+        std::is_same_v<_NoInitT, void> ? access_mode::write : access_mode::discard_write;
 };
+
+template <typename _NoInitT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::read_write)>, _NoInitT>
+{
+    static constexpr access_mode __value =
+        std::is_same_v<_NoInitT, void> ? access_mode::read_write : access_mode::discard_read_write;
+};
+
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __default_alloc_vec_iter = typename std::vector<ValueType>::iterator;
+
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __usm_shared_alloc_vec_iter =
+    typename std::vector<ValueType, typename sycl::usm_allocator<ValueType, sycl::usm::alloc::shared>>::iterator;
+
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __usm_host_alloc_vec_iter =
+    typename std::vector<ValueType, typename sycl::usm_allocator<ValueType, sycl::usm::alloc::host>>::iterator;
+
+// Evaluates to true_type if the provided type is an iterator with a value_type and if the implementation of a
+// std::vector<value_type, Alloc>::iterator can be distinguished between three different allocators, the
+// default, usm_shared, and usm_host. If all are distinct, it is very unlikely any non-usm based allocator
+// could be confused with a usm allocator.
+template <typename Iter>
+using __vector_iter_distinguishes_by_allocator =
+    std::conjunction<std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>>>,
+                     std::negation<std::is_same<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>>>;
+
+template <typename Iter>
+inline constexpr bool __vector_iter_distinguishes_by_allocator_v =
+    __vector_iter_distinguishes_by_allocator<Iter>::value;
+
+template <typename Iter>
+using __is_known_usm_vector_iter =
+    std::conjunction<__vector_iter_distinguishes_by_allocator<Iter>,
+                     std::disjunction<std::is_same<Iter, oneapi::dpl::__internal::__usm_shared_alloc_vec_iter<Iter>>,
+                                      std::is_same<Iter, oneapi::dpl::__internal::__usm_host_alloc_vec_iter<Iter>>>>;
+
+template <typename Iter>
+inline constexpr bool __is_known_usm_vector_iter_v = __is_known_usm_vector_iter<Iter>::value;
 
 } // namespace __internal
 
@@ -155,17 +208,19 @@ __internal::sycl_iterator<access_mode::read_write, T, Allocator> end(sycl::buffe
 }
 
 // begin
-template <typename T, typename Allocator, access_mode Mode>
-__internal::sycl_iterator<Mode, T, Allocator> begin(sycl::buffer<T, /*dim=*/1, Allocator> buf, sycl::mode_tag_t<Mode>)
+template <typename T, typename Allocator, typename ModeTagT>
+__internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT>::__value, T, Allocator>
+begin(sycl::buffer<T, /*dim=*/1, Allocator> buf, ModeTagT)
 {
-    return __internal::sycl_iterator<Mode, T, Allocator>{buf, 0};
+    return __internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT>::__value, T, Allocator>{buf, 0};
 }
 
-template <typename T, typename Allocator, access_mode Mode>
-__internal::sycl_iterator<__internal::_ModeConverter<Mode>::__value, T, Allocator>
-    begin(sycl::buffer<T, /*dim=*/1, Allocator> buf, sycl::mode_tag_t<Mode>, __dpl_sycl::__no_init)
+template <typename T, typename Allocator, typename ModeTagT>
+__internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT, __dpl_sycl::__no_init>::__value, T, Allocator>
+begin(sycl::buffer<T, /*dim=*/1, Allocator> buf, ModeTagT, __dpl_sycl::__no_init)
 {
-    return __internal::sycl_iterator<__internal::_ModeConverter<Mode>::__value, T, Allocator>{buf, 0};
+    return __internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT, __dpl_sycl::__no_init>::__value, T,
+                                     Allocator>{buf, 0};
 }
 
 template <typename T, typename Allocator>
@@ -176,18 +231,20 @@ __internal::sycl_iterator<access_mode::discard_read_write, T, Allocator>
 }
 
 // end
-template <typename T, typename Allocator, access_mode Mode>
-__internal::sycl_iterator<Mode, T, Allocator> end(sycl::buffer<T, /*dim=*/1, Allocator> buf, sycl::mode_tag_t<Mode>)
+template <typename T, typename Allocator, typename ModeTagT>
+__internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT>::__value, T, Allocator>
+end(sycl::buffer<T, /*dim=*/1, Allocator> buf, ModeTagT)
 {
-    return __internal::sycl_iterator<Mode, T, Allocator>{buf, __dpl_sycl::__get_buffer_size(buf)};
+    return __internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT>::__value, T, Allocator>{
+        buf, __dpl_sycl::__get_buffer_size(buf)};
 }
 
-template <typename T, typename Allocator, access_mode Mode>
-__internal::sycl_iterator<__internal::_ModeConverter<Mode>::__value, T, Allocator>
-    end(sycl::buffer<T, /*dim=*/1, Allocator> buf, sycl::mode_tag_t<Mode>, __dpl_sycl::__no_init)
+template <typename T, typename Allocator, typename ModeTagT>
+__internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT, __dpl_sycl::__no_init>::__value, T, Allocator>
+end(sycl::buffer<T, /*dim=*/1, Allocator> buf, ModeTagT, __dpl_sycl::__no_init)
 {
-    return __internal::sycl_iterator<__internal::_ModeConverter<Mode>::__value, T, Allocator>{
-        buf, __dpl_sycl::__get_buffer_size(buf)};
+    return __internal::sycl_iterator<__internal::__access_mode_resolver<ModeTagT, __dpl_sycl::__no_init>::__value, T,
+                                     Allocator>{buf, __dpl_sycl::__get_buffer_size(buf)};
 }
 
 template <typename T, typename Allocator>

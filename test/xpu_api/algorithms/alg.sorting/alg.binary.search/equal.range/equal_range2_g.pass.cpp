@@ -21,9 +21,7 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
-// A comparison, equalivalent to std::greater<int> without the
+// A comparison, equivalent to std::greater<int> without the
 // dependency on <functional>.
 struct gt
 {
@@ -62,59 +60,61 @@ kernel_test()
         sycl::buffer<bool, 1> buffer2(&check, item1);
         sycl::buffer<int, 1> buffer3(A, itemN);
         sycl::buffer<int, 1> buffer4(C, itemN);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto access1 = buffer3.get_access<sycl::access::mode::write>(cgh);
-            auto access2 = buffer4.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest1>([=]() {
-                const int A1[] = {1, 2, 3, 3, 3, 5, 8};
-                const int C1[] = {8, 5, 3, 3, 3, 2, 1};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access1[0], A1, N);
-                check_access[0] &= TestUtils::check_data(&access2[0], C1, N);
-                if (check_access[0])
-                {
-                    auto itBegin = &access1[0];
-                    auto itEnd = &access1[0] + N;
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto access1 = buffer3.get_access<sycl::access::mode::write>(cgh);
+                auto access2 = buffer4.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest1>([=]() {
+                    const int A1[] = {1, 2, 3, 3, 3, 5, 8};
+                    const int C1[] = {8, 5, 3, 3, 3, 2, 1};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access1[0], A1, N);
+                    check_access[0] &= TestUtils::check_data(&access2[0], C1, N);
+                    if (check_access[0])
+                    {
+                        auto itBegin = &access1[0];
+                        auto itEnd = &access1[0] + N;
 
-                    Ipair p = equal_range(itBegin, itEnd, 3);
-                    ret_access[0] = (p.first == itBegin + 2);
-                    ret_access[0] &= (p.second == itBegin + 5);
+                        Ipair p = equal_range(itBegin, itEnd, 3);
+                        ret_access[0] = (p.first == itBegin + 2);
+                        ret_access[0] &= (p.second == itBegin + 5);
 
-                    Ipair q = equal_range(itBegin, itEnd, first);
-                    ret_access[0] &= (q.first == itBegin + 0);
-                    ret_access[0] &= (q.second == itBegin + 1);
+                        Ipair q = equal_range(itBegin, itEnd, first);
+                        ret_access[0] &= (q.first == itBegin + 0);
+                        ret_access[0] &= (q.second == itBegin + 1);
 
-                    Ipair r = equal_range(itBegin, itEnd, last);
-                    ret_access[0] &= (r.first == itEnd - 1);
-                    ret_access[0] &= (r.second == itEnd);
+                        Ipair r = equal_range(itBegin, itEnd, last);
+                        ret_access[0] &= (r.first == itEnd - 1);
+                        ret_access[0] &= (r.second == itEnd);
 
-                    Ipair s = equal_range(itBegin, itEnd, 4);
-                    ret_access[0] &= (s.first == itBegin + 5);
-                    ret_access[0] &= (s.second == itBegin + 5);
+                        Ipair s = equal_range(itBegin, itEnd, 4);
+                        ret_access[0] &= (s.first == itBegin + 5);
+                        ret_access[0] &= (s.second == itBegin + 5);
 
-                    Ipair t = equal_range(&access2[0], &access2[0] + N, 3, gt());
-                    ret_access[0] &= (t.first == &access2[0] + 2);
-                    ret_access[0] &= (t.second == &access2[0] + 5);
+                        Ipair t = equal_range(&access2[0], &access2[0] + N, 3, gt());
+                        ret_access[0] &= (t.first == &access2[0] + 2);
+                        ret_access[0] &= (t.second == &access2[0] + 5);
 
-                    auto itBegin2 = &access2[0];
-                    auto itEnd2 = &access2[0] + N;
+                        auto itBegin2 = &access2[0];
+                        auto itEnd2 = &access2[0] + N;
 
-                    Ipair u = equal_range(itBegin2, itEnd2, first, gt());
-                    ret_access[0] &= (u.first == itEnd2 - 1);
-                    ret_access[0] &= (u.second == itEnd2);
+                        Ipair u = equal_range(itBegin2, itEnd2, first, gt());
+                        ret_access[0] &= (u.first == itEnd2 - 1);
+                        ret_access[0] &= (u.second == itEnd2);
 
-                    Ipair v = equal_range(itBegin2, itEnd2, last, gt());
-                    ret_access[0] &= (v.first == itBegin2 + 0);
-                    ret_access[0] &= (v.second == itBegin2 + 1);
+                        Ipair v = equal_range(itBegin2, itEnd2, last, gt());
+                        ret_access[0] &= (v.first == itBegin2 + 0);
+                        ret_access[0] &= (v.second == itBegin2 + 1);
 
-                    Ipair w = equal_range(itBegin2, itEnd2, 4, gt());
-                    ret_access[0] &= (w.first == itBegin2 + 2);
-                    ret_access[0] &= (w.second == itBegin2 + 2);
-                }
-            });
-        }).wait();
+                        Ipair w = equal_range(itBegin2, itEnd2, 4, gt());
+                        ret_access[0] &= (w.first == itBegin2 + 2);
+                        ret_access[0] &= (w.second == itBegin2 + 2);
+                    }
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(A, A1, N);
@@ -123,15 +123,12 @@ kernel_test()
         return false;
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of equal_range in kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

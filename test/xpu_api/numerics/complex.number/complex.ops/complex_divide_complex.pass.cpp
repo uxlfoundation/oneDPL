@@ -20,7 +20,7 @@ template <class T>
 void
 test(const dpl::complex<T>& lhs, const dpl::complex<T>& rhs, dpl::complex<T> x)
 {
-    is_about(lhs / rhs, x);
+    assert(is_about(lhs / rhs, x));
 }
 
 template <class T>
@@ -53,7 +53,11 @@ void test_edges()
                     assert(classify(r) == zero);
                     break;
                 case inf:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN          // testcases[92], testcases[33]
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER // testcases[92], testcases[33]
                     assert(classify(r) == zero);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN
                     break;
                 case NaN:
                     assert(classify(r) == NaN);
@@ -67,13 +71,19 @@ void test_edges()
                 switch (classify(testcases[j]))
                 {
                 case zero:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER // testcases[0], testcases[92]
                     assert(classify(r) == inf);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
                     break;
                 case non_zero:
                     assert(classify(r) == non_zero);
                     break;
                 case inf:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN          // testcases[0], testcases[33]
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
                     assert(classify(r) == zero);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN
                     break;
                 case NaN:
                     assert(classify(r) == NaN);
@@ -87,10 +97,16 @@ void test_edges()
                 switch (classify(testcases[j]))
                 {
                 case zero:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER // testcases[33], testcases[92]
                     assert(classify(r) == inf);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
                     break;
                 case non_zero:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN        // testcases[33], testcases[0]
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER // testcases[33], testcases[0]
                     assert(classify(r) == inf);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN
                     break;
                 case inf:
                     assert(classify(r) == NaN);
@@ -127,7 +143,9 @@ void test_edges()
                 switch (classify(testcases[j]))
                 {
                 case zero:
+#if !_PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER // testcases[34], testcases[92]
                     assert(classify(r) == inf);
+#endif // _PSTL_TEST_COMPLEX_DIV_COMPLEX_BROKEN_IN_INTEL_LLVM_COMPILER
                     break;
                 case non_zero:
                     assert(classify(r) == NaN);

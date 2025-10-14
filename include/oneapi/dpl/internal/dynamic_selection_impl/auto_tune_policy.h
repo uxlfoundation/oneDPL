@@ -16,12 +16,14 @@
 #include <mutex>
 #include <utility>
 #include <chrono>
+#include <ratio>
 #include <limits>
 #include <vector>
 #include <type_traits>
 #include <tuple>
 #include <unordered_map>
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
@@ -41,9 +43,14 @@ template <typename Backend, typename... KeyArgs>
 class auto_tune_policy
 {
 
-    using wrapped_resource_t = typename std::decay_t<Backend>::execution_resource_t;
+    using backend_t = Backend;
+    using execution_resource_t = typename backend_t::execution_resource_t;
+    using wrapped_resource_t = execution_resource_t;
     using size_type = typename std::vector<typename Backend::resource_type>::size_type;
     using timing_t = uint64_t;
+
+    using report_clock_type = std::chrono::steady_clock;
+    using report_duration = std::chrono::milliseconds;
 
     static constexpr timing_t never_resample = 0;
     static constexpr size_type use_best_resource = ~size_type(0);
@@ -51,7 +58,7 @@ class auto_tune_policy
     struct resource_with_index_t
     {
         wrapped_resource_t r_;
-        size_type index_;
+        size_type index_ = 0;
     };
 
     struct time_data_t
@@ -64,7 +71,7 @@ class auto_tune_policy
     {
         std::mutex m_;
 
-        std::chrono::steady_clock::time_point t0_;
+        report_clock_type::time_point t0_;
 
         timing_t best_timing_ = std::numeric_limits<timing_t>::max();
         resource_with_index_t best_resource_;
@@ -75,10 +82,10 @@ class auto_tune_policy
         using time_by_index_t = std::unordered_map<size_type, time_data_t>;
         time_by_index_t time_by_index_;
 
-        timing_t resample_time_ = 0.0;
+        timing_t resample_time_ = 0;
 
         tuner_t(resource_with_index_t br, size_type resources_size, timing_t rt)
-            : t0_(std::chrono::steady_clock::now()), best_resource_(br), max_resource_to_profile_(resources_size),
+            : t0_(report_clock_type::now()), best_resource_(br), max_resource_to_profile_(resources_size),
               resample_time_(rt)
         {
         }
@@ -98,8 +105,8 @@ class auto_tune_policy
             }
             else
             {
-                auto now = std::chrono::steady_clock::now();
-                auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - t0_).count();
+                const auto now = report_clock_type::now();
+                const auto ms = std::chrono::duration_cast<report_duration>(now - t0_).count();
                 if (ms < resample_time_)
                 {
                     return use_best_resource;
@@ -117,17 +124,21 @@ class auto_tune_policy
         void
         add_new_timing(resource_with_index_t r, timing_t t)
         {
-            std::unique_lock<std::mutex> l(m_);
             auto index = r.index_;
             timing_t new_value = t;
-            if (time_by_index_.count(index) == 0)
+
+            std::lock_guard<std::mutex> l(m_);
+
+            // ignore the 1st timing to cover for JIT compilation
+            auto emplace_res = time_by_index_.try_emplace(index, time_data_t{0, std::numeric_limits<timing_t>::max()});
+
+            // emplace_res is std::pair<time_by_index_t::iterator, bool> where
+            //  - emplace_res.first iterate inserted or existing element;
+            //  - emplace_res.second is true if new element inserted, false if element with such key already existed.
+            if (!emplace_res.second)
             {
-                // ignore the 1st timing to cover for JIT compilation
-                time_by_index_[index] = time_data_t{0, std::numeric_limits<timing_t>::max()};
-            }
-            else
-            {
-                auto& td = time_by_index_[index];
+                // get reference to time_data_t from already existing element
+                auto& td = emplace_res.first->second;
                 auto n = td.num_timings_;
                 new_value = (n * td.value_ + t) / (n + 1);
                 td.num_timings_ = n + 1;
@@ -167,9 +178,9 @@ class auto_tune_policy
         };
 
         void
-        report(const execution_info::task_time_t&, const typename execution_info::task_time_t::value_type& v) const
+        report(const execution_info::task_time_t&, report_duration v) const
         {
-            tuner_->add_new_timing(resource_, v);
+            tuner_->add_new_timing(resource_, v.count());
         }
     };
 
@@ -215,9 +226,13 @@ class auto_tune_policy
     select(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
+        if constexpr (backend_traits::lazy_report_v<Backend>)
+        {
+            backend_->lazy_report();
+        }
         if (state_)
         {
-            std::unique_lock<std::mutex> l(state_->m_);
+            std::lock_guard<std::mutex> l(state_->m_);
             auto k = make_task_key(std::forward<Function>(f), std::forward<Args>(args)...);
             auto t = state_->tuner_by_key_[k];
             auto index = t->get_resource_to_profile();
@@ -241,6 +256,7 @@ class auto_tune_policy
     auto
     submit(selection_type e, Function&& f, Args&&... args)
     {
+        static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if (backend_)
         {
             return backend_->submit(e, std::forward<Function>(f), std::forward<Args>(args)...);

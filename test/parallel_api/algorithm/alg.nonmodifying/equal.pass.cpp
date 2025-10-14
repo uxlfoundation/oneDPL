@@ -145,18 +145,20 @@ test(size_t bits, Compare comp)
     Sequence<T> in(max_size, [bits](size_t k) { return T(2 * HashBits(k, bits - 1) ^ 1); });
     Sequence<T> inCopy(in);
 
-    for (size_t n = 1; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        invoke_on_all_policies<0>()(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, true);
-        invoke_on_all_policies<1>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), true);
-        invoke_on_all_policies<2>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, comp, true);
+        const bool ex_res_true = true;
+        invoke_on_all_policies<0>()(test_with_3_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), comp, ex_res_true);
+        invoke_on_all_policies<1>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_true);
+        invoke_on_all_policies<2>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, comp, ex_res_true);
 
         // testing bool !equal()
         T original = inCopy[0];
         inCopy[0] = !original;
-        invoke_on_all_policies<3>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, false);
-        invoke_on_all_policies<4>()(test_with_4_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), inCopy.cbegin() + n, comp, false);
-        invoke_on_all_policies<5>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), false);
+        const bool ex_res_false = false || n == 0; //In case of the both sequences are empty, result is true.
+        invoke_on_all_policies<3>()(test_with_4_iters<T>(), in.begin(), in.begin() + n, inCopy.begin(), inCopy.begin() + n, ex_res_false);
+        invoke_on_all_policies<4>()(test_with_4_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), inCopy.cbegin() + n, comp, ex_res_false);
+        invoke_on_all_policies<5>()(test_with_3_iters<T>(), in.cbegin(), in.cbegin() + n, inCopy.cbegin(), ex_res_false);
         inCopy[0] = original;
     }
     // check different sized sequences
@@ -182,7 +184,13 @@ main()
     test<std::uint16_t>(8 * sizeof(std::uint16_t), [](const std::uint16_t& a, const std::uint16_t& b)   { return a == b; });
     test<float64_t>(53,                  [](const float64_t& a, const float64_t& b) { return a == b; });
     test<bool>(1,                        [](const bool& a, const bool& b)           { return a == b; });
+
+    // Avoiding UserType test for dpcpp backend, because UserType is not a device copyable type, with a custom copy
+    // assignment operator which is not the same as a bitwise copy. Therefore, a sycl::buffer with the value type
+    // UserType is not valid.
+#if !TEST_DPCPP_BACKEND_PRESENT
     test<UserType>(256,                  [](const UserType& a, const UserType& b)   { return a == b; });
+#endif
 
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 

@@ -33,7 +33,7 @@ __parallel_for_each_body(_ForwardIterator __first, _ForwardIterator __last, _Fp 
     // TODO: Think of an approach to remove the std::distance call
     auto __size = std::distance(__first, __last);
 
-    _PSTL_PRAGMA(omp taskloop untied mergeable)
+    _ONEDPL_PRAGMA(omp taskloop untied mergeable)
     for (DifferenceType __index = 0; __index < __size; ++__index)
     {
         // TODO: Think of an approach to remove the increment here each time.
@@ -44,7 +44,8 @@ __parallel_for_each_body(_ForwardIterator __first, _ForwardIterator __last, _Fp 
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Fp>
 void
-__parallel_for_each(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Fp __f)
+__parallel_for_each(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _ForwardIterator __first,
+                    _ForwardIterator __last, _Fp __f)
 {
     if (omp_in_parallel())
     {
@@ -56,8 +57,8 @@ __parallel_for_each(_ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterat
     {
         // in any case (nested or non-nested) one parallel region is created and
         // only one thread creates a set of tasks
-        _PSTL_PRAGMA(omp parallel)
-        _PSTL_PRAGMA(omp single nowait) { oneapi::dpl::__omp_backend::__parallel_for_each_body(__first, __last, __f); }
+        _ONEDPL_PRAGMA(omp parallel)
+        _ONEDPL_PRAGMA(omp single nowait) { oneapi::dpl::__omp_backend::__parallel_for_each_body(__first, __last, __f); }
     }
 }
 

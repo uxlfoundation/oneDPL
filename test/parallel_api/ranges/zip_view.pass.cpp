@@ -13,9 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <oneapi/dpl/execution>
-
 #include "support/test_config.h"
+
+#include <oneapi/dpl/execution>
 
 #if _ENABLE_RANGES_TESTING
 #    include <oneapi/dpl/ranges>
@@ -37,7 +37,7 @@ main()
 
     //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
     auto view = __nanorange::nano::views::all(data);
-    auto z = zip_view(__nanorange::nano::views::all(data), __nanorange::nano::views::all(key));
+    auto z = zip_view(view, __nanorange::nano::views::all(key));
 
     //check access
     EXPECT_TRUE(::std::get<0>(z[2]) == 'g', "wrong effect with zip_view");

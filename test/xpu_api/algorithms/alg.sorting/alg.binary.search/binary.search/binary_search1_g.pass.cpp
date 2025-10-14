@@ -21,8 +21,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 using dpl::binary_search;
 
 bool
@@ -37,19 +35,21 @@ kernel_test1()
         sycl::buffer<bool, 1> buffer1(&ret, numOfItems);
         sycl::buffer<bool, 1> buffer2(&transferCheck, numOfItems);
         sycl::buffer<int, 1> buffer3(array, numOfItems);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto acc_arr = buffer3.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest1>([=]() {
-                // check if there is change after data transfer
-                check_access[0] = (acc_arr[0] == 0);
-                if (check_access[0])
-                {
-                    ret_access[0] = (!binary_search(&acc_arr[0], &acc_arr[0], 1));
-                }
-            });
-        }).wait();
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto acc_arr = buffer3.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest1>([=]() {
+                    // check if there is change after data transfer
+                    check_access[0] = (acc_arr[0] == 0);
+                    if (check_access[0])
+                    {
+                        ret_access[0] = (!binary_search(&acc_arr[0], &acc_arr[0], 1));
+                    }
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     transferCheck &= (array[0] == 0);
@@ -73,30 +73,32 @@ kernel_test2()
         sycl::buffer<int, 1> buffer1(array, itemN);
         sycl::buffer<bool, 1> buffer2(&ret, item1);
         sycl::buffer<bool, 1> buffer3(&check, item1);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto access1 = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto ret_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer3.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest2>([=]() {
-                int tmp[] = {0, 2, 4, 6, 8};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access1[0], tmp, N);
-                if (check_access[0])
-                {
-                    ret_access[0] = (binary_search(&access1[0], &access1[0] + N, 0));
-
-                    for (int i = 2; i < 10; i += 2)
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto access1 = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto ret_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer3.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest2>([=]() {
+                    int tmp[] = {0, 2, 4, 6, 8};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access1[0], tmp, N);
+                    if (check_access[0])
                     {
-                        ret_access[0] &= (binary_search(&access1[0], &access1[0] + N, i));
-                    }
+                        ret_access[0] = (binary_search(&access1[0], &access1[0] + N, 0));
 
-                    for (int i = -1; i < 11; i += 2)
-                    {
-                        ret_access[0] &= (!binary_search(&access1[0], &access1[0] + N, i));
+                        for (int i = 2; i < 10; i += 2)
+                        {
+                            ret_access[0] &= (binary_search(&access1[0], &access1[0] + N, i));
+                        }
+
+                        for (int i = -1; i < 11; i += 2)
+                        {
+                            ret_access[0] &= (!binary_search(&access1[0], &access1[0] + N, i));
+                        }
                     }
-                }
-            });
-        }).wait();
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(tmp, array, N);
@@ -104,16 +106,13 @@ kernel_test2()
         return false;
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test1();
     ret &= kernel_test2();
     EXPECT_TRUE(ret, "Wrong result of binary_search in kernel_test1 or kernel_test2");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

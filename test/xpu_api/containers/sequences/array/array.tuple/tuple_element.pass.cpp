@@ -23,7 +23,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 class KernelTest1;
 
 template <class T>
@@ -33,38 +32,52 @@ test()
     {
         typedef T Exp;
         typedef dpl::array<T, 3> C;
-        static_assert(dpl::is_same<typename dpl::tuple_element<0, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<1, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<2, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<0, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<1, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<2, C>::type, Exp>::value);
+
+        static_assert(dpl::is_same<std::tuple_element_t<0, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<1, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<2, C>, Exp>::value);
     }
     {
         typedef T const Exp;
         typedef dpl::array<T, 3> const C;
-        static_assert(dpl::is_same<typename dpl::tuple_element<0, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<1, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<2, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<0, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<1, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<2, C>::type, Exp>::value);
+
+        static_assert(dpl::is_same<std::tuple_element_t<0, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<1, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<2, C>, Exp>::value);
     }
     {
         typedef T volatile Exp;
         typedef dpl::array<T, 3> volatile C;
-        static_assert(dpl::is_same<typename dpl::tuple_element<0, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<1, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<2, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<0, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<1, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<2, C>::type, Exp>::value);
+
+        static_assert(dpl::is_same<std::tuple_element_t<0, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<1, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<2, C>, Exp>::value);
     }
     {
         typedef T const volatile Exp;
         typedef dpl::array<T, 3> const volatile C;
-        static_assert(dpl::is_same<typename dpl::tuple_element<0, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<1, C>::type, Exp>::value);
-        static_assert(dpl::is_same<typename dpl::tuple_element<2, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<0, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<1, C>::type, Exp>::value);
+        static_assert(dpl::is_same<typename std::tuple_element<2, C>::type, Exp>::value);
+
+        static_assert(dpl::is_same<std::tuple_element_t<0, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<1, C>, Exp>::value);
+        static_assert(dpl::is_same<std::tuple_element_t<2, C>, Exp>::value);
     }
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = false;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -79,8 +92,7 @@ main()
         });
     }
 
-    EXPECT_TRUE(ret, "Wrong result of work with dpl::tuple_element");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+    EXPECT_TRUE(ret, "Wrong result of work with std::tuple_element");
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

@@ -25,7 +25,7 @@
 #include <cmath>
 
 #if  !defined(_PSTL_TEST_MIN_ELEMENT) && !defined(_PSTL_TEST_MAX_ELEMENT) &&\
-     !defined(_PSTL_TEST_MINMAX_ELEMENT)
+     !defined(_PSTL_TEST_MINMAX_ELEMENT) && !_PSTL_ICPX_TEST_MINMAX_ELEMENT_PASS_BROKEN
 #define _PSTL_TEST_MIN_ELEMENT
 #define _PSTL_TEST_MAX_ELEMENT
 #define _PSTL_TEST_MINMAX_ELEMENT
@@ -41,8 +41,8 @@ struct check_minelement
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = ::std::min_element(begin, end);
-        const Iterator result = ::std::min_element(exec, begin, end);
-        EXPECT_TRUE(expect == result, "wrong return result from min_element");
+        const Iterator result = std::min_element(std::forward<Policy>(exec), begin, end);
+        EXPECT_EQ(expect, result, "wrong return result from min_element");
     }
 };
 
@@ -53,10 +53,10 @@ struct check_minelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const Iterator expect = ::std::min_element(begin, end);
-        const Iterator result_pred = ::std::min_element(exec, begin, end, ::std::less<T>());
-        EXPECT_TRUE(expect == result_pred, "wrong return result from min_element with predicate");
+        const Iterator result_pred = std::min_element(std::forward<Policy>(exec), begin, end, std::less<T>());
+        EXPECT_EQ(expect, result_pred, "wrong return result from min_element with predicate");
     }
 };
 
@@ -68,8 +68,8 @@ struct check_maxelement
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const Iterator expect = ::std::max_element(begin, end);
-        const Iterator result = ::std::max_element(exec, begin, end);
-        EXPECT_TRUE(expect == result, "wrong return result from max_element");
+        const Iterator result = std::max_element(std::forward<Policy>(exec), begin, end);
+        EXPECT_EQ(expect, result, "wrong return result from max_element");
     }
 };
 
@@ -80,10 +80,10 @@ struct check_maxelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const Iterator expect = ::std::max_element(begin, end);
-        const Iterator result_pred = ::std::max_element(exec, begin, end, ::std::less<T>());
-        EXPECT_TRUE(expect == result_pred, "wrong return result from max_element with predicate");
+        const Iterator result_pred = std::max_element(std::forward<Policy>(exec), begin, end, std::less<T>());
+        EXPECT_EQ(expect, result_pred, "wrong return result from max_element with predicate");
     }
 };
 
@@ -95,9 +95,9 @@ struct check_minmaxelement
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
-        const ::std::pair<Iterator, Iterator> got = ::std::minmax_element(exec, begin, end);
-        EXPECT_TRUE(expect.first == got.first, "wrong return result from minmax_element (min part)");
-        EXPECT_TRUE(expect.second == got.second, "wrong return result from minmax_element (max part)");
+        const std::pair<Iterator, Iterator> got = std::minmax_element(std::forward<Policy>(exec), begin, end);
+        EXPECT_EQ(expect.first, got.first, "wrong return result from minmax_element (min part)");
+        EXPECT_EQ(expect.second, got.second, "wrong return result from minmax_element (max part)");
     }
 };
 
@@ -108,10 +108,10 @@ struct check_minmaxelement_predicate
     void
     operator()(Policy&& exec, Iterator begin, Iterator end)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
         const ::std::pair<Iterator, Iterator> expect = ::std::minmax_element(begin, end);
-        const ::std::pair<Iterator, Iterator> got_pred = ::std::minmax_element(exec, begin, end, ::std::less<T>());
-        EXPECT_TRUE(expect == got_pred, "wrong return result from minmax_element wuth predicate");
+        const std::pair<Iterator, Iterator> got_pred = std::minmax_element(std::forward<Policy>(exec), begin, end, std::less<T>());
+        EXPECT_EQ(expect, got_pred, "wrong return result from minmax_element with predicate");
     }
 };
 
@@ -238,7 +238,7 @@ struct test_non_const_max_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        max_element(exec, iter, iter, non_const(::std::less<T>()));
+        max_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -249,7 +249,7 @@ struct test_non_const_min_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        min_element(exec, iter, iter, non_const(::std::less<T>()));
+        min_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 
@@ -260,7 +260,7 @@ struct test_non_const_minmax_element
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        minmax_element(exec, iter, iter, non_const(::std::less<T>()));
+        minmax_element(std::forward<Policy>(exec), iter, iter, non_const(std::less<T>()));
     }
 };
 

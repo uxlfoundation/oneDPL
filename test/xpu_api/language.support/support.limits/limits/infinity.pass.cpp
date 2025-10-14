@@ -71,8 +71,17 @@ ONEDPL_TEST_NUM_MAIN
 #endif
     float zero = 0;
     test<float>(1.f/zero);
-    IF_DOUBLE_SUPPORT_L([&zero]() { test<double>(1. / zero); })
-    IF_LONG_DOUBLE_SUPPORT_L([&zero]() { test<long double>(1. / zero); })
+    if constexpr (HasDoubleSupportInRuntime{})
+    {
+        test<double>(1. / zero);
+    }
+    if constexpr (HasLongDoubleSupportInCompiletime{})
+    {
+        // This lambda required to avoid compile errors like
+        // test<long double>' requires 128 bit size 'long double' type support, but target 'spir64-unknown-unknown' does not support it
+        auto fnc = [&zero] { test<long double>(1. / zero); };
+        fnc();
+    }
 
   return 0;
 }

@@ -22,8 +22,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 using dpl::equal_range;
 
 bool
@@ -41,29 +39,33 @@ kernel_test1()
         sycl::buffer<bool, 1> buffer1(&ret, item1);
         sycl::buffer<bool, 1> buffer2(&check, item1);
         sycl::buffer<int, 1> buffer3(array, itemN);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest1>([=]() {
-                auto ret = true;
-                int arr[] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access[0], arr, N);
-                if (check_access[0])
-                {
-                    for (int i = 0; i < 6; ++i)
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest1>([=]() {
+                    auto ret = true;
+                    int arr[] = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access[0], arr, N);
+                    if (check_access[0])
                     {
-                        for (int j = 6; j < 12; ++j)
+                        for (int i = 0; i < 6; ++i)
                         {
-                            ret &= (equal_range(&access[0] + i, &access[0] + j, 1).first == &access[0] + std::max(i, 4));
-                            ret &= (equal_range(&access[0] + i, &access[0] + j, 1).second == &access[0] + std::min(j, 8));
+                            for (int j = 6; j < 12; ++j)
+                            {
+                                ret &= (equal_range(&access[0] + i, &access[0] + j, 1).first ==
+                                        &access[0] + std::max(i, 4));
+                                ret &= (equal_range(&access[0] + i, &access[0] + j, 1).second ==
+                                        &access[0] + std::min(j, 8));
+                            }
                         }
+                        ret_access[0] = ret;
                     }
-                    ret_access[0] = ret;
-                }
-            });
-        }).wait();
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(tmp, array, N);
@@ -87,21 +89,23 @@ kernel_test2()
         sycl::buffer<bool, 1> buffer1(&ret, item1);
         sycl::buffer<bool, 1> buffer2(&check, item1);
         sycl::buffer<int, 1> buffer3(array, itemN);
-        deviceQueue.submit([&](sycl::handler& cgh) {
-            auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
-            auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
-            auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
-            cgh.single_task<class KernelTest2>([=]() {
-                int arr[] = {0, 0, 2, 2, 2};
-                // check if there is change after data transfer
-                check_access[0] = TestUtils::check_data(&access[0], arr, N);
-                if (check_access[0])
-                {
-                    ret_access[0] = (equal_range(&access[0], &access[0] + 5, 1).first == &access[0] + 2);
-                    ret_access[0] &= (equal_range(&access[0], &access[0] + 5, 1).second == &access[0] + 2);
-                }
-            });
-        }).wait();
+        deviceQueue
+            .submit([&](sycl::handler& cgh) {
+                auto ret_access = buffer1.get_access<sycl::access::mode::write>(cgh);
+                auto check_access = buffer2.get_access<sycl::access::mode::write>(cgh);
+                auto access = buffer3.get_access<sycl::access::mode::write>(cgh);
+                cgh.single_task<class KernelTest2>([=]() {
+                    int arr[] = {0, 0, 2, 2, 2};
+                    // check if there is change after data transfer
+                    check_access[0] = TestUtils::check_data(&access[0], arr, N);
+                    if (check_access[0])
+                    {
+                        ret_access[0] = (equal_range(&access[0], &access[0] + 5, 1).first == &access[0] + 2);
+                        ret_access[0] &= (equal_range(&access[0], &access[0] + 5, 1).second == &access[0] + 2);
+                    }
+                });
+            })
+            .wait();
     }
     // check if there is change after executing kernel function
     check &= TestUtils::check_data(tmp, array, N);
@@ -110,16 +114,12 @@ kernel_test2()
     return ret;
 }
 
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test1();
     ret &= kernel_test2();
     EXPECT_TRUE(ret, "Wrong result of equal_range in kernel_test1 or in kernel_test2");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

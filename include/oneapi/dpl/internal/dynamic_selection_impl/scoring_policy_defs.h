@@ -24,7 +24,7 @@ class basic_selection_handle_t
     Resource e_;
 
   public:
-    explicit basic_selection_handle_t(const Policy& p, Resource e = Resource{}) : p_(p), e_(e) {}
+    explicit basic_selection_handle_t(const Policy& p, Resource e = Resource{}) : p_(p), e_(std::move(e)) {}
     auto
     unwrap()
     {

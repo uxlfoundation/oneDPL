@@ -8,16 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "../support/test_config.h"
-#include "../support/utils.h"
-#include "kt_radix_sort_test_utils.h"
 
 #include <oneapi/dpl/experimental/kernel_templates>
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/iterator>
 
 #include <vector>
 #include <string>
+#include <cstdlib>
 
 #if __has_include(<sycl/sycl.hpp>)
 #include <sycl/sycl.hpp>
@@ -25,24 +22,25 @@
 #include <CL/sycl.hpp>
 #endif
 
+#include "../support/utils.h"
+#include "../support/sycl_alloc_utils.h"
+
+#include "esimd_radix_sort_utils.h"
 
 template<typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
-void test_sycl_iterators(std::size_t size, KernelParam param)
+void test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     std::vector<KeyT> expected_keys(size);
     std::vector<ValueT> expected_values(size);
-    generate_data(expected_keys.data(), size, 6);
-    generate_data(expected_values.data(), size, 7);
+    TestUtils::generate_arithmetic_data(expected_keys.data(), size, 6);
+    TestUtils::generate_arithmetic_data(expected_values.data(), size, 7);
 
     std::vector<KeyT> actual_keys(expected_keys);
     std::vector<ValueT> actual_values(expected_values);
     {
         sycl::buffer<KeyT> keys(actual_keys.data(), actual_keys.size());
         sycl::buffer<ValueT> values(actual_values.data(), actual_values.size());
-        oneapi::dpl::experimental::kt::esimd::radix_sort_by_key<isAscending, RadixBits>(
-            q, oneapi::dpl::begin(keys), oneapi::dpl::end(keys), oneapi::dpl::begin(values), param).wait();
+        oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, param).wait();
     }
 
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
@@ -53,21 +51,19 @@ void test_sycl_iterators(std::size_t size, KernelParam param)
                                  ", sizeof(value): " + std::to_string(sizeof(ValueT)) +
                                  ", isAscending: " +  std::to_string(isAscending) +
                                  ", RadixBits: " + std::to_string(RadixBits);
-    std::string msg = "wrong results with oneapi::dpl::begin/end (keys)" + parameters_msg;
+    std::string msg = "wrong results with sycl::buffer (keys)" + parameters_msg;
     EXPECT_EQ_N(expected_keys.begin(), actual_keys.begin(), size, msg.c_str());
-    msg = "wrong results with oneapi::dpl::begin/end (values)" + parameters_msg;
+    msg = "wrong results with sycl::buffer (values)" + parameters_msg;
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 
 template<typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, sycl::usm::alloc _alloc_type, typename KernelParam>
-void test_usm(std::size_t size, KernelParam param)
+void test_usm(sycl::queue q, std::size_t size, KernelParam param)
 {
-    sycl::queue q = TestUtils::get_test_queue();
-
     std::vector<KeyT> expected_keys(size);
     std::vector<ValueT> expected_values(size);
-    generate_data(expected_keys.data(), size, 6);
-    generate_data(expected_values.data(), size, 7);
+    TestUtils::generate_arithmetic_data(expected_keys.data(), size, 6);
+    TestUtils::generate_arithmetic_data(expected_values.data(), size, 7);
 
     TestUtils::usm_data_transfer<_alloc_type, KeyT> keys(q, expected_keys.begin(), expected_keys.end());
     TestUtils::usm_data_transfer<_alloc_type, ValueT> values(q, expected_values.begin(), expected_values.end());
@@ -75,7 +71,7 @@ void test_usm(std::size_t size, KernelParam param)
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
     std::stable_sort(expected_first, expected_first + size, CompareKey<isAscending>{});
 
-    oneapi::dpl::experimental::kt::esimd::radix_sort_by_key<isAscending, RadixBits>(
+    oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(
         q, keys.get_data(), keys.get_data() + size, values.get_data(), param).wait();
 
     std::vector<KeyT> actual_keys(size);
@@ -94,35 +90,34 @@ void test_usm(std::size_t size, KernelParam param)
     EXPECT_EQ_N(expected_values.begin(), actual_values.begin(), size, msg.c_str());
 }
 
-template <std::uint16_t DataPerWorkItem, std::uint16_t WorkGroupSize>
-using param_type = oneapi::dpl::experimental::kt::kernel_param<DataPerWorkItem, WorkGroupSize>;
-
 int main()
 {
-    const std::vector<std::size_t> sizes = {
-        6, 16, 43, 256, 316, 2048, 5072, 8192, 14001, 1<<14,
-        (1<<14)+1, 50000, 67543, 100'000, 1<<17, 179'581, 250'000, 1<<18,
-        (1<<18)+1, 500'000, 888'235, 1'000'000, 1<<20, 10'000'000
-    };
+    constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
+    auto q = TestUtils::get_test_queue();
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
 
-    for(auto size: sizes)
+    if (run_test)
     {
-        test_usm<int16_t,  char,     Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<512, 64>{});
-        test_usm<float,    uint32_t, Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<192, 64>{});
-        test_usm<int32_t,  float,    Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<160, 64>{});
-        test_usm<uint32_t, int32_t,  Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<160, 32>{});
-        test_usm<int16_t,  uint64_t, Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<128, 64>{});
-        test_usm<int64_t,  int16_t,  Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<96, 32>{});
-        test_usm<uint32_t, double,   Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<64, 32>{});
-        test_usm<uint32_t, uint16_t, Ascending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<32, 64>{});
-
-        test_usm<int32_t,  uint16_t, Descending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<256, 32>{});
-        test_usm<uint32_t, int32_t,  Descending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<192, 64>{});
-        test_usm<float,    float,    Descending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<128, 64>{});
-        test_usm<int64_t,  double,   Descending, TestRadixBits, sycl::usm::alloc::shared>(size, param_type<64, 64>{});
-
-        test_sycl_iterators<uint32_t, int32_t, Ascending,   TestRadixBits>(size, param_type<192, 32>{});
-        test_sycl_iterators<int32_t,  double,  Descending,  TestRadixBits>(size, param_type<128, 64>{});
+        try
+        {
+            for (auto size : sort_sizes)
+            {
+                test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits, sycl::usm::alloc::shared>(
+                    q, size, TestUtils::create_new_kernel_param_idx<0>(params));
+                test_usm<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits, sycl::usm::alloc::shared>(
+                    q, size, TestUtils::create_new_kernel_param_idx<1>(params));
+                test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Ascending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<2>(params));
+                test_sycl_buffer<TEST_KEY_TYPE, TEST_VALUE_TYPE, Descending, TestRadixBits>(
+                    q, size, TestUtils::create_new_kernel_param_idx<3>(params));
+            }
+        }
+        catch (const ::std::exception& exc)
+        {
+            std::cerr << "Exception: " << exc.what() << std::endl;
+            return EXIT_FAILURE;
+        }
     }
-    return TestUtils::done();
+
+    return TestUtils::done(run_test);
 }

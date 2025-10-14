@@ -32,36 +32,16 @@ namespace __unseq_backend
 // Expect vector width up to 64 (or 512 bit)
 const ::std::size_t __lane_size = 64;
 
-template <class _Iterator, class _DifferenceType, class _Function>
-_Iterator
-__simd_walk_1(_Iterator __first, _DifferenceType __n, _Function __f) noexcept
+template <typename _DifferenceType, typename _Function, typename... _Iterators>
+auto
+__simd_walk_n(_DifferenceType __n, _Function __f, _Iterators... __it)
 {
     _ONEDPL_PRAGMA_SIMD
     for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first[__i]);
+        __f(__it[__i]...);
 
-    return __first + __n;
-}
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Function>
-_Iterator2
-__simd_walk_2(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Function __f) noexcept
-{
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first1[__i], __first2[__i]);
-    return __first2 + __n;
-}
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Iterator3, class _Function>
-_Iterator3
-__simd_walk_3(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Iterator3 __first3,
-              _Function __f) noexcept
-{
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-        __f(__first1[__i], __first2[__i], __first3[__i]);
-    return __first3 + __n;
+    //A conciser writing (__it, ...) produces a warning in -Wunused-value mode.
+    return __internal::__get_last_arg(__it...) + __n;
 }
 
 // TODO: check whether __simd_first() can be used here
@@ -227,7 +207,7 @@ __simd_first(_Index1 __first1, _DifferenceType __n, _Index2 __first2, _Pred __pr
     }
 
     //Keep remainder scalar
-    for (; __last1 != __first1; ++__first1, ++__first2)
+    for (; __last1 != __first1; ++__first1, (void)++__first2)
         if (__pred(*(__first1), *(__first2)))
             return ::std::make_pair(__first1, __first2);
 
@@ -404,7 +384,7 @@ __simd_adjacent_find(_Index __first, _Index __last, _BinaryPredicate __pred, boo
     if (__last - __first < 2)
         return __last;
 
-    typedef typename ::std::iterator_traits<_Index>::difference_type _DifferenceType;
+    using _DifferenceType = typename std::iterator_traits<_Index>::difference_type;
     _DifferenceType __i = 0;
 
 #if (_PSTL_EARLYEXIT_PRESENT || _ONEDPL_EARLYEXIT_PRESENT)
@@ -471,7 +451,7 @@ template <typename _Tp, typename _BinaryOperation>
 inline constexpr bool is_arithmetic_plus_v = is_arithmetic_plus<_Tp, _BinaryOperation>::value;
 
 template <typename _DifferenceType, typename _Tp, typename _BinaryOperation, typename _UnaryOperation>
-::std::enable_if_t<is_arithmetic_plus_v<_Tp, _BinaryOperation>, _Tp>
+::std::enable_if_t<is_arithmetic_plus_v<_Tp, _BinaryOperation> && std::is_copy_constructible_v<_Tp>, _Tp>
 __simd_transform_reduce(_DifferenceType __n, _Tp __init, _BinaryOperation, _UnaryOperation __f) noexcept
 {
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __init)
@@ -516,7 +496,7 @@ __simd_transform_reduce(_Size __n, _Tp __init, _BinaryOperation __binary_op, _Un
         // combiner
         for (_Size __i = 0; __i < __block_size; ++__i)
         {
-            __init = __binary_op(__init, __lane[__i]);
+            __init = __binary_op(std::move(__init), __lane[__i]);
         }
         // destroyer
         _ONEDPL_PRAGMA_SIMD
@@ -529,10 +509,10 @@ __simd_transform_reduce(_Size __n, _Tp __init, _BinaryOperation __binary_op, _Un
     {
         for (_Size __i = 0; __i < __n; ++__i)
         {
-            __init = __binary_op(__init, __f(__i));
+            __init = __binary_op(std::move(__init), __f(__i));
         }
     }
-    return __init;
+    return std::move(__init);
 }
 
 // Exclusive scan for "+" and arithmetic types
@@ -566,6 +546,12 @@ struct _Combiner
     // value unknown and it assumes getting an identity by _Tp value initialization - _Tp{}.
     _Combiner(const _Combiner& __obj) : __value{}, __bin_op(__obj.__bin_op) {}
 
+    // This assignment operator copies the reduced value back to the caller
+    // It does not participate in the creation of an initial value,
+    // hence its behaviour is different from the copy constructor above
+    _Combiner&
+    operator=(const _Combiner& __obj) = default;
+
     void
     operator()(const _Combiner& __obj)
     {
@@ -580,7 +566,7 @@ template <class _InputIterator, class _Size, class _OutputIterator, class _Unary
 __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
             _BinaryOperation __binary_op, /*Inclusive*/ ::std::false_type)
 {
-    typedef _Combiner<_Tp, _BinaryOperation> _CombinerType;
+    using _CombinerType = _Combiner<_Tp, _BinaryOperation>;
     _CombinerType __init_{__init, &__binary_op};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__bin_op, _CombinerType)
@@ -620,7 +606,7 @@ template <class _InputIterator, class _Size, class _OutputIterator, class _Unary
 __simd_scan(_InputIterator __first, _Size __n, _OutputIterator __result, _UnaryOperation __unary_op, _Tp __init,
             _BinaryOperation __binary_op, ::std::true_type)
 {
-    typedef _Combiner<_Tp, _BinaryOperation> _CombinerType;
+    using _CombinerType = _Combiner<_Tp, _BinaryOperation>;
     _CombinerType __init_{__init, &__binary_op};
 
     _ONEDPL_PRAGMA_DECLARE_REDUCTION(__bin_op, _CombinerType)
@@ -647,7 +633,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
         return __first;
     }
 
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
     struct _ComplexType
     {
         _ValueType __min_val;
@@ -661,17 +647,14 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
             : __min_val(val), __min_ind(0), __min_comp(const_cast<_Compare*>(comp))
         {
         }
-        _ComplexType(const _ComplexType& __obj)
-            : __min_val(__obj.__min_val), __min_ind(__obj.__min_ind), __min_comp(__obj.__min_comp)
-        {
-        }
+        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
         operator()(const _ComplexType& __obj)
         {
-            if (!(*__min_comp)(__min_val, __obj.__min_val) &&
-                ((*__min_comp)(__obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
+            if (!std::invoke(*__min_comp, __min_val, __obj.__min_val) &&
+                (std::invoke(*__min_comp, __obj.__min_val, __min_val) || __obj.__min_ind - __min_ind < 0))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = __obj.__min_ind;
@@ -707,7 +690,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
     {
         return ::std::make_pair(__first, __first);
     }
-    typedef typename ::std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     struct _ComplexType
     {
@@ -725,11 +708,7 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
               __minmax_comp(const_cast<_Compare*>(comp))
         {
         }
-        _ComplexType(const _ComplexType& __obj)
-            : __min_val(__obj.__min_val), __max_val(__obj.__max_val), __min_ind(__obj.__min_ind),
-              __max_ind(__obj.__max_ind), __minmax_comp(__obj.__minmax_comp)
-        {
-        }
+        _ComplexType(const _ComplexType& __obj) = default;
 
         _ONEDPL_PRAGMA_DECLARE_SIMD
         void
@@ -816,7 +795,7 @@ _ForwardIterator1
 __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __s_first,
                      _ForwardIterator2 __s_last, _BinaryPredicate __pred) noexcept
 {
-    typedef typename ::std::iterator_traits<_ForwardIterator1>::difference_type _DifferencType;
+    using _DifferencType = typename std::iterator_traits<_ForwardIterator1>::difference_type;
 
     const _DifferencType __n1 = __last - __first;
     const _DifferencType __n2 = __s_last - __s_first;
@@ -830,11 +809,11 @@ __simd_find_first_of(_ForwardIterator1 __first, _ForwardIterator1 __last, _Forwa
     // Otherwise, vice versa.
     if (__n1 < __n2)
     {
+        auto __u_pred =
+            [__pred, __first](auto&& __val) mutable { return __pred(std::forward<decltype(__val)>(__val), *__first); };
         for (; __first != __last; ++__first)
         {
-            if (__unseq_backend::__simd_or(
-                    __s_first, __n2,
-                    __internal::__equal_value_by_pred<decltype(*__first), _BinaryPredicate&>(*__first, __pred)))
+            if (__unseq_backend::__simd_or(__s_first, __n2, __u_pred))
             {
                 return __first;
             }

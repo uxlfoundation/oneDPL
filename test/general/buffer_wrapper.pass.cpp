@@ -37,7 +37,7 @@ struct test_buffer_wrapper
         sycl::host_accessor buf_accessor(buf, sycl::read_only);
         auto actual_data = buf_accessor.get_pointer();
 
-        EXPECT_TRUE(actual_data == expected_data, "wrong effect of iterator's method get_buffer");
+        EXPECT_EQ(expected_data, actual_data, "wrong effect of iterator's method get_buffer");
     }
 };
 #endif
@@ -55,8 +55,10 @@ main()
 
     test(oneapi::dpl::begin(buf), oneapi::dpl::end(buf), data_ptr, size);
     test(oneapi::dpl::begin(buf, sycl::write_only), oneapi::dpl::end(buf, sycl::write_only), data_ptr, size);
-    test(oneapi::dpl::begin(buf, sycl::write_only, __dpl_sycl::__no_init{}), oneapi::dpl::end(buf, sycl::write_only, __dpl_sycl::__no_init{}), data_ptr, size);
-    test(oneapi::dpl::begin(buf, __dpl_sycl::__no_init{}), oneapi::dpl::end(buf, __dpl_sycl::__no_init{}), data_ptr, size);
+    test(oneapi::dpl::begin(buf, sycl::write_only, sycl::property::no_init{}),
+         oneapi::dpl::end(buf, sycl::write_only, sycl::property::no_init{}), data_ptr, size);
+    test(oneapi::dpl::begin(buf, sycl::property::no_init{}),
+         oneapi::dpl::end(buf, sycl::property::no_init{}), data_ptr, size);
 
 #endif
     return done(TEST_DPCPP_BACKEND_PRESENT);

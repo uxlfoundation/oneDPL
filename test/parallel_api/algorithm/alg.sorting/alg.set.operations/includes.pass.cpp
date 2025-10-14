@@ -54,9 +54,9 @@ struct test_without_compare
     operator()(Policy&& exec, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, InputIterator2 last2)
     {
         auto expect_res = ::std::includes(first1, last1, first2, last2);
-        auto res = ::std::includes(exec, first1, last1, first2, last2);
+        auto res = std::includes(std::forward<Policy>(exec), first1, last1, first2, last2);
 
-        EXPECT_TRUE(expect_res == res, "wrong result for includes without predicate");
+        EXPECT_EQ(expect_res, res, "wrong result for includes without predicate");
     }
 
     template <typename Policy, typename InputIterator1, typename InputIterator2>
@@ -76,9 +76,9 @@ struct test_with_compare
     {
 
         auto expect_res = ::std::includes(first1, last1, first2, last2, comp);
-        auto res = ::std::includes(exec, first1, last1, first2, last2, comp);
+        auto res = std::includes(std::forward<Policy>(exec), first1, last1, first2, last2, comp);
 
-        EXPECT_TRUE(expect_res == res, "wrong result for includes with predicate");
+        EXPECT_EQ(expect_res, res, "wrong result for includes with predicate");
     }
 
     template <typename Policy, typename InputIterator1, typename InputIterator2, typename Compare>
@@ -127,7 +127,7 @@ test_includes(Compare compare)
 int
 main()
 {
-    test_includes<float64_t, float64_t>([](const float64_t x, const float64_t y){ return x > y; });
+    test_includes<float64_t, float64_t>(TestUtils::IsGreat<float64_t>{});
 #if !TEST_DPCPP_BACKEND_PRESENT
     test_includes<Num<std::int64_t>, Num<std::int32_t>>([](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; });
 #endif

@@ -22,8 +22,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 template <typename T>
 class KernelTest1;
 template <typename T>
@@ -46,19 +44,18 @@ test_iterators()
                 typedef dpl::iterator_traits<typename C::const_iterator> CItT;
 
                 ret_acc[0] &=
-                    (dpl::is_same<typename ItT::iterator_category, dpl::random_access_iterator_tag>::value ==
-                     true);
+                    (dpl::is_same<typename ItT::iterator_category, dpl::random_access_iterator_tag>::value == true);
 
                 ret_acc[0] &= (dpl::is_same<typename ItT::value_type, typename C::value_type>::value == true);
 
                 ret_acc[0] &= (dpl::is_same<typename ItT::reference, typename C::reference>::value == true);
 
                 ret_acc[0] &= (dpl::is_same<typename ItT::pointer, typename C::pointer>::value == true);
-                ret_acc[0] &=
-                    (dpl::is_same<typename ItT::difference_type, typename C::difference_type>::value == true);
+                ret_acc[0] &= (dpl::is_same<typename ItT::difference_type, typename C::difference_type>::value == true);
 
-                ret_acc[0] &= (dpl::is_same<typename CItT::iterator_category,
-                                                typename dpl::random_access_iterator_tag>::value == true);
+                ret_acc[0] &=
+                    (dpl::is_same<typename CItT::iterator_category, typename dpl::random_access_iterator_tag>::value ==
+                     true);
                 ret_acc[0] &= (dpl::is_same<typename CItT::value_type, typename C::value_type>::value == true);
                 ret_acc[0] &= (dpl::is_same<typename CItT::reference, typename C::const_reference>::value == true);
 
@@ -92,39 +89,35 @@ kernel_test()
                 ptr1[0] &= (dpl::is_same<typename C::const_pointer, const T*>::value == true);
                 ptr1[0] &= (dpl::is_same<typename C::size_type, dpl::size_t>::value == true);
                 ptr1[0] &= (dpl::is_same<typename C::difference_type, dpl::ptrdiff_t>::value == true);
-                ptr1[0] &= (dpl::is_same<typename C::reverse_iterator,
-                                             dpl::reverse_iterator<typename C::iterator>>::value == true);
+                ptr1[0] &=
+                    (dpl::is_same<typename C::reverse_iterator, dpl::reverse_iterator<typename C::iterator>>::value ==
+                     true);
                 ptr1[0] &= (dpl::is_same<typename C::const_reverse_iterator,
-                                             dpl::reverse_iterator<typename C::const_iterator>>::value == true);
+                                         dpl::reverse_iterator<typename C::const_iterator>>::value == true);
                 ptr1[0] &= (dpl::is_signed<typename C::difference_type>::value == true);
                 ptr1[0] &= (dpl::is_unsigned<typename C::size_type>::value == true);
                 ptr1[0] &=
-                    (dpl::is_same<
-                         typename C::difference_type,
-                         typename dpl::iterator_traits<typename C::iterator>::difference_type>::value == true);
+                    (dpl::is_same<typename C::difference_type,
+                                  typename dpl::iterator_traits<typename C::iterator>::difference_type>::value == true);
                 ptr1[0] &=
-                    (dpl::is_same<
-                         typename C::difference_type,
-                         typename dpl::iterator_traits<typename C::const_iterator>::difference_type>::value ==
+                    (dpl::is_same<typename C::difference_type,
+                                  typename dpl::iterator_traits<typename C::const_iterator>::difference_type>::value ==
                      true);
             });
         });
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = true;
     typedef dpl::array<float, 10> C;
     ret &= test_iterators<C>();
     ret &= kernel_test<int*>();
     ret &= kernel_test<float>();
     EXPECT_TRUE(ret, "Wrong result of work in test_iterators of kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

@@ -29,12 +29,16 @@
 #include <cstring>
 #include <iostream>
 #include <iterator>
+#include <cmath>
 #include <complex>
 #include <type_traits>
 #include <memory>
 #include <sstream>
 #include <vector>
 #include <tuple>
+#include <random>
+#include <limits>
+#include <cassert>
 
 #include "utils_const.h"
 #include "iterator_utils.h"
@@ -43,13 +47,14 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #    include "utils_sycl.h"
+#    include "oneapi/dpl/experimental/kt/kernel_param.h"
 #endif
 
 namespace TestUtils
 {
 
-typedef double float64_t;
-typedef float float32_t;
+using float64_t = double;
+using float32_t = float;
 
 template <class T, ::std::size_t N>
 constexpr size_t
@@ -84,28 +89,113 @@ issue_error_message(::std::stringstream& outstr)
     ::std::exit(EXIT_FAILURE);
 }
 
+template <typename TStream>
+inline void
+log_file_lineno_msg(TStream& os, const char* file, std::int32_t line, const char* message)
+{
+    os << "error at " << file << ":" << line << " - " << message;
+}
+
 inline void
 expect(bool expected, bool condition, const char* file, std::int32_t line, const char* message)
 {
     if (condition != expected)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
         issue_error_message(outstr);
     }
 }
 
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
-template <typename T>
-void
-expect_equal_val(T& expected, T& actual, const char* file, std::int32_t line, const char* message)
+template <typename T1, typename T2>
+bool
+is_equal_val(const T1& val1, const T2& val2)
 {
-    if (!(expected == actual))
+    using T = std::common_type_t<T1, T2>;
+
+    if constexpr (std::is_floating_point_v<T>)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected " << expected << " got "
-               << actual;
+        const auto eps = std::numeric_limits<T>::epsilon();
+        return std::fabs(T(val1) - T(val2)) < eps;
+    }
+    else if constexpr (std::is_same_v<T1, T2>)
+    {
+        return val1 == val2;
+    }
+    else
+    {
+        return T(val1) == T(val2);
+    }
+}
+
+template <typename T, typename TOutputStream, typename = void>
+struct IsOutputStreamable : std::false_type
+{
+};
+
+template <typename T, typename TOutputStream>
+struct IsOutputStreamable<T, TOutputStream,
+                             std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>> : std::true_type
+{
+};
+
+struct TagExpected{};
+struct TagActual{};
+
+inline
+std::string log_value_title(TagExpected)
+{
+    return " expected ";
+}
+
+inline
+std::string log_value_title(TagActual)
+{
+    return " got ";
+}
+
+template <typename TStream, typename Tag, typename TValue>
+ void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+{
+    if (bCommaNeeded)
+        os << ",";
+    os << log_value_title(Tag{});
+
+    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
+    {
+        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
+        {
+            if (value)
+                os << "true";
+            else
+                os << "false";
+        }
+        else
+        {
+            os << value;
+        }
+    }
+    else
+    {
+        os << "(unable to log value)";
+    }
+}
+
+// Do not change signature to const T&.
+// Function must be able to detect const differences between expected and actual.
+template <typename T1, typename T2>
+void
+expect_equal_val(const T1& expected, const T2& actual, const char* file, std::int32_t line, const char* message)
+{
+    if (!is_equal_val(expected, actual))
+    {
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
+        log_value(outstr, TagExpected{}, expected, true);
+        log_value(outstr, TagActual{}, actual, true);
+
         issue_error_message(outstr);
     }
 }
@@ -118,20 +208,23 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     size_t m = actual.size();
     if (n != m)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected sequence of size " << n
-               << " got sequence of size " << m;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
+        outstr << ", expected sequence of size " << n << " got sequence of size " << m;
         issue_error_message(outstr);
         return;
     }
     size_t error_count = 0;
     for (size_t k = 0; k < n && error_count < 10; ++k)
     {
-        if (!(expected[k] == actual[k]))
+        if (!is_equal_val(expected[k], actual[k]))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
-                   << expected[k] << " got " << actual[k];
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, expected[k], false);
+            log_value(outstr, TagActual{}, actual[k], false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -151,13 +244,16 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
              const char* message)
 {
     size_t error_count = 0;
-    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, ++actual_first)
+    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, (void) ++actual_first)
     {
-        if (!(*expected_first == *actual_first))
+        if (!is_equal_val(*expected_first, *actual_first))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
-                   << *expected_first << " got " << *actual_first;
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, *expected_first, false);
+            log_value(outstr, TagActual{}, *actual_first, false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -170,7 +266,7 @@ check_data(const T1* device_iter, const T2* host_iter, int N)
 {
     for (int i = 0; i < N; ++i)
     {
-        if (*(host_iter + i) != *(device_iter + i))
+        if (!is_equal_val(*(host_iter + i), *(device_iter + i)))
             return false;
     }
     return true;
@@ -285,19 +381,19 @@ struct MemoryChecker
     }
 };
 
-::std::atomic<::std::size_t> MemoryChecker::alive_object_counter{0};
+inline ::std::atomic<::std::size_t> MemoryChecker::alive_object_counter{0};
 
-::std::ostream&
+inline ::std::ostream&
 operator<<(::std::ostream& os, const MemoryChecker& val)
 {
     return (os << val.value());
 }
-bool
+inline bool
 operator==(const MemoryChecker& v1, const MemoryChecker& v2)
 {
     return v1.value() == v2.value();
 }
-bool
+inline bool
 operator<(const MemoryChecker& v1, const MemoryChecker& v2)
 {
     return v1.value() < v2.value();
@@ -329,16 +425,56 @@ HashBits(size_t i, size_t bits)
 
 // Stateful unary op
 template <typename T, typename U>
-class Complement
+struct Complement
 {
-    std::int32_t val;
+    std::int32_t val = 1;
 
-  public:
-    Complement(T v) : val(v) {}
     U
     operator()(const T& x) const
     {
         return U(val - x);
+    }
+};
+
+struct ComplementZip
+{
+    std::int32_t val = 1;
+
+    template<typename T>
+    auto
+    operator()(const oneapi::dpl::__internal::tuple<T&>& t) const
+    {
+        return oneapi::dpl::__internal::tuple<T>(val - std::get<0>(t));
+    }
+};
+
+template <typename In1, typename In2, typename Out>
+class TheOperation
+{
+    Out val;
+
+  public:
+    TheOperation(Out v) : val(v) {}
+    Out
+    operator()(const In1& x, const In2& y) const
+    {
+        return Out(val + x - y);
+    }
+};
+
+template <typename Out>
+class TheOperationZip
+{
+    Out val;
+
+  public:
+    TheOperationZip(Out v) : val(v) {}
+
+    template <typename T1, typename T2>
+    auto
+    operator()(const oneapi::dpl::__internal::tuple<T1&>& t1, const oneapi::dpl::__internal::tuple<T2&>& t2) const
+    {
+        return oneapi::dpl::__internal::tuple<Out>(val + std::get<0>(t1) - std::get<0>(t2));
     }
 };
 
@@ -649,7 +785,7 @@ transform_reduce_serial(InputIterator first, InputIterator last, T init, BinaryO
     return init;
 }
 
-int
+inline int
 done(int is_done = 1)
 {
     if (is_done)
@@ -692,13 +828,6 @@ test_algo_basic_double(F&& f)
     invoke_on_all_host_policies()(::std::forward<F>(f), in.begin(), out.begin());
 }
 
-template <typename Policy, typename F>
-static void
-invoke_if(Policy&&, F f)
-{
-    f();
-}
-
 template <typename T, typename = bool>
 struct can_use_default_less_operator : ::std::false_type
 {
@@ -718,12 +847,43 @@ template <typename _Tp>
 struct UserBinaryPredicate
 {
     bool
-    operator()(const _Tp& __x, const _Tp& __y) const
+    operator()(const _Tp&, const _Tp& __y) const
     {
         using KeyT = ::std::decay_t<_Tp>;
         return __y != KeyT(1);
     }
 };
+
+template <typename T>
+struct MatrixPoint
+{
+    T m;
+    T n;
+    MatrixPoint() = default;
+    MatrixPoint(T m, T n = {}) : m(m), n(n) {}
+    bool
+    operator==(const MatrixPoint& other) const
+    {
+        return m == other.m && n == other.n;
+    }
+    bool
+    operator!=(const MatrixPoint& other) const
+    {
+        return !(*this == other);
+    }
+    MatrixPoint
+    operator+(const MatrixPoint& other) const
+    {
+        return MatrixPoint(m + other.m, n + other.n);
+    }
+};
+
+template <typename T>
+std::ostream&
+operator<<(std::ostream& os, MatrixPoint<T> matrix_point)
+{
+    return os << "(" << matrix_point.m << ", " << matrix_point.n << ")";
+}
 
 template <typename _Tp>
 struct MaxFunctor
@@ -735,20 +895,18 @@ struct MaxFunctor
     }
 };
 
-// TODO: Investigate why we cannot call ::std::abs on complex
-// types with the CUDA backend.
 template <typename _Tp>
-struct MaxFunctor<::std::complex<_Tp>>
+struct MaxFunctor<MatrixPoint<_Tp>>
 {
     auto
-    complex_abs(const ::std::complex<_Tp>& __x) const
+    sum(const MatrixPoint<_Tp>& __x) const
     {
-        return ::std::sqrt(__x.real() * __x.real() + __x.imag() * __x.imag());
+        return __x.m + __x.n;
     }
-    ::std::complex<_Tp>
-    operator()(const ::std::complex<_Tp>& __x, const ::std::complex<_Tp>& __y) const
+    MatrixPoint<_Tp>
+    operator()(const MatrixPoint<_Tp>& __x, const MatrixPoint<_Tp>& __y) const
     {
-        return (complex_abs(__x) < complex_abs(__y)) ? __y : __x;
+        return (sum(__x) < sum(__y)) ? __y : __x;
     }
 };
 
@@ -757,21 +915,21 @@ struct MaxAbsFunctor;
 
 // A modification of the functor we use in reduce_by_segment
 template <typename _Tp>
-struct MaxAbsFunctor<::std::complex<_Tp>>
+struct MaxAbsFunctor<MatrixPoint<_Tp>>
 {
     auto
-    complex_abs(const ::std::complex<_Tp>& __x) const
+    abs_sum(const MatrixPoint<_Tp>& __x) const
     {
-        return ::std::sqrt(__x.real() * __x.real() + __x.imag() * __x.imag());
+        return std::sqrt(__x.m * __x.m + __x.n * __x.n);
     }
-    ::std::complex<_Tp>
-    operator()(const ::std::complex<_Tp>& __x, const ::std::complex<_Tp>& __y) const
+    MatrixPoint<_Tp>
+    operator()(const MatrixPoint<_Tp>& __x, const MatrixPoint<_Tp>& __y) const
     {
-        return (complex_abs(__x) < complex_abs(__y)) ? complex_abs(__y) : complex_abs(__x);
+        return (abs_sum(__x) < abs_sum(__y)) ? abs_sum(__y) : abs_sum(__x);
     }
 };
 
-struct TupleAddFunctor
+struct TupleAddFunctor1
 {
     template <typename Tup1, typename Tup2>
     auto
@@ -782,6 +940,425 @@ struct TupleAddFunctor
         return tup_sum;
     }
 };
+
+// Exercise an explicit return of std::tuple to check for issues related to ambiguous return types between
+// oneapi::dpl::__internal::tuple and std::tuple
+struct TupleAddFunctor2
+{
+    template <typename Tup1, typename Tup2>
+    auto
+    operator()(const Tup1& lhs, const Tup2& rhs) const
+    {
+        using std::get;
+        using return_t =
+            std::tuple<decltype(get<0>(lhs) + get<0>(rhs)), decltype(get<1>(lhs) + get<1>(rhs))>;
+        return_t tup_sum{get<0>(lhs) + get<0>(rhs), get<1>(lhs) + get<1>(rhs)};
+        return tup_sum;
+    }
+};
+
+struct _Identity
+{
+    template< class T >
+    constexpr T&& operator()(T&& t) const noexcept
+    {
+        return std::forward<T>(t);
+    }
+};
+
+struct _ZipIteratorAdapter
+{
+    template< class T >
+    constexpr auto operator()(T&& t) const noexcept
+    {
+        return dpl::make_zip_iterator(std::forward<T>(t));
+    }
+};
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __default_alloc_vec_iter = typename std::vector<ValueType>::iterator;
+
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __usm_shared_alloc_vec_iter =
+    typename std::vector<ValueType, typename sycl::usm_allocator<ValueType, sycl::usm::alloc::shared>>::iterator;
+
+template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
+using __usm_host_alloc_vec_iter =
+    typename std::vector<ValueType, typename sycl::usm_allocator<ValueType, sycl::usm::alloc::host>>::iterator;
+
+// Evaluates to true if the provided type is an iterator with a value_type and if the implementation of a
+// std::vector<value_type, Alloc>::iterator can be distinguished between three different allocators, the
+// default, usm_shared, and usm_host. If all are distinct, it is very unlikely any non-usm based allocator
+// could be confused with a usm allocator.
+template <typename Iter>
+constexpr bool __vector_impl_distinguishes_usm_allocator_from_default_v =
+    !std::is_same_v<__default_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>> &&
+    !std::is_same_v<__default_alloc_vec_iter<Iter>, __usm_host_alloc_vec_iter<Iter>> &&
+    !std::is_same_v<__usm_host_alloc_vec_iter<Iter>, __usm_shared_alloc_vec_iter<Iter>>;
+
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename KernelName, int idx>
+struct kernel_name_with_idx
+{
+};
+
+template <int idx, typename KernelParam>
+constexpr auto
+create_new_kernel_param_idx(KernelParam)
+{
+#if TEST_EXPLICIT_KERNEL_NAMES
+    return oneapi::dpl::experimental::kt::kernel_param<KernelParam::data_per_workitem,
+                                                       KernelParam::workgroup_size,
+                                                       kernel_name_with_idx<typename KernelParam::kernel_name, idx>>{};
+#else
+    return KernelParam{};
+#endif // TEST_EXPLICIT_KERNEL_NAMES
+}
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
+template <typename T>
+typename std::enable_if_t<std::is_arithmetic_v<T>>
+generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
+{
+    std::default_random_engine gen{seed};
+    // The values beyond the threshold (75%) are duplicates of the values within the threshold
+    std::size_t unique_threshold = 75 * size / 100;
+    if constexpr (std::is_integral_v<T>)
+    {
+        // no uniform_int_distribution for chars
+        using GenT = std::conditional_t<sizeof(T) < sizeof(short), int, T>;
+        std::uniform_int_distribution<GenT> dist(std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max());
+        std::generate(input, input + unique_threshold, [&] { return T(dist(gen)); });
+    }
+    else
+    {
+        // log2 - exp2 transformation allows generating floating point values,
+        // which distribution resembles uniform distribution of their bit representation
+        // This is useful for checking different cases of radix sort
+        std::uniform_real_distribution<T> dist_real(std::numeric_limits<T>::min(), log2(std::numeric_limits<T>::max()));
+        std::uniform_int_distribution<int> dist_binary(0, 1);
+        auto randomly_signed_real = [&dist_real, &dist_binary, &gen]()
+        {
+            auto v = exp2(dist_real(gen));
+            return dist_binary(gen) == 0 ? v : -v;
+        };
+        std::generate(input, input + unique_threshold, [&] { return randomly_signed_real(); });
+    }
+    assert(unique_threshold >= size/2 && unique_threshold < size);
+    for (uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
+    {
+        input[j] = input[i];
+    }
+}
+
+// Utility that models __estimate_best_start_size in the SYCL backend parallel_for to ensure large enough inputs are
+// used to test the large submitter path. A multiplier to the max size is added to ensure we get a few separate test inputs
+// for this path. For debug testing, only test with a single large size to avoid timeouts. Returns a monotonically increasing
+// sequence for use in testing.
+inline std::vector<std::size_t>
+get_pattern_for_test_sizes()
+{
+    std::size_t max_size = 0;
+    // We do not enable large input size testing for FPGA devices as __parallel_for_submitter_fpga only has a single
+    // implementation with the standard input sizes providing full coverage, and testing large inputs is slow with the
+    // FPGA emulator.
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+    sycl::queue q = TestUtils::get_test_queue();
+    sycl::device d = q.get_device();
+    constexpr std::size_t max_iters_per_item = 16;
+    constexpr std::size_t multiplier = 4;
+    constexpr std::size_t max_work_group_size = 512;
+    const std::size_t large_submitter_limit =
+        max_iters_per_item * max_work_group_size * d.get_info<sycl::info::device::max_compute_units>();
+#endif
+#if TEST_DPCPP_BACKEND_PRESENT && !PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    std::size_t cap = 10000000;
+    max_size = multiplier * large_submitter_limit;
+    // Ensure that TestUtils::max_n <= max <= cap
+    max_size = std::max(TestUtils::max_n, std::min(cap, max_size));
+#else
+    max_size = TestUtils::max_n;
+#endif
+    // Generate the sequence of test input sizes
+    std::vector<std::size_t> sizes;
+    for (std::size_t n = 0; n <= max_size; n = n <= 16 ? n + 1 : std::size_t(3.1415 * n))
+        sizes.push_back(n);
+#if TEST_DPCPP_BACKEND_PRESENT && PSTL_USE_DEBUG && !ONEDPL_FPGA_DEVICE
+    if (max_size < large_submitter_limit)
+        sizes.push_back(large_submitter_limit);
+#endif
+    return sizes;
+}
+
+template <typename T>
+struct IsMultipleOf
+{
+    T value;
+
+    bool operator()(T v) const
+    {
+        return v % value == 0;
+    }
+};
+
+template <typename T>
+struct IsEven
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 == 0;
+        }
+        else
+        {
+            return v % 2 == 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsOdd
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 != 0;
+        }
+        else
+        {
+            return v % 2 != 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsGreatThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v > value;
+    }
+};
+
+template <typename T>
+struct IsLessThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v < value;
+    }
+};
+
+template <typename T>
+struct IsGreat
+{
+    bool operator()(T x, T y) const
+    {
+        return x > y;
+    }
+};
+
+template <typename T>
+struct IsLess
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct IsEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x == y;
+    }
+};
+
+template <typename T>
+struct IsNotEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x != y;
+    }
+};
+
+template <typename T>
+struct IsEqualTo
+{
+    T val;
+
+    bool operator()(T x) const
+    {
+        return val == x;
+    }
+};
+
+template <typename T, typename Predicate>
+struct NotPred
+{
+    Predicate pred;
+
+    bool
+    operator()(T x) const
+    {
+        return !pred(x);
+    }
+};
+
+template <typename T1, typename T2>
+struct SumOp
+{
+    auto operator()(T1 i, T2 j) const
+    {
+        return i + j;
+    }
+};
+
+template <typename T>
+struct SumWithOp
+{
+    T const_val;
+
+    auto operator()(T val) const
+    {
+        return val + const_val;
+    }
+};
+
+template <typename T>
+struct Pow2
+{
+    T
+    operator()(T x) const
+    {
+        return x * x;
+    }
+};
+
+template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return a.value == b.value;
+    }
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    }
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
+    }
+};
+
+template <typename _T>
+struct NoDefaultCtorWrapper {
+    _T value;
+
+    // Default constructor
+    NoDefaultCtorWrapper() = delete;
+
+    NoDefaultCtorWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
+
+    // Move assignment operator
+    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
+    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
+    
+    NoDefaultCtorWrapper operator-() const
+    {
+        return NoDefaultCtorWrapper{-value};
+    }
+
+    friend bool operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return a.value == b.value;
+    } 
+    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+
+    friend NoDefaultCtorWrapper operator*(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value * b.value};
+    } 
+
+    // non-trivial destructor for testing
+    ~NoDefaultCtorWrapper()
+    {
+        value.~_T();
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// A minimalistic range that only provides begin() and end() methods.
+template <typename ForwardIterator>
+struct MinimalisticRange
+{
+    ForwardIterator it_begin;
+    ForwardIterator it_end;
+
+    ForwardIterator begin() const { return it_begin; };
+    ForwardIterator end()   const { return it_end;   };
+};
+
+#if _ENABLE_STD_RANGES_TESTING
+
+static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
+// All oneDPL algorithms require at least a random access range
+static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
+
+#endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
 

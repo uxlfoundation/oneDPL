@@ -13,9 +13,9 @@
 #include "oneapi/dpl/internal/common_config.h"
 #include "oneapi/dpl/pstl/onedpl_config.h"
 
-#if _ONEDPL_BACKEND_SYCL != 0 && __INTEL_LLVM_COMPILER >= 20230000
-
-    //TODO: Use a config macro that detects the presence of host tasks
+#if _ONEDPL_BACKEND_SYCL != 0 &&                                                                                       \
+    (__INTEL_LLVM_COMPILER >= 20230000 || (!defined(__INTEL_LLVM_COMPILER) && SYCL_LANGUAGE_VERSION >= 202000))
+//TODO: Use a config macro that detects the presence of host tasks
 #    define _DS_BACKEND_SYCL 1
 #else
 #    define _DS_BACKEND_SYCL 0

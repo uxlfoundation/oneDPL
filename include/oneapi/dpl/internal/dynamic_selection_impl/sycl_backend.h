@@ -16,9 +16,11 @@
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 
 #include <chrono>
+#include <ratio>
 #include <vector>
 #include <memory>
 #include <utility>
+#include <algorithm>
 
 namespace oneapi
 {
@@ -36,23 +38,95 @@ class sycl_backend
     using resource_container_t = std::vector<execution_resource_t>;
 
   private:
-    class async_waiter
+    static inline bool is_profiling_enabled = false;
+    using report_clock_type = std::chrono::steady_clock;
+    using report_duration = std::chrono::milliseconds;
+
+    class async_waiter_base
+    {
+      public:
+        virtual void report() const = 0;
+        virtual bool is_complete() const = 0;
+        virtual ~async_waiter_base() = default;
+    };
+
+    template <typename Selection>
+    class async_waiter : public async_waiter_base
     {
         sycl::event e_;
+        std::shared_ptr<Selection> s;
 
       public:
-        async_waiter(sycl::event e) : e_(e) {}
+        async_waiter() = default;
+        async_waiter(sycl::event e, std::shared_ptr<Selection> selection) : e_(e), s(selection) {}
+
         sycl::event
         unwrap()
         {
             return e_;
         }
+
         void
         wait()
         {
             e_.wait();
         }
+
+        void
+        report() const override
+        {
+            if constexpr (report_value_v<Selection, execution_info::task_time_t, report_duration>)
+            {
+                if (s != nullptr)
+                {
+                    const auto time_start =
+                        e_.template get_profiling_info<sycl::info::event_profiling::command_start>();
+                    const auto time_end = e_.template get_profiling_info<sycl::info::event_profiling::command_end>();
+                    s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
+                                                             std::chrono::nanoseconds(time_end - time_start)));
+                }
+            }
+        }
+
+        bool
+        is_complete() const override
+        {
+            return e_.get_info<sycl::info::event::command_execution_status>() ==
+                   sycl::info::event_command_status::complete;
+        }
     };
+
+    struct async_waiter_list_t
+    {
+
+        std::mutex m_;
+        std::vector<std::unique_ptr<async_waiter_base>> async_waiters;
+
+        void
+        add_waiter(async_waiter_base* t)
+        {
+            std::lock_guard<std::mutex> l(m_);
+            async_waiters.push_back(std::unique_ptr<async_waiter_base>(t));
+        }
+
+        void
+        lazy_report()
+        {
+            std::lock_guard<std::mutex> l(m_);
+            async_waiters.erase(std::remove_if(async_waiters.begin(), async_waiters.end(),
+                                               [](std::unique_ptr<async_waiter_base>& async_waiter) {
+                                                   if (async_waiter->is_complete())
+                                                   {
+                                                       async_waiter->report();
+                                                       return true;
+                                                   }
+                                                   return false;
+                                               }),
+                                async_waiters.end());
+        }
+    };
+
+    async_waiter_list_t async_waiter_list;
 
     class submission_group
     {
@@ -85,11 +159,17 @@ class sycl_backend
     template <typename NativeUniverseVector>
     sycl_backend(const NativeUniverseVector& v)
     {
+        bool profiling = true;
         global_rank_.reserve(v.size());
         for (auto e : v)
         {
             global_rank_.push_back(e);
+            if (!e.template has_property<sycl::property::queue::enable_profiling>())
+            {
+                profiling = false;
+            }
         }
+        is_profiling_enabled = profiling;
         sgroup_ptr_ = std::make_unique<submission_group>(global_rank_);
     }
 
@@ -97,37 +177,49 @@ class sycl_backend
     auto
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
+        constexpr bool report_task_completion = report_info_v<SelectionHandle, execution_info::task_completion_t>;
+        constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+
         auto q = unwrap(s);
-        if constexpr (report_info_v<SelectionHandle, execution_info::task_submission_t>)
-        {
+
+        if constexpr (report_task_submission)
             report(s, execution_info::task_submission);
-        }
-        if constexpr (report_info_v<SelectionHandle, execution_info::task_completion_t> ||
-                      report_value_v<SelectionHandle, execution_info::task_time_t>)
+
+        if constexpr (report_task_completion || report_task_time)
         {
-            std::chrono::steady_clock::time_point t0;
-            if constexpr (report_value_v<SelectionHandle, execution_info::task_time_t>)
-            {
-                t0 = std::chrono::steady_clock::now();
-            }
+            const auto t0 = report_clock_type::now();
+
             auto e1 = f(q, std::forward<Args>(args)...);
-            auto e2 = q.submit([=](sycl::handler& h) {
-                h.depends_on(e1);
-                h.host_task([=]() {
-                    if constexpr (report_info_v<SelectionHandle, execution_info::task_completion_t>)
-                    {
-                        s.report(execution_info::task_completion);
-                    }
-                    if constexpr (report_value_v<SelectionHandle, execution_info::task_time_t>)
-                        s.report(execution_info::task_time, (std::chrono::steady_clock::now() - t0).count());
+            async_waiter<SelectionHandle> waiter{e1, std::make_shared<SelectionHandle>(s)};
+
+            if constexpr (report_task_time)
+            {
+                if (is_profiling_enabled)
+                    async_waiter_list.add_waiter(new async_waiter(waiter));
+            }
+
+            if ((report_task_time && !is_profiling_enabled) || report_task_completion)
+            {
+                auto e2 = q.submit([=](sycl::handler& h) {
+                    h.depends_on(e1);
+                    h.host_task([=]() {
+                        if constexpr (report_task_time)
+                        {
+                            if (!is_profiling_enabled)
+                                s.report(execution_info::task_time,
+                                         std::chrono::duration_cast<report_duration>(report_clock_type::now() - t0));
+                        }
+                        if constexpr (report_task_completion)
+                            s.report(execution_info::task_completion);
+                    });
                 });
-            });
-            return async_waiter{e2};
+                waiter = async_waiter{e2, std::make_shared<SelectionHandle>(s)};
+            }
+            return waiter;
         }
-        else
-        {
-            return async_waiter{f(unwrap(s), std::forward<Args>(args)...)};
-        }
+
+        return async_waiter{f(q, std::forward<Args>(args)...), std::make_shared<SelectionHandle>(s)};
     }
 
     auto
@@ -142,6 +234,15 @@ class sycl_backend
         return global_rank_;
     }
 
+    void
+    lazy_report()
+    {
+        if (is_profiling_enabled)
+        {
+            async_waiter_list.lazy_report();
+        }
+    }
+
   private:
     resource_container_t global_rank_;
     std::unique_ptr<submission_group> sgroup_ptr_;
@@ -149,10 +250,24 @@ class sycl_backend
     void
     initialize_default_resources()
     {
+        bool profiling = true;
+        auto prop_list = sycl::property_list{};
         auto devices = sycl::device::get_devices();
-        for (auto x : devices)
+        for (auto& x : devices)
         {
-            global_rank_.push_back(sycl::queue{x});
+            if (!x.has(sycl::aspect::queue_profiling))
+            {
+                profiling = false;
+            }
+        }
+        is_profiling_enabled = profiling;
+        if (is_profiling_enabled)
+        {
+            prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
+        }
+        for (auto& x : devices)
+        {
+            global_rank_.push_back(sycl::queue{x, prop_list});
         }
     }
 };

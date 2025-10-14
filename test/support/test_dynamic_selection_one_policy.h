@@ -88,7 +88,7 @@ class one_with_no_customizations
     // required
     template <typename... Args>
     selection_type
-    select(Args&&... args)
+    select(Args&&...)
     {
         trace_ = (trace_ | t_select);
         return selection_type{*this};
@@ -97,7 +97,7 @@ class one_with_no_customizations
     // required
     template <typename Function, typename... Args>
     auto
-    submit(selection_type e, Function&& f, Args&&... args)
+    submit(selection_type, Function&&, Args&&...)
     {
         trace_ = (trace_ | t_submit_selection);
         return submission{trace_};

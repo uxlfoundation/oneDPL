@@ -16,12 +16,19 @@
 #ifndef _ONEDPL_UTILS_RANGES_H
 #define _ONEDPL_UTILS_RANGES_H
 
-#include <iterator>
-#include <type_traits>
+#include <tuple>       // std::get
+#include <cstdint>     // std::uint8_t
+#include <cstddef>     // std::size_t, std::ptrdiff_t
+#include <utility>     // std::declval
+#include <iterator>    // std::iterator_traits
+#include <type_traits> // std::decay_t, std::remove_cv_t, std::remove_reference_t, std::invoke_result_t, ...
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
+#endif
 
 #include "iterator_defs.h"
 #include "iterator_impl.h"
-#include "execution_defs.h"
 
 namespace oneapi
 {
@@ -39,6 +46,10 @@ template <typename _R>
 auto
 get_value_type(long) ->
     typename ::std::iterator_traits<::std::decay_t<decltype(::std::declval<_R&>().begin())>>::value_type;
+
+template <typename _It>
+auto
+get_value_type(long long) -> typename ::std::iterator_traits<_It>::value_type;
 
 template <typename _R>
 auto
@@ -70,10 +81,164 @@ struct __range_has_raw_ptr_iterator<T, ::std::void_t<decltype(::std::declval<T&>
 template <typename T>
 inline constexpr bool __range_has_raw_ptr_iterator_v = __range_has_raw_ptr_iterator<T>::value;
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+//The following '__range_size' type trait should be used in only the context with std::common_type
+//together with a sized range.
+template <typename R>
+struct __range_size {
+    using type = std::uint8_t;
+};
+
+template <std::ranges::sized_range R>
+struct __range_size<R> {
+    using type = std::ranges::range_size_t<R>;
+};
+
+template <typename _R>
+using __range_size_t = typename __range_size<_R>::type;
+
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _R>
+auto
+__check_size(int) -> decltype(std::declval<_R&>().size());
+
+template <typename _R>
+auto
+__check_size(long) -> decltype(std::declval<_R&>().get_count());
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _R>
+auto
+__check_size(long long) -> decltype(std::ranges::size(std::declval<_R&>()));
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename _It>
+auto
+__check_size(...) -> typename std::iterator_traits<_It>::difference_type;
+
+template <typename _R>
+using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
+
 } //namespace __internal
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    if _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::projected_value_t<I, Proj>;
+#    else
+template <std::indirectly_readable I, std::indirectly_regular_unary_invocable<I> Proj>
+using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::iter_value_t<I>&>>;
+#    endif
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 namespace __ranges
 {
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    return std::ranges::empty(__rng);
+}
+#else
+template <typename _R, typename = void>
+struct __has_empty : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std::true_type
+{
+};
+
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    if constexpr (__has_empty<_Range>::value)
+        return __rng.empty();
+    else
+        return __rng.begin() == __rng.end();
+}
+#endif
+
+template <typename _R, typename = void>
+struct __has_size : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::true_type
+{
+};
+
+template <typename _Range>
+std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
+__size(_Range&& __rng)
+{
+    return __rng.size();
+}
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::ranges::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+__size(_Range&& __rng)
+{
+    return std::ranges::distance(__rng.begin(), __rng.end());
+}
+#else
+template <typename _Range>
+std::enable_if_t<!__has_size<_Range>::value,
+                 decltype(std::distance(std::declval<_Range>().begin(), std::declval<_Range>().end()))>
+__size(_Range&& __rng)
+{
+    return std::distance(__rng.begin(), __rng.end());
+}
+#endif
+
+template <typename... _Rng>
+using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
+
+template <std::size_t _RngIndex>
+struct __nth_range_size
+{
+  private:
+    template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
+    auto
+    __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
+    {
+        if constexpr (_RngIndexCurrent == _RngIndex)
+            return __size(__rng);
+        else
+            return __nth_range_size_impl<_RngIndexCurrent + 1>(__rngs...);
+    }
+
+  public:
+    template <typename... _Ranges>
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        static_assert(_RngIndex < sizeof...(_Ranges));
+        return __nth_range_size_impl<0>(__rngs...);
+    }
+};
+
+using __first_size_calc = __nth_range_size<0>;
+using __second_size_calc = __nth_range_size<1>;
+
+struct __min_size_calc
+{
+    template <typename... _Ranges>
+    auto
+    operator()(const _Ranges&... __rngs) const
+    {
+        using _Size = std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>;
+        return std::min({_Size(oneapi::dpl::__ranges::__size(__rngs))...});
+    }
+};
 
 // helpers to check implement "has_base"
 template <typename U>
@@ -159,12 +324,12 @@ class zip_view
     using value_type = oneapi::dpl::__internal::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
     static constexpr ::std::size_t __num_ranges = sizeof...(_Ranges);
 
-    explicit zip_view(_Ranges... __args) : __m_ranges(oneapi::dpl::__internal::make_tuple(__args...)) {}
+    explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
-    size() const -> decltype(::std::get<0>(::std::declval<_tuple_ranges_t>()).size())
+    size() const -> decltype(oneapi::dpl::__ranges::__size(std::get<0>(std::declval<_tuple_ranges_t>())))
     {
-        return ::std::get<0>(__m_ranges).size();
+        return oneapi::dpl::__ranges::__size(std::get<0>(__m_ranges));
     }
 
     //TODO: C++ Standard states that the operator[] index should be the diff_type of the underlying range.
@@ -182,11 +347,6 @@ class zip_view
     }
 
     _tuple_ranges_t
-    tuple()
-    {
-        return __m_ranges;
-    }
-    _tuple_ranges_t
     tuple() const
     {
         return __m_ranges;
@@ -196,11 +356,11 @@ class zip_view
     _tuple_ranges_t __m_ranges;
 };
 
-template <typename... _Ranges>
+template <typename... _Views>
 auto
-make_zip_view(_Ranges&&... args) -> decltype(zip_view<_Ranges...>(::std::forward<_Ranges>(args)...))
+make_zip_view(_Views... args)
 {
-    return zip_view<_Ranges...>(::std::forward<_Ranges>(args)...);
+    return zip_view<_Views...>(args...);
 }
 
 // a custom view, over a pair of "passed directly" iterators
@@ -274,15 +434,15 @@ struct reverse_view_simple
     }
 
     auto
-    size() const -> decltype(__r.size())
+    size() const -> decltype(oneapi::dpl::__ranges::__size(__r))
     {
-        return __r.size();
+        return oneapi::dpl::__ranges::__size(__r);
     }
 
     bool
     empty() const
     {
-        return __r.empty();
+        return oneapi::dpl::__ranges::__empty(__r);
     }
 
     auto
@@ -302,7 +462,10 @@ struct take_view_simple
     _R __r;
     _Size __n;
 
-    take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= __r.size()); }
+    take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
+    {
+        assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
+    }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
@@ -314,6 +477,7 @@ struct take_view_simple
     _Size
     size() const
     {
+        assert(__n <= oneapi::dpl::__ranges::__size(__r));
         return __n;
     }
 
@@ -340,7 +504,10 @@ struct drop_view_simple
     _R __r;
     _Size __n;
 
-    drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size) { assert(__n >= 0 && __n <= __r.size()); }
+    drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
+    {
+        assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
+    }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
@@ -352,7 +519,8 @@ struct drop_view_simple
     _Size
     size() const
     {
-        return __r.size() - __n;
+        assert(oneapi::dpl::__ranges::__size(__r) >= __n);
+        return oneapi::dpl::__ranges::__size(__r) - __n;
     }
 
     bool
@@ -394,7 +562,7 @@ struct replicate_start_view_simple
     size() const
     {
         // if base range is empty, replication does not extend the valid size
-        return (__r.empty()) ? 0 : __r.size() + __repl_count;
+        return oneapi::dpl::__ranges::__empty(__r) ? 0 : oneapi::dpl::__ranges::__size(__r) + __repl_count;
     }
 
     bool
@@ -427,15 +595,15 @@ struct transform_view_simple
     }
 
     auto
-    size() const -> decltype(__r.size())
+    size() const -> decltype(oneapi::dpl::__ranges::__size(__r))
     {
-        return __r.size();
+        return oneapi::dpl::__ranges::__size(__r);
     }
 
     bool
     empty() const
     {
-        return __r.empty();
+        return oneapi::dpl::__ranges::__empty(__r);
     }
 
     auto
@@ -460,31 +628,33 @@ struct is_map_view : decltype(test_map_view<_Map>(0))
 };
 
 //It is kind of pseudo-view for permutation_iterator support.
-template <typename _R, typename _M, typename = void>
+template <typename _Source, typename _M, typename = void>
 struct permutation_view_simple;
 
 //permutation view: specialization for an index map functor
-template <typename _R, typename _M>
-struct permutation_view_simple<_R, _M, ::std::enable_if_t<oneapi::dpl::__internal::__is_functor<_M>>>
+//size of such view  is specified by a caller
+template <typename _Source, typename _M>
+struct permutation_view_simple<_Source, _M, ::std::enable_if_t<oneapi::dpl::__internal::__is_functor<_M>>>
 {
-    using value_type = oneapi::dpl::__internal::__value_t<_R>;
-    using _Size = oneapi::dpl::__internal::__difference_t<_R>;
+    using value_type = oneapi::dpl::__internal::__value_t<_Source>;
+    using _Size = oneapi::dpl::__internal::__difference_t<_Source>;
 
-    _R __r;
+    _Source __src; //Iterator (pointer) or unreachable range
     _M __map_fn;
     _Size __size;
 
-    permutation_view_simple(_R __rng, _M __m, _Size __s) : __r(__rng), __map_fn(__m), __size(__s) {}
+    permutation_view_simple(_Source __data, _M __m, _Size __s) : __src(__data), __map_fn(__m), __size(__s) {}
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
-    auto operator[](Idx __i) const -> decltype(__r[__map_fn(__i)])
+    decltype(auto)
+    operator[](Idx __i) const
     {
-        return __r[__map_fn(__i)];
+        return __src[__map_fn(__i)];
     }
 
     auto
-    size() const -> decltype(__size)
+    size() const
     {
         return __size;
     }
@@ -496,33 +666,36 @@ struct permutation_view_simple<_R, _M, ::std::enable_if_t<oneapi::dpl::__interna
     }
 
     auto
-    base() const -> decltype(__r)
+    base() const
     {
-        return __r;
+        return __src;
     }
 };
 
 //permutation view: specialization for a map view (a viewable range concept)
-template <typename _R, typename _M>
-struct permutation_view_simple<_R, _M, ::std::enable_if_t<is_map_view<_M>::value>>
+//size of such view  is specified by size of the map view (permutation range)
+template <typename _Source, typename _M>
+struct permutation_view_simple<_Source, _M, ::std::enable_if_t<is_map_view<_M>::value>>
 {
-    using value_type = oneapi::dpl::__internal::__value_t<_R>;
+    using value_type = oneapi::dpl::__internal::__value_t<_Source>;
 
-    zip_view<_R, _M> __data;
+    _Source __src; //Iterator (pointer) or unreachable range
+    _M __map;      //permutation range
 
-    permutation_view_simple(_R __r, _M __m) : __data(__r, __m) {}
+    permutation_view_simple(_Source __data, _M __m) : __src(__data), __map(__m) {}
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
-    auto operator[](Idx __i) const -> decltype(::std::get<0>(__data.tuple())[::std::get<1>(__data.tuple())[__i]])
+    decltype(auto)
+    operator[](Idx __i) const
     {
-        return ::std::get<0>(__data.tuple())[::std::get<1>(__data.tuple())[__i]];
+        return __src[__map[__i]];
     }
 
     auto
-    size() const -> decltype(::std::get<1>(__data.tuple()).size())
+    size() const
     {
-        return ::std::get<1>(__data.tuple()).size();
+        return __map.size();
     }
 
     bool
@@ -532,9 +705,9 @@ struct permutation_view_simple<_R, _M, ::std::enable_if_t<is_map_view<_M>::value
     }
 
     auto
-    base() const -> decltype(__data)
+    base() const
     {
-        return __data;
+        return oneapi::dpl::__internal::make_tuple(__src, __map);
     }
 };
 
@@ -561,6 +734,69 @@ struct permutation_discard_view
         return size() == 0;
     }
 };
+
+template <typename _R, typename = void>
+struct __has_subscription_op : std::false_type
+{
+};
+
+template <typename _R>
+struct __has_subscription_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
+{
+};
+
+template <typename _Source, typename _Base = std::decay_t<_Source>>
+struct __subscription_impl_view_simple : _Base
+{
+    static_assert(
+        !__has_subscription_op<_Base>::value,
+        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
+
+    using value_type = oneapi::dpl::__internal::__value_t<_Base>;
+    using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
+
+    // Define default constructors
+    __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
+
+    // Define custom constructor to forward arguments to the base class
+    template <typename... _Args>
+    __subscription_impl_view_simple(_Args&&... __args) : _Base(std::forward<_Args>(__args)...)
+    {
+    }
+
+    // Define default operator=
+    __subscription_impl_view_simple&
+    operator=(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple&
+    operator=(__subscription_impl_view_simple&&) = default;
+
+    decltype(auto)
+    operator[](index_type __i)
+    {
+        return *std::next(_Base::begin(), __i);
+    }
+
+    decltype(auto)
+    operator[](index_type __i) const
+    {
+        return *std::next(_Base::begin(), __i);
+    }
+};
+
+template <typename _Range>
+decltype(auto)
+__get_subscription_view(_Range&& __rng)
+{
+    if constexpr (__has_subscription_op<_Range>::value)
+    {
+        return std::forward<_Range>(__rng);
+    }
+    else
+    {
+        return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
+    }
+}
 
 } // namespace __ranges
 } // namespace dpl

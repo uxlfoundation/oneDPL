@@ -26,7 +26,11 @@
 # endif
 #endif
 #ifndef TEST_IMP_INCLUDED_HEADER
-#include <ciso646>
+#  if __has_include(<version>)
+#   include <version>
+#  else
+#   include <ciso646>
+#  endif
 #endif
 
 #define TEST_STRINGIZE_IMPL(x) #x
@@ -117,32 +121,6 @@
 #endif
 #endif
 
-#if TEST_STD_VER >= 11
-# define TEST_ALIGNOF(...) alignof(__VA_ARGS__)
-# define TEST_ALIGNAS(...) alignas(__VA_ARGS__)
-# define TEST_CONSTEXPR constexpr
-# define TEST_NOEXCEPT noexcept
-# define TEST_NOEXCEPT_FALSE noexcept(false)
-# define TEST_NOEXCEPT_COND(...) noexcept(__VA_ARGS__)
-#else
-#   if defined(TEST_COMPILER_CLANG)
-#    define TEST_ALIGNOF(...) _Alignof(__VA_ARGS__)
-#   else
-#    define TEST_ALIGNOF(...) __alignof(__VA_ARGS__)
-#   endif
-# define TEST_ALIGNAS(...) __attribute__((__aligned__(__VA_ARGS__)))
-# define TEST_CONSTEXPR
-# define TEST_NOEXCEPT throw()
-# define TEST_NOEXCEPT_FALSE
-# define TEST_NOEXCEPT_COND(...)
-#endif
-
-#if TEST_STD_VER >= 11
-# define TEST_THROW_SPEC(...)
-#else
-# define TEST_THROW_SPEC(...) throw(__VA_ARGS__)
-#endif
-
 #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
 # define TEST_IS_CONSTANT_EVALUATED std::is_constant_evaluated()
 #elif TEST_HAS_BUILTIN(__builtin_is_constant_evaluated)
@@ -151,25 +129,13 @@
 # define TEST_IS_CONSTANT_EVALUATED false
 #endif
 
-#if TEST_STD_VER >= 14
-# define TEST_CONSTEXPR_CXX14 constexpr
-#else
-# define TEST_CONSTEXPR_CXX14
-#endif
-
-#if TEST_STD_VER >= 17
-# define TEST_CONSTEXPR_CXX17 constexpr
-#else
-# define TEST_CONSTEXPR_CXX17
-#endif
-
 #if TEST_STD_VER >= 20
 # define TEST_CONSTEXPR_CXX20 constexpr
 #else
 # define TEST_CONSTEXPR_CXX20
 #endif
 
-#define TEST_ALIGNAS_TYPE(...) TEST_ALIGNAS(TEST_ALIGNOF(__VA_ARGS__))
+#define TEST_ALIGNAS_TYPE(...) alignas(alignof(__VA_ARGS__))
 
 #if !TEST_HAS_FEATURE(cxx_rtti) && !defined(__cpp_rtti) \
     && !defined(__GXX_RTTI)
@@ -217,16 +183,11 @@
 #define TEST_HAS_NO_SPACESHIP_OPERATOR
 #endif
 
-#if TEST_STD_VER < 11
-#define ASSERT_NOEXCEPT(...)
-#define ASSERT_NOT_NOEXCEPT(...)
-#else
 #define ASSERT_NOEXCEPT(...) \
     static_assert(noexcept(__VA_ARGS__), "Operation must be noexcept")
 
 #define ASSERT_NOT_NOEXCEPT(...) \
     static_assert(!noexcept(__VA_ARGS__), "Operation must NOT be noexcept")
-#endif
 
 /* Macros for testing libc++ specific behavior and extensions */
 #if defined(_LIBCPP_VERSION)
@@ -419,5 +380,8 @@ inline void DoNotOptimize(Tp const& value) {
 #else
 #define TEST_NO_UNIQUE_ADDRESS
 #endif
+
+#define TEST_PREPARE_CALLABLE(std_algo_name) \
+    [](auto&&... __args) { return std_algo_name(std::forward<decltype(__args)>(__args)...); }
 
 #endif // _SUPPORT_TEST_MACROS_H

@@ -13,14 +13,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+// In Windows, as a temporary workaround, disable vector algorithm calls to avoid calls within sycl kernels
+#if defined(_MSC_VER)
+#    define _USE_STD_VECTOR_ALGORITHMS 0
+#endif
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/array>
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
+#if !_PSTL_TEST_COMPARISON_BROKEN
 bool
 kernel_test()
 {
@@ -44,15 +48,18 @@ kernel_test()
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif // !_PSTL_TEST_COMPARISON_BROKEN
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+    bool bProcessed = false;
+
+#if !_PSTL_TEST_COMPARISON_BROKEN
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array and '>' in kernel_test");
-#endif // TEST_DPCPP_BACKEND_PRESENT
+    bProcessed = true;
+#endif // !_PSTL_TEST_COMPARISON_BROKEN
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }

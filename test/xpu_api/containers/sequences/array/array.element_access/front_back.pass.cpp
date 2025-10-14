@@ -27,7 +27,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 bool
 kernel_test()
 {
@@ -67,13 +66,11 @@ kernel_test()
                     C c = {};
                     C const& cc = c;
                     ret_access[0] &= (dpl::is_same<decltype(c.back()), typename C::reference>::value == true);
-                    ret_access[0] &=
-                        (dpl::is_same<decltype(cc.back()), typename C::const_reference>::value == true);
+                    ret_access[0] &= (dpl::is_same<decltype(cc.back()), typename C::const_reference>::value == true);
                     (void) noexcept(c.back());
                     (void) noexcept(cc.back());
                     ret_access[0] &= (dpl::is_same<decltype(c.front()), typename C::reference>::value == true);
-                    ret_access[0] &=
-                        (dpl::is_same<decltype(cc.front()), typename C::const_reference>::value == true);
+                    ret_access[0] &= (dpl::is_same<decltype(cc.front()), typename C::const_reference>::value == true);
                     (void) noexcept(c.back());
                     (void) noexcept(cc.back());
                 }
@@ -89,15 +86,12 @@ kernel_test()
     }
     return ret;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     auto ret = kernel_test();
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array::front/dpl::array::back in kernel_test()");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

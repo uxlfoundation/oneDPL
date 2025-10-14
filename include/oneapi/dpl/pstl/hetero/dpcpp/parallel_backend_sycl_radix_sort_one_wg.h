@@ -16,6 +16,8 @@
 #ifndef _ONEDPL_parallel_backend_sycl_radix_sort_one_wg_H
 #define _ONEDPL_parallel_backend_sycl_radix_sort_one_wg_H
 
+#include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
+
 //The file is an internal file and the code of that file is included by a major file into the following namespaces:
 //namespace oneapi
 //{
@@ -28,26 +30,30 @@ template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
 template <typename _KernelNameBase, uint16_t __wg_size = 256 /*work group size*/, uint16_t __block_size = 16,
-          ::std::uint32_t __radix = 4, bool __is_asc = true,
-          uint16_t __req_sub_group_size = (__block_size < 4 ? 32 : 16)>
+          std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
-    auto
-    operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj)
+    sycl::event
+    operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj)
     {
-        using __wg_size_t = ::std::integral_constant<::std::uint16_t, __wg_size>;
-        using __block_size_t = ::std::integral_constant<::std::uint16_t, __block_size>;
-        using __call_0_t = ::std::integral_constant<::std::uint16_t, 0>;
-        using __call_1_t = ::std::integral_constant<::std::uint16_t, 1>;
-        using __call_2_t = ::std::integral_constant<::std::uint16_t, 2>;
+        using __wg_size_t = std::integral_constant<::std::uint16_t, __wg_size>;
+        using __block_size_t = std::integral_constant<::std::uint16_t, __block_size>;
+        using __radix_t = std::integral_constant<::std::uint32_t, __radix>;
+        using __call_0_t = std::integral_constant<::std::uint16_t, 0>;
+        using __call_1_t = std::integral_constant<::std::uint16_t, 1>;
+        using __call_2_t = std::integral_constant<::std::uint16_t, 2>;
+        using __is_asc_t = std::integral_constant<bool, __is_asc>;
 
-        using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_0_t>>;
-        using _SortKernelPartGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_1_t>>;
-        using _SortKernelGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __radix_sort_one_wg_kernel<_KernelNameBase, __wg_size_t, __block_size_t, __call_2_t>>;
+        using _SortKernelLoc =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
+        using _SortKernelPartGlob =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
+        using _SortKernelGlob =
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
+                _KernelNameBase, __wg_size_t, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
@@ -79,6 +85,12 @@ struct __subgroup_radix_sort
         {
             return __dpl_sycl::__local_accessor<_KeyT>(__buf_size, __cgh);
         }
+
+        inline static constexpr auto
+        get_fence()
+        {
+            return __dpl_sycl::__fence_space_local;
+        }
     };
 
     template <typename _KeyT>
@@ -93,6 +105,12 @@ struct __subgroup_radix_sort
         {
             return sycl::accessor(__buf, __cgh, sycl::read_write, __dpl_sycl::__no_init{});
         }
+
+        inline constexpr static auto
+        get_fence()
+        {
+            return __dpl_sycl::__fence_space_global;
+        }
     };
 
     template <typename _ValueT, typename _Wi, typename _Src, typename _Values>
@@ -104,7 +122,7 @@ struct __subgroup_radix_sort
         {
             const uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
-                new (&__values[__i]) _ValueT(::std::move(__src[__idx]));
+                new (&__values[__i]) _ValueT(__src[__idx]);
         }
     }
 
@@ -114,7 +132,7 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(sycl::queue __q, _Size __n)
+    __check_slm_size(const sycl::queue& __q, _Size __n)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -139,11 +157,11 @@ struct __subgroup_radix_sort
     struct __one_group_submitter;
 
     template <typename... _Name>
-    struct __one_group_submitter<__internal::__optional_kernel_name<_Name...>>
+    struct __one_group_submitter<oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
-        auto
-        operator()(sycl::queue __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
+        sycl::event
+        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
@@ -162,17 +180,21 @@ struct __subgroup_radix_sort
                 auto __counter_lacc = __buf_count.get_acc(__cgh);
 
                 __cgh.parallel_for<_Name...>(
-                    __range,
-                    ([=](sycl::nd_item<1> __it)[[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__req_sub_group_size)]] {
-                        union __storage { _ValT __v[__block_size]; __storage(){} } __values;
+                    __range, ([=](sycl::nd_item<1> __it) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(16)]] {
+                        union __storage
+                        {
+                            _ValT __v[__block_size];
+                            __storage() {}
+                        } __values;
                         uint16_t __wi = __it.get_local_linear_id();
                         uint16_t __begin_bit = 0;
                         constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
+                        // TODO: check if the barrier can be removed
+                        __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                        __dpl_sycl::__group_barrier(__it);
                         while (true)
                         {
                             uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
@@ -201,7 +223,7 @@ struct __subgroup_radix_sort
                                     __indices[__i] = *__counters[__i];
                                     *__counters[__i] = __indices[__i] + 1;
                                 }
-                                __dpl_sycl::__group_barrier(__it);
+                                __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
                                 //2. scan phase
                                 {
@@ -214,8 +236,8 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i = 1; __i < __bin_count; ++__i)
                                         __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
+                                    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
-                                    __dpl_sycl::__group_barrier(__it);
                                     //exclusive scan local sum
                                     uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
                                         __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
@@ -226,7 +248,7 @@ struct __subgroup_radix_sort
 
                                     if (__wi == 0)
                                         __counter_lacc[0] = 0;
-                                    __dpl_sycl::__group_barrier(__it);
+                                    __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
                                 }
 
                                 _ONEDPL_PRAGMA_UNROLL
@@ -240,7 +262,7 @@ struct __subgroup_radix_sort
                             __begin_bit += __radix;
 
                             //3. "re-order" phase
-                            __dpl_sycl::__group_barrier(__it);
+                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
                             if (__begin_bit >= __end_bit)
                             {
                                 // the last iteration - writing out the result
@@ -264,7 +286,6 @@ struct __subgroup_radix_sort
                                     if (__idx < __n)
                                         __exchange_lacc[__idx].~_ValT();
                                 }
-
                                 return;
                             }
 
@@ -289,8 +310,7 @@ struct __subgroup_radix_sort
                                         __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
                                 }
                             }
-
-                            __dpl_sycl::__group_barrier(__it);
+                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
                             _ONEDPL_PRAGMA_UNROLL
                             for (uint16_t __i = 0; __i < __block_size; ++__i)
@@ -299,8 +319,7 @@ struct __subgroup_radix_sort
                                 if (__idx < __n)
                                     __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
                             }
-
-                            __dpl_sycl::__group_barrier(__it);
+                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
                         }
                     }));
             });

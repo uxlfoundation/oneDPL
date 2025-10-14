@@ -108,16 +108,17 @@ struct has_report : decltype(has_report_impl<S, Info>(0))
 {
 };
 
-template <typename S, typename Info>
+template <typename S, typename Info, typename ValueType>
 auto
 has_report_value_impl(...) -> std::false_type;
 
-template <typename S, typename Info>
+template <typename S, typename Info, typename ValueType>
 auto
-has_report_value_impl(int) -> decltype(std::declval<S>().report(std::declval<Info>(), 0), std::true_type{});
+has_report_value_impl(int)
+    -> decltype(std::declval<S>().report(std::declval<Info>(), std::declval<ValueType>()), std::true_type{});
 
-template <typename S, typename Info>
-struct has_report_value : decltype(has_report_value_impl<S, Info>(0))
+template <typename S, typename Info, typename ValueType>
+struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
 {
 };
 
@@ -277,7 +278,7 @@ template <typename S, typename Info, typename Value>
 void
 report(S&& s, const Info& i, const Value& v)
 {
-    if constexpr (internal::has_report_value<S, Info>::value)
+    if constexpr (internal::has_report_value<S, Info, Value>::value)
     {
         std::forward<S>(s).report(i, v);
     }
@@ -291,13 +292,13 @@ struct report_info
 template <typename S, typename Info>
 inline constexpr bool report_info_v = report_info<S, Info>::value;
 
-template <typename S, typename Info>
+template <typename S, typename Info, typename ValueType>
 struct report_value
 {
-    static constexpr bool value = internal::has_report_value<S, Info>::value;
+    static constexpr bool value = internal::has_report_value<S, Info, ValueType>::value;
 };
-template <typename S, typename Info>
-inline constexpr bool report_value_v = report_value<S, Info>::value;
+template <typename S, typename Info, typename ValueType>
+inline constexpr bool report_value_v = report_value<S, Info, ValueType>::value;
 
 } // namespace experimental
 } // namespace dpl

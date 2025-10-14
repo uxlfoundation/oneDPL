@@ -1,38 +1,38 @@
 Parallel API
 ############
 
-Parallel API is an implementation of the C++ standard libraries algorithms and execution
-policies, as specified in the ISO/IEC 14882:2017 standard (commonly called C++17). The implementation
-supports the unsequenced execution policy and the ``shift_left``/``shift_right`` algorithms, which are specified
-in the final draft of the C++ 20 standard (N4860). For more details see the `C++ Standard Execution
-Policies <https://en.cppreference.com/w/cpp/algorithm/execution_policy_tag_t>`_. |onedpl_long| (|onedpl_short|)
-provides specific versions of the algorithms, including:
+The Parallel API in |onedpl_long| (|onedpl_short|) is an implementation of the C++ standard algorithms
+with `execution policies <https://en.cppreference.com/w/cpp/algorithm#Execution_policies>`_,
+as specified in the ISO/IEC 14882:2017 standard (commonly called C++17), as well as those added in C++20.
+It offers threaded and SIMD execution of these algorithms on Intel® processors implemented on top of OpenMP*
+and |onetbb_short|, as well as data parallel execution on accelerators backed by SYCL* support in |dpcpp_cpp|.
+
+Extending the capabilities of `range algorithms <https://en.cppreference.com/w/cpp/algorithm/ranges>`_ in C++20,
+the Parallel API provides analogous *parallel range algorithms* that execute according to an execution policy.
+
+In addition, |onedpl_short| provides specific variations of some algorithms, including:
 
 * Segmented reduce
 * Segmented scan
 * Vectorized search algorithms
-
-Parallel API offers support for the parallel and vectorized execution of algorithms on Intel®
-processors and heterogeneity support with a DPC++ based implementation for device execution policies.
-For sequential execution, |onedpl_short| relies on an available implementation of the C++ standard library.
+* Sorting of key-value pairs
+* Conditional transform
 
 The utility API includes iterators and function object classes. The iterators implement
 zip, transform, complete permutation operations on other iterators, and include a counting and discard iterator.
 The function object classes provide minimum, maximum, and identity operations
 that may be passed to algorithms such as reduce or transform.
 
-|onedpl_short| also includes an experimental implementation of range-based algorithms with their
-required ranges and Async API.
+|onedpl_short| also includes an experimental implementation of asynchronous algorithms.
 
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
    :hidden:
 
    parallel_api/execution_policies
-   parallel_api/iterators
-   parallel_api/async_api
-   parallel_api/range_based_api
+   parallel_api/parallel_range_algorithms
    parallel_api/additional_algorithms
    parallel_api/pass_data_algorithms
+   parallel_api/iterators
+   parallel_api/range_based_api

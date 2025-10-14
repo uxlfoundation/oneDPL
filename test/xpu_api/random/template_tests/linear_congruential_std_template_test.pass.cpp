@@ -5,12 +5,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file incorporates work covered by the following copyright and permission
-// notice:
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-//
 //===----------------------------------------------------------------------===//
 //
 // Abstract:
@@ -20,7 +14,7 @@
 #include "support/utils.h"
 #include <iostream>
 
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#if TEST_UNNAMED_LAMBDAS
 #include <vector>
 #include <random>
 #include <oneapi/dpl/random>
@@ -104,7 +98,7 @@ int test_portion(sycl::queue& queue, oneapi::dpl::internal::element_type_t<UIntT
                 oneapi::dpl::linear_congruential_engine<UIntType, a, c, m> engine(seed, offset);
 
                 auto res = engine(part);
-                for(int i = 0; i < n_elems; ++i)
+                for(unsigned int i = 0; i < n_elems; ++i)
                     dpstd_acc[offset + i] = res[i];
             });
         });
@@ -189,11 +183,11 @@ int tests_set_portion(sycl::queue& queue, int nsamples, unsigned int part) {
     return 0;
 }
 
-#endif // TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#endif // TEST_UNNAMED_LAMBDAS
 
 int main() {
 
-#if TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#if TEST_UNNAMED_LAMBDAS
 
     sycl::queue queue = TestUtils::get_test_queue();
 
@@ -344,7 +338,7 @@ int main() {
     EXPECT_TRUE(!err, "Test FAILED");
 #endif // TEST_LONG_RUN
 
-#endif // TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS
+#endif // TEST_UNNAMED_LAMBDAS
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT && TEST_UNNAMED_LAMBDAS);
+    return TestUtils::done(TEST_UNNAMED_LAMBDAS);
 }

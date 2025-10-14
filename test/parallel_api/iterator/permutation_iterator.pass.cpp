@@ -1,53 +1,96 @@
-//==============================================================
-// Copyright © 2020 Intel Corporation
+// -*- C++ -*-
+//===-- permutation_iterator.pass.cpp -------------------------------------===//
 //
-// SPDX-License-Identifier: MIT
-// =============================================================
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This file incorporates work covered by the following copyright and permission
+// notice:
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+//
+//===----------------------------------------------------------------------===//
 
 #include "support/test_config.h"
 
-#include <oneapi/dpl/execution>
-#include <oneapi/dpl/algorithm>
-#include <oneapi/dpl/iterator>
+#include "permutation_iterator_common.h"
 
-#include "support/utils.h"
+#if TEST_DPCPP_BACKEND_PRESENT
+#    include "support/utils_device_copyable.h"
+#endif
 
-#include <iostream>
+using namespace TestUtils;
 
-struct multiply_index_by_two
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename Policy>
+void
+test_impl(Policy&& exec)
 {
-    template <typename Index>
-    Index
-    operator()(const Index& i) const
-    {
-        return i * 2;
-    }
-};
+    const int countingItIndexBegin = 0;
+    const int countingItIndexEnd = 20;
+    dpl::counting_iterator<int> countingItBegin(countingItIndexBegin);
+    dpl::counting_iterator<int> countingItEnd(countingItIndexEnd);
+    const auto countingItDistanceResult = ::std::distance(countingItBegin, countingItEnd);
+    EXPECT_EQ(countingItIndexEnd - countingItIndexBegin, countingItDistanceResult,
+              "Wrong result of std::distance<countingIterator1, countingIterator2)");
+
+    // countingItBegin and countingItEnd are iterators that define a contiguous range of input elements
+    // compute the number of elements in the range between the countingItBegin and countingItEnd that are accessed
+    // by the permutation iterator
+    const std::size_t perm_size_expected = kDefaultIndexStepOp.eval_items_count(countingItDistanceResult);
+    auto permItBegin = dpl::make_permutation_iterator(countingItBegin, kDefaultIndexStepOp);
+    auto permItEnd = permItBegin + perm_size_expected;
+
+    static_assert(sycl::is_device_copyable_v<decltype(permItBegin)>,
+                  "permutation_iterator (counting_iterator) is not device copyable");
+
+    static_assert(
+        sycl::is_device_copyable_v<
+            oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, constant_iterator_device_copyable>>,
+        "permutation_iterator is not device copyable with device copyable types");
+
+    static_assert(sycl::is_device_copyable_v<
+                      oneapi::dpl::permutation_iterator<constant_iterator_device_copyable, noop_device_copyable>>,
+                  "permutation_iterator is not device copyable with device copyable types");
+
+    static_assert(!sycl::is_device_copyable_v<
+                      oneapi::dpl::permutation_iterator<constant_iterator_non_device_copyable, noop_device_copyable>>,
+                  "permutation_iterator is device copyable with non device copyable types");
+
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<int*, noop_non_device_copyable>>,
+                  "permutation_iterator is device copyable with non device copyable types");
+
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::permutation_iterator<int*, constant_iterator_non_device_copyable>>,
+        "permutation_iterator is device copyable with non device copyable types");
+
+    const std::size_t perm_size_result = std::distance(permItBegin, permItEnd);
+    EXPECT_EQ(perm_size_expected, perm_size_result,
+              "Wrong result of std::distance<permutationIterator1, permutationIterator2)");
+
+    std::vector<int> resultCopy(perm_size_result);
+    auto itCopiedDataEnd = dpl::copy(std::forward<Policy>(exec), permItBegin, permItEnd, resultCopy.begin());
+    EXPECT_EQ(true, resultCopy.end() == itCopiedDataEnd, "Wrong result of dpl::copy");
+
+    const std::vector<int> expectedCopy = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18};
+    EXPECT_EQ_N(expectedCopy.begin(), resultCopy.begin(), perm_size_result, "Wrong state of dpl::copy data");
+}
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int num_elelemts = 100;
-    std::vector<float> result(num_elelemts, 1);
-    oneapi::dpl::counting_iterator<int> first(0);
-    oneapi::dpl::counting_iterator<int> last(20);
 
-    // first and last are iterators that define a contiguous range of input elements
-    // compute the number of elements in the range between the first and last that are accessed
-    // by the permutation iterator
-    size_t num_elements = std::distance(first, last) / 2 + std::distance(first, last) % 2;
-    auto permutation_first = dpl::make_permutation_iterator(first, multiply_index_by_two());
-    auto permutation_last = permutation_first + num_elements;
-    auto it = std::copy(TestUtils::default_dpcpp_policy, permutation_first, permutation_last, result.begin());
-    auto count = ::std::distance(result.begin(), it);
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    test_impl(policy);
 
-    for (int i = 0; i < count; i++)
-        ::std::cout << result[i] << " ";
-
-    ::std::cout << ::std::endl;
-
+#if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
+    TestUtils::check_compilation(policy, [](auto&& policy) { test_impl(std::forward<decltype(policy)>(policy)); });
+#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return done(TEST_DPCPP_BACKEND_PRESENT);
 }

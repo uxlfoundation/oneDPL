@@ -13,16 +13,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "support/test_config.h"
+
 #include <oneapi/dpl/cmath>
 
-#include "support/test_config.h"
 #include "support/utils.h"
 #include "support/utils_invoke.h"
 
 #include <iostream>
 #include <vector>
-
-#if TEST_DPCPP_BACKEND_PRESENT
 
 template <typename KernelClass, typename Function, typename ValueType>
 void
@@ -41,8 +40,8 @@ test(Function fnc, const std::vector<ValueType>& args, const char* message)
 
         if (!TestUtils::has_type_support<ValueType>(deviceQueue.get_device()))
         {
-            std::cout << deviceQueue.get_device().template get_info<sycl::info::device::name>()
-                      << " does not support " << typeid(ValueType).name() << " type,"
+            std::cout << deviceQueue.get_device().template get_info<sycl::info::device::name>() << " does not support "
+                      << typeid(ValueType).name() << " type,"
                       << " affected test case have been skipped" << std::endl;
             return;
         }
@@ -50,21 +49,17 @@ test(Function fnc, const std::vector<ValueType>& args, const char* message)
         sycl::buffer<ValueType> buffer1(args.data(), args_count);
         sycl::buffer<ValueType> buffer2(output.data(), args_count);
 
-        deviceQueue.submit(
-            [&](sycl::handler& cgh)
-            {
-                auto in = buffer1.template get_access<sycl::access::mode::read>(cgh);
-                auto out = buffer2.template get_access<sycl::access::mode::write>(cgh);
-                cgh.single_task<KernelClass>(
-                    [=]()
-                    {
-                        for (size_t i = 0; i < args_count; ++i)
-                            out[i] = fnc(in[i]);
-                    });
+        deviceQueue.submit([&](sycl::handler& cgh) {
+            auto in = buffer1.template get_access<sycl::access::mode::read>(cgh);
+            auto out = buffer2.template get_access<sycl::access::mode::write>(cgh);
+            cgh.single_task<KernelClass>([=]() {
+                for (size_t i = 0; i < args_count; ++i)
+                    out[i] = fnc(in[i]);
             });
+        });
     }
 
-    // Check results: compare resuls evaluated in Kernel and on host
+    // Check results: compare results evaluated in Kernel and on host
     for (size_t i = 0; i < args_count; ++i)
     {
         auto host_result = fnc(args[i]);
@@ -74,13 +69,9 @@ test(Function fnc, const std::vector<ValueType>& args, const char* message)
 
 class Test;
 
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
-
     // functions from https://en.cppreference.com/w/cpp/numeric/math/nearbyint :
     //     float  nearbyint (float arg);
     //     float  nearbyintf(float arg);
@@ -102,8 +93,6 @@ main()
     auto f_nearbyint_double = [](double arg) -> double { return oneapi::dpl::nearbyint(arg); };
     const std::vector<double> f_args_double = {+2.3, +2.5, +3.5, -2.3, -2.5, -3.5};
     test<TestUtils::unique_kernel_name<Test, 2>>(f_nearbyint_double, f_args_double, "double nearbyint(double)");
-
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }

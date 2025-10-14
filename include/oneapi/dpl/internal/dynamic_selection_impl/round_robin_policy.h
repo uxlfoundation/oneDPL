@@ -40,9 +40,8 @@ struct round_robin_policy
     using backend_t = Backend;
     using resource_container_t = typename backend_t::resource_container_t;
     using resource_container_size_t = typename resource_container_t::size_type;
-    using wrapped_resource_t = typename std::decay_t<Backend>::execution_resource_t;
-
     using execution_resource_t = typename backend_t::execution_resource_t;
+    using wrapped_resource_t = execution_resource_t;
 
   public:
     //Policy Traits

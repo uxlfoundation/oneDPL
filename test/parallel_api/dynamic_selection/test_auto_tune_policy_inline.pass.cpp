@@ -7,11 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "support/test_config.h"
+
+#include "oneapi/dpl/dynamic_selection"
 #include <iostream>
 #include <thread>
-#include "oneapi/dpl/dynamic_selection"
 #include "support/test_dynamic_selection_utils.h"
 #include "support/inline_backend.h"
+#include "support/utils.h"
 
 template <typename Policy, typename UniverseContainer, bool do_select = false>
 int
@@ -191,11 +194,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
             return 1;
         }
     }
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
+    EXPECT_TRUE(pass, "ERROR: did not select expected resources\n");
     std::cout << "submit and wait on event: OK\n";
     return 0;
 }
@@ -239,7 +238,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
             };
             auto s = oneapi::dpl::experimental::select(p, f);
-            auto e = oneapi::dpl::experimental::submit(s, f);
+            oneapi::dpl::experimental::submit(s, f);
         }
         else
         {
@@ -266,21 +265,13 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 });
         }
         int count = ecount.load();
-        if (count != i * (i + 1) / 2)
-        {
-            std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-            return 1;
-        }
+        EXPECT_EQ(i * (i + 1) / 2, count, "ERROR: scheduler did not execute all tasks exactly once\n");
     }
     // this has no effect for inline_scheduler, so nothing to test other than the call
     // doesn't fail
     oneapi::dpl::experimental::wait(p.get_submission_group());
 
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
+    EXPECT_TRUE(pass, "ERROR: did not select expected resources\n");
     std::cout << "submit_wait_on_group: OK\n";
     return 0;
 }
@@ -351,23 +342,15 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                 });
         }
         int count = ecount.load();
-        if (count != i * (i + 1) / 2)
-        {
-            std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-            return 1;
-        }
+        EXPECT_EQ(i * (i + 1) / 2, count, "ERROR: scheduler did not execute all tasks exactly once\n");
     }
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
+    EXPECT_TRUE(pass, "ERROR: did not select expected resources\n");
     std::cout << "submit_and_wait: OK\n";
     return 0;
 }
 
 template <typename Policy>
-int
+void
 run_tests(std::vector<int> u, int best_resource)
 {
     using policy_t = Policy;
@@ -383,35 +366,45 @@ run_tests(std::vector<int> u, int best_resource)
             return u[0];
     };
 
-    return test_initialization<policy_t>(u) || test_select<policy_t, decltype(u), const decltype(f)&, true>(u, f) ||
-           test_auto_submit<policy_t>(u, best_resource) || test_auto_submit_wait_on_event<policy_t>(u, best_resource) ||
-           test_auto_submit_wait_on_group<policy_t>(u, best_resource) ||
-           test_auto_submit_and_wait<policy_t>(u, best_resource)
-           // now select then submits
-           || test_auto_submit<policy_t, decltype(u), true>(u, best_resource) ||
-           test_auto_submit_wait_on_event<policy_t, decltype(u), true>(u, best_resource) ||
-           test_auto_submit_wait_on_group<policy_t, decltype(u), true>(u, best_resource) ||
-           test_auto_submit_and_wait<policy_t, decltype(u), true>(u, best_resource);
+    EXPECT_EQ(0, (test_initialization<policy_t>(u)), "");
+    EXPECT_EQ(0, (test_select<policy_t, decltype(u), const decltype(f)&, true>(u, f)), "");
+    EXPECT_EQ(0, (test_auto_submit<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t>(u, best_resource)), "");
+    // now select( then submits
+    EXPECT_EQ(0, (test_auto_submit<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, decltype(u), true>(u, best_resource)), "");
+    EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, decltype(u), true>(u, best_resource)), "");
 }
 
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<TestUtils::int_inline_backend_t>;
-    std::vector<int> first_resources = {1, 100, 100, 100};
-    std::vector<int> second_resources = {100, 1, 100, 100};
-    std::vector<int> third_resources = {100, 100, 1, 100};
-    std::vector<int> fourth_resources = {100, 100, 100, 1};
+    try
+    {
+        using policy_t = oneapi::dpl::experimental::auto_tune_policy<TestUtils::int_inline_backend_t>;
+        std::vector<int> first_resources = {1, 100, 100, 100};
+        std::vector<int> second_resources = {100, 1, 100, 100};
+        std::vector<int> third_resources = {100, 100, 1, 100};
+        std::vector<int> fourth_resources = {100, 100, 100, 1};
 
-    if (run_tests<policy_t>(first_resources, 1) || run_tests<policy_t>(second_resources, 1) ||
-        run_tests<policy_t>(third_resources, 1) || run_tests<policy_t>(fourth_resources, 1))
-    {
-        std::cout << "FAIL\n";
-        return 1;
+        run_tests<policy_t>(first_resources, 1);
+        run_tests<policy_t>(second_resources, 1);
+        run_tests<policy_t>(third_resources, 1);
+        run_tests<policy_t>(fourth_resources, 1);
     }
-    else
+    catch (const std::exception& exc)
     {
-        std::cout << "PASS\n";
-        return 0;
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
     }
+
+    return TestUtils::done();
 }

@@ -76,6 +76,18 @@ struct check_swap<wrapper<T>>
     }
 };
 
+template <typename T, typename T_ref>
+struct TransformOp
+{
+    std::size_t& i;
+
+    TransformOp(std::size_t& i_) : i(i_) {}
+    bool operator()(T_ref a) const
+    {
+        return a == T(const_cast<std::size_t&>(i)++);
+    }
+};
+
 template <typename Type>
 struct test_one_policy
 {
@@ -90,14 +102,14 @@ struct test_one_policy
         iota(data_b, data_e, 0);
         iota(actual_b, actual_e, ::std::distance(data_b, data_e));
 
-        Iterator2 actual_return = swap_ranges(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = swap_ranges(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
         bool check_return = (actual_return == actual_e);
         EXPECT_TRUE(check_return, "wrong result of swap_ranges");
         if (check_return)
         {
             ::std::size_t i = 0;
-            bool check = all_of(actual_b, actual_e, [&i](T_ref a) { return a == T(i++); }) &&
-                         all_of(data_b, data_e, [&i](T_ref a) { return a == T(i++); });
+            bool check = all_of(actual_b, actual_e, TransformOp<T, T_ref>{i}) &&
+                         all_of(data_b, data_e, TransformOp<T, T_ref>{i});
 
             EXPECT_TRUE(check, "wrong effect of swap_ranges");
 
@@ -115,12 +127,13 @@ template <typename T>
 void
 test()
 {
-    const ::std::size_t max_len = 100000;
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::size_t max_len = test_sizes.back();
 
     Sequence<T> data(max_len);
     Sequence<T> actual(max_len);
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::size_t len : test_sizes)
     {
         invoke_on_all_policies<>()(test_one_policy<T>(), data.begin(), data.begin() + len, actual.begin(),
                                    actual.begin() + len);
@@ -132,6 +145,7 @@ main()
 {
     test<wrapper<std::uint16_t>>();
     test<wrapper<float32_t>>();
+    test<std::uint8_t>();
     test<std::int32_t>();
     test<float64_t>();
 

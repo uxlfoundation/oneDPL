@@ -43,8 +43,8 @@ struct run_remove
 
         // Run remove
         OutputIterator i = remove(expected_first, expected_last, value);
-        OutputIterator k = remove(exec, out_first, out_last, value);
-        EXPECT_TRUE(::std::distance(expected_first, i) == ::std::distance(out_first, k), "wrong return value from remove");
+        OutputIterator k = remove(std::forward<Policy>(exec), out_first, out_last, value);
+        EXPECT_EQ(std::distance(expected_first, i), std::distance(out_first, k), "wrong return value from remove");
         EXPECT_EQ_N(expected_first, out_first, ::std::distance(expected_first, i), "wrong remove effect");
     }
 };
@@ -64,9 +64,9 @@ struct run_remove_if
 
         // Run remove_if
         OutputIterator i = remove_if(expected_first, expected_last, pred);
-        OutputIterator k = remove_if(exec, out_first, out_last, pred);
-        EXPECT_TRUE(::std::distance(expected_first, i) == ::std::distance(out_first, k),
-                    "wrong return value from remove_if");
+        OutputIterator k = remove_if(std::forward<Policy>(exec), out_first, out_last, pred);
+        EXPECT_EQ(std::distance(expected_first, i), std::distance(out_first, k),
+                  "wrong return value from remove_if");
         EXPECT_EQ_N(expected_first, out_first, ::std::distance(expected_first, i), "wrong remove_if effect");
     }
 };
@@ -100,12 +100,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-
-        invoke_if(exec, [&]() { remove_if(exec, iter, iter, non_const(is_even)); });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        remove_if(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

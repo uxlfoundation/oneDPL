@@ -1,5 +1,5 @@
-API for the SYCL* Kernels
-#########################
+API for SYCL* Kernels
+#####################
 
 |onedpl_long| (|onedpl_short|) includes the following APIs for SYCL* kernels:
 
@@ -13,9 +13,8 @@ API for the SYCL* Kernels
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :glob:
    :hidden:
 
-   api_for_sycl_kernels/random
    api_for_sycl_kernels/tested_standard_cpp_api
+   api_for_sycl_kernels/random
    api_for_sycl_kernels/utility_function_object_classes

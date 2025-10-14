@@ -21,6 +21,10 @@
 #include "support/utils.h"
 #include "support/scan_serial_impl.h"
 
+#include <random>
+#include <algorithm>
+#include <cstdint>
+
 #if  !defined(_PSTL_TEST_INCLUSIVE_SCAN) && !defined(_PSTL_TEST_EXCLUSIVE_SCAN)
 #define _PSTL_TEST_INCLUSIVE_SCAN
 #define _PSTL_TEST_EXCLUSIVE_SCAN
@@ -33,66 +37,94 @@ using namespace TestUtils;
 // flag inclusive, which is set to each alternative by main().
 //static bool inclusive;
 
-template <typename Type>
+template <typename In, typename Init, typename Out>
 struct test_inclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    void
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T /* init */, T trash)
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, [[maybe_unused]] T init, T trash)
     {
         using namespace std;
-
-        inclusive_scan_serial(in_first, in_last, expected_first);
-        auto orr = inclusive_scan(exec, in_first, in_last, out_first);
+        Iterator3 orr;
+        // If the types are different, apply the init
+        constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2>;
+        if constexpr (use_init)
+        {
+            inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
+            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, std::plus<>{}, init);
+        }
+        else
+        {
+            inclusive_scan_serial(in_first, in_last, expected_first);
+            orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first);
+        }
         EXPECT_TRUE(out_last == orr, "inclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan");
         ::std::fill_n(out_first, n, trash);
     }
+    // inclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
+    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
+    operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
+               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
+               T /*init*/, T /*trash*/)
+    {
+    }
 };
 
-template <typename Type>
+template <typename In, typename Init, typename Out>
 struct test_exclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    void
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
                Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, T trash)
     {
         using namespace std;
 
         exclusive_scan_serial(in_first, in_last, expected_first, init);
-        auto orr = exclusive_scan(exec, in_first, in_last, out_first, init);
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init);
         EXPECT_TRUE(out_last == orr, "exclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
         ::std::fill_n(out_first, n, trash);
     }
+    // exclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
+    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
+    operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
+               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
+               T /*init*/, T /*trash*/)
+    {
+    }
 };
 
-template <typename T, typename Convert>
+template <typename In, typename Init, typename Out, typename Convert>
 void
-test_with_plus(T init, T trash, Convert convert)
+test_with_plus(Init init, Out trash, Convert convert)
 {
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        Sequence<T> in(n, convert);
-        Sequence<T> expected(in);
-        Sequence<T> out(n, [&](std::int32_t) { return trash; });
+        Sequence<In> in(n, convert);
+        Sequence<Out> expected(n);
+        Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
 
-        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<T>(), in.begin(), in.end(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<T>(), in.cbegin(), in.cend(), out.begin(),
+        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
 
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
 
-        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<T>(), in.begin(), in.end(), out.begin(),
+        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<T>(), in.cbegin(), in.cend(), out.begin(), out.end(),
-                                    expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
+                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
 #endif
     }
 
@@ -105,16 +137,18 @@ test_with_plus(T init, T trash, Convert convert)
         100000000;
 #endif
 
-    Sequence<T> in(n, convert);
-    Sequence<T> expected(in);
-    Sequence<T> out(n, [&](std::int32_t) { return trash; });
+    Sequence<In> in(n, convert);
+    Sequence<Out> expected(n);
+    Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 #ifdef _PSTL_TEST_INCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<T>(), in.begin(), in.end(), out.begin(), out.end(),
-                                expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
+                                       trash);
 #endif
 #ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<T>(), in.begin(), in.end(), out.begin(),
-                                out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
+                                       trash);
 #endif
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
@@ -131,7 +165,7 @@ struct test_inclusive_scan_with_binary_op
         using namespace std;
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op, init);
-        auto orr = inclusive_scan(exec, in_first, in_last, out_first, binary_op, init);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op, init);
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
@@ -147,7 +181,7 @@ struct test_inclusive_scan_with_binary_op
         using namespace std;
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op);
-        auto orr = inclusive_scan(exec, in_first, in_last, out_first, binary_op);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op);
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator without init returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator without init");
@@ -184,7 +218,7 @@ struct test_exclusive_scan_with_binary_op
 
         exclusive_scan_serial(in_first, in_last, expected_first, init, binary_op);
 
-        auto orr = exclusive_scan(exec, in_first, in_last, out_first, init, binary_op);
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init, binary_op);
 
         EXPECT_TRUE(out_last == orr, "exclusive_scan with binary operator returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan with binary operator");
@@ -241,6 +275,40 @@ test_matrix(Out init, BinaryOp binary_op, Out trash)
     }
 }
 
+template <typename T>
+void
+test_with_multiplies()
+{
+#if TEST_DPCPP_BACKEND_PRESENT
+    T trash = 666;
+    T init = 1;
+    const std::size_t custom_item_count = 10;
+
+    for (size_t n = custom_item_count; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    {
+        Sequence<T> out(n, [&](size_t) { return trash; });
+        Sequence<T> expected(n, [&](size_t) { return trash; });
+
+        Sequence<T> in(n, [](size_t /*index*/) { return 1; });
+        std::size_t counter = 0;
+        std::generate_n(in.begin(), custom_item_count, [&counter]() { return (counter++) % 3 + 2; } );
+        std::default_random_engine gen{42};
+        std::shuffle(in.begin(), in.end(), gen);
+
+#ifdef _PSTL_TEST_INCLUSIVE_SCAN
+        invoke_on_all_hetero_policies<20>()(test_inclusive_scan_with_binary_op<T>(), in.begin(), in.end(),
+                                            out.begin(), out.end(), expected.begin(), expected.end(), in.size(),
+                                            init, std::multiplies{}, trash);
+#endif
+#ifdef _PSTL_TEST_EXCLUSIVE_SCAN
+        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<T>(), in.begin(), in.end(), out.begin(),
+                                            out.end(), expected.begin(), expected.end(), in.size(),
+                                            init, std::multiplies{}, trash);
+#endif
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+}
+
 int
 main()
 {
@@ -252,8 +320,16 @@ main()
 
     // Since the implicit "+" forms of the scan delegate to the generic forms,
     // there's little point in using a highly restricted type, so just use double.
-    test_with_plus<float64_t>(0.0, -666.0, [](std::uint32_t k) { return float64_t((k % 991 + 1) ^ (k % 997 + 2)); });
-    test_with_plus<std::int32_t>(0.0, -666.0, [](std::uint32_t k) { return std::int32_t((k % 991 + 1) ^ (k % 997 + 2)); });
+    test_with_plus<float64_t, float64_t, float64_t>(
+        0.0, -666.0, [](std::uint32_t k) { return float64_t((k % 991 + 1) ^ (k % 997 + 2)); });
+    test_with_plus<std::int32_t, std::int32_t, std::int32_t>(
+        0.0, -666.0, [](std::uint32_t k) { return std::int32_t((k % 991 + 1) ^ (k % 997 + 2)); });
+
+    // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
+    test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
+                                                       [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
+
+    test_with_multiplies<std::uint64_t>();
 
     return done();
 }

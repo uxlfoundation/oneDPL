@@ -19,8 +19,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
-
 struct constexpr_member_functions
 {
     template <typename _Ttesttype>
@@ -51,12 +49,10 @@ kernel_test()
     test.operator()<dpl::array<long, 60>>();
     return true;
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     sycl::queue deviceQueue = TestUtils::get_test_queue();
     bool ret = false;
     sycl::range<1> numOfItems{1};
@@ -68,7 +64,6 @@ main()
         });
     }
     EXPECT_TRUE(ret, "Wrong result of work with dpl::array constexpr methods");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

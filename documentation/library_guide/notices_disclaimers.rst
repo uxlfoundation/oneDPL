@@ -15,12 +15,14 @@ The products described may contain design defects or errors known as errata whic
 
 Intel disclaims all express and implied warranties, including without limitation, the implied warranties of merchantability, fitness for a particular purpose, and non-infringement, as well as any warranty arising from course of performance, course of dealing, or usage in trade.
 
+Intel, the Intel logo, and Arc are the trademarks of Intel Corporation or its subsidiaries.
+
 License
 =======
 
 oneDPL is licensed under Apache License Version 2.0 with LLVM exceptions. 
 
-Refer to the `LICENSE <https://github.com/oneapi-src/oneDPL/blob/release_oneDPL/licensing/LICENSE.txt>`_ file for the full license text and copyright notice.
+Refer to the `LICENSE <https://github.com/uxlfoundation/oneDPL/blob/main/LICENSE.txt>`_ file for the full license text and copyright notice.
 
 
 

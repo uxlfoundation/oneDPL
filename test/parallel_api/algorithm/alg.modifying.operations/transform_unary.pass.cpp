@@ -24,24 +24,6 @@
 
 using namespace TestUtils;
 
-template <typename InputIterator, typename OutputIterator>
-void
-check_and_reset(InputIterator first, InputIterator last, OutputIterator out_first)
-{
-    typedef typename ::std::iterator_traits<OutputIterator>::value_type Out;
-    typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
-    for (; first != last; ++first, ++out_first, ++k)
-    {
-        // check
-        Out expected = 1 - *first;
-        Out actual = *out_first;
-        EXPECT_EQ(expected, actual, "wrong value in output sequence");
-        // reset
-        *out_first = k % 7 != 4 ? 7 * k - 5 : 0;
-    }
-}
-
-template <typename T1, typename T2>
 struct test_one_policy
 {
     template <typename Policy, typename InputIterator, typename OutputIterator, typename UnaryOp>
@@ -49,27 +31,72 @@ struct test_one_policy
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
                OutputIterator out_last, UnaryOp op)
     {
-        auto orr = ::std::transform(exec, first, last, out_first, op);
+        auto orr = std::transform(std::forward<Policy>(exec), first, last, out_first, op);
         EXPECT_TRUE(out_last == orr, "transform returned wrong iterator");
         check_and_reset(first, last, out_first);
     }
+
+private:
+    template <typename InputIterator, typename OutputIterator>
+    void
+    check_and_reset(InputIterator first, InputIterator last, OutputIterator out_first)
+    {
+        typename ::std::iterator_traits<OutputIterator>::difference_type k = 0;
+        for (; first != last; ++first, (void) ++out_first, ++k)
+        {
+            // check
+            const auto expected = get_expected(*first);
+            auto& actual = get_actual(*out_first);
+            EXPECT_EQ(expected, actual, "wrong value in output sequence");
+            // reset
+            actual = k % 7 != 4 ? 7 * k - 5 : 0;
+        }
+    }
+    template <typename InputT>
+    auto
+    get_expected(InputT val)
+    {
+        return 1 - val;
+    }
+    template <typename OutputT>
+    auto&
+    get_actual(OutputT& val)
+    {
+        return val;
+    }
+
+    template <typename T>
+    auto
+    get_expected(oneapi::dpl::__internal::tuple<T&>&& t)
+    {
+        return 1 - std::get<0>(t);
+    }
+    template <typename T>
+    auto&
+    get_actual(oneapi::dpl::__internal::tuple<T&>&& t)
+    {
+        return std::get<0>(t);
+    }
 };
 
-template <typename Tin, typename Tout>
+template <::std::size_t CallNumber, typename Tin, typename Tout, typename _Op = Complement<Tin, Tout>,
+          typename _IteratorAdapter = _Identity>
 void
 test()
 {
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
+    for (size_t n : TestUtils::get_pattern_for_test_sizes())
     {
         Sequence<Tin> in(n, [](std::int32_t k) { return k % 5 != 1 ? 3 * k - 7 : 0; });
 
         Sequence<Tout> out(n);
-        const auto flip = Complement<Tin, Tout>(1);
 
-        invoke_on_all_policies<0>()(test_one_policy<Tin, Tout>(), in.begin(), in.end(), out.begin(), out.end(), flip);
+        _IteratorAdapter adap;
+        invoke_on_all_policies<CallNumber>()(test_one_policy(), adap(in.begin()), adap(in.end()), adap(out.begin()),
+                                             adap(out.end()), _Op{});
+
 #if !ONEDPL_FPGA_DEVICE
-        invoke_on_all_policies<1>()(test_one_policy<Tin, Tout>(), in.cbegin(), in.cend(), out.begin(), out.end(),
-                                    flip);
+        invoke_on_all_policies<CallNumber + 1>()(test_one_policy(), adap(in.cbegin()), adap(in.cend()),
+                                                 adap(out.begin()), adap(out.end()), _Op{});
 #endif
     }
 }
@@ -81,21 +108,23 @@ struct test_non_const
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        invoke_if(exec, [&]() { transform(exec, input_iter, input_iter, out_iter, non_const(::std::negate<T>())); });
+        transform(std::forward<Policy>(exec), input_iter, input_iter, out_iter, non_const(std::negate<T>()));
     }
 };
 
 int
 main()
 {
-    test<std::int32_t, std::int32_t>();
-    test<std::int32_t, float32_t>();
-    test<std::uint16_t, float32_t>();
-    test<float32_t, float64_t>();
-    test<float64_t, float64_t>();
+    test<0, std::int32_t, std::int32_t>();
+    test<10, std::int32_t, float32_t>();
+    test<20, std::uint16_t, float32_t>();
+    test<30, float64_t, float64_t>();
 
-    //test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
+    test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
     test_algo_basic_double<std::int64_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
+
+    //test case for zip iterator
+    test<40, std::int32_t, std::int32_t, ComplementZip, _ZipIteratorAdapter>();
 
     return done();
 }

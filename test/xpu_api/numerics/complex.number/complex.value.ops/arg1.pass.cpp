@@ -43,9 +43,9 @@ void test_edges()
                 if (std::signbit(testcases[i].real()))
                 {
                     if (std::signbit(testcases[i].imag()))
-                        is_about(r, -pi);
+                        assert(is_about(r, -pi));
                     else
-                        is_about(r, pi);
+                        assert(is_about(r, pi));
                 }
                 else
                 {
@@ -56,18 +56,18 @@ void test_edges()
                 if (testcases[i].real() == 0)
                 {
                     if (testcases[i].imag() < 0)
-                        is_about(r, -pi/2);
+                        assert(is_about(r, -pi/2));
                     else
-                        is_about(r, pi/2);
+                        assert(is_about(r, pi/2));
                 }
                 else if (testcases[i].imag() == 0)
                 {
                     if (testcases[i].real() < 0)
                     {
                         if (std::signbit(testcases[i].imag()))
-                            is_about(r, -pi);
+                            assert(is_about(r, -pi));
                         else
-                            is_about(r, pi);
+                            assert(is_about(r, pi));
                     }
                     else
                     {
@@ -86,16 +86,16 @@ void test_edges()
                     if (testcases[i].real() < 0)
                     {
                         if (testcases[i].imag() > 0)
-                            is_about(r, 0.75 * pi);
+                            assert(is_about(r, 0.75 * pi));
                         else
-                            is_about(r, -0.75 * pi);
+                            assert(is_about(r, -0.75 * pi));
                     }
                     else
                     {
                         if (testcases[i].imag() > 0)
-                            is_about(r, 0.25 * pi);
+                            assert(is_about(r, 0.25 * pi));
                         else
-                            is_about(r, -0.25 * pi);
+                            assert(is_about(r, -0.25 * pi));
                     }
                 }
                 else if (std::isinf(testcases[i].real()))
@@ -103,9 +103,9 @@ void test_edges()
                     if (testcases[i].real() < 0)
                     {
                         if (std::signbit(testcases[i].imag()))
-                            is_about(r, -pi);
+                            assert(is_about(r, -pi));
                         else
-                            is_about(r, pi);
+                            assert(is_about(r, pi));
                     }
                     else
                     {
@@ -116,9 +116,9 @@ void test_edges()
                 else
                 {
                     if (testcases[i].imag() < 0)
-                        is_about(r, -pi/2);
+                        assert(is_about(r, -pi/2));
                     else
-                        is_about(r, pi/2);
+                        assert(is_about(r, pi/2));
                 }
                 break;
             }

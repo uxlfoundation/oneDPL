@@ -22,7 +22,6 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
 template <class T, std::size_t N>
 void
 test()
@@ -44,12 +43,10 @@ test()
         static_assert(dpl::tuple_size<C>::value == N);
     }
 }
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = false;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -66,7 +63,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::tuple_size");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

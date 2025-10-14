@@ -30,8 +30,8 @@ struct test_is_partitioned
     operator()(ExecutionPolicy&& exec, Iterator1 begin1, Iterator1 end1, Predicate pred)
     {
         const bool expected = ::std::is_partitioned(begin1, end1, pred);
-        const bool actual = ::std::is_partitioned(exec, begin1, end1, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from is_partitioned");
+        const bool actual = std::is_partitioned(std::forward<ExecutionPolicy>(exec), begin1, end1, pred);
+        EXPECT_EQ(expected, actual, "wrong return result from is_partitioned");
     }
 };
 
@@ -39,11 +39,10 @@ template <typename T, typename Predicate>
 void
 test(Predicate pred)
 {
+    const std::size_t max_size = 1000000;
+    Sequence<T> in(max_size, [](std::size_t k) { return T(k); });
 
-    const ::std::size_t max_n = 1000000;
-    Sequence<T> in(max_n, [](::std::size_t k) { return T(k); });
-
-    for (::std::size_t n1 = 0; n1 <= max_n; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
+    for (std::size_t n1 = 0; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : std::size_t(3.1415 * n1))
     {
         invoke_on_all_policies<0>()(test_is_partitioned<T>(), in.begin(), in.begin() + n1, pred);
         ::std::partition(in.begin(), in.begin() + n1, pred);
@@ -66,11 +65,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        invoke_if(exec, [&]() { is_partitioned(exec, iter, iter, non_const(is_even)); });
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        is_partitioned(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 
@@ -83,7 +79,7 @@ main()
 
 #if !TEST_DPCPP_BACKEND_PRESENT && !_PSTL_ICC_18_TEST_EARLY_EXIT_MONOTONIC_RELEASE_BROKEN &&               \
     !_PSTL_ICC_19_TEST_IS_PARTITIONED_RELEASE_BROKEN
-    test<LocalWrapper<float64_t>>([](const LocalWrapper<float64_t>& x) { return true; });
+    test<LocalWrapper<float64_t>>([](const LocalWrapper<float64_t>&) { return true; });
     test_algo_basic_single<std::int32_t>(run_for_rnd_fw<test_non_const>());
 #endif
 

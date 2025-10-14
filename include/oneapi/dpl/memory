@@ -31,6 +31,7 @@
 #if _ONEDPL_EXECUTION_POLICIES_DEFINED
 // If <execution> has already been included, pull in implementations
 #    include "oneapi/dpl/pstl/glue_memory_impl.h"
+#    include "oneapi/dpl/pstl/glue_memory_ranges_impl.h"
 #endif // _ONEDPL_EXECUTION_POLICIES_DEFINED
 
 namespace oneapi

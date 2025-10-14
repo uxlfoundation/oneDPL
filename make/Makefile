@@ -66,7 +66,7 @@ test_%.offload.exe: test_%.offload$(OBJ_SFX) exception_list.offload$(OBJ_SFX)
 	$(CPLUS) $(CPLUS_FLAGS) $(KEY)c $< $(FKEY)o$@
 else
 %.pass.exe: %.pass.cpp $(PSTL_LIB_NAME) $(test_hdr) $(proj_root)/make/Makefile
-	$(CPLUS) $(CPLUS_FLAGS) $(LDFLAGS) $(DYN_LDFLAGS) $(PSTL_LIB_LINK) $<
+	$(CPLUS) $(CPLUS_FLAGS) $(LDFLAGS) $(DYN_LDFLAGS) $(PSTL_LIB_LINK) $< $(FKEY)o$@
 endif
 
 else ifneq (,$(filter $(backend), sycl sycl_only))

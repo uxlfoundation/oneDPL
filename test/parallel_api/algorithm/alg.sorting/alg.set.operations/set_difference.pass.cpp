@@ -15,8 +15,6 @@
 
 #include "set_common.h"
 
-#ifdef _PSTL_TEST_SET_DIFFERENCE
-
 template <typename T>
 struct test_non_const_set_difference
 {
@@ -24,19 +22,15 @@ struct test_non_const_set_difference
     void
     operator()(Policy&& exec, InputIterator input_iter, OutputInterator out_iter)
     {
-        set_difference(exec, input_iter, input_iter, input_iter, input_iter, out_iter, non_const(::std::less<T>()));
+        set_difference(std::forward<Policy>(exec), input_iter, input_iter, input_iter, input_iter, out_iter, non_const(std::less<T>()));
     }
 };
-
-#endif
-
 
 int
 main()
 {
-#ifdef _PSTL_TEST_SET_DIFFERENCE
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const_set_difference<std::int32_t>>());
-#endif
+    run_test_set<test_set_difference>();
 
-    return TestUtils::done(_PSTL_TEST_SET_DIFFERENCE);
+    return TestUtils::done();
 }

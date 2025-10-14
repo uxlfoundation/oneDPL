@@ -16,6 +16,11 @@
 // <array>
 // template <class T, size_t N> void swap(array<T,N>& x, array<T,N>& y);
 
+// In Windows, as a temporary workaround, disable vector algorithm calls to avoid calls within sycl kernels
+#if defined(_MSC_VER)
+#    define _USE_STD_VECTOR_ALGORITHMS 0
+#endif
+
 #include "support/test_config.h"
 
 #include <oneapi/dpl/array>
@@ -25,7 +30,6 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
     bool ret = true;
     {
         sycl::buffer<bool, 1> buf(&ret, sycl::range<1>{1});
@@ -62,7 +66,6 @@ main()
     }
 
     EXPECT_TRUE(ret, "Wrong result of work with dpl::swap(dpl::array, dpl::array)");
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done();
 }

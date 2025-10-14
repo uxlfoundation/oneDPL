@@ -84,7 +84,7 @@ struct test_one_policy
         Iterator1 data_m = ::std::next(data_b, shift);
 
         fill(actual_b, actual_e, T(-123));
-        Iterator2 actual_return = rotate_copy(exec, data_b, data_m, data_e, actual_b);
+        Iterator2 actual_return = rotate_copy(std::forward<ExecutionPolicy>(exec), data_b, data_m, data_e, actual_b);
 
         EXPECT_TRUE(actual_return == actual_e, "wrong result of rotate_copy");
         auto comparer = comparator<T, Iterator1, Iterator2>();
@@ -99,17 +99,17 @@ template <typename T1, typename T2>
 void
 test()
 {
-
-    const ::std::size_t max_len = 100000;
+    const auto test_sizes = TestUtils::get_pattern_for_test_sizes();
+    const std::int32_t max_len = test_sizes.back();
 
     Sequence<T2> actual(max_len, [](::std::size_t i) { return T1(i); });
 
     Sequence<T1> data(max_len, [](::std::size_t i) { return T1(i); });
 
-    for (::std::size_t len = 0; len < max_len; len = len <= 16 ? len + 1 : ::std::size_t(3.1415 * len))
+    for (std::int32_t len : test_sizes)
     {
-        ::std::size_t shifts[] = {0, 1, 2, len / 3, (2 * len) / 3, len - 1};
-        for (::std::size_t shift : shifts)
+        std::int32_t shifts[] = {0, 1, 2, len / 3, (2 * len) / 3, len - 1};
+        for (std::int32_t shift : shifts)
         {
             if (shift > 0 && shift < len)
             {
@@ -125,6 +125,8 @@ test()
 int
 main()
 {
+    test<std::int8_t, std::int8_t>();
+    test<std::int16_t, std::int16_t>();
     test<std::int32_t, std::int8_t>();
     test<std::uint16_t, float32_t>();
     test<float64_t, std::int64_t>();

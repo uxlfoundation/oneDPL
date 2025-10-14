@@ -37,7 +37,7 @@ struct fixed_resource_policy
     using backend_t = Backend;
     using resource_container_t = typename backend_t::resource_container_t;
     using execution_resource_t = typename backend_t::execution_resource_t;
-    using wrapped_resource_t = typename std::decay_t<Backend>::execution_resource_t;
+    using wrapped_resource_t = execution_resource_t;
 
   public:
     //policy traits
@@ -52,17 +52,17 @@ struct fixed_resource_policy
     struct state_t
     {
         resource_container_t resources_;
-        ::std::size_t offset_ = 0;
+        ::std::size_t index_ = 0;
     };
 
     std::shared_ptr<state_t> state_;
 
   public:
-    fixed_resource_policy(::std::size_t offset = 0) { initialize(offset); }
+    fixed_resource_policy(::std::size_t index = 0) { initialize(index); }
 
     fixed_resource_policy(deferred_initialization_t) {}
 
-    fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t offset = 0) { initialize(u, offset); }
+    fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0) { initialize(u, index); }
 
     auto
     get_resources() const
@@ -78,26 +78,26 @@ struct fixed_resource_policy
     }
 
     void
-    initialize(::std::size_t offset = 0)
+    initialize(::std::size_t index = 0)
     {
         if (!state_)
         {
             backend_ = std::make_shared<backend_t>();
             state_ = std::make_shared<state_t>();
             state_->resources_ = get_resources();
-            state_->offset_ = offset;
+            state_->index_ = index;
         }
     }
 
     void
-    initialize(const std::vector<resource_type>& u, ::std::size_t offset = 0)
+    initialize(const std::vector<resource_type>& u, ::std::size_t index = 0)
     {
         if (!state_)
         {
             backend_ = std::make_shared<backend_t>(u);
             state_ = std::make_shared<state_t>();
             state_->resources_ = get_resources();
-            state_->offset_ = offset;
+            state_->index_ = index;
         }
     }
 
@@ -109,7 +109,7 @@ struct fixed_resource_policy
         {
             if (!state_->resources_.empty())
             {
-                return selection_type{*this, state_->resources_[state_->offset_]};
+                return selection_type{*this, state_->resources_[state_->index_]};
             }
             return selection_type{*this};
         }

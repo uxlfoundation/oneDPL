@@ -21,7 +21,7 @@ void
 test(::std::enable_if_t<std::is_integral_v<T>>* = 0)
 {
     static_assert((std::is_same_v<decltype(dpl::imag(T(x))), double>));
-    assert(dpl::imag(x) == 0);
+    assert(dpl::imag(T(x)) == 0);
 
     constexpr T val {x};
     STD_COMPLEX_TESTS_STATIC_ASSERT(dpl::imag(val) == 0);
@@ -34,7 +34,7 @@ void
 test(::std::enable_if_t<!std::is_integral_v<T>>* = 0)
 {
     static_assert((std::is_same_v<decltype(dpl::imag(T(x))), T>));
-    assert(dpl::imag(x) == 0);
+    assert(dpl::imag(T(x)) == 0);
 
     constexpr T val {x};
     STD_COMPLEX_TESTS_STATIC_ASSERT(dpl::imag(val) == 0);
@@ -57,9 +57,9 @@ ONEDPL_TEST_NUM_MAIN
     IF_DOUBLE_SUPPORT(test<double>())
     IF_LONG_DOUBLE_SUPPORT(test<long double>())
 #if _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE
-    test<int>();
-    test<unsigned>();
-    test<long long>();
+    IF_DOUBLE_SUPPORT(test<int>())
+    IF_DOUBLE_SUPPORT(test<unsigned>())
+    IF_DOUBLE_SUPPORT(test<long long>())
 #endif // _PSTL_TEST_COMPLEX_NON_FLOAT_AVAILABLE
 
   return 0;
