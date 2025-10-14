@@ -107,10 +107,10 @@ Beyond simplifying the public interface and requirements, these changes may prov
 
 - Bigger design alternative to TokenPolicy (feedback from presentation 10/9/2025):
   Shift the responsibility of resource availability to the backend resource or backend, not policy. Policy becomes only about selection from available resource. Any selection mechanism (policy) can have resources with capacity caps. Use dynamic load after changes with limited resource availability in the backend or resources directly.
-  - Declinin this feedback as it goes against previous decision to keep universes static for the length of the program, and the cost of redesign is too high to consider at this time. 
+  - Declining this feedback as it goes against previous decision to keep universes static for the length of the program, and the cost of redesign is too high to consider at this time.
 
 - Should we consider other flavors of submission variants?
   - Refactor public API contract for policies to now have 3 submission variants:
     - 1) `try_submit()`: Attempts to submit a job, and always returns quickly. It may fail if a resource is unavailable, and returns a pair of a boolean and submission object.
     - 2) `submit()`: Waits for a resource to be available, submits a job, returns a waitable submission object.
-    - 3) `submit_and_wait()`: waits for a resource to be available, submits a job and waits for the completion before returning. 
+    - 3) `submit_and_wait()`: waits for a resource to be available, submits a job and waits for the completion before returning.
