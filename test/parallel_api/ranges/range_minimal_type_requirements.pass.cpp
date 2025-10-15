@@ -32,7 +32,7 @@
 
 template <typename Policy>
 auto
-createVector(Policy policy)
+createVector(Policy&& policy)
 {
     if constexpr (oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value)
     {
@@ -53,7 +53,7 @@ struct test_count
 {
     template <typename Policy>
     void
-    operator()(Policy policy)
+    operator()(Policy&& policy)
     {
         auto v = createVector(policy);
         v = {0, 1, 2, 3, 4, 5};
@@ -69,7 +69,7 @@ struct test_merge
 {
     template <typename Policy>
     void
-    operator()(Policy policy)
+    operator()(Policy&& policy)
     {
         auto v1 = createVector(policy);
         auto v2 = createVector(policy);
@@ -93,7 +93,7 @@ struct test_copy_if
 {
     template <typename Policy>
     void
-    operator()(Policy policy)
+    operator()(Policy&& policy)
     {
         auto v1 = createVector(policy);
         v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
@@ -115,7 +115,7 @@ struct test_transform
 {
     template <typename Policy>
     void
-    operator()(Policy policy)
+    operator()(Policy&& policy)
     {
         auto v1 = createVector(policy);
         v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
@@ -139,11 +139,16 @@ struct test_transform
 template <typename Algorithm>
 void call_test_algo()
 {
+    std::cout << "\toneapi::dpl::execution::seq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::seq);
+    std::cout << "\toneapi::dpl::execution::unseq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::unseq);
+    std::cout << "\toneapi::dpl::execution::par" << std::endl;  
     Algorithm{}(oneapi::dpl::execution::par);
+    std::cout << "\toneapi::dpl::execution::par_unseq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::par_unseq);
 #if TEST_DPCPP_BACKEND_PRESENT
+    std::cout << "\toneapi::dpl::execution::dpcpp" << std::endl;
     Algorithm{}(TestUtils::get_dpcpp_test_policy());
 #endif
 }
@@ -154,9 +159,13 @@ int main()
 {
 #if _ENABLE_STD_RANGES_TESTING
 
+    std::cout << "test_count" << std::endl;
     call_test_algo<test_count>    ();
+    std::cout << "test_merge" << std::endl;
     call_test_algo<test_merge>    ();
+    std::cout << "test_copy_if" << std::endl;
     call_test_algo<test_copy_if>  ();
+    std::cout << "test_transform" << std::endl;
     call_test_algo<test_transform>();
 
 #endif // _ENABLE_STD_RANGES_TESTING
