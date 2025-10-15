@@ -26,6 +26,38 @@ template <typename Policy, int idx>
 using new_kernel_name = unique_kernel_name<std::decay_t<Policy>, idx>;
 } // namespace TestUtils
 
+// Helper to check if backend defines a wait_type
+template <typename T, typename = void> //assumes wait_type does not exist
+struct get_wait_type {
+    using type = int; //defaults to int
+};
+
+template <typename T> //specialization if wait_type exists
+struct get_wait_type<T, std::void_t<typename T::wait_type>> {
+    using type = typename T::wait_type;
+};
+
+//resource providing a wait functionality
+struct DummyResource 
+{
+    int value;
+
+    DummyResource(int v) : value(v) {}
+    bool operator==(const DummyResource& other) const 
+    {
+        return value == other.value;
+    }
+
+    bool operator!=(const DummyResource& other) const 
+    {
+        return !(*this == other);
+    }
+
+    void wait()
+    {
+    }
+};
+
 static inline void
 build_universe(std::vector<sycl::queue>& u)
 {
@@ -178,7 +210,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args...
                                              int>)
                     return e;
                 else
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    return typename get_wait_type<typename Policy::backend_t>::type{};
             };
             auto s = oneapi::dpl::experimental::select(p);
             oneapi::dpl::experimental::submit(s, func);
@@ -202,7 +234,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args...
                                       typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
                         return e;
                     else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                        return typename get_wait_type<typename Policy::backend_t>::type{};
                 });
         }
         oneapi::dpl::experimental::wait(p.get_submission_group());
@@ -244,7 +276,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args...
                                              int>)
                     return e;
                 else
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    return typename get_wait_type<typename Policy::backend_t>::type{};
             };
             auto s = oneapi::dpl::experimental::select(p, func);
             auto w = oneapi::dpl::experimental::submit(s, func);
@@ -274,7 +306,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args...
                                       typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
                         return e;
                     else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                        return typename get_wait_type<typename Policy::backend_t>::type{};
                 });
             oneapi::dpl::experimental::wait(w);
             int count = ecount.load();
@@ -317,7 +349,7 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
                     pass = false;
                 }
                 ecount += i;
-                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                return typename get_wait_type<typename Policy::backend_t>::type{};
             };
             auto s = oneapi::dpl::experimental::select(p, func);
             oneapi::dpl::experimental::submit_and_wait(s, func);
@@ -346,7 +378,7 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
                                       typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
                         return e;
                     else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                        return typename get_wait_type<typename Policy::backend_t>::type{};
                 });
             int count = ecount.load();
             if (count != i * (i + 1) / 2)

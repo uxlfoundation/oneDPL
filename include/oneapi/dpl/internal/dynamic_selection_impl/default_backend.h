@@ -183,7 +183,6 @@ class default_backend : public default_backend_impl<std::decay_t<decltype(std::d
 {
   public:
     using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
-    using wait_type = typename base_t::wait_type;
   public:
     default_backend()
     {
