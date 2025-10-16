@@ -117,9 +117,7 @@ class backend_base
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-      static_cast<Backend*>(this)->instrument_before_impl(s);
-      auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-	    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+	return static_cast<Backend*>(this)->submit_impl(s, std::forward<Function>(f), std::forward<Args>(args)...);
     }
 
     template<typename WaitType>
