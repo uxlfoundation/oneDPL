@@ -100,24 +100,12 @@ class backend_base
         return default_submission_group{resources_};
     }
 
-    template <typename SelectionHandle>
-    void
-    instrument_before_impl(SelectionHandle /*s*/)
-    {
-    }
-
-    template <typename SelectionHandle, typename WaitType>
-    auto
-    instrument_after_impl(SelectionHandle /*s*/, WaitType w)
-    {
-        return default_submission{w};
-    }
-
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-	return static_cast<Backend*>(this)->submit_impl(s, std::forward<Function>(f), std::forward<Args>(args)...);
+      auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+      return default_submission{w};
     }
 
     template<typename WaitType>
