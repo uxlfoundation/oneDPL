@@ -360,7 +360,7 @@ jobs:
               cd %BASE_DIR%
             )
 
-            set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
+            set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests
             set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
