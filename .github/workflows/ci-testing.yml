@@ -212,11 +212,12 @@ jobs:
 
             #set targets to just sycl iterator for dpcpp tests
             make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
-            ctest_flags="-R (sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
+            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)"
             if [[ "${{ matrix.device_type }}" != "FPGA_EMU" ]]; then
               make_targets+=" build-onedpl-ranges-tests"
-              ctest_flags+=" -R (std_ranges_.*)\.pass"
+              tests_regex+="|(std_ranges_.*)"
             fi
+            ctest_flags="-R ${tests_regex}\.pass"
           else
             make_targets="build-onedpl-tests"
           fi
@@ -359,9 +360,8 @@ jobs:
               cd %BASE_DIR%
             )
 
-            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
             set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
-            set ctest_flags=-R "(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
+            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
