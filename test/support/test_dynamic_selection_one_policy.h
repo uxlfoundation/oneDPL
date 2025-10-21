@@ -15,11 +15,9 @@
 enum tracing_enum
 {
     t_select = 1,
-    t_submit_selection = 1 << 1,
-    t_submit_function = 1 << 2,
-    t_submit_and_wait_selection = 1 << 3,
-    t_submit_and_wait_function = 1 << 4,
-    t_wait = 1 << 5
+    t_submit_function = 1 << 1,
+    t_submit_and_wait_function = 1 << 2,
+    t_wait = 1 << 3
 };
 
 class one_with_no_customizations
@@ -28,19 +26,26 @@ class one_with_no_customizations
 
     class one_selection_t
     {
-        one_with_no_customizations& p_;
+        one_with_no_customizations* p_;
 
       public:
-        explicit one_selection_t(one_with_no_customizations& p) : p_(p) {}
+        explicit one_selection_t(one_with_no_customizations& p) : p_(&p) {}
+        
+        // Make it copyable and movable
+        one_selection_t(const one_selection_t&) = default;
+        one_selection_t(one_selection_t&&) = default;
+        one_selection_t& operator=(const one_selection_t&) = default;
+        one_selection_t& operator=(one_selection_t&&) = default;
+        
         auto
         unwrap()
         {
             return 1;
         }
-        one_with_no_customizations
+        one_with_no_customizations&
         get_policy()
         {
-            return p_;
+            return *p_;
         }
     };
 
@@ -85,21 +90,26 @@ class one_with_no_customizations
         return std::vector<int>{1};
     }
 
-    // required
     template <typename... Args>
-    selection_type
-    select(Args&&...)
+    std::optional<selection_type>
+    try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return selection_type{*this};
+        return std::make_optional<selection_type>(*this);
     }
 
     // required
     template <typename Function, typename... Args>
     auto
-    submit(selection_type, Function&&, Args&&...)
+    submit(Function&&, Args&&... args)
     {
-        trace_ = (trace_ | t_submit_selection);
+        auto e = try_select_impl(args...);
+        while (!e.has_value())
+        {
+            e = try_select_impl(args...);
+            std::this_thread::yield();
+        }
+        trace_ = (trace_ | t_submit_function);
         return submission{trace_};
     }
 
@@ -116,19 +126,26 @@ class one_with_all_customizations
 
     class one_selection_t
     {
-        one_with_all_customizations& p_;
+        one_with_all_customizations* p_;
 
       public:
-        explicit one_selection_t(one_with_all_customizations& p) : p_(p) {}
+        explicit one_selection_t(one_with_all_customizations& p) : p_(&p) {}
+
+        // Make it copyable and movable
+        one_selection_t(const one_selection_t&) = default;
+        one_selection_t(one_selection_t&&) = default;
+        one_selection_t& operator=(const one_selection_t&) = default;
+        one_selection_t& operator=(one_selection_t&&) = default;
+
         auto
         unwrap()
         {
             return 1;
         }
-        one_with_all_customizations
+        one_with_all_customizations&
         get_policy()
         {
-            return p_;
+            return *p_;
         }
     };
 
@@ -175,27 +192,25 @@ class one_with_all_customizations
 
     // required
     template <typename... Args>
-    selection_type
-    select(Args&&...)
+    std::optional<selection_type>
+    try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return selection_type{*this};
+        return std::make_optional<selection_type>(*this);
     }
 
     // required
     template <typename Function, typename... Args>
     auto
-    submit(selection_type, Function&&, Args&&...)
+    submit(Function&&, Args&&... args)
     {
-        trace_ = (trace_ | t_submit_selection);
-        return submission{trace_};
-    }
 
-    // optional
-    template <typename Function, typename... Args>
-    auto
-    submit(Function&&, Args&&...)
-    {
+        auto e = try_select_impl(args...);
+        while (!e.has_value())
+        {
+            e = try_select_impl(args...);
+            std::this_thread::yield();
+        }
         trace_ = (trace_ | t_submit_function);
         return submission{trace_};
     }
@@ -203,17 +218,14 @@ class one_with_all_customizations
     // optional
     template <typename Function, typename... Args>
     void
-    submit_and_wait(selection_type, Function&&, Args&&...)
+    submit_and_wait(Function&&, Args&&... args)
     {
-        trace_ = (trace_ | t_submit_and_wait_selection);
-        return;
-    }
-
-    // optional
-    template <typename Function, typename... Args>
-    void
-    submit_and_wait(Function&&, Args&&...)
-    {
+        auto e = try_select_impl(args...);
+        while (!e.has_value())
+        {
+            e = try_select_impl(args...);
+            std::this_thread::yield();
+        }
         trace_ = (trace_ | t_submit_and_wait_function);
         return;
     }
