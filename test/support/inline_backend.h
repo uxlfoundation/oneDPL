@@ -16,53 +16,60 @@
 #include <atomic>
 #include <chrono>
 
-namespace oneapi 
+namespace TestUtils
 {
-namespace dpl 
+template <typename ResourceType = int, typename ResourceAdapter = oneapi::dpl::identity>
+class int_inline_backend_t
 {
-namespace experimental 
-{
-template <typename ResourceType, typename ResourceAdapter>
-class default_backend_impl<int, ResourceType, ResourceAdapter>
-    : public backend_base<ResourceType, default_backend_impl<int, ResourceType, ResourceAdapter>>
-{
-    template <typename Resource>
+    template <typename Resource, typename ResourceAdapter_>
     class basic_execution_resource_t
     {
         using resource_t = Resource;
+        using base_resource_t = decltype(ResourceAdapter_{}(std::declval<resource_t>()));
         resource_t resource_;
-
+        ResourceAdapter_ adapter_;
+        
       public:
         basic_execution_resource_t() : resource_(resource_t{}) {}
-        basic_execution_resource_t(resource_t r) : resource_(r) {}
+        basic_execution_resource_t(resource_t r, ResourceAdapter_ a) : resource_(r), adapter_(a) {}
         resource_t
         unwrap() const
         {
             return resource_;
         }
-        bool
-        operator==(const basic_execution_resource_t& e) const
+        
+        friend bool
+        operator==(const basic_execution_resource_t& lhs, const basic_execution_resource_t& rhs)
         {
-            return resource_ == e.resource_;
+            return lhs.adapter_(lhs.resource_) == rhs.adapter_(rhs.resource_);
         }
-        bool
-        operator==(const resource_t& e) const
+        
+        // Handle comparison with base resource type (handles both const and non-const)
+        template<typename U, std::enable_if_t<std::is_same_v<std::decay_t<U>, std::decay_t<base_resource_t>>, int> = 0>
+        friend bool
+        operator==(const basic_execution_resource_t& lhs, U&& rhs)
         {
-            return resource_ == e;
+            return lhs.adapter_(lhs.resource_) == std::forward<U>(rhs);
+        }
+        
+        template<typename U, std::enable_if_t<std::is_same_v<std::decay_t<U>, std::decay_t<base_resource_t>>, int> = 0>
+        friend bool
+        operator==(U&& lhs, const basic_execution_resource_t& rhs)
+        {
+            return std::forward<U>(lhs) == rhs.adapter_(rhs.resource_);
         }
     };
 
   public:
-    using resource_type = int;
     using wait_type = int;
-    using execution_resource_t = basic_execution_resource_t<resource_type>;
+    using execution_resource_t = basic_execution_resource_t<ResourceType, ResourceAdapter>;
     using resource_container_t = std::vector<execution_resource_t>;
     using report_duration = std::chrono::milliseconds;
     using resource_adapter_t = ResourceAdapter;
 
   private:
-    using native_resource_container_t = std::vector<resource_type>;
-    resource_adapter_t adapter;
+    using native_resource_container_t = std::vector<ResourceType>;
+    ResourceAdapter adapter_;
 
     class async_waiter
     {
@@ -92,41 +99,41 @@ class default_backend_impl<int, ResourceType, ResourceAdapter>
     };
 
   public:
-    default_backend_impl()
+    int_inline_backend_t()
     {
         for (int i = 1; i < 4; ++i)
-            resources_.push_back(execution_resource_t{i});
+            resources_.push_back(execution_resource_t{i, ResourceAdapter{}});
     }
 
-    default_backend_impl(const native_resource_container_t& u, ResourceAdapter adapter_) : adapter(adapter_) //TODO: Use adapter
+    int_inline_backend_t(const native_resource_container_t& u, ResourceAdapter a = {}) : adapter_(a)
     {
         for (const auto& e : u)
-            resources_.push_back(execution_resource_t{e});
+            resources_.push_back(execution_resource_t{e, a});
     }
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
-    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+    submit(SelectionHandle s, Function&& f, Args&&... args)
     {
         std::chrono::steady_clock::time_point t0;
-        if constexpr (oneapi::dpl::experimental::report_value_v<
+        if constexpr (oneapi::dpl::experimental::internal::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
             t0 = std::chrono::steady_clock::now();
         }
-        if constexpr (oneapi::dpl::experimental::report_info_v<
+        if constexpr (oneapi::dpl::experimental::internal::report_info_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_submission_t>)
         {
             s.report(oneapi::dpl::experimental::execution_info::task_submission);
         }
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
 
-        if constexpr (oneapi::dpl::experimental::report_info_v<
+        if constexpr (oneapi::dpl::experimental::internal::report_info_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_completion_t>)
         {
-            oneapi::dpl::experimental::report(s, oneapi::dpl::experimental::execution_info::task_completion);
+            oneapi::dpl::experimental::internal::report(s, oneapi::dpl::experimental::execution_info::task_completion);
         }
-        if constexpr (oneapi::dpl::experimental::report_value_v<
+        if constexpr (oneapi::dpl::experimental::internal::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
             report(s, oneapi::dpl::experimental::execution_info::task_time,
@@ -151,8 +158,6 @@ class default_backend_impl<int, ResourceType, ResourceAdapter>
     resource_container_t resources_;
 };
 
-} // namespace experimental
-} // namespace dpl
-} // namespace oneapi
+} // namespace TestUtils
 
 #endif /* _ONEDPL_INLINE_SCHEDULER_H */
