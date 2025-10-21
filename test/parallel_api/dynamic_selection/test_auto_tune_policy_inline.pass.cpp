@@ -54,7 +54,8 @@ test_auto_submit(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                return int{};
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             oneapi::dpl::experimental::submit(s, f);
@@ -80,7 +81,8 @@ test_auto_submit(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    return int{};
                 });
         }
         int count = ecount.load();
@@ -235,7 +237,8 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                return int{};
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             oneapi::dpl::experimental::submit(s, f);
@@ -261,7 +264,8 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    return int{};
                 });
         }
         int count = ecount.load();
@@ -312,7 +316,8 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                     }
                 }
                 ecount += i;
-                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                return int{};
             };
             auto s = oneapi::dpl::experimental::select(p, f);
             oneapi::dpl::experimental::submit_and_wait(s, f);
@@ -338,7 +343,8 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                         }
                     }
                     ecount += i;
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    ///return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
+                    return int{};
                 });
         }
         int count = ecount.load();
@@ -382,7 +388,8 @@ run_tests(std::vector<int> u, int best_resource)
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<int, TestUtils::int_inline_backend_t>;
+    ///using policy_t = oneapi::dpl::experimental::auto_tune_policy<int, TestUtils::int_inline_backend_t>;
+    using policy_t = oneapi::dpl::experimental::auto_tune_policy<int, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<int>>;
     std::vector<int> first_resources = {1, 100, 100, 100};
     std::vector<int> second_resources = {100, 1, 100, 100};
     std::vector<int> third_resources = {100, 100, 1, 100};

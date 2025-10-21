@@ -16,9 +16,15 @@
 #include <atomic>
 #include <chrono>
 
-namespace TestUtils
+namespace oneapi 
 {
-class int_inline_backend_t
+namespace dpl 
+{
+namespace experimental 
+{
+template <typename ResourceType, typename ResourceAdapter>
+class default_backend_impl<int, ResourceType, ResourceAdapter>
+    : public backend_base<ResourceType, default_backend_impl<int, ResourceType, ResourceAdapter>>
 {
     template <typename Resource>
     class basic_execution_resource_t
@@ -52,9 +58,11 @@ class int_inline_backend_t
     using execution_resource_t = basic_execution_resource_t<resource_type>;
     using resource_container_t = std::vector<execution_resource_t>;
     using report_duration = std::chrono::milliseconds;
+    using resource_adapter_t = ResourceAdapter;
 
   private:
     using native_resource_container_t = std::vector<resource_type>;
+    resource_adapter_t adapter;
 
     class async_waiter
     {
@@ -84,13 +92,13 @@ class int_inline_backend_t
     };
 
   public:
-    int_inline_backend_t()
+    default_backend_impl()
     {
         for (int i = 1; i < 4; ++i)
             resources_.push_back(execution_resource_t{i});
     }
 
-    int_inline_backend_t(const native_resource_container_t& u)
+    default_backend_impl(const native_resource_container_t& u, ResourceAdapter adapter_) : adapter(adapter_) //TODO: Use adapter
     {
         for (const auto& e : u)
             resources_.push_back(execution_resource_t{e});
@@ -98,7 +106,7 @@ class int_inline_backend_t
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
-    submit(SelectionHandle s, Function&& f, Args&&... args)
+    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
         std::chrono::steady_clock::time_point t0;
         if constexpr (oneapi::dpl::experimental::report_value_v<
@@ -143,8 +151,8 @@ class int_inline_backend_t
     resource_container_t resources_;
 };
 
-inline int_inline_backend_t int_inline_backend;
-
-} //namespace TestUtils
+} // namespace experimental
+} // namespace dpl
+} // namespace oneapi
 
 #endif /* _ONEDPL_INLINE_SCHEDULER_H */
