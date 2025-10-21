@@ -1702,43 +1702,32 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    const _DifferenceType __n = __last - __first;
+    _DifferenceType __n = __last - __first;
     if (_DifferenceType(2) < __n)
     {
+        *__result++ = *__first++; // Always copy the first element
+        --__n;
         __par_backend::__buffer<bool> __mask_buf(__n);
-        if (_DifferenceType(2) < __n)
-        {
-            return __internal::__except_handler([&__exec, __n, __first, __result, &__pred, &__mask_buf]() {
-                bool* __mask = __mask_buf.get();
-                _DifferenceType __m{};
-                __par_backend::__parallel_strict_scan(
-                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-                    [=, &__pred](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
-                        _DifferenceType __extra = 0;
-                        if (__i == 0)
-                        {
-                            // Special boundary case
-                            __mask[__i] = true;
-                            if (--__len == 0)
-                                return 1;
-                            ++__i;
-                            ++__extra;
-                        }
-                        __not_pred<_BinaryPredicate&> __pred_negated(__pred);
-                        return __internal::__brick_compute_mask(_IsVector{}, __mask + __i, __len, __pred_negated,
-                            __first + __i, __first + (__i - 1)).first + __extra;
-                    },
-                    ::std::plus<_DifferenceType>(),                                              // Combine
-                    [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
-                        // Phase 2 is same as for __pattern_copy_if
-                        __internal::__brick_copy_by_mask(
-                            __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
-                            [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
-                    },
-                    [&__m](_DifferenceType __total) { __m = __total; });
-                return __result + __m;
-            });
-        }
+        return __internal::__except_handler([&__exec, __n, __first, __result, &__pred, &__mask_buf]() {
+            bool* __mask = __mask_buf.get();
+            _DifferenceType __m{};
+            __par_backend::__parallel_strict_scan(
+                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+                [=, &__pred](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
+                    __not_pred<_BinaryPredicate&> __pred_negated(__pred);
+                    return __internal::__brick_compute_mask(_IsVector{}, __mask + __i, __len, __pred_negated,
+                        __first + __i, __first + (__i - 1)).first;
+                },
+                std::plus<_DifferenceType>(), // Combine
+                [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+                    // Phase 2 is same as for __pattern_copy_if
+                    __internal::__brick_copy_by_mask(
+                        __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
+                        [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
+                },
+                [&__m](_DifferenceType __total) { __m = __total; }); // Apex
+            return __result + __m;
+        });
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
