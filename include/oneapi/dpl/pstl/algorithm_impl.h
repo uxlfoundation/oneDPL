@@ -1272,7 +1272,7 @@ template <class _DifferenceType, class _RandomAccessIterator, class _UnaryPredic
 __brick_calc_mask_1(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __mask, _UnaryPredicate __pred,
                     /*vector=*/::std::true_type) noexcept
 {
-    auto __result = __unseq_backend::__simd_calc_mask_1(__first, __last - __first, __mask, __pred);
+    auto __result = __unseq_backend::__simd_compute_mask(__mask, __last - __first, __pred, __first);
     return ::std::make_pair(__result, (__last - __first) - __result);
 }
 
@@ -1720,7 +1720,8 @@ _DifferenceType
 __brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __restrict __mask,
                     _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_calc_mask_2(__first, __last - __first, __mask, __pred);
+    return __unseq_backend::__simd_compute_mask(__mask, __last - __first, __not_pred<_BinaryPredicate&>(__pred),
+                                                __first, __first - 1);
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
