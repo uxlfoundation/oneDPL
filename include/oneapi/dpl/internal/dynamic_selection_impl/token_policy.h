@@ -12,6 +12,7 @@
 
 #include <mutex>
 #include <thread>
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 
 #if _DS_BACKEND_SYCL != 0
@@ -122,35 +123,34 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
     }
 
     template <typename... Args>
-    auto
-    select_impl(Args&&...)
+    std::optional<selection_type>
+    try_select_impl(Args&&...)
     {
-	if (selector_)
+        if (selector_)
         {
             std::shared_ptr<resource_t> available_resource;
 
-            while(true) 
-	    {
-                for (auto r : selector_->resources_)
+            for (auto r : selector_->resources_)
+            {
+                int expected = r->availability_.load();
+                while (expected < capacity) //resource is available
                 {
-		    int expected = r->availability_.load();
-		    while (expected < capacity) //resource is available 
-		    {
-	                if (r->availability_.compare_exchange_weak(expected, expected + 1)) 
-		        {
-                            available_resource = ::std::move(r);
-			    auto token = std::make_shared<token_t>(available_resource->availability_);
-                            return selection_type{token_policy<ResourceType, ResourceAdapter, Backend>(*this), available_resource, token};
-		        }
-		    }  
+                    if (r->availability_.compare_exchange_weak(expected, expected + 1))
+                    {
+                        available_resource = ::std::move(r);
+                        auto token = std::make_shared<token_t>(available_resource->availability_);
+                        return std::make_optional<selection_type>(token_policy<ResourceType, ResourceAdapter, Backend>(*this),
+                                                available_resource, token);
+                    }
                 }
-	        std::this_thread::yield();
-	    }
+            }
         }
         else
         {
             throw std::logic_error("select called before initialization");
         }
+        // no resource available
+        return {};
     }
 };
 

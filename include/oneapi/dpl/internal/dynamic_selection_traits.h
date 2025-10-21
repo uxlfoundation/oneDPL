@@ -13,6 +13,8 @@
 #include <utility>
 #include <cstdint>
 #include <type_traits>
+#include <thread>
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h"
 
 namespace oneapi
@@ -46,66 +48,6 @@ has_scratch_space_member(int) -> decltype(std::declval<SelectionHandle>().scratc
 
 template <typename SelectionHandle>
 struct scratch_space_member : decltype(has_scratch_space_member<SelectionHandle>(0)) //TODO: Change name?
-{
-};
-
-
-template <typename T>
-auto
-has_get_policy_impl(...) -> std::false_type;
-
-template <typename T>
-auto
-has_get_policy_impl(int) -> decltype(std::declval<T>().get_policy(), std::true_type{});
-
-template <typename T>
-struct has_get_policy : decltype(has_get_policy_impl<T>(0))
-{
-};
-
-template <typename DSPolicy, typename Function, typename... Args>
-auto
-has_submit_impl(...) -> std::false_type;
-
-template <typename DSPolicy, typename Function, typename... Args>
-auto
-has_submit_impl(int)
-    -> decltype(std::declval<DSPolicy>().submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
-
-template <typename DSPolicy, typename Function, typename... Args>
-struct has_submit : decltype(has_submit_impl<DSPolicy, Function, Args...>(0))
-{
-};
-
-template <typename DSPolicy, typename Function, typename... Args>
-auto
-has_submit_and_wait_impl(...) -> std::false_type;
-
-template <typename DSPolicy, typename Function, typename... Args>
-auto
-has_submit_and_wait_impl(int)
-    -> decltype(std::declval<DSPolicy>().submit_and_wait(std::declval<Function>(), std::declval<Args>()...),
-                std::true_type{});
-
-template <typename DSPolicy, typename Function, typename... Args>
-struct has_submit_and_wait : decltype(has_submit_and_wait_impl<DSPolicy, Function, Args...>(0))
-{
-};
-
-template <typename DSPolicy, typename SelectionHandle, typename Function, typename... Args>
-auto
-has_submit_and_wait_handle_impl(...) -> std::false_type;
-
-template <typename DSPolicy, typename SelectionHandle, typename Function, typename... Args>
-auto
-has_submit_and_wait_handle_impl(int)
-    -> decltype(std::declval<DSPolicy>().submit_and_wait(std::declval<SelectionHandle>(), std::declval<Function>(),
-                                                         std::declval<Args>()...),
-                std::true_type{});
-
-template <typename DSPolicy, typename SelectionHandle, typename Function, typename... Args>
-struct has_submit_and_wait_handle
-    : decltype(has_submit_and_wait_handle_impl<DSPolicy, SelectionHandle, Function, Args...>(0))
 {
 };
 
@@ -148,6 +90,53 @@ template <typename T>
 struct has_wait : decltype(has_wait_impl<T>(0))
 {
 };
+template <typename Policy, typename Function, typename... Args>
+auto
+has_try_submit_impl(...) -> std::false_type;
+
+template <typename Policy, typename Function, typename... Args>
+auto
+has_try_submit_impl(int) -> decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+template <typename Policy, typename Function, typename... Args>
+struct has_try_submit : decltype(has_try_submit_impl<Policy, Function, Args...>(0))
+{
+};
+
+template <typename Policy, typename Function, typename... Args>
+inline constexpr bool has_try_submit_v = has_try_submit<Policy, Function, Args...>::value;
+
+template <typename Policy, typename Function, typename... Args>
+auto
+has_submit_impl(...) -> std::false_type;
+
+template <typename Policy, typename Function, typename... Args>
+auto
+has_submit_impl(int) -> decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+
+template <typename Policy, typename Function, typename... Args>
+struct has_submit : decltype(has_submit_impl<Policy, Function, Args...>(0))
+{
+};
+
+template <typename Policy, typename Function, typename... Args>
+inline constexpr bool has_submit_v = has_submit<Policy, Function, Args...>::value;
+
+template <typename Policy, typename Function, typename... Args>
+auto
+has_submit_and_wait_impl(...) -> std::false_type;
+
+template <typename Policy, typename Function, typename... Args>
+auto
+has_submit_and_wait_impl(int) -> decltype(std::declval<Policy>().submit_and_wait(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+
+template <typename Policy, typename Function, typename... Args>
+struct has_submit_and_wait : decltype(has_submit_and_wait_impl<Policy, Function, Args...>(0))
+{
+};
+
+template <typename Policy, typename Function, typename... Args>
+inline constexpr bool has_submit_and_wait_v = has_submit_and_wait<Policy, Function, Args...>::value;
+
 
 } //namespace internal
 
@@ -178,13 +167,6 @@ get_submission_group(DSPolicy&& dp)
     return std::forward<DSPolicy>(dp).get_submission_group();
 }
 
-template <typename DSPolicy, typename... Args>
-typename policy_traits<DSPolicy>::selection_type
-select(DSPolicy&& dp, Args&&... args)
-{
-    return std::forward<DSPolicy>(dp).select(std::forward<Args>(args)...);
-}
-
 // optional interfaces
 
 template <typename T>
@@ -201,67 +183,51 @@ unwrap(T&& v)
     }
 }
 
-template <typename T, typename Function, typename... Args>
+
+template <typename Policy, typename Function, typename... Args>
 auto
-submit(T&& t, Function&& f, Args&&... args)
+submit(Policy&& p, Function&& f, Args&&... args)
+    -> std::enable_if_t<internal::has_submit_v<Policy, Function, Args...>,
+                        decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...))>
 {
-    if constexpr (internal::has_get_policy<T>::value)
-    {
-        // t is a selection
-        return t.get_policy().submit(std::forward<T>(t), std::forward<Function>(f), std::forward<Args>(args)...);
-    }
-    else if constexpr (internal::has_submit<T, Function, Args...>::value)
-    {
-        // t is a policy and policy has optional submit(f, args...)
-        return std::forward<T>(t).submit(std::forward<Function>(f), std::forward<Args>(args)...);
-    }
-    else
-    {
-        // t is a policy and policy does not have optional submit(f, args...)
-        return std::forward<T>(t).submit(t.select(f, args...), std::forward<Function>(f), std::forward<Args>(args)...);
-    }
+    // Policy has a direct submit method
+    return std::forward<Policy>(p).submit(std::forward<Function>(f), std::forward<Args>(args)...);
 }
 
-template <typename T, typename Function, typename... Args>
+template <typename Policy, typename Function, typename... Args>
 auto
-submit_and_wait(T&& t, Function&& f, Args&&... args)
+submit(Policy&& p, Function&& f, Args&&... args)
+    -> std::enable_if_t<!internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
+                        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
 {
-    if constexpr (internal::has_get_policy<T>::value)
+    // Policy has a try_submit method
+    auto result = std::forward<Policy>(p).try_submit(f, args...);
+    while (!result.has_value())
     {
-        // t is a selection
-        if constexpr (internal::has_submit_and_wait_handle<decltype(std::declval<T>().get_policy()), T, Function,
-                                                           Args...>::value)
-        {
-            // policy has optional submit_and_wait(selection, f, args...)
-            return t.get_policy().submit_and_wait(std::forward<T>(t), std::forward<Function>(f),
-                                                  std::forward<Args>(args)...);
-        }
-        else
-        {
-            // policy does not have optional submit_and_wait for a selection
-            return wait(submit(std::forward<T>(t), std::forward<Function>(f), std::forward<Args>(args)...));
-        }
+        std::this_thread::yield();
+        result = std::forward<Policy>(p).try_submit(f, args...);
+    }
+    return result.value();
+}
+
+template <typename Policy, typename Function, typename... Args>
+auto
+submit_and_wait(Policy&& p, Function&& f, Args&&... args)
+{
+    if constexpr (internal::has_submit_and_wait_v<Policy, Function, Args...>)
+    {
+        // Policy has a direct submit_and_wait method
+        return std::forward<Policy>(p).submit_and_wait(std::forward<Function>(f), std::forward<Args>(args)...);
+    }
+    else if constexpr (internal::has_submit_v<Policy, Function, Args...> || internal::has_try_submit_v<Policy, Function, Args...>)
+    {
+        // Fall back to submit + wait
+        auto result = submit(std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
+        wait(result);
     }
     else
     {
-        // t is a policy
-        if constexpr (internal::has_submit_and_wait<T, Function, Args...>::value)
-        {
-            // has the optional submit_and_wait(f, args...)
-            return std::forward<T>(t).submit_and_wait(std::forward<Function>(f), std::forward<Args>(args)...);
-        }
-        else if constexpr (internal::has_submit_and_wait_handle<T, typename std::decay_t<T>::selection_type, Function,
-                                                                Args...>::value)
-        {
-            // has the optional submit_and_wait for a selection, so select and call
-            return std::forward<T>(t).submit_and_wait(t.select(f, args...), std::forward<Function>(f),
-                                                      std::forward<Args>(args)...);
-        }
-        else
-        {
-            // does not have the optional submit_and_wait(f, args...) or (s, f, args...)
-            return wait(submit(std::forward<T>(t), std::forward<Function>(f), std::forward<Args>(args)...));
-        }
+        static_assert(false,"error: submit_and_wait() called on policy which does not support any submission method");
     }
 }
 

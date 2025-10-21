@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <tuple>
 #include <unordered_map>
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
@@ -207,8 +208,8 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
     }
 
     template <typename Function, typename... Args>
-    selection_type
-    select_impl(Function&& f, Args&&... args)
+    std::optional<selection_type>
+    try_select_impl(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits::lazy_report_v<Backend>)
@@ -223,12 +224,12 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
             auto index = t->get_resource_to_profile();
             if (index == use_best_resource)
             {
-                return selection_type{*this, t->best_resource_, t};
+                return std::make_optional<selection_type>(*this, t->best_resource_, t);
             }
             else
             {
                 auto r = state_->resources_with_index_[index];
-                return selection_type{*this, r, t};
+                return std::make_optional<selection_type>(*this, r, t);
             }
         }
         else

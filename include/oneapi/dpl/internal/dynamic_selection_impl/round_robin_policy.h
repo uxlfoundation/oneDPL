@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_ROUND_ROBIN_POLICY_H
 #define _ONEDPL_ROUND_ROBIN_POLICY_H
 
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
 
@@ -69,11 +70,11 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
     }
 
     template <typename... Args>
-    selection_type 
-    select_impl(Args&&...) 
+    std::optional<selection_type>
+    try_select_impl(Args&&...) 
     {
         if (selector_)
-	{
+        {
             resource_container_size_t current;
 
             while (true) {
@@ -81,7 +82,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
                 auto next = (current + 1) % selector_->num_contexts_;
                 if (selector_->next_context_.compare_exchange_strong(current, next)) break;
             }
-            return selection_type{*this, selector_->resources_[current]};
+            return std::make_optional<selection_type>(*this, selector_->resources_[current]);
 	}
 	else
 	{

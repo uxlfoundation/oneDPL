@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_FIXED_RESOURCE_POLICY_H
 #define _ONEDPL_FIXED_RESOURCE_POLICY_H
 
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
 
@@ -82,12 +83,12 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     }
 
     template <typename... Args>
-    selection_type 
-    select_impl(Args&&...) 
+    std::optional<selection_type>
+    try_select_impl(Args&&...) 
     {
 	if (selector_) 
 	{
-            return selection_type{*this, selector_->resources_[selector_->index_]};
+            return std::make_optional<selection_type>(*this, selector_->resources_[selector_->index_]);
 	}
 	else
 	{

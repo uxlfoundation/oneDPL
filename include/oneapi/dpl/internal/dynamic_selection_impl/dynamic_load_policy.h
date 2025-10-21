@@ -11,6 +11,7 @@
 #define _ONEDPL_DYNAMIC_LOAD_POLICY_H
 
 #include <mutex>
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
 
@@ -123,11 +124,11 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     }
 
     template <typename... Args>
-    auto
-    select_impl(Args&&...)
+    std::optional<selection_type>
+    try_select_impl(Args&&...)
     {
 
-	     if (selector_)
+        if (selector_)
         {
             std::shared_ptr<resource_t> least_loaded;
             int least_load = std::numeric_limits<load_t>::max();
@@ -142,7 +143,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
                     least_loaded = ::std::move(r);
                 }
             }
-            return selection_type{dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded};
+            return std::make_optional<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
         }
         else
         {
