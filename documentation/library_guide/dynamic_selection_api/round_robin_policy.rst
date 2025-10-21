@@ -119,7 +119,7 @@ implementation of the selection algorithm follows:
 .. code:: cpp
 
   template<typename ...Args>
-  selection_type round_robin_policy::select(Args&&...) {
+  selection_type round_robin_policy::__select_impl(Args&&...) {
     if (initialized_) {
       auto& r = resources_[next_context_++ % num_resources_];
       return selection_type{*this, r};
@@ -185,38 +185,3 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
-
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. However, the ``round_robin_policy`` 
-does not require any feedback about the system state or the behavior of 
-the workload. Therefore, no explicit reporting of execution information 
-is needed, as is summarized in the table below.
-
-.. list-table:: ``round_robin_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }

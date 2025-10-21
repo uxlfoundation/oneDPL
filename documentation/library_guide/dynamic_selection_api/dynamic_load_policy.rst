@@ -125,7 +125,7 @@ Simplified, expository implementation of the selection algorithm:
 .. code:: cpp
 
   template<typename... Args>
-  selection_type dynamic_load_policy::select(Args&& ...) {
+  selection_type dynamic_load_policy::__select_impl(Args&& ...) {
     if (initialized_) {
       auto least_loaded_resource = find_least_loaded(resources_);
       return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};
@@ -191,41 +191,3 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
-
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. The ``dynamic_load_policy`` tracks the
-number of outstanding submissions on each device via callbacks that report
-when a submission is started, and when it is completed. The instrumentation
-to report these events is included in the implementations of 
-``submit`` and ``submit_and_wait``.  However, if you use ``select`` and then
-submit work directly to the selected resource, it is necessary to explicitly
-report these events.
-
-.. list-table:: ``dynamic_load_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - Yes
-  * - ``task_completion``
-    - Yes
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }
