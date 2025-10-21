@@ -20,17 +20,14 @@ template <typename CustomName, typename Policy, typename ResourceContainer, type
 int run_dynamic_load_policy_tests(const ResourceContainer& resources, const FunctionType& f, const FunctionType2& f2, Args&&... args)
 {
     int result = 0;
-    constexpr bool just_call_submit = false;
-    constexpr bool call_select_before_submit = true;
 
     result += test_dl_initialization<Policy, ResourceContainer>(resources, std::forward<Args>(args)...);
-    result += test_select<Policy, ResourceContainer, const FunctionType2&, false>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<just_call_submit, Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<call_select_before_submit, Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait<just_call_submit, Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait<call_select_before_submit, Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<just_call_submit, TestUtils::unique_kernel_name<CustomName, 0>, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<call_select_before_submit, TestUtils::unique_kernel_name<CustomName, 1>, Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(resources, f, std::forward<Args>(args)...);
 
     return result;
 }

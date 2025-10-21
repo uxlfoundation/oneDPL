@@ -122,8 +122,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
 
                 return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
             };
-            auto s = oneapi::dpl::experimental::select(p, f);
-            auto e = oneapi::dpl::experimental::submit(s, f);
+            auto e = oneapi::dpl::experimental::submit(p, f);
             oneapi::dpl::experimental::wait(e);
         }
         else
@@ -233,8 +232,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
                 return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
 
             };
-            auto s = oneapi::dpl::experimental::select(p, f);
-            auto e = oneapi::dpl::experimental::submit(s, f);
+            auto e = oneapi::dpl::experimental::submit(p, f);
             oneapi::dpl::experimental::wait(p.get_submission_group());
         }
         else
@@ -341,8 +339,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource)
                 return launch_kernel<TestUtils::unique_kernel_name<KernelName, 0>>(q, j, v);
 
             };
-            auto s = oneapi::dpl::experimental::select(p, f);
-            oneapi::dpl::experimental::submit_and_wait(s, f);
+            oneapi::dpl::experimental::submit_and_wait(p, f);
         }
         else
         {
@@ -469,7 +466,6 @@ main()
 
         EXPECT_EQ(0, (test_auto_initialization(u1)), "");
 
-        EXPECT_EQ(0, (test_select<policy_t, decltype(u1), const decltype(f)&, true>(u1, f)), "");
         EXPECT_EQ(0, (test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel1>(u1, 0)), "");
         EXPECT_EQ(0, (test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel2>(u1, 1)), "");
         EXPECT_EQ(0, (test_auto_submit_wait_on_event<just_call_submit, policy_t, class Kernel3>(u1, 2)), "");

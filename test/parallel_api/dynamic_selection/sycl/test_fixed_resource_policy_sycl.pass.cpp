@@ -18,17 +18,14 @@ template <typename Policy, typename ResourceContainer, typename FunctionType, ty
 int run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, Args&&... args)
 {
     int result = 0;
-    constexpr bool just_call_submit = false;
-    constexpr bool call_select_before_submit = true;
     
     result += test_initialization<Policy, typename ResourceContainer::value_type>(resources, std::forward<Args>(args)...);
-    result += test_select<Policy, ResourceContainer, const FunctionType&, false>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<just_call_submit, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<call_select_before_submit, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait<just_call_submit, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait<call_select_before_submit, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<just_call_submit, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<call_select_before_submit, Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, std::forward<Args>(args)...);
     
     return result;
 }
