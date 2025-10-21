@@ -204,7 +204,8 @@ submit_impl(SelectionHandle s, Function&& f, Args&&... args)
         constexpr bool report_task_submission = oneapi::dpl::experimental::internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time = oneapi::dpl::experimental::internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
-        auto q = adapter(unwrap(s));
+        auto resource = unwrap(s);
+        auto q = adapter(resource);
 
         if constexpr (report_task_submission)
             oneapi::dpl::experimental::internal::report(s, execution_info::task_submission);
@@ -216,7 +217,7 @@ submit_impl(SelectionHandle s, Function&& f, Args&&... args)
                 s.scratch_space.my_start_event =
                     sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
 #endif
-            auto e1 = f(q, std::forward<Args>(args)...);
+            auto e1 = f(resource, std::forward<Args>(args)...);
             async_waiter<SelectionHandle> waiter{e1, std::make_shared<SelectionHandle>(s)};
 
             if constexpr (report_task_time)
@@ -255,7 +256,7 @@ submit_impl(SelectionHandle s, Function&& f, Args&&... args)
 #endif
         }
 
-        return async_waiter{f(q, std::forward<Args>(args)...), std::make_shared<SelectionHandle>(s)};
+        return async_waiter{f(resource, std::forward<Args>(args)...), std::make_shared<SelectionHandle>(s)};
     }
 
 
