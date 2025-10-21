@@ -282,31 +282,16 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
     return __cnt;
 }
 
-template <class _InputIterator, class _DifferenceType, class _BinaryPredicate>
+template <typename _DifferenceType, typename _Predicate, typename... _Iterators>
 _DifferenceType
-__simd_calc_mask_2(_InputIterator __first, _DifferenceType __n, bool* __mask, _BinaryPredicate __pred) noexcept
+__simd_compute_mask(bool* __mask, _DifferenceType __n, _Predicate __pred, _Iterators... __it) noexcept
 {
     _DifferenceType __count = 0;
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __mask[__i] = !__pred(__first[__i], __first[__i - 1]);
-        __count += __mask[__i];
-    }
-    return __count;
-}
-
-template <class _InputIterator, class _DifferenceType, class _UnaryPredicate>
-_DifferenceType
-__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _UnaryPredicate __pred) noexcept
-{
-    _DifferenceType __count = 0;
-
-    _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-    {
-        __mask[__i] = __pred(__first[__i]);
+        __mask[__i] = __pred(__it[__i]... );
         __count += __mask[__i];
     }
     return __count;
