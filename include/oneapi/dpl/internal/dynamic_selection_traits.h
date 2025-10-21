@@ -137,6 +137,41 @@ struct has_submit_and_wait : decltype(has_submit_and_wait_impl<Policy, Function,
 template <typename Policy, typename Function, typename... Args>
 inline constexpr bool has_submit_and_wait_v = has_submit_and_wait<Policy, Function, Args...>::value;
 
+template <typename S, typename Info>
+struct report_info
+{
+    static constexpr bool value = has_report<S, Info>::value;
+};
+template <typename S, typename Info>
+inline constexpr bool report_info_v = report_info<S, Info>::value;
+
+template <typename S, typename Info, typename ValueType>
+struct report_value
+{
+    static constexpr bool value = has_report_value<S, Info, ValueType>::value;
+};
+template <typename S, typename Info, typename ValueType>
+inline constexpr bool report_value_v = report_value<S, Info, ValueType>::value;
+
+template <typename S, typename Info>
+void
+report(S&& s, const Info& i)
+{
+    if constexpr (has_report<S, Info>::value)
+    {
+        std::forward<S>(s).report(i);
+    }
+}
+
+template <typename S, typename Info, typename Value>
+void
+report(S&& s, const Info& i, const Value& v)
+{
+    if constexpr (has_report_value<S, Info, Value>::value)
+    {
+        std::forward<S>(s).report(i, v);
+    }
+}
 
 } //namespace internal
 
@@ -256,42 +291,6 @@ struct task_submission_t
 };
 inline constexpr task_submission_t task_submission;
 } // namespace execution_info
-
-template <typename S, typename Info>
-void
-report(S&& s, const Info& i)
-{
-    if constexpr (internal::has_report<S, Info>::value)
-    {
-        std::forward<S>(s).report(i);
-    }
-}
-
-template <typename S, typename Info, typename Value>
-void
-report(S&& s, const Info& i, const Value& v)
-{
-    if constexpr (internal::has_report_value<S, Info, Value>::value)
-    {
-        std::forward<S>(s).report(i, v);
-    }
-}
-
-template <typename S, typename Info>
-struct report_info
-{
-    static constexpr bool value = internal::has_report<S, Info>::value;
-};
-template <typename S, typename Info>
-inline constexpr bool report_info_v = report_info<S, Info>::value;
-
-template <typename S, typename Info, typename ValueType>
-struct report_value
-{
-    static constexpr bool value = internal::has_report_value<S, Info, ValueType>::value;
-};
-template <typename S, typename Info, typename ValueType>
-inline constexpr bool report_value_v = report_value<S, Info, ValueType>::value;
 
 } // namespace experimental
 } // namespace dpl

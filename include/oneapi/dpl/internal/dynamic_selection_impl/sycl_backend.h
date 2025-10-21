@@ -96,7 +96,9 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         void
         report() const override
         {
-            if constexpr (report_value_v<Selection, execution_info::task_time_t, report_duration>)
+            if constexpr (oneapi::dpl::experimental::internal::report_value_v<Selection,
+                                                                              execution_info::task_time_t,
+                                                                              report_duration>)
             {
                 if (s != nullptr)
                 {
@@ -198,19 +200,19 @@ template <typename SelectionHandle, typename Function, typename... Args>
 auto
 submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-        constexpr bool report_task_completion = report_info_v<SelectionHandle, execution_info::task_completion_t>;
-        constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
-        constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+        constexpr bool report_task_completion = oneapi::dpl::experimental::internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
+        constexpr bool report_task_submission = oneapi::dpl::experimental::internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        constexpr bool report_task_time = oneapi::dpl::experimental::internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
         auto q = adapter(unwrap(s));
 
         if constexpr (report_task_submission)
-            report(s, execution_info::task_submission);
+            oneapi::dpl::experimental::internal::report(s, execution_info::task_submission);
 
         if constexpr (report_task_completion || report_task_time)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            if constexpr (internal::scratch_space_member<SelectionHandle>::value)
+            if constexpr (oneapi::dpl::experimental::internal::scratch_space_member<SelectionHandle>::value)
                 s.scratch_space.my_start_event =
                     sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
 #endif
@@ -226,7 +228,7 @@ submit_impl(SelectionHandle s, Function&& f, Args&&... args)
             if ((report_task_time && !is_profiling_enabled) || report_task_completion)
             {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-                if constexpr (internal::scratch_space_member<SelectionHandle>::value)
+                if constexpr (oneapi::dpl::experimental::internal::scratch_space_member<SelectionHandle>::value)
                 {
                     sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
 
