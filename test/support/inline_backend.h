@@ -137,7 +137,7 @@ class int_inline_backend_t
         if constexpr (oneapi::dpl::experimental::internal::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
-            report(s, oneapi::dpl::experimental::execution_info::task_time,
+            oneapi::dpl::experimental::internal::report(s, oneapi::dpl::experimental::execution_info::task_time,
                    std::chrono::duration_cast<report_duration>(std::chrono::steady_clock::now() - t0));
         }
         return async_waiter{w};
