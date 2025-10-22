@@ -105,12 +105,12 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                 }
             }
             if constexpr (internal::report_info_v<Selection, execution_info::task_completion_t>)
-	    {
+            {
                 if (s != nullptr)
-		{
-                    s.report(execution_info::task_completion);
-		}
-	    }
+                {
+                    s->report(execution_info::task_completion);
+                }
+            }
         }
 
         bool
