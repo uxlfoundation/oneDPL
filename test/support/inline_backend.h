@@ -61,14 +61,15 @@ class int_inline_backend_t
     };
 
   public:
+    using resource_type = ResourceType;
     using wait_type = int;
-    using execution_resource_t = basic_execution_resource_t<ResourceType, ResourceAdapter>;
+    using execution_resource_t = basic_execution_resource_t<resource_type, ResourceAdapter>;
     using resource_container_t = std::vector<execution_resource_t>;
     using report_duration = std::chrono::milliseconds;
     using resource_adapter_t = ResourceAdapter;
 
   private:
-    using native_resource_container_t = std::vector<ResourceType>;
+    using native_resource_container_t = std::vector<resource_type>;
     ResourceAdapter adapter_;
 
     class async_waiter

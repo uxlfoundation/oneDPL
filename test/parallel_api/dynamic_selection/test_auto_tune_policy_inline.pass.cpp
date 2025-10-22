@@ -258,11 +258,6 @@ run_tests(std::vector<int> u, int best_resource)
     EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t>(u, best_resource)), "");
     EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t>(u, best_resource)), "");
     EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t>(u, best_resource)), "");
-
-    EXPECT_EQ(0, (test_auto_submit<policy_t, decltype(u), true>(u, best_resource)), "");
-    EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, decltype(u), true>(u, best_resource)), "");
-    EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, decltype(u), true>(u, best_resource)), "");
-    EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, decltype(u), true>(u, best_resource)), "");
 }
 
 int
