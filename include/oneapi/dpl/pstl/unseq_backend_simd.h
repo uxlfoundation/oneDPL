@@ -291,7 +291,7 @@ __simd_compute_mask(bool* __mask, _DifferenceType __n, _Predicate __pred, _Itera
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __mask[__i] = __pred(__it[__i]... );
+        __mask[__i] = __pred(__it[__i]...);
         __count += __mask[__i];
     }
     return __count;
