@@ -47,6 +47,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     struct scratch_t<execution_info::task_time_t>
     {
         sycl::event my_start_event;
+        sycl::event my_end_event;
     };
 
     using execution_resource_t = resource_type;
@@ -74,47 +75,48 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     template <typename Selection>
     class async_waiter : public async_waiter_base
     {
-        sycl::event e_;
+        sycl::event e_start_;
+        sycl::event e_end_;
         std::shared_ptr<Selection> s;
 
       public:
         async_waiter() = default;
-        async_waiter(sycl::event e, std::shared_ptr<Selection> selection) : e_(e), s(selection) {}
-
-        sycl::event
-        unwrap()
-        {
-            return e_;
-        }
+        async_waiter(sycl::event start, sycl::event end, std::shared_ptr<Selection> selection) : e_start_(start), e_end_(end), s(selection) {}
 
         void
         wait()
         {
-            e_.wait();
+            e_end_.wait();
         }
 
         void
         report() const override
         {
-            if constexpr (oneapi::dpl::experimental::internal::report_value_v<Selection,
-                                                                              execution_info::task_time_t,
-                                                                              report_duration>)
+            if constexpr (internal::report_value_v<Selection, execution_info::task_time_t, report_duration>)
             {
                 if (s != nullptr)
                 {
                     const auto time_start =
-                        e_.template get_profiling_info<sycl::info::event_profiling::command_start>();
-                    const auto time_end = e_.template get_profiling_info<sycl::info::event_profiling::command_end>();
+                        e_start_.template get_profiling_info<sycl::info::event_profiling::command_start>();
+                    const auto time_end = e_end_.template get_profiling_info<sycl::info::event_profiling::command_end>();
+
                     s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
                                                              std::chrono::nanoseconds(time_end - time_start)));
                 }
             }
+            if constexpr (internal::report_info_v<Selection, execution_info::task_completion_t>)
+	    {
+                if (s != nullptr)
+		{
+                    s.report(execution_info::task_completion);
+		}
+	    }
         }
 
         bool
         is_complete() const override
         {
-            return e_.get_info<sycl::info::event::command_execution_status>() ==
+            return e_end_.get_info<sycl::info::event::command_execution_status>() ==
                    sycl::info::event_command_status::complete;
         }
     };
@@ -200,63 +202,36 @@ template <typename SelectionHandle, typename Function, typename... Args>
 auto
 submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-        constexpr bool report_task_completion = oneapi::dpl::experimental::internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
-        constexpr bool report_task_submission = oneapi::dpl::experimental::internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
-        constexpr bool report_task_time = oneapi::dpl::experimental::internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+        constexpr bool report_task_completion = internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
+        constexpr bool report_task_submission = internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        constexpr bool report_task_time = internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
-        auto resource = unwrap(s);
+	auto resource = unwrap(s);
         auto q = adapter(resource);
 
         if constexpr (report_task_submission)
-            oneapi::dpl::experimental::internal::report(s, execution_info::task_submission);
+            report(s, execution_info::task_submission);
 
         if constexpr (report_task_completion || report_task_time)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            if constexpr (oneapi::dpl::experimental::internal::scratch_space_member<SelectionHandle>::value)
+            if constexpr (internal::scratch_space_member<SelectionHandle>::value)
                 s.scratch_space.my_start_event =
-                    sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting timestamp
+                    sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting tag
+            /*auto e1 =*/ f(resource, std::forward<Args>(args)...);
+                s.scratch_space.my_end_event =
+                    sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending tag
+            async_waiter<SelectionHandle> waiter{s.scratch_space.my_start_event, s.scratch_space.my_end_event, std::make_shared<SelectionHandle>(s)};
+            if (report_task_time || report_task_completion)
+	    {
+                async_waiter_list.add_waiter(new async_waiter(waiter));
+	    }
+
 #endif
-            auto e1 = f(resource, std::forward<Args>(args)...);
-            async_waiter<SelectionHandle> waiter{e1, std::make_shared<SelectionHandle>(s)};
-
-            if constexpr (report_task_time)
-            {
-                if (is_profiling_enabled)
-                    async_waiter_list.add_waiter(new async_waiter(waiter));
-            }
-
-            if ((report_task_time && !is_profiling_enabled) || report_task_completion)
-            {
-#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-                if constexpr (oneapi::dpl::experimental::internal::scratch_space_member<SelectionHandle>::value)
-                {
-                    sycl::event q_end = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending timestamp
-
-		    q.wait();
-                                                                                                  //get raw nano number
-                        uint64_t time_taken_nanoseconds =
-                            q_end.template get_profiling_info<sycl::info::event_profiling::command_start>() -
-                            s.scratch_space.my_start_event
-                                .template get_profiling_info<sycl::info::event_profiling::command_end>();
-                                 //convert nanoseconds to milliseconds
-                        report_duration time_taken_milliseconds = std::chrono::duration_cast<report_duration>(
-                            std::chrono::nanoseconds(time_taken_nanoseconds));
-
-                    if constexpr (report_task_time)
-		    {
-                        if (!is_profiling_enabled)
-                            s.report(execution_info::task_time, time_taken_milliseconds);
-                        if constexpr (report_task_completion)
-                            s.report(execution_info::task_completion);
-		    }
-                }
-            }
-            return waiter; ///???
-#endif
+            return waiter;
         }
 
-        return async_waiter{f(resource, std::forward<Args>(args)...), std::make_shared<SelectionHandle>(s)};
+        return async_waiter{f(resource, std::forward<Args>(args)...), sycl::event{}, std::make_shared<SelectionHandle>(s)};
     }
 
 
