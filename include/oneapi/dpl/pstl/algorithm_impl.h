@@ -1244,36 +1244,27 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
     return {__first, __result};
 }
 
-// TODO: Try to use transform_reduce for combining __brick_copy_if_phase1 on IsVector.
-template <class _DifferenceType, class _ForwardIterator, class _UnaryPredicate>
-::std::pair<_DifferenceType, _DifferenceType>
-__brick_calc_mask_1(_ForwardIterator __first, _ForwardIterator __last, bool* __restrict __mask, _UnaryPredicate __pred,
-                    /*vector=*/::std::false_type) noexcept
+template <class _DifferenceType, class _Predicate, class... _RandomAccessIterator>
+std::pair<_DifferenceType, _DifferenceType>
+__brick_compute_mask(/*vector=*/std::false_type, bool* __mask, _DifferenceType __len, _Predicate __pred,
+                     _RandomAccessIterator... __it) noexcept
 {
-    auto __count_true = _DifferenceType(0);
-    auto __size = __last - __first;
-
-    static_assert(__is_random_access_iterator_v<_ForwardIterator>,
-                  "Pattern-brick error. Should be a random access iterator.");
-
-    for (; __first != __last; ++__first, (void)++__mask)
+    _DifferenceType __count_true = 0;
+    for (_DifferenceType __i = 0; __i < __len; ++__i)
     {
-        *__mask = __pred(*__first);
-        if (*__mask)
-        {
-            ++__count_true;
-        }
+        __mask[__i] = __pred(__it[__i]...);
+        __count_true += __mask[__i];
     }
-    return ::std::make_pair(__count_true, __size - __count_true);
+    return std::make_pair(__count_true, __len - __count_true);
 }
 
-template <class _DifferenceType, class _RandomAccessIterator, class _UnaryPredicate>
-::std::pair<_DifferenceType, _DifferenceType>
-__brick_calc_mask_1(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __mask, _UnaryPredicate __pred,
-                    /*vector=*/::std::true_type) noexcept
+template <class _DifferenceType, class _Predicate, class... _RandomAccessIterator>
+std::pair<_DifferenceType, _DifferenceType>
+__brick_compute_mask(/*vector=*/std::true_type, bool* __mask, _DifferenceType __len, _Predicate __pred,
+                     _RandomAccessIterator... __it) noexcept
 {
-    auto __result = __unseq_backend::__simd_compute_mask(__mask, __last - __first, __pred, __first);
-    return ::std::make_pair(__result, (__last - __first) - __result);
+    auto __count_true = __unseq_backend::__simd_compute_mask(__mask, __len, __pred, __it...);
+    return std::make_pair(__count_true, __len - __count_true);
 }
 
 template <class _ForwardIterator, class _OutputIterator, class _Assigner>
@@ -1294,7 +1285,7 @@ __brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputI
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Assigner>
 void
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                     bool* __restrict __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
+                     bool* __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
     __unseq_backend::__simd_copy_by_mask(__first, __last - __first, __result, __mask, __assigner);
@@ -1324,7 +1315,7 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
 __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result,
-                             _Bound __out_len, bool* __restrict __mask, _Assigner __assigner,
+                             _Bound __out_len, bool* __mask, _Assigner __assigner,
                              /*vector=*/std::true_type) noexcept
 {
 #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
@@ -1413,8 +1404,7 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             __par_backend::__parallel_strict_scan(
                 __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                    return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                            __mask + __i, __pred, _IsVector{})
+                    return __internal::__brick_compute_mask(_IsVector{}, __mask + __i, __len, __pred, __first + __i)
                         .first;
                 },
                 ::std::plus<_DifferenceType>(),                                              // Combine
@@ -1445,13 +1435,15 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
 
     __par_backend::__buffer<bool> __mask_buf(__n);
     bool* __mask = __mask_buf.get();
-    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __mask, __n_out]() {
+    auto __it_pred =
+        [=](_RandomAccessIterator1 __it, _DifferenceType __idx) { return std::invoke(__pred, __it[__idx]); };
+    return __internal::__except_handler([&__exec, __n, __first, __result, __it_pred, __mask, __n_out]() {
         _DifferenceType __res_in{__n}, __res_out{__n_out};
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
             [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                return __internal::__brick_calc_mask_1<_DifferenceType>(
-                    __first + __i, __first + (__i + __len), __mask + __i, __pred, _IsVector{}).first;
+                return __internal::__brick_compute_mask(__first + __i, __len, __it_pred, __mask + __i, _IsVector{})
+                       .first;
             },
             std::plus<_DifferenceType>(), // Combine
             [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
@@ -1701,29 +1693,6 @@ __pattern_unique_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Forwa
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, typename _Tag::__is_vector{});
 }
 
-template <class _DifferenceType, class _RandomAccessIterator, class _BinaryPredicate>
-_DifferenceType
-__brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __restrict __mask,
-                    _BinaryPredicate __pred, /*vector=*/::std::false_type) noexcept
-{
-    _DifferenceType __count = 0;
-    for (; __first != __last; ++__first, (void)++__mask)
-    {
-        *__mask = !__pred(*__first, *(__first - 1));
-        __count += *__mask;
-    }
-    return __count;
-}
-
-template <class _DifferenceType, class _RandomAccessIterator, class _BinaryPredicate>
-_DifferenceType
-__brick_calc_mask_2(_RandomAccessIterator __first, _RandomAccessIterator __last, bool* __restrict __mask,
-                    _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
-{
-    return __unseq_backend::__simd_compute_mask(__mask, __last - __first, __not_pred<_BinaryPredicate&>(__pred),
-                                                __first, __first - 1);
-}
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _BinaryPredicate>
 _RandomAccessIterator2
@@ -1739,12 +1708,12 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
         __par_backend::__buffer<bool> __mask_buf(__n);
         if (_DifferenceType(2) < __n)
         {
-            return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf]() {
+            return __internal::__except_handler([&__exec, __n, __first, __result, &__pred, &__mask_buf]() {
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
                     __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-                    [=](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
+                    [=, &__pred](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
                         _DifferenceType __extra = 0;
                         if (__i == 0)
                         {
@@ -1755,9 +1724,9 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                             ++__i;
                             ++__extra;
                         }
-                        return __internal::__brick_calc_mask_2<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                                __mask + __i, __pred, _IsVector{}) +
-                               __extra;
+                        __not_pred<_BinaryPredicate&> __pred_negated(__pred);
+                        return __internal::__brick_compute_mask(_IsVector{}, __mask + __i, __len, __pred_negated,
+                            __first + __i, __first + (__i - 1)).first + __extra;
                     },
                     ::std::plus<_DifferenceType>(),                                              // Combine
                     [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
@@ -2505,8 +2474,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
                 std::make_pair(_DifferenceType(0), _DifferenceType(0)),
                 [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                    return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
-                                                                            __mask + __i, __pred, _IsVector{});
+                    return __internal::__brick_compute_mask(_IsVector{}, __mask + __i, __len, __pred, __first + __i);
                 },
                 [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
                     return ::std::make_pair(__x.first + __y.first, __x.second + __y.second);
