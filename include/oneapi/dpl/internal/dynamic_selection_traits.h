@@ -290,6 +290,15 @@ struct task_submission_t
     using value_type = void;
 };
 inline constexpr task_submission_t task_submission;
+
+// Helpers to check if a type is in a parameter pack.
+// Utilities for scratch space determination based upon variadic pack of the below reporting requirement structs.
+template <typename T, typename... Ts>
+struct contains_reporting_req : std::disjunction<std::is_same<T, Ts>...> {};
+
+template <typename T, typename... Ts>
+static constexpr bool contains_reporting_req_v = contains_reporting_req<T, Ts...>::value;
+
 } // namespace execution_info
 
 } // namespace experimental

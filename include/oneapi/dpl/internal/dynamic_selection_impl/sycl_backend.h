@@ -35,20 +35,26 @@ template <typename ResourceType, typename ResourceAdapter>
 class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     : public backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>
 {
+  private:
+    // Base template for scratch storage - empty by default
+    template <bool HasStart>
+    struct scratch_storage {};
+
+    // Specialization: needs start event for timing
+    template <>
+    struct scratch_storage<true>
+    {
+        sycl::event my_start_event;
+    };
+
   public:
     using resource_type = ResourceType;
     using wait_type = sycl::event;
+    
     template <typename... Req>
-    struct scratch_t
-    {
-    };
-
-    template <>
-    struct scratch_t<execution_info::task_time_t>
-    {
-        sycl::event my_start_event;
-        sycl::event my_end_event;
-    };
+    struct scratch_t : scratch_storage<
+        execution_info::contains_reporting_req_v<execution_info::task_time_t, Req...>>
+    {};
 
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<execution_resource_t>;
@@ -75,18 +81,17 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     template <typename Selection>
     class async_waiter : public async_waiter_base
     {
-        sycl::event e_start_;
-        sycl::event e_end_;
         std::shared_ptr<Selection> s;
-
       public:
+        // Always need the end event for waiting independent from any reporting
+        sycl::event my_end_event;
         async_waiter() = default;
-        async_waiter(sycl::event start, sycl::event end, std::shared_ptr<Selection> selection) : e_start_(start), e_end_(end), s(selection) {}
+        async_waiter(std::shared_ptr<Selection> selection) : s(selection) {}
 
         void
         wait()
         {
-            e_end_.wait();
+            my_end_event.wait();
         }
 
         void
@@ -97,8 +102,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                 if (s != nullptr)
                 {
                     const auto time_start =
-                        e_start_.template get_profiling_info<sycl::info::event_profiling::command_start>();
-                    const auto time_end = e_end_.template get_profiling_info<sycl::info::event_profiling::command_end>();
+                        s->scratch_space.my_start_event.template get_profiling_info<sycl::info::event_profiling::command_start>();
+                    const auto time_end = my_end_event.template get_profiling_info<sycl::info::event_profiling::command_end>();
 
                     s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
                                                              std::chrono::nanoseconds(time_end - time_start)));
@@ -116,7 +121,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         bool
         is_complete() const override
         {
-            return e_end_.get_info<sycl::info::event::command_execution_status>() ==
+            return my_end_event.template get_info<sycl::info::event::command_execution_status>() ==
                    sycl::info::event_command_status::complete;
         }
     };
@@ -198,49 +203,56 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), adapter);
     }
 
-template <typename SelectionHandle, typename Function, typename... Args>
-auto
-submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+    template <typename SelectionHandle, typename Function, typename... Args>
+    auto
+    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-        constexpr bool report_task_completion = internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
-        constexpr bool report_task_submission = internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
-        constexpr bool report_task_time = internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+        constexpr bool report_task_completion =
+            internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
+        constexpr bool report_task_submission =
+            internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        constexpr bool report_task_time =
+            internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
-	auto resource = unwrap(s);
+        auto resource = unwrap(s);
         auto q = adapter(resource);
 
         if constexpr (report_task_submission)
-            report(s, execution_info::task_submission);
+            oneapi::dpl::experimental::internal::report(s, execution_info::task_submission);
 
-        if constexpr (report_task_completion || report_task_time)
+        sycl::event my_start_event{};
+        if constexpr (report_task_time)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            if constexpr (internal::scratch_space_member<SelectionHandle>::value)
-                s.scratch_space.my_start_event =
-                    sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting tag
-            /*auto e1 =*/ f(resource, std::forward<Args>(args)...);
-                s.scratch_space.my_end_event =
-                    sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending tag
-            async_waiter<SelectionHandle> waiter{s.scratch_space.my_start_event, s.scratch_space.my_end_event, std::make_shared<SelectionHandle>(s)};
-            if (report_task_time || report_task_completion)
-	    {
-                async_waiter_list.add_waiter(new async_waiter(waiter));
-	    }
-
+            s.scratch_space.my_start_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting tag
+#else
+            static_assert(false, "The sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
+                                 "and profiling is required for this policy submission.");
 #endif
-            return waiter;
+        }
+        [[maybe_unused]] sycl::event workflow_return = f(resource, std::forward<Args>(args)...);
+        async_waiter<SelectionHandle> waiter{std::make_shared<SelectionHandle>(s)};
+        async_waiter_list.add_waiter(new async_waiter(waiter));
+        if constexpr (report_task_time)
+        {
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
+            // if we are using timing, we use the profiling event as the end event
+            waiter.my_end_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending tag
+#endif
+        }
+        else {
+            // if not using profiling, use the normal event
+            waiter.my_end_event = workflow_return;
         }
 
-        return async_waiter{f(resource, std::forward<Args>(args)...), sycl::event{}, std::make_shared<SelectionHandle>(s)};
+        return waiter;
     }
-
 
     auto
     get_submission_group_impl()
     {
         return *sgroup_ptr_;
     }
-
 
     void
     lazy_report()
@@ -253,7 +265,6 @@ submit_impl(SelectionHandle s, Function&& f, Args&&... args)
 
   private:
     std::unique_ptr<submission_group> sgroup_ptr_;
-
 
     // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
     // it is the user's responsibilty to initialize the resources
