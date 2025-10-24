@@ -1423,9 +1423,9 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
-        return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-                   [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx){ return __pred(__it[__idx]); }
-               );
+        return __parallel_selective_copy(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
@@ -1713,10 +1713,11 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     {
         *__result++ = *__first++; // Always copy the first element
         --__n;
-        return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-                  [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx){
-                      return !__pred(__it[__idx], __it[__idx - 1]);
-                  });
+        return __parallel_selective_copy(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+            [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+                return !__pred(__it[__idx], __it[__idx - 1]);
+            });
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
@@ -2452,8 +2453,9 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
                 std::make_pair(_DifferenceType(0), _DifferenceType(0)),
                 [=, &__pred](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                    return __internal::__brick_compute_mask(__first + __i, __len,
-                        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx){ return __pred(__it[__idx]);},
+                    return __internal::__brick_compute_mask(
+                        __first + __i, __len,
+                        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); },
                         __mask + __i, _IsVector{});
                 },
                 [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
