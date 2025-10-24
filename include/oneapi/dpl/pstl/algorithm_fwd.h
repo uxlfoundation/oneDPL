@@ -436,15 +436,15 @@ template <class _RandomAccessIterator, class _OutputIterator, class _UnaryPredic
 _OutputIterator __brick_copy_if(_RandomAccessIterator, _RandomAccessIterator, _OutputIterator, _UnaryPredicate,
                                 /*vector=*/::std::true_type) noexcept;
 
-template <class _DifferenceType, class _Predicate, class... _RandomAccessIterator>
+template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(/*vector=*/std::false_type, bool* __mask, _DifferenceType __len, _Predicate __pred,
-                     _RandomAccessIterator... __it) noexcept;
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*, 
+                     /*vector=*/std::false_type) noexcept;
 
-template <class _DifferenceType, class _Predicate, class... _RandomAccessIterator>
+template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(/*vector=*/std::true_type, bool* __mask, _DifferenceType __len, _Predicate __pred,
-                     _RandomAccessIterator... __it) noexcept;
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*, 
+                     /*vector=*/std::true_type) noexcept;
 
 template <class _ForwardIterator, class _OutputIterator>
 void
