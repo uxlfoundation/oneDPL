@@ -1424,26 +1424,26 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
-          class _RandomAccessIterator2, class _IterPredicate>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType1,
+          class _RandomAccessIterator2, class _DifferenceType2, class _IterPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                          _DifferenceType __n, _RandomAccessIterator2 __result,
-                          typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
+                          _DifferenceType1 __n, _RandomAccessIterator2 __result, _DifferenceType2 __n_out,
                           _IterPredicate __pred)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
     __par_backend::__buffer<bool> __mask_buf(__n);
     bool* __mask = __mask_buf.get();
     return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __mask, __n_out]() {
-        _DifferenceType __res_in{__n}, __res_out{__n_out}; // A priori values
+        _DifferenceType1 __res_in{__n};
+        _DifferenceType2 __res_out{__n_out};
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-            [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType1(0),
+            [=](_DifferenceType1 __i, _DifferenceType1 __len) { // Reduce
                 return __internal::__brick_compute_mask(__first + __i, __len, __pred, __mask + __i, _IsVector{}).first;
             },
-            std::plus<_DifferenceType>(), // Combine
-            [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+            std::plus<_DifferenceType1>(), // Combine
+            [=, &__res_in](_DifferenceType1 __i, _DifferenceType1 __len, _DifferenceType1 __initial) { // Scan
                 if (__initial < __n_out)
                 {
                     auto __res = __internal::__brick_bounded_copy_by_mask(
@@ -1453,7 +1453,7 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                         __res_in = __i + __res.first;
                 }
             },
-            [&__res_out](auto __total_out) { // Apex
+            [&__res_out](_DifferenceType1 __total_out) { // Apex
                 if (__total_out < __res_out) // Output size is bigger than needed
                     __res_out = __total_out;
             });
