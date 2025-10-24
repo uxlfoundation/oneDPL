@@ -444,12 +444,12 @@ __brick_bounded_copy_if(_RandomAccessIterator1, typename std::iterator_traits<_R
 
 template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*, 
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*,
                      /*vector=*/std::false_type) noexcept;
 
 template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*, 
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*,
                      /*vector=*/std::true_type) noexcept;
 
 template <class _ForwardIterator, class _OutputIterator>
