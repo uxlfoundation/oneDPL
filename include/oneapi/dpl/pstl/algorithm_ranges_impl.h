@@ -554,7 +554,6 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r), std::ranges::size(__in_r),
         std::ranges::begin(__out_r), std::ranges::size(__out_r),
         [&__pred, __proj](auto __it, auto __idx) { return __pred(__proj(__it[__idx])); });
-//        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 
     return {__res.first, __res.second};
 }
