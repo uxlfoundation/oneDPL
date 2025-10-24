@@ -1424,27 +1424,23 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _UnaryPredicate>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
+          class _RandomAccessIterator2, class _IterPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                          typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
-                          _RandomAccessIterator2 __result,
+                          _DifferenceType __n, _RandomAccessIterator2 __result,
                           typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
-                          _UnaryPredicate __pred)
+                          _IterPredicate __pred)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-
     __par_backend::__buffer<bool> __mask_buf(__n);
-    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf, __n_out]() {
-        bool* __mask = __mask_buf.get();
+    bool* __mask = __mask_buf.get();
+    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __mask, __n_out]() {
         _DifferenceType __res_in{}, __res_out{};
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
             [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                return __internal::__brick_calc_mask_1<_DifferenceType>(
-                    __first + __i, __first + (__i + __len), __mask + __i, __pred, _IsVector{}).first;
+                return __internal::__brick_compute_mask(__first + __i, __len, __pred, __mask + __i, _IsVector{}).first;
             },
             std::plus<_DifferenceType>(), // Combine
             [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial,
