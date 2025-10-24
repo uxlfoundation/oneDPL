@@ -550,12 +550,19 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
-    auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(__tag,
-        std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r), std::ranges::size(__in_r),
-        std::ranges::begin(__out_r), std::ranges::size(__out_r),
-        [&__pred, __proj](auto __it, auto __idx) { return std::invoke(__pred, std::invoke(__proj, __it[__idx])); });
+    auto __first_in = std::ranges::begin(__in_r);
+    auto __first_out = std::ranges::begin(__out_r);
+    auto __sz_in = std::ranges::size(__in_r);
+    auto __sz_out = std::ranges::size(__out_r);
 
-    return {__res.first, __res.second};
+    if (__sz_in > 0 && __sz_out > 0) {
+        auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(__tag,
+            std::forward<_ExecutionPolicy>(__exec), __first_in, __sz_in, __first_out, __sz_out,
+            [&__pred, __proj](auto __it, auto __idx) { return std::invoke(__pred, std::invoke(__proj, __it[__idx])); });
+
+        return {__res.first, __res.second};
+    }
+    return {__first_in, __first_out};
 }
 
 template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _Proj>
