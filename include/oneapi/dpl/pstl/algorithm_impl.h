@@ -1437,9 +1437,9 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
 
     __par_backend::__buffer<bool> __mask_buf(__n);
-    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, &__mask_buf, __n_out]() {
-        bool* __mask = __mask_buf.get();
-        _DifferenceType __res_in{}, __res_out{};
+    bool* __mask = __mask_buf.get();
+    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __mask, __n_out]() {
+        _DifferenceType __res_in{__n}, __res_out{__n_out};
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
             [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
@@ -1447,16 +1447,20 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                     __first + __i, __first + (__i + __len), __mask + __i, __pred, _IsVector{}).first;
             },
             std::plus<_DifferenceType>(), // Combine
-            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial,
-                _DifferenceType __len_out) { // Scan
-                return __internal::__brick_bounded_copy_by_mask(
-                    __first + __i, __len, __result + __initial, __len_out, __mask + __i,
-                    [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
+            [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+                if (__initial < __n_out)
+                {
+                    auto __res = __internal::__brick_bounded_copy_by_mask(
+                        __first + __i, __len, __result + __initial, __n_out - __initial, __mask + __i,
+                        [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
+                    if (__res.second + __initial == __n_out) // Reached the end of the output
+                        __res_in = __i + __res.first;
+                }
             },
-            [&__res_in, &__res_out](auto __total_in, auto __total_out) { // Apex
-                __res_in = __total_in; __res_out = __total_out;
-            },
-            __n_out);
+            [&__res_out](auto __total_out) { // Apex
+                if (__total_out < __res_out) // Output size is bigger than needed
+                    __res_out = __total_out;
+            });
         return std::make_pair(__first + __res_in, __result + __res_out);
     });
 }
