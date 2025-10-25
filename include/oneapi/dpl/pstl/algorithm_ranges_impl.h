@@ -74,7 +74,8 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r, _O
     oneapi::dpl::__internal::__transform_functor<oneapi::dpl::__internal::__unary_op<_F, _Proj>> __f{{__op, __proj}};
 
     oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r),
-        std::ranges::begin(__in_r) + std::ranges::size(__in_r), std::ranges::begin(__out_r), __f);
+                                             std::ranges::begin(__in_r) + std::ranges::size(__in_r),
+                                             std::ranges::begin(__out_r), __f);
 }
 
 template<typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _F, typename _Proj>
@@ -101,8 +102,8 @@ __pattern_transform(_Tag __tag, _ExecutionPolicy&& __exec, _InRange1&& __in_r1, 
         __f{{__binary_op, __proj1, __proj2}};
 
     oneapi::dpl::__internal::__pattern_walk3(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__in_r1),
-        std::ranges::begin(__in_r1) + std::ranges::size(__in_r1), std::ranges::begin(__in_r2),
-        std::ranges::begin(__out_r), __f);
+                                             std::ranges::begin(__in_r1) + std::ranges::size(__in_r1),
+                                             std::ranges::begin(__in_r2), std::ranges::begin(__out_r), __f);
 }
 
 template<typename _ExecutionPolicy, typename _InRange1, typename _InRange2, typename _OutRange, typename _F,
@@ -555,10 +556,11 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     auto __sz_in = std::ranges::size(__in_r);
     auto __sz_out = std::ranges::size(__out_r);
 
-    if (__sz_in > 0 && __sz_out > 0) {
-        auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(__tag,
-            std::forward<_ExecutionPolicy>(__exec), __first_in, __sz_in, __first_out, __sz_out,
-        oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
+    if (__sz_in > 0 && __sz_out > 0)
+    {
+        auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first_in, __sz_in, __first_out, __sz_out,
+            oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 
         return {__res.first, __res.second};
     }
@@ -570,8 +572,8 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
-    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(std::ranges::begin(__in_r),
-        std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_copy_if(
+        std::ranges::begin(__in_r), std::ranges::size(__in_r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
         oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}, /*vector=*/std::true_type{});
 
     return {__res.first, __res.second};
@@ -1289,7 +1291,7 @@ void
 __pattern_move(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r)
 {
     auto __end = std::ranges::begin(__r) + std::ranges::size(__r);
-    oneapi::dpl::__internal::__pattern_walk2_brick(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+    oneapi::dpl::__internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
                                                    std::ranges::begin(__r), __end, std::ranges::begin(__out_r),
                                                    oneapi::dpl::__internal::__brick_move<decltype(__tag)>{});
 }
