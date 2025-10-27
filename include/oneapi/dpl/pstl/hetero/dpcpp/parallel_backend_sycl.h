@@ -545,16 +545,6 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                                      __out_rng[__lacc[__idx + __elems_per_wg]]);
                     }
 
-                    const ::std::uint16_t __residual = __n % _WGSize;
-                    const ::std::uint16_t __residual_start = __n - __residual;
-                    if (__item_id < __residual)
-                    {
-                        auto __idx = __residual_start + __item_id;
-                        if (__lacc[__idx])
-                            __assign(static_cast<__tuple_type>(__in_rng[__idx]),
-                                     __out_rng[__lacc[__idx + __elems_per_wg]]);
-                    }
-
                     if (__item_id == 0)
                     {
                         // Add predicate of last element to account for the scan's exclusivity
