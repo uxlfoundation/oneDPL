@@ -106,7 +106,7 @@ The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`, where `/*ret_type*/` is provided by the documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -117,9 +117,9 @@ The type `T` satisfies *Policy* if given,
 | --------------------- | ----------- |
 | `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty optional if no resource is available for selection |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the job to complete. |
 
-| Policy Traits* | Description |
+| Policy Traits | Description |
 | ------- | ----------- |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
 
@@ -130,7 +130,6 @@ The default implementation of these traits depends on types defined in the Polic
   struct policy_traits
   {
       using resource_type = typename std::decay_t<Policy>::resource_type;
-      using wait_type = typename std::decay_t<Policy>::wait_type;
   };
 ```
 
@@ -194,11 +193,11 @@ The type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`  where the required `/*ret_type*/` is described by documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
+| `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait on the type returned by it for the job to complete. |
 | `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this backend are complete. |
 | `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 
