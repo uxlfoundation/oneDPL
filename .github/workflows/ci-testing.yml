@@ -28,6 +28,7 @@ env:
   WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/dc2bc071-6e5c-4b48-8fdd-a39d20c25e5a/intel-dpcpp-cpp-compiler-2025.2.0.528_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
+  VS2022_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -146,6 +147,12 @@ jobs:
             build_type: RelWithAsserts
             backend: omp
             device_type: HOST
+          - os: ubuntu-latest
+            cxx_compiler: g++
+            std: 20
+            build_type: RelWithAsserts
+            backend: serial
+            device_type: HOST
     steps:
       - uses: actions/checkout@v4
       - name: Set up Intel APT repository
@@ -203,9 +210,14 @@ jobs:
               ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
             done
 
-            #set targets to just sycl iterator for dpcpp tests
-            make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests build-onedpl-implementation_details-tests"
-            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)\.pass"
+            # set targets for dpcpp tests
+            make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
+            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)"
+            if [[ "${{ matrix.device_type }}" != "FPGA_EMU" ]]; then
+              make_targets+=" build-onedpl-ranges-tests"
+              tests_regex+="|(std_ranges_.*)"
+            fi
+            ctest_flags="-R ${tests_regex}\.pass"
           else
             make_targets="build-onedpl-tests"
           fi
@@ -268,6 +280,24 @@ jobs:
             build_type: release
             backend: dpcpp
             device_type: CPU
+          - os: windows-latest
+            cxx_compiler: cl
+            std: 20
+            build_type: RelWithAsserts
+            backend: serial
+            device_type: HOST
+          - os: windows-latest
+            cxx_compiler: icx-cl
+            std: 20
+            build_type: RelWithAsserts
+            backend: tbb
+            device_type: HOST
+          - os: windows-latest
+            cxx_compiler: icx
+            std: 20
+            build_type: RelWithAsserts
+            backend: dpcpp
+            device_type: CPU
     steps:
       - uses: actions/checkout@v4
       - name: Install Intel® oneAPI Threading Building Blocks
@@ -291,6 +321,12 @@ jobs:
         run: |
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
+          ) else (
+            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
+              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+            ) else (
+              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
+            )
           )
 
           :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
@@ -325,8 +361,8 @@ jobs:
               cd %BASE_DIR%
             )
 
-            set ninja_targets=build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests
-            set ctest_flags=-R "(sycl_iterator_.*)|(device_copyable)\.pass"
+            set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests
+            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
@@ -336,7 +372,7 @@ jobs:
 
           :: TODO: fix or justify the excluded warnings
           if "${{ matrix.cxx_compiler }}" == "cl" (
-            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
+            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4700 /wd4805 /wd4996
           ) else (
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
           )
