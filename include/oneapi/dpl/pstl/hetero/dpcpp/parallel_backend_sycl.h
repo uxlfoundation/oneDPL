@@ -354,11 +354,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
     }
 };
 
-template <typename _ValueType, bool _Inclusive, typename _Group, typename _Begin, typename _End, typename _OutIt,
+template <typename _ValueType, bool _Inclusive, typename _Group, typename _InPtr, typename _OutPtr,
           typename _BinaryOperation>
 void
-__scan_work_group(const _Group& __group, _Begin __begin, _End __end, _OutIt __out_it, _BinaryOperation __bin_op,
-                  unseq_backend::__no_init_value<_ValueType>)
+__scan_work_group(const _Group& __group, _InPtr __begin, _InPtr __end, _OutPtr __out_it, _BinaryOperation __bin_op,
+                  unseq_backend::__no_init_value<_ValueType> = {})
 {
     if constexpr (_Inclusive)
         __dpl_sycl::__joint_inclusive_scan(__group, __begin, __end, __out_it, __bin_op);
@@ -366,10 +366,10 @@ __scan_work_group(const _Group& __group, _Begin __begin, _End __end, _OutIt __ou
         __dpl_sycl::__joint_exclusive_scan(__group, __begin, __end, __out_it, __bin_op);
 }
 
-template <typename _ValueType, bool _Inclusive, typename _Group, typename _Begin, typename _End, typename _OutIt,
+template <typename _ValueType, bool _Inclusive, typename _Group, typename _InPtr, typename _OutPtr,
           typename _BinaryOperation>
 void
-__scan_work_group(const _Group& __group, _Begin __begin, _End __end, _OutIt __out_it, _BinaryOperation __bin_op,
+__scan_work_group(const _Group& __group, _InPtr __begin, _InPtr __end, _OutPtr __out_it, _BinaryOperation __bin_op,
                   unseq_backend::__init_value<_ValueType> __init)
 {
     if constexpr (_Inclusive)
@@ -430,13 +430,11 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
     }
 };
 
-template <bool _Inclusive, ::std::uint16_t _ElemsPerItem, ::std::uint16_t _WGSize, bool _IsFullGroup,
-          typename _KernelName>
+template <bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename _KernelName>
 struct __parallel_transform_scan_static_single_group_submitter;
 
-template <bool _Inclusive, ::std::uint16_t _ElemsPerItem, ::std::uint16_t _WGSize, bool _IsFullGroup,
-          typename... _ScanKernelName>
-struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _ElemsPerItem, _WGSize, _IsFullGroup,
+template <bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename... _ScanKernelName>
+struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _ElemsPerItem, _WGSize,
                                                                __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
@@ -485,20 +483,17 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
     }
 };
 
-template <typename _Size, ::std::uint16_t _ElemsPerItem, ::std::uint16_t _WGSize, bool _IsFullGroup,
-          typename _KernelName>
+template <typename _Size, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename _KernelName>
 struct __parallel_copy_if_static_single_group_submitter;
 
-template <typename _Size, ::std::uint16_t _ElemsPerItem, ::std::uint16_t _WGSize, bool _IsFullGroup,
-          typename... _ScanKernelName>
-struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _WGSize, _IsFullGroup,
+template <typename _Size, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename... _ScanKernelName>
+struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _WGSize,
                                                         __internal::__optional_kernel_name<_ScanKernelName...>>
 {
-    template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp,
-              typename _Assign>
+    template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
     __future<sycl::event, __result_and_scratch_storage<_Size>>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
-               _BinaryOperation __bin_op, _UnaryOp __unary_op, _Assign __assign)
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _UnaryOp __unary_op,
+               _Assign __assign)
     {
         using _ValueType = ::std::uint16_t;
 
@@ -535,8 +530,8 @@ struct __parallel_copy_if_static_single_group_submitter<_Size, _ElemsPerItem, _W
                     }
 
                     __scan_work_group<_ValueType, /* _Inclusive */ false>(
-                        __group, __lacc_ptr, __lacc_ptr + __elems_per_wg, __lacc_ptr + __elems_per_wg, __bin_op,
-                         __init);
+                        __group, __lacc_ptr, __lacc_ptr + __elems_per_wg, __lacc_ptr + __elems_per_wg,
+                        sycl::plus<_ValueType>{});
 
                     for (::std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
                     {
@@ -576,28 +571,15 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
             constexpr ::std::uint16_t __wg_size = ::std::min(__size, __targeted_wg_size);
             constexpr ::std::uint16_t __num_elems_per_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
-            const bool __is_full_group = __n == __wg_size;
 
-            if (__is_full_group)
-                return __parallel_transform_scan_static_single_group_submitter<
-                    _Inclusive::value, __num_elems_per_item, __wg_size,
-                    /* _IsFullGroup= */ true,
-                    oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_single_wg_kernel<
-                        ::std::integral_constant<::std::uint16_t, __wg_size>,
-                        ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
-                        /* _IsFullGroup= */ std::true_type, _Inclusive, _CustomName>>>()(
-                    __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
-                    __unary_op);
-            else
-                return __parallel_transform_scan_static_single_group_submitter<
-                    _Inclusive::value, __num_elems_per_item, __wg_size,
-                    /* _IsFullGroup= */ false,
-                    oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_single_wg_kernel<
-                        ::std::integral_constant<::std::uint16_t, __wg_size>,
-                        ::std::integral_constant<::std::uint16_t, __num_elems_per_item>, _BinaryOperation,
-                        /* _IsFullGroup= */ ::std::false_type, _Inclusive, _CustomName>>>()(
-                    __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
-                    __unary_op);
+            return __parallel_transform_scan_static_single_group_submitter<
+                _Inclusive::value, __num_elems_per_item, __wg_size,
+                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+                    __scan_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
+                                            std::integral_constant<std::uint16_t, __num_elems_per_item>,
+                                            _BinaryOperation, _Inclusive, _CustomName>>>()(
+                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
+                __unary_op);
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -758,35 +740,13 @@ struct __invoke_single_group_copy_if
     {
         constexpr ::std::uint16_t __wg_size = ::std::min(_Size, __targeted_wg_size);
         constexpr ::std::uint16_t __num_elems_per_item = ::oneapi::dpl::__internal::__dpl_ceiling_div(_Size, __wg_size);
-        const bool __is_full_group = __n == __wg_size;
 
-        using _InitType = unseq_backend::__no_init_value<::std::uint16_t>;
-        using _ReduceOp = ::std::plus<::std::uint16_t>;
-        if (__is_full_group)
-        {
-            using _FullKernel =
-                __scan_copy_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
-                                             std::integral_constant<std::uint16_t, __num_elems_per_item>,
-                                             /* _IsFullGroup= */ std::true_type, _CustomName>;
-            using _FullKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_FullKernel>;
-            return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
-                _SizeType, __num_elems_per_item, __wg_size, true, _FullKernelName>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
-                __pred, __assign);
-        }
-        else
-        {
-            using _NonFullKernel =
-                __scan_copy_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
-                                             std::integral_constant<std::uint16_t, __num_elems_per_item>,
-                                             /* _IsFullGroup= */ std::false_type, _CustomName>;
-            using _NonFullKernelName =
-                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<_NonFullKernel>;
-            return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
-                _SizeType, __num_elems_per_item, __wg_size, false, _NonFullKernelName>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _InitType{}, _ReduceOp{},
-                __pred, __assign);
-        }
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_copy_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
+                                         std::integral_constant<std::uint16_t, __num_elems_per_item>, _CustomName>>;
+        return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<
+            _SizeType, __num_elems_per_item, __wg_size, _KernelName>()
+            (__q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __pred, __assign);
     }
 };
 
