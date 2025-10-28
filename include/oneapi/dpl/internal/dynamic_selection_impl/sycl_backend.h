@@ -49,6 +49,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
   public:
     using resource_type = ResourceType;
+
+    // The return type for user functions must be a sycl::event (to be able to judge completion for lazy reporting of task_completeion)
     using wait_type = sycl::event;
     
     template <typename... Req>

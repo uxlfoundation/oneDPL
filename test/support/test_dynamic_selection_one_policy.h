@@ -77,10 +77,9 @@ class one_with_no_customizations
         }
     };
 
+    using selection_type = one_selection_t;
   public:
     using resource_type = int;
-    using selection_type = one_selection_t;
-    using wait_type = int;
 
     one_with_no_customizations(int& t) : trace_{t} {}
 
@@ -177,10 +176,9 @@ class one_with_all_customizations
         }
     };
 
+    using selection_type = one_selection_t;
   public:
     using resource_type = int;
-    using selection_type = one_selection_t;
-    using wait_type = int;
 
     one_with_all_customizations(int& t) : trace_{t} {}
 

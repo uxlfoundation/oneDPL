@@ -37,7 +37,6 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
   protected:
     using base_t = policy_base<first_available_policy<ResourceType, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
-
     using execution_resource_t = typename base_t::execution_resource_t;
 
     struct resource_t
@@ -76,6 +75,7 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
             resource_->availability_.fetch_sub(1); 
         }
     };
+    using selection_type = dl_selection_handle_t<first_available_policy<ResourceType, Backend>>;
 
 
 
@@ -87,9 +87,7 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
     std::shared_ptr<selector_t> selector_;
 
   public:
-    using selection_type = dl_selection_handle_t<first_available_policy<ResourceType, Backend>>;
     using resource_type = typename base_t::resource_type;
-    using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
     first_available_policy(const int& c = 1):capacity(c) { base_t::initialize(); }
     first_available_policy(deferred_initialization_t, const int& c = 1) {}

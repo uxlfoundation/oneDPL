@@ -192,12 +192,11 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
             tuner_->add_new_timing(resource_, v.count());
         }
     };
+    using selection_type = auto_tune_selection_type;
 
   public:
     // Needed by Policy Traits
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    ///using wait_type = typename Backend::wait_type;
-    using selection_type = auto_tune_selection_type;
 
     auto_tune_policy(deferred_initialization_t) {}
 

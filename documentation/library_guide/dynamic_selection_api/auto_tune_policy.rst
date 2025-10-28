@@ -26,13 +26,6 @@ the profiling phase periodically.
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
-      public:
-        auto_tune_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
       
       // constructors
       auto_tune_policy(deferred_initialization_t);

@@ -88,6 +88,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
             resource_->load_.fetch_sub(1);
         }
     };
+    using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>>;
 
 
 
@@ -100,7 +101,6 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     std::shared_ptr<selector_t> selector_;
 
   public:
-    using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>>;
     using resource_type = typename base_t::resource_type;
     using typename base_t::backend_t;
 

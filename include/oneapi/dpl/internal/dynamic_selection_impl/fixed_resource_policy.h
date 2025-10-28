@@ -37,18 +37,18 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
   protected:
     using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
+    using selection_type = typename base_t::selection_type;
 
     struct selector_t 
     {
         typename base_t::resource_container_t resources_;
-	::std::size_t index_ = 0;
+        ::std::size_t index_ = 0;
     };
 
     std::shared_ptr<selector_t> selector_;
 
   public:
     using resource_type = typename base_t::resource_type;
-    using typename base_t::selection_type;
     using typename base_t::backend_t;
 
     fixed_resource_policy(::std::size_t index = 0) 
@@ -86,14 +86,14 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
     std::optional<selection_type>
     try_select_impl(Args&&...) 
     {
-	if (selector_) 
-	{
+        if (selector_)
+        {
             return std::make_optional<selection_type>(*this, selector_->resources_[selector_->index_]);
-	}
-	else
-	{
-	    throw std::logic_error("select called before initialization");
-	}
+        }
+        else
+        {
+          throw std::logic_error("select called before initialization");
+        }
     }
 };
 

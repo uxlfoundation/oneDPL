@@ -39,7 +39,6 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
   protected:
     using base_t = policy_base<token_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
-
     using execution_resource_t = typename base_t::execution_resource_t;
 
     //token
@@ -48,9 +47,9 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
         std::atomic<int>& token_availability_;
         token_t(std::atomic<int>& a) : token_availability_(a) {}
         ~token_t()
-       	{ 
-	    token_availability_.fetch_sub(1); 
-	}
+        {
+            token_availability_.fetch_sub(1); 
+        }
     };
 	
     struct resource_t
@@ -90,6 +89,7 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
 
         }
     };
+    using selection_type = token_selection_handle_t<token_policy<ResourceType, ResourceAdapter, Backend>>;
 
     struct selector_t
     {
@@ -99,9 +99,7 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
     std::shared_ptr<selector_t> selector_;
 
   public:
-    using selection_type = token_selection_handle_t<token_policy<ResourceType, ResourceAdapter, Backend>>;
     using resource_type = typename base_t::resource_type;
-    using wait_type = typename Backend::wait_type; //TODO: Get from policy_base instead?
 
     token_policy(const int& c = 1):capacity(c) { base_t::initialize(); }
     token_policy(deferred_initialization_t, const int& c = 1) {}

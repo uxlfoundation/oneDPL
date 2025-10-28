@@ -37,10 +37,10 @@ class policy_base
     using resource_container_size_t = typename resource_container_t::size_type;
     using execution_resource_t = typename backend_t::execution_resource_t;
     using wrapped_resource_t = execution_resource_t;
+    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
 
   public:
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
 
   protected:
     std::shared_ptr<backend_t> backend_;
@@ -89,8 +89,9 @@ class policy_base
     }
 
     template <typename Function, typename... Args>
-    auto //std::optional<wait_type>
-    try_submit(Function&& f, Args&&... args) -> std::optional<decltype(backend_->submit(std::declval<selection_type>(), std::forward<Function>(f), std::forward<Args>(args)...))>
+    auto //std::optional of the "wait type"
+    try_submit(Function&& f, Args&&... args) -> 
+        std::optional<decltype(backend_->submit(std::declval<decltype(select_impl(f, args...))>(), std::forward<Function>(f), std::forward<Args>(args)...))>
     {
         if (backend_)
         {

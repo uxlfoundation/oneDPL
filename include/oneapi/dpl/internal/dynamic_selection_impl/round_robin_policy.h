@@ -37,6 +37,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
   protected:
     using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
+    using typename base_t::selection_type;
 
     struct selector_t 
     {
@@ -49,7 +50,6 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
   public:
     using resource_type = typename base_t::resource_type;
-    using typename base_t::selection_type;
     using typename base_t::backend_t;
 
     round_robin_policy() { base_t::initialize(); }
@@ -83,11 +83,11 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
                 if (selector_->next_context_.compare_exchange_strong(current, next)) break;
             }
             return std::make_optional<selection_type>(*this, selector_->resources_[current]);
-	}
-	else
-	{
-	    throw std::logic_error("select called before initialization");
-	}
+        }
+        else
+        {
+            throw std::logic_error("select called before initialization");
+        }
     }
 };
 

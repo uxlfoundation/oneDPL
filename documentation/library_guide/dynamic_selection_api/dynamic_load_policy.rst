@@ -22,13 +22,6 @@ by submitting tasks to a resource that completes work faster.
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
-      public:
-        dynamic_load_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
       
       // constructors
       dynamic_load_policy(deferred_initialization_t);

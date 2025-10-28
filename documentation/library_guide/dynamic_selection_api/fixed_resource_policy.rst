@@ -22,13 +22,6 @@ The fixed-resource policy always returns the same resource selection.
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
-      public:
-        fixed_resource_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
       
       // constructors
       fixed_resource_policy(deferred_initialization_t);
