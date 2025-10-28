@@ -765,64 +765,26 @@ struct __has_subscription_op<_R, std::void_t<decltype(std::declval<std::decay_t<
 {
 };
 
-template <typename _Source, typename _Base = std::decay_t<_Source>>
-struct __subscription_impl_view_simple : _Base
-{
-    static_assert(
-        !__has_subscription_op<_Base>::value,
-        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
-
-    using value_type = oneapi::dpl::__internal::__value_t<_Base>;
-    using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
-
-    // Define default constructors
-    __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
-    __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
-
-    // Define custom constructor to forward arguments to the base class
-    template <typename... _Args>
-    __subscription_impl_view_simple(_Args&&... __args) : _Base(std::forward<_Args>(__args)...)
-    {
-    }
-
-    // Define default operator=
-    __subscription_impl_view_simple&
-    operator=(const __subscription_impl_view_simple&) = default;
-    __subscription_impl_view_simple&
-    operator=(__subscription_impl_view_simple&&) = default;
-
-    decltype(auto)
-    operator[](index_type __i)
-    {
-        return *std::next(__begin(*static_cast<_Base*>(this)), __i);
-    }
-
-    decltype(auto)
-    operator[](index_type __i) const
-    {
-        return *std::next(__begin(*static_cast<const _Base*>(this)), __i);
-    }
-
-    auto
-    size() const
-    {
-        return oneapi::dpl::__ranges::__size(*static_cast<const _Base*>(this));
-    }
-};
-
-template <typename _Range>
-decltype(auto)
+template <typename _Range, typename = std::enable_if_t<__has_subscription_op<_Range>::value>>
+_Range&&
 __get_subscription_view(_Range&& __rng)
 {
-    if constexpr (__has_subscription_op<_Range>::value)
-    {
-        return std::forward<_Range>(__rng);
-    }
-    else
-    {
-        return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
-    }
+    // If the range supports operator[], return it as is
+    return std::forward<_Range>(__rng);
 }
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
+auto
+__get_subscription_view(_Range&& __rng)
+{
+    // This std::views::all required to extend the lifetime of the range passed into this function (if it is a temporary object)
+    auto __view = std::views::all(std::forward<_Range>(__rng));
+
+    // If the range does not support operator[], create a subrange from begin and end
+    return std::ranges::subrange(__view);
+}
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __ranges
 } // namespace dpl
