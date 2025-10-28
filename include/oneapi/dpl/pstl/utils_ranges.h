@@ -775,52 +775,38 @@ __get_subscription_view(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-template <std::ranges::view _View>
-class subscription_all_view : public std::ranges::view_interface<subscription_all_view<_View>>
+template <typename _BaseView>
+struct subscription_all_view : _BaseView
 {
-    _View __base;
-
-  public:
-
-    subscription_all_view() = default;
-
-    template <std::ranges::viewable_range _Rng>
-        requires std::constructible_from<_View, decltype(std::views::all(std::declval<_Rng>()))>
-    constexpr explicit subscription_all_view(_Rng&& __rng)
-        : __base(std::views::all(std::forward<_Rng>(__rng)))
+    template <typename _Rng>
+    explicit subscription_all_view(_Rng&& __rng)
+        : _BaseView(std::views::all(std::forward<_Rng>(__rng)))
     {
     }
 
-    constexpr explicit subscription_all_view(_View __v)
-        : __base(std::move(__v))
-    {
-    }
+    subscription_all_view(const subscription_all_view&) = default;
+    subscription_all_view(subscription_all_view&&) = default;
 
-    constexpr subscription_all_view(const subscription_all_view&) = default;
-    constexpr subscription_all_view(subscription_all_view&&) = default;
+    ~subscription_all_view() = default;
 
-    constexpr subscription_all_view& operator=(const subscription_all_view&) = default;
-    constexpr subscription_all_view& operator=(subscription_all_view&&) = default;
-
-    constexpr auto begin()                                                { return std::ranges::begin(__base); }
-    constexpr auto end  ()                                                { return std::ranges::end  (__base); }
-    constexpr auto begin() const requires std::ranges::range<const _View> { return std::ranges::begin(__base); }
-    constexpr auto end  () const requires std::ranges::range<const _View> { return std::ranges::end  (__base); }
-
-    constexpr auto size()       requires std::ranges::sized_range<      _View> { return std::ranges::size(__base); }
-    constexpr auto size() const requires std::ranges::sized_range<const _View> { return std::ranges::size(__base); }
+    subscription_all_view& operator=(const subscription_all_view&) = default;
+    subscription_all_view& operator=(subscription_all_view&&) = default;
 
     template <class _Idx>
-    constexpr decltype(auto) operator[](_Idx __idx)
-        requires(std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>)
+    decltype(auto)
+    operator[](_Idx __idx)
     {
-        using _difference_t = std::ranges::range_difference_t<_View>;
-        return *(std::ranges::begin(__base) + static_cast<_difference_t>(__idx));
+        using _difference_t = std::ranges::range_difference_t<_BaseView>;
+        return *(std::ranges::begin(*this) + static_cast<_difference_t>(__idx));
     }
 
-    constexpr       _View&  base() &      { return __base;            }
-    constexpr const _View&  base() const& { return __base;            }
-    constexpr       _View&& base() &&     { return std::move(__base); }
+    template <class _Idx>
+    decltype(auto)
+    operator[](_Idx __idx) const
+    {
+        using _difference_t = std::ranges::range_difference_t<_BaseView>;
+        return *(std::ranges::begin(*this) + static_cast<_difference_t>(__idx));
+    }
 };
 
 template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
