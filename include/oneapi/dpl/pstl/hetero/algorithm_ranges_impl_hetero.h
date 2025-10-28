@@ -61,7 +61,7 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...)
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...) // near __checked_deferrable_wait
             .__checked_deferrable_wait();
     }
     return __n;
@@ -171,8 +171,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)))
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)), // near __checked_deferrable_wait
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2))) // near __checked_deferrable_wait
             .__checked_deferrable_wait();
         return __n1;
     }
@@ -181,8 +181,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2,
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)))
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), // near __checked_deferrable_wait
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1))) // near __checked_deferrable_wait
         .__checked_deferrable_wait();
     return __n2;
 }
@@ -616,7 +616,7 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
                                                                           ::std::true_type /*is_commutative*/>(
                _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
-               oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)))
+               oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
         .get();
 }
 
@@ -743,7 +743,7 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor<decltype(__n)>{__n},
-        __n / 2, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)))
+        __n / 2, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r))) // near __checked_deferrable_wait
         .__checked_deferrable_wait();
 }
 
@@ -764,8 +764,8 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r)))
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)), // near __checked_deferrable_wait
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r))) // near __checked_deferrable_wait
         .__checked_deferrable_wait();
 }
 
@@ -810,8 +810,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)))
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)), // near __checked_deferrable_wait - get()
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result))) // near __checked_deferrable_wait - get()
             .get();
 
         return 1;
@@ -1213,7 +1213,7 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     {
         __par_backend_hetero::__parallel_stable_sort(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp, __proj)
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp, __proj) // near __checked_deferrable_wait
             .__checked_deferrable_wait();
     }
 }
@@ -1258,7 +1258,7 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
                                                                        ::std::false_type /*is_commutative*/>(
             __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)))
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
             .get();
 
     return {__idx, __val};
@@ -1338,7 +1338,7 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
                                                                        ::std::false_type /*is_commutative*/>(
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)))
+            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
             .get();
 
     return {{__idx_min, __min}, {__idx_max, __max}};
