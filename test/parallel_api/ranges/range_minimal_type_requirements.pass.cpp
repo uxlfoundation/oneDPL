@@ -120,10 +120,11 @@ struct test_merge
         std::memcpy(v2_begin, v2.data(), v_size * sizeof(int));
         std::memcpy(v3_begin, v3.data(), 2 * v_size * sizeof(int));
 
-        oneapi::dpl::ranges::merge(policy,
-                                   TestUtils::MinimalisticRange{v1.begin(), v1.end()},
-                                   TestUtils::MinimalisticRange{v2.begin(), v2.end()},
-                                   TestUtils::MinimalisticRange{v3.begin(), v3.end()});
+        TestUtils::MinimalisticRange r1{v1.begin(), v1.end()};
+        TestUtils::MinimalisticRange r2{v2.begin(), v2.end()};
+        TestUtils::MinimalisticRange r3{v3.begin(), v3.end()};
+
+        oneapi::dpl::ranges::merge(policy, r1, r2, r3);
 
         std::string msg = "wrong effect from merge, " + std::string(typeid(Policy).name());
         EXPECT_EQ_N(v3_expected.begin(), v3_begin, v3_expected.size(), msg.c_str());
