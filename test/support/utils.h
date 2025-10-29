@@ -1353,15 +1353,15 @@ struct MinimalisticRange
 };
 
 template <typename ForwardIterator>
-auto
-begin(MinimalisticRange<ForwardIterator> rng) -> decltype(rng.it_begin)
+ForwardIterator
+begin(MinimalisticRange<ForwardIterator> rng)
 {
     return rng.it_begin;
 }
 
 template <typename ForwardIterator>
-auto
-end(MinimalisticRange<ForwardIterator> rng) -> decltype(rng.it_end)
+ForwardIterator
+end(MinimalisticRange<ForwardIterator> rng)
 {
     return rng.it_end;
 }
