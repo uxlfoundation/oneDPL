@@ -36,7 +36,7 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 ### Key Components
 
 1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
-2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. Adapters can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
+2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. A `ResourceAdapter` can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
 
 Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
 
@@ -47,9 +47,9 @@ Note: any partial specialization of `default_backend_impl` that targets a partic
 
 - **Resource Management**: Backends store resources in a vector and provide `get_resources()` to access them
 - **Submission System**: The `submit()` method invokes user functions with selected resources and returns submission objects
-- **Instrumentation**: Functions `instrument_before` and `instrument_after` can be optionally overridden to provide reporting for policies that require reporting.
+- **Instrumentation**: The `submit_impl()` method can be optionally overridden to provide instrumentation of submissions for policies that require reporting.
 - **Group Operations**: `get_submission_group()` returns an object that can wait for all submissions to complete
-- **Trait Support**: Type traits for `resource_t<T>`, `wait_t<T>`, and lazy reporting detection
+- **Trait Support**: Type traits for `resource_t<T>`, and lazy reporting detection
 - **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
 
 ### Implementation Details
@@ -124,17 +124,23 @@ resource type `BaseResourceType` with an already existing `default_backend_impl`
 The `backend_base` provides default implementations for the core backend methods:
 
 #### `submit_impl` Implementation
-The default `submit_impl` method calls `instrument_before`, then the user-provided function with the 
-unwrapped resource, and finally returns what is returned by a call to `instrument_after`:
+The default `submit_impl` method calls then the user-provided function with the 
+unwrapped resource, and returns a waitable submission type which wraps the return from the user-provided function.
 
 ```cpp
+template <typename T>
+class default_submission
+{
+    T t;
+    void wait();
+    T unwrap();
+};
+
 template <typename SelectionHandle, typename Function, typename... Args>
 auto
 submit_impl(SelectionHandle s, Function&& f, Args&&... args)
 {
-    static_cast<Backend*>(this)->instrument_before_impl(s);
-    auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-    return static_cast<Backend*>(this)->instrument_after_impl(s, w);
+    return default_submission{std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...)};
 }
 ```
 **Assumptions**: The user function must be callable with a `ResourceType` resource and the `Function f` 
@@ -144,19 +150,8 @@ reuse a `sycl::queue` with `sycl::queue *` resources, the user's function is sti
 `sycl::queue *`.
 
 #### Instrumentation Support
-The default backend provides `instrument_before` and `instrument_after` functions that are essentially empty implementations:
-
-```cpp
-template <typename SelectionHandle>
-void instrument_before(SelectionHandle s) { 
-    // Empty implementation - no general instrumentation possible
-}
-
-template <typename SelectionHandle, typename WaitType>
-auto instrument_after(SelectionHandle s, WaitType w) {
-    return default_submission{w}; // Simply wrap the result
-}
-```
+Where instrumentation is required, the customizer will need to override `submit_impl` with their own code which performs instrumentation
+for the `BaseResourceType`. The overload must call the user function as is done in the default, and return an object which wraps the return from the user function and supports `wait()` which blocks until the user's job has completed and `unwrap()` which returns the user's returned object.
 
 **Rationale**: It is not possible to define a general mechanism for instrumenting code execution for arbitrary custom resource types. Each resource type has different characteristics for timing, profiling, and performance measurement. Specialized backends (like the SYCL backend) can override these methods to provide resource-specific instrumentation.
 
@@ -256,7 +251,7 @@ ex::wait(rr.get_submission_group());
 ```
 
 If `ArenaAndGroup` will be used with policies that require instrumentation, then
-a custom backend that provides `instrument_before_impl` and `instrument_after_impl`
+a custom backend that provides `submit_impl` with the appropriate instrumentation
 will be needed. This can be done by partially specializing `default_backend_impl`.
 
 ## Adapter Support for Resource Transformation
@@ -305,7 +300,7 @@ Testing for these changes should include:
  * Test of SYCL backend using a ``sycl::queue*`` as the execution resource with a dereferencing resource adapter function.
  * Test of automatic backend selection by providing a universe of resources to construction which are used to deduce the backend.
  * Test of backend using default backend for a simple resource type.
- * Test of backend using backend with minimally overridden instrument_before and instrument_after for a simple resource type.
+ * Test of backend using backend with minimally overridden `submit()` for a simple resource type.
 
 ## Explored Alternatives
 
