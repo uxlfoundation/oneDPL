@@ -794,11 +794,29 @@ struct subscription_view_simple : _BaseRangeHolder
     subscription_view_simple& operator=(const subscription_view_simple&) = default;
     subscription_view_simple& operator=(subscription_view_simple&&) = default;
 
+    auto
+    size() const -> decltype(oneapi::dpl::__ranges::__size(std::declval<_BaseRangeHolder>()))
+    {
+        return oneapi::dpl::__ranges::__size(get_base_ref());
+    }
+
+    bool
+    empty() const
+    {
+        return oneapi::dpl::__ranges::__empty(get_base_ref);
+    }
+
+    _BaseRangeHolder
+    base() const
+    {
+        return get_base_ref();
+    }
+
     template <typename _Idx>
     constexpr decltype(auto)
     operator[](_Idx __idx)
     {
-        return *(std::ranges::begin(*this) + __idx);
+        return *(std::ranges::begin(static_cast<_BaseRangeHolder*>(*this)) + __idx);
     }
 
     template <typename _Idx>
@@ -806,6 +824,18 @@ struct subscription_view_simple : _BaseRangeHolder
     operator[](_Idx __idx) const
     {
         return *(std::ranges::begin(*this) + __idx);
+    }
+
+protected:
+
+    _BaseRangeHolder& get_base_ref()
+    {
+        return *static_cast<_BaseRangeHolder*>(this);
+    }
+
+    const _BaseRangeHolder& get_base_ref() const
+    {
+        return *static_cast<const _BaseRangeHolder*>(this);
     }
 };
 
