@@ -775,37 +775,37 @@ __get_subscription_view(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
+// struct subscription_view_simple - holds source range if it's temporary object
+// or reference to it otherwise and rovides operator[] access to elements.
 template <typename _BaseViewHolder>
-struct subscription_all_view : _BaseViewHolder
+struct subscription_view_simple : _BaseViewHolder
 {
+    using _difference_t = std::ranges::range_difference_t<_BaseViewHolder>;
+
     template <typename _Rng>
-    explicit subscription_all_view(_Rng&& __rng)
+    explicit subscription_view_simple(_Rng&& __rng)
         : _BaseViewHolder(std::views::all(std::forward<_Rng>(__rng)))
     {
     }
 
-    subscription_all_view(const subscription_all_view&) = default;
-    subscription_all_view(subscription_all_view&&) = default;
+    subscription_view_simple(const subscription_view_simple&) = default;
+    subscription_view_simple(subscription_view_simple&&) = default;
 
-    ~subscription_all_view() = default;
+    ~subscription_view_simple() = default;
 
-    subscription_all_view& operator=(const subscription_all_view&) = default;
-    subscription_all_view& operator=(subscription_all_view&&) = default;
+    subscription_view_simple& operator=(const subscription_view_simple&) = default;
+    subscription_view_simple& operator=(subscription_view_simple&&) = default;
 
-    template <class _Idx>
-    decltype(auto)
-    operator[](_Idx __idx)
+    constexpr decltype(auto)
+    operator[](_difference_t __idx)
     {
-        using _difference_t = std::ranges::range_difference_t<_BaseView>;
-        return *(std::ranges::begin(*this) + static_cast<_difference_t>(__idx));
+        return *(std::ranges::begin(*this) + __idx);
     }
 
-    template <class _Idx>
-    decltype(auto)
-    operator[](_Idx __idx) const
+    constexpr decltype(auto)
+    operator[](_difference_t __idx) const
     {
-        using _difference_t = std::ranges::range_difference_t<_BaseView>;
-        return *(std::ranges::begin(*this) + static_cast<_difference_t>(__idx));
+        return *(std::ranges::begin(*this) + __idx);
     }
 };
 
@@ -813,9 +813,11 @@ template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_R
 auto
 __get_subscription_view(_Range&& __rng)
 {
+    // If the range supports doesn't support operator[] wrap it with subscription_view_simple
+    // to provide operator[] access and extend lifetime if bnecessary (for temporary ranges).
     using _BaseViewHolder = decltype(std::views::all(std::forward<_Range>(__rng)));
 
-    return subscription_all_view<_BaseViewHolder>(std::forward<_Range>(__rng));
+    return subscription_view_simple<_BaseViewHolder>(std::forward<_Range>(__rng));
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
