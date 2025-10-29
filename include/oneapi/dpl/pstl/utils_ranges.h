@@ -775,12 +775,12 @@ __get_subscription_view(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-template <typename _BaseView>
-struct subscription_all_view : _BaseView
+template <typename _BaseViewHolder>
+struct subscription_all_view : _BaseViewHolder
 {
     template <typename _Rng>
     explicit subscription_all_view(_Rng&& __rng)
-        : _BaseView(std::views::all(std::forward<_Rng>(__rng)))
+        : _BaseViewHolder(std::views::all(std::forward<_Rng>(__rng)))
     {
     }
 
@@ -813,9 +813,9 @@ template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_R
 auto
 __get_subscription_view(_Range&& __rng)
 {
-    using _View = decltype(std::views::all(std::forward<_Range>(__rng)));
+    using _BaseViewHolder = decltype(std::views::all(std::forward<_Range>(__rng)));
 
-    return subscription_all_view<_View>(std::forward<_Range>(__rng));
+    return subscription_all_view<_BaseViewHolder>(std::forward<_Range>(__rng));
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
