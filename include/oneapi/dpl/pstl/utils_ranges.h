@@ -791,8 +791,6 @@ struct subscription_view_simple : _BaseRangeHolder
     subscription_view_simple(const subscription_view_simple&) = default;
     subscription_view_simple(subscription_view_simple&&) = default;
 
-    ~subscription_view_simple() = default;
-
     subscription_view_simple& operator=(const subscription_view_simple&) = default;
     subscription_view_simple& operator=(subscription_view_simple&&) = default;
 
