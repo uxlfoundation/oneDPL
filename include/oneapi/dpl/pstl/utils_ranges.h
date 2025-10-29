@@ -776,7 +776,7 @@ __get_subscription_view(_Range&& __rng)
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 // struct subscription_view_simple - holds source range if it's temporary object
-// or reference to it otherwise and rovides operator[] access to elements.
+// or reference to it otherwise and provides operator[] access to elements.
 template <typename _BaseRange, typename _BaseRangeHolder = std::decay_t<_BaseRange>>
 struct subscription_view_simple : _BaseRangeHolder
 {
