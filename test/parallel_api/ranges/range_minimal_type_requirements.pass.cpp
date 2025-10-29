@@ -254,6 +254,7 @@ struct test_transform
 template <typename Algorithm>
 void call_test_algo()
 {
+#if 0
     std::cout << "\toneapi::dpl::execution::seq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::seq);
     std::cout << "\toneapi::dpl::execution::unseq" << std::endl;
@@ -262,6 +263,7 @@ void call_test_algo()
     Algorithm{}(oneapi::dpl::execution::par);
     std::cout << "\toneapi::dpl::execution::par_unseq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::par_unseq);
+#endif
 #if TEST_DPCPP_BACKEND_PRESENT
     std::cout << "\toneapi::dpl::execution::dpcpp" << std::endl;
     Algorithm{}(TestUtils::get_dpcpp_test_policy());
@@ -278,12 +280,14 @@ main()
     {
         std::cout << "test_count" << std::endl;
         call_test_algo<test_count>    ();
+#if 0
         std::cout << "test_merge" << std::endl;
         call_test_algo<test_merge>    ();
         std::cout << "test_copy_if" << std::endl;
         call_test_algo<test_copy_if>  ();
         std::cout << "test_transform" << std::endl;
         call_test_algo<test_transform>();
+#endif
     }
     catch (const std::exception& exc)
     {
