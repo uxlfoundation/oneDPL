@@ -1372,22 +1372,11 @@ class MinimalisticView : public std::ranges::view_interface<MinimalisticView<For
     ForwardIterator it_end;
 };
 
-//template <typename ForwardIterator>
-//ForwardIterator
-//begin(MinimalisticView<ForwardIterator> rng)
-//{
-//    return rng.it_begin;
-//}
-//
-//template <typename ForwardIterator>
-//ForwardIterator
-//end(MinimalisticView<ForwardIterator> rng)
-//{
-//    return rng.it_end;
-//}
-
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
+
+static_assert(std::ranges::range<MinimalisticRangeForIntVec>);
+static_assert(std::ranges::view<MinimalisticRangeForIntVec>);
 
 // Check all forms of begin() function
 static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec>  ())), IteratorOfIntVector>);
