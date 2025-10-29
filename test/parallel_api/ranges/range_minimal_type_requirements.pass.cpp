@@ -254,18 +254,11 @@ struct test_transform
 template <typename Algorithm>
 void call_test_algo()
 {
-#if 0    
-    std::cout << "\toneapi::dpl::execution::seq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::seq);
-    std::cout << "\toneapi::dpl::execution::unseq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::unseq);
-    std::cout << "\toneapi::dpl::execution::par" << std::endl;  
     Algorithm{}(oneapi::dpl::execution::par);
-    std::cout << "\toneapi::dpl::execution::par_unseq" << std::endl;
     Algorithm{}(oneapi::dpl::execution::par_unseq);
-#endif    
 #if TEST_DPCPP_BACKEND_PRESENT
-    std::cout << "\toneapi::dpl::execution::dpcpp" << std::endl;
     Algorithm{}(TestUtils::get_dpcpp_test_policy());
 #endif
 }
@@ -278,15 +271,9 @@ main()
 #if _ENABLE_STD_RANGES_TESTING
     try
     {
-#if 0        
-        std::cout << "test_count" << std::endl;
-        call_test_algo<test_count>    ();
-        std::cout << "test_merge" << std::endl;
-        call_test_algo<test_merge>    ();
-        std::cout << "test_copy_if" << std::endl;
-        call_test_algo<test_copy_if>  ();
-#endif        
-        std::cout << "test_transform" << std::endl;
+        call_test_algo<test_count>();
+        call_test_algo<test_merge>();
+        call_test_algo<test_copy_if>();
         call_test_algo<test_transform>();
     }
     catch (const std::exception& exc)
