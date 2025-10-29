@@ -674,7 +674,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 
     // We should extend the lifetime of __get_subscription_view() result until future::get() is finished
     auto&& __keep_rng1_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)); // near __checked_deferrable_wait - FIXED
-    auto&& __keep_rng2_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__r__rng2ng1)); // near __checked_deferrable_wait - FIXED
+    auto&& __keep_rng2_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)); // near __checked_deferrable_wait - FIXED
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keep_rng1_sv, __keep_rng2_sv, __n, __pred, __assign);
