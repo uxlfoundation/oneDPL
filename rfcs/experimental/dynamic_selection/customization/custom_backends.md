@@ -17,7 +17,7 @@ type `T` satisfies the *Backend* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Backend trait for the resource type. |
-| `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the `wait_t<T>` object returned by `f`. Returns an object that satisfies *Submission*. |
+| `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the return object returned by `f`. Returns an object that satisfies *Submission*. |
 | *Submission* type | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
 | `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 | `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this `wait` function blocks until all previous submissions to this backend are complete. |
@@ -139,7 +139,6 @@ class default_backend :
 {
   public:
     using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
-    using wait_type = typename base_t::wait_type;
 
     default_backend()
     {

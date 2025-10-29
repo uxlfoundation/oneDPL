@@ -11,7 +11,7 @@ type `T` satisfies the *Policy* contract if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
