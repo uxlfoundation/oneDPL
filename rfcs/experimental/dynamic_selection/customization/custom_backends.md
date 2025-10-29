@@ -12,12 +12,11 @@ type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Backend trait for the resource type. |
-| `wait_t<T>` | Backend trait for type that is expected to be returned by the user function |
 | `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the `wait_t<T>` object returned by `f`. Returns an object that satisfies *Submission*. |
 | *Submission* type | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
 | `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
@@ -28,6 +27,9 @@ type `T` satisfies the *Backend* contract if given,
 Currently, these functions and traits (except the `lazy_report` function) must be implemented 
 in each backend. The experimental backend for SYCL queues is a bit more than 250 lines of code. 
 With sensible defaults, this proposal aims to simplify backend writing to open up Dynamic Selection to more use cases.
+
+A backend is expected to document the expected `/*ret_type*/` from user-submitted functions, but it is not encoded as a trait. For instance,
+the sycl backend expects a `sycl::event` to be returned from user-submitted functions, and this is required for instrumentation to work.
 
 ## Proposed Design to Enable Easier Customization of Backends
 
