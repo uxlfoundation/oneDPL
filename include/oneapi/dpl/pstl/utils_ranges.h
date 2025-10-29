@@ -780,8 +780,6 @@ __get_subscription_view(_Range&& __rng)
 template <typename _BaseRange, typename _BaseRangeHolder = std::decay_t<_BaseRange>>
 struct subscription_view_simple : _BaseRangeHolder
 {
-    using _difference_t = std::ranges::range_difference_t<_BaseRangeHolder>;
-
     template <typename _Rng>
     explicit subscription_view_simple(_Rng&& __rng)
         : _BaseRangeHolder(std::forward<_Rng>(__rng))
@@ -796,14 +794,16 @@ struct subscription_view_simple : _BaseRangeHolder
     subscription_view_simple& operator=(const subscription_view_simple&) = default;
     subscription_view_simple& operator=(subscription_view_simple&&) = default;
 
+    template <typename _Idx>
     constexpr decltype(auto)
-    operator[](_difference_t __idx)
+    operator[](_Idx __idx)
     {
         return *(std::ranges::begin(*this) + __idx);
     }
 
+    template <typename _Idx>
     constexpr decltype(auto)
-    operator[](_difference_t __idx) const
+    operator[](_Idx __idx) const
     {
         return *(std::ranges::begin(*this) + __idx);
     }
