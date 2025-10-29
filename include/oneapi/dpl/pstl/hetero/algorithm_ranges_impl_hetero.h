@@ -53,7 +53,7 @@ namespace __ranges
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Function, typename... _Ranges>
 std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>
-__pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+__pattern_walk_n_impl(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
 {
     const auto __n = oneapi::dpl::__ranges::__min_size_calc{}(__rngs...);
     if (__n > 0)
@@ -61,10 +61,21 @@ __pattern_walk_n(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Function
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
             unseq_backend::walk_n_vectors_or_scalars<_Function>{__f, static_cast<std::size_t>(__n)}, __n,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...) // near __checked_deferrable_wait
+            std::forward<_Ranges>(__rngs)...)
             .__checked_deferrable_wait();
     }
+
     return __n;
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Function, typename... _Ranges>
+std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>
+__pattern_walk_n(__hetero_tag<_BackendTag> tag, _ExecutionPolicy&& __exec, _Function __f, _Ranges&&... __rngs)
+{
+    // We should call __get_subscription_view and future::__checked_deferrable_wait() on different stack levels
+    // to extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+    return __pattern_walk_n_impl(tag, std::forward<_ExecutionPolicy>(__exec), __f,
+                                 oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Ranges>(__rngs))...); // near __checked_deferrable_wait - FIXED
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -164,15 +175,17 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
 
     using _Function = oneapi::dpl::__internal::__swap_fn;
 
+    // We should extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+    auto&& __keep_rng1_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)); // near __checked_deferrable_wait - FIXED
+    auto&& __keep_rng2_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)); // near __checked_deferrable_wait - FIXED
+
     if (__n1 <= __n2)
     {
         oneapi::dpl::__par_backend_hetero::__parallel_for(
             _BackendTag{},
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap1_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
-            unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)), // near __checked_deferrable_wait
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2))) // near __checked_deferrable_wait
+            unseq_backend::__brick_swap<_Function>{_Function{}, __n1}, __n1, __keep_rng1_sv, __keep_rng2_sv)
             .__checked_deferrable_wait();
         return __n1;
     }
@@ -180,9 +193,7 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& _
     oneapi::dpl::__par_backend_hetero::__parallel_for(
         _BackendTag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__swap2_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
-        unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2,
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), // near __checked_deferrable_wait
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1))) // near __checked_deferrable_wait
+        unseq_backend::__brick_swap<_Function>{_Function{}, __n2}, __n2, __keep_rng2_sv, __keep_rng1_sv)
         .__checked_deferrable_wait();
     return __n2;
 }
@@ -612,11 +623,14 @@ __pattern_count(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range&& _
     auto __reduce_fn = ::std::plus<_ReduceValueType>{};
     oneapi::dpl::__internal::__pattern_count_transform_fn<_Predicate> __transform_fn{__predicate};
 
+    // We should extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+    auto&& __keep_rng_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)); // near __checked_deferrable_wait - FIXED
+
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                          ::std::true_type /*is_commutative*/>(
-               _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+                                                                          std::true_type /*is_commutative*/>(
+               _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
                unseq_backend::__no_init_value{}, // no initial value
-               oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
+               __keep_rng_sv)
         .get();
 }
 
@@ -741,9 +755,11 @@ __pattern_reverse(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R&& __r
     if (__n <= 1)
         return;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_functor<decltype(__n)>{__n},
-        __n / 2, oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r))) // near __checked_deferrable_wait
+    // We should extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+    auto&& __keep_r_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r)); // near __checked_deferrable_wait - FIXED
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_functor<decltype(__n)>{__n}, __keep_r_sv)
         .__checked_deferrable_wait();
 }
 
@@ -762,10 +778,13 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
     if (__n == 0)
         return;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_for(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)), // near __checked_deferrable_wait
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r))) // near __checked_deferrable_wait
+    // We should extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+    auto&& __keep_in_r_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_InRange>(__in_r)); // near __checked_deferrable_wait - FIXED
+    auto&& __keep_out_r_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_OutRange>(__out_r)); // near __checked_deferrable_wait - FIXED
+
+    oneapi::dpl::__par_backend_hetero::__parallel_for(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                      unseq_backend::__reverse_copy<decltype(__n)>{__n}, __n,
+                                                      __keep_in_r_sv, __keep_out_r_sv)
         .__checked_deferrable_wait();
 }
 
@@ -801,6 +820,11 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
     oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng);
     if (__n == 0)
         return 0;
+
+    // We should extend the lifetime of __get_subscription_view() result until future::get() is finished
+    auto&& __keep_rng_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)); // near __checked_deferrable_wait - FIXED
+    auto&& __keep_result_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)); // near __checked_deferrable_wait - FIXED
+
     if (__n == 1)
     {
         // For a sequence of size 1, we can just copy the only element to the result.
@@ -810,17 +834,14 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
             oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_wrapper>(
                 std::forward<_ExecutionPolicy>(__exec)),
             unseq_backend::walk_n_vectors_or_scalars<_CopyBrick>{_CopyBrick{}, static_cast<std::size_t>(__n)}, __n,
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)), // near __checked_deferrable_wait - get()
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result))) // near __checked_deferrable_wait - get()
+            __keep_rng_sv, __keep_result_sv)
             .get();
 
         return 1;
     }
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)), __pred);
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keep_rng_sv, __keep_result_sv, __pred);
 
     return __res.get(); // is a blocking call
 }
@@ -1211,9 +1232,11 @@ __pattern_stable_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
 {
     if (oneapi::dpl::__ranges::__size(__rng) >= 2)
     {
-        __par_backend_hetero::__parallel_stable_sort(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)), __comp, __proj) // near __checked_deferrable_wait
+        // We should extend the lifetime of __get_subscription_view() result until future::__checked_deferrable_wait() is finished
+        auto&& __keep_rng_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)); // near __checked_deferrable_wait - FIXED
+
+        __par_backend_hetero::__parallel_stable_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keep_rng_sv,
+                                                     __comp, __proj)
             .__checked_deferrable_wait();
     }
 }
@@ -1253,12 +1276,15 @@ __pattern_min_element_impl(_BackendTag __tag, _ExecutionPolicy&& __exec, _Range&
     __pattern_min_element_reduce_fn<_ReduceValueType, _Compare> __reduce_fn{__comp};
     oneapi::dpl::__internal::__pattern_min_element_transform_fn<_ReduceValueType> __transform_fn;
 
+    // We should extend the lifetime of __get_subscription_view() result until future::get() is finished
+    auto&& __keep_rng_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)); // near __checked_deferrable_wait - FIXED
+
     [[maybe_unused]] auto [__idx, __val] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
-            __tag, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+                                                                       std::false_type /*is_commutative*/>(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
+            __keep_rng_sv)
             .get();
 
     return {__idx, __val};
@@ -1333,12 +1359,15 @@ __pattern_minmax_element_impl(_BackendTag, _ExecutionPolicy&& __exec, _Range&& _
     //       a `tuple` of `difference_type`, not the `difference_type` itself.
     oneapi::dpl::__internal::__pattern_minmax_element_transform_fn<_ReduceValueType> __transform_fn;
 
+    // We should extend the lifetime of __get_subscription_view() result until future::get() is finished
+    auto&& __keep_rng_sv = oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng)); // near __checked_deferrable_wait - FIXED
+
     const auto& [__idx_min, __idx_max, __min, __max] =
         oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
-                                                                       ::std::false_type /*is_commutative*/>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+                                                                       std::false_type /*is_commutative*/>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
             unseq_backend::__no_init_value{}, // no initial value
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range>(__rng))) // near __checked_deferrable_wait - get()
+            __keep_rng_sv)
             .get();
 
     return {{__idx_min, __min}, {__idx_max, __max}};
