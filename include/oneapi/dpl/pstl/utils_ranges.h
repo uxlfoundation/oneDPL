@@ -780,6 +780,8 @@ __get_subscription_view(_Range&& __rng)
 template <typename _BaseRange, typename _BaseRangeHolder = std::decay_t<_BaseRange>>
 struct subscription_view_simple : _BaseRangeHolder
 {
+    using value_type = oneapi::dpl::__internal::__value_t<_BaseRangeHolder>;
+
     template <typename _Rng>
     explicit subscription_view_simple(_Rng&& __rng)
         : _BaseRangeHolder(std::forward<_Rng>(__rng))
