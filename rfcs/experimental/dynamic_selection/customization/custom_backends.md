@@ -122,8 +122,10 @@ public:
     using resource_type = ResourceType;
     using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
 
-    default_backend_impl() : my_base() {}
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_) 
+    template <typename ReportingReqs...>
+    default_backend_impl(ReportingReqs reqs...) : my_base() {}
+    template <typename ReportingReqs...>
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportingReqs reqs...)
        : my_base(u), adapter(adapter_) {}
 };
 ```
@@ -140,10 +142,12 @@ class default_backend :
   public:
     using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
 
-    default_backend()
+    template <typename ReportingReqs...>
+    default_backend(ReportingReqs reqs...) : default_backend_impl(reqs...)
     {
     }
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}) : base_t(r, adapt)
+    template <typename ReportingReqs...>
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}, ReportingReqs reqs...) : base_t(r, adapt, reqs...)
     {
     }
 };
