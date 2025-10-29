@@ -794,18 +794,21 @@ struct subscription_view_simple : _BaseRangeHolder
     subscription_view_simple& operator=(const subscription_view_simple&) = default;
     subscription_view_simple& operator=(subscription_view_simple&&) = default;
 
+    // TODO is it really needed?
     auto
     size() const -> decltype(oneapi::dpl::__ranges::__size(std::declval<_BaseRangeHolder>()))
     {
         return oneapi::dpl::__ranges::__size(get_base_ref());
     }
 
+    // TODO is it really needed?
     bool
     empty() const
     {
         return oneapi::dpl::__ranges::__empty(get_base_ref());
     }
 
+    // TODO is it really needed?
     _BaseRangeHolder
     base() const
     {
