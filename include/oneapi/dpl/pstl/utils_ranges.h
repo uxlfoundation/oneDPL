@@ -803,7 +803,7 @@ struct subscription_view_simple : _BaseRangeHolder
     bool
     empty() const
     {
-        return oneapi::dpl::__ranges::__empty(get_base_ref);
+        return oneapi::dpl::__ranges::__empty(get_base_ref());
     }
 
     _BaseRangeHolder
@@ -816,14 +816,14 @@ struct subscription_view_simple : _BaseRangeHolder
     constexpr decltype(auto)
     operator[](_Idx __idx)
     {
-        return *(std::ranges::begin(static_cast<_BaseRangeHolder*>(*this)) + __idx);
+        return *(std::ranges::begin(get_base_ref()) + __idx);
     }
 
     template <typename _Idx>
     constexpr decltype(auto)
     operator[](_Idx __idx) const
     {
-        return *(std::ranges::begin(*this) + __idx);
+        return *(std::ranges::begin(get_base_ref()) + __idx);
     }
 
 protected:
