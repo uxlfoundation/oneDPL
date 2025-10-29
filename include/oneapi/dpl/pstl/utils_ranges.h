@@ -777,14 +777,14 @@ __get_subscription_view(_Range&& __rng)
 
 // struct subscription_view_simple - holds source range if it's temporary object
 // or reference to it otherwise and rovides operator[] access to elements.
-template <typename _BaseViewHolder>
-struct subscription_view_simple : _BaseViewHolder
+template <typename _BaseRange, typename _BaseRangeHolder = std::decay_t<_BaseRange>>
+struct subscription_view_simple : _BaseRangeHolder
 {
-    using _difference_t = std::ranges::range_difference_t<_BaseViewHolder>;
+    using _difference_t = std::ranges::range_difference_t<_BaseRangeHolder>;
 
     template <typename _Rng>
     explicit subscription_view_simple(_Rng&& __rng)
-        : _BaseViewHolder(std::views::all(std::forward<_Rng>(__rng)))
+        : _BaseRangeHolder(std::forward<_Rng>(__rng))
     {
     }
 
@@ -815,9 +815,7 @@ __get_subscription_view(_Range&& __rng)
 {
     // If the range supports doesn't support operator[] wrap it with subscription_view_simple
     // to provide operator[] access and extend lifetime if bnecessary (for temporary ranges).
-    using _BaseViewHolder = decltype(std::views::all(std::forward<_Range>(__rng)));
-
-    return subscription_view_simple<_BaseViewHolder>(std::forward<_Range>(__rng));
+    return subscription_view_simple<_Range>(std::forward<_Range>(__rng));
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
