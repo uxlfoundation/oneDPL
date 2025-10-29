@@ -53,7 +53,7 @@ customization while providing sensible defaults for resource management and back
 The proposed `policy_base` class provides core functionality that derived policies can customize:
 
 ```cpp
-template <typename Policy, typename ResourceType, typename Backend>
+template <typename Policy, typename ResourceType, typename Backend, typename ReportingReqs reqs...>
 class policy_base 
 {
   protected:
@@ -67,8 +67,11 @@ class policy_base
 
   protected:
     std::shared_ptr<backend_t> backend_;
+    std::tuple<ReportingReqs> reporting_reqs;
 
   public:
+    policy_base(ReportingReqs reqs...);
+
     // Resource management
     auto get_resources() const;
     
@@ -115,6 +118,18 @@ std::optional<selection_type> __try_select_impl(Args&&... args) {
     // Return std::optional{selection_type{*this, selected_resource}}
 }
 ```
+
+#### Task Reporting Requirements
+
+Policies must also specify what reporting requirements the background is required to support to serve this policy. These
+requirements are specified as objects of the following structs: `task_time_t`, `task_submission_t`, `task_completion_t`
+in the namespace `oneapi::dpl::experimental::execution_info` and passed to the `policy_base` constructor. They will then
+be passed to the backend constructor when initialization occurs, and devices will be filtered based upon the
+availability of features required for these reporting requirements.
+
+`auto_tune_policy` requires `task_time_t`, and `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
+
+When creating a selection handle for your policy, you must include a member variable `scratch_space` of type `backend_traits::selection_scratch_t<Backend, reqs...>` where `Backend` is your backend and `reqs` is a variadic pack of reporting requirements needed for your policy. This allows the backend to have the storage it needs allocated alongside each selection handle to implement instrumentation for the reporting requirements.
 
 ## Examples of Policy Implementation
 
