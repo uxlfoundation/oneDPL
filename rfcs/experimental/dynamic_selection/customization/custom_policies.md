@@ -11,17 +11,14 @@ type `T` satisfies the *Policy* contract if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `wait_t<T>` | Policy trait for type that is expected to be returned by the user function |
-| `selection_t<T>` | Policy trait for the selection handle type returned by `select` |
-| `p.select(args…)` | Returns a selection handle that satisfies *Selection* |
-| `p.submit(s, f, args…)` | Submits function `f` using selection `s`. Delegates to backend. |
+| `p.__try_select_impl(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
+| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::optional` holding the submission object. Returns empty optional if no resource is available for selection. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
-| `p.submit_and_wait(s, f, args…)` | Submits and waits for completion |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. Delegates to backend. |
 | `p.get_submission_group()` | Returns an object that can wait for all submissions. Delegates to backend. |
@@ -39,7 +36,7 @@ customization while providing sensible defaults for resource management and back
 ### Key Components
 
 1. **`policy_base<Policy, ResourceType, Backend>`**: A proposed base class template that implements the core policy functionality using CRTP.
-2. **Selection Strategy Implementation**: Derived policies only need to implement `select_impl()` and `initialize_impl()` methods.
+2. **Selection Strategy Implementation**: Derived policies only need to implement `__try_select_impl()` and `initialize_impl()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
 ### Core Features
@@ -47,7 +44,7 @@ customization while providing sensible defaults for resource management and back
 - **Resource Management**: Policies store and manage resources through the backend
 - **Backend Integration**: All backend operations are handled by the base class
 - **Initialization Support**: Both immediate and deferred initialization patterns
-- **Selection Delegation**: The base class delegates selection to the derived policy's `select_impl()` method
+- **Selection Delegation**: The base class delegates selection to the derived policy's `__try_select_impl()` method
 - **Submission Handling**: All submission operations are forwarded to the backend
 - **Error Handling**: Proper error checking for uninitialized policies
 
@@ -56,22 +53,25 @@ customization while providing sensible defaults for resource management and back
 The proposed `policy_base` class provides core functionality that derived policies can customize:
 
 ```cpp
-template <typename Policy, typename ResourceType, typename Backend>
+template <typename Policy, typename ResourceType, typename Backend, typename ReportingReqs reqs...>
 class policy_base 
 {
   protected:
     using backend_t = Backend;
     using resource_container_t = typename backend_t::resource_container_t;
     using execution_resource_t = typename backend_t::execution_resource_t;
+    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
 
   public:
     using resource_type = decltype(unwrap(std::declval<execution_resource_t>()));
-    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
 
   protected:
     std::shared_ptr<backend_t> backend_;
+    std::tuple<ReportingReqs> reporting_reqs;
 
   public:
+    policy_base(ReportingReqs reqs...);
+
     // Resource management
     auto get_resources() const;
     
@@ -80,13 +80,14 @@ class policy_base
     template <typename... Args>
     void initialize(const std::vector<resource_type>& u, Args... args);
     
-    // Selection delegation
-    template <typename... Args>
-    auto select(Args&&... args);
-    
-    // Submission delegation
-    template <typename selection_type, typename Function, typename... Args>
-    auto submit(selection_type e, Function&& f, Args&&... args);
+    // Submission delegation(s)
+    auto try_submit(Function&& f, Args&&... args);
+
+    template <typename Function, typename... Args>
+    auto submit(Function&& f, Args&&... args);
+
+    template <typename Function, typename... Args>
+    void submit_and_wait(Function&& f, Args&&... args);
     
     // Group operations
     auto get_submission_group();
@@ -107,16 +108,28 @@ void initialize_impl() {
 }
 ```
 
-#### `select_impl()` Implementation  
+#### `__try_select_impl()` Implementation  
 Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
-selection_type select_impl(Args&&... args) {
+std::optional<selection_type> __try_select_impl(Args&&... args) {
     // Implement selection logic here
-    // Return selection_type{*this, selected_resource}
+    // Return std::optional{selection_type{*this, selected_resource}}
 }
 ```
+
+#### Task Reporting Requirements
+
+Policies must also specify what reporting requirements the background is required to support to serve this policy. These
+requirements are specified as objects of the following structs: `task_time_t`, `task_submission_t`, `task_completion_t`
+in the namespace `oneapi::dpl::experimental::execution_info` and passed to the `policy_base` constructor. They will then
+be passed to the backend constructor when initialization occurs, and devices will be filtered based upon the
+availability of features required for these reporting requirements.
+
+`auto_tune_policy` requires `task_time_t`, and `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
+
+When creating a selection handle for your policy, you must include a member variable `scratch_space` of type `backend_traits::selection_scratch_t<Backend, reqs...>` where `Backend` is your backend and `reqs` is a variadic pack of reporting requirements needed for your policy. This allows the backend to have the storage it needs allocated alongside each selection handle to implement instrumentation for the reporting requirements.
 
 ## Examples of Policy Implementation
 
@@ -137,10 +150,10 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
         std::atomic<resource_container_size_t> next_context_;
     };
     std::shared_ptr<selector_t> selector_;
+    using selection_type = base_t::selection_type;
 
   public:
     using resource_type = typename base_t::resource_type;
-    using typename base_t::selection_type;
 
     // Constructors
     round_robin_policy() { base_t::initialize(); }
@@ -162,7 +175,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     // Round-robin selection strategy
     template <typename... Args>
-    selection_type select_impl(Args&&...) {
+    std::optional<selection_type> __try_select_impl(Args&&...) {
         if (selector_) {
             resource_container_size_t current;
             // Atomic round-robin selection
@@ -172,7 +185,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
                 if (selector_->next_context_.compare_exchange_strong(current, next)) 
                     break;
             }
-            return selection_type{*this, selector_->resources_[current]};
+            return std::make_optional<selection_type>{*this, selector_->resources_[current]};
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -225,8 +238,8 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     resource_container_t resources_;
 
-  public:
     using selection_type = dl_selection_handle_t<dynamic_load_policy>;
+  public:
 
     // Initialization with load tracking setup
     void initialize_impl() {
@@ -240,14 +253,14 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Load-based selection strategy
     template <typename... Args>
-    selection_type select_impl(Args&&...) {
+    std::optional<selection_type> __try_select_impl(Args&&...) {
         if (!resources_.empty()) {
             // Find resource with minimum load
             auto min_resource = std::min_element(resources_.begin(), resources_.end(),
                 [](const auto& a, const auto& b) {
                     return a->load_.load() < b->load_.load();
                 });
-            return selection_type{*this, *min_resource};
+            return std::make_optional<selection_type>{*this, *min_resource};
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -290,10 +303,10 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     typename base_t::resource_container_t resources_;
     std::random_device rd_;
     std::mt19937 gen_;
+    using typename base_t::selection_type;
 
   public:
     using resource_type = typename base_t::resource_type;
-    using typename base_t::selection_type;
 
     random_policy() : gen_(rd_()) { base_t::initialize(); }
     random_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) 
@@ -304,11 +317,11 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     }
 
     template <typename... Args>
-    selection_type select_impl(Args&&...) {
+    std::optional<selection_type> select_impl(Args&&...) {
         if (!resources_.empty()) {
             std::uniform_int_distribution<> dis(0, resources_.size() - 1);
             auto index = dis(gen_);
-            return selection_type{*this, resources_[index]};
+            return std::make_optional<selection_type>{*this, resources_[index]};
         } else {
             throw std::logic_error("select called before initialization");
         }
