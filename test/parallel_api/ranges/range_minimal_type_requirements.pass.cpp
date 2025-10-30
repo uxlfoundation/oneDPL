@@ -270,23 +270,12 @@ int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
-    try
-    {
-        call_test_algo<test_count>();
-        call_test_algo<test_merge>();
-        call_test_algo<test_copy_if>();
-        call_test_algo<test_transform>();
-    }
-    catch (const std::exception& exc)
-    {
-        std::stringstream str;
 
-        str << "Exception occurred";
-        if (exc.what())
-            str << " : " << exc.what();
+    call_test_algo<test_count>    ();
+    call_test_algo<test_merge>    ();
+    call_test_algo<test_copy_if>  ();
+    call_test_algo<test_transform>();
 
-        TestUtils::issue_error_message(str);
-    }
 #endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
