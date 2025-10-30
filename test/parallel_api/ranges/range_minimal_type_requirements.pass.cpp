@@ -115,7 +115,7 @@ struct test_merge
         auto v2_end = v2_begin + v2.size();
 
         auto v3_begin = sycl::malloc_shared<TestingType>(v1.size() + v2.size(), queue);
-        auto v3_end = v3_begin + 2 * v1.size() + v2.size();
+        auto v3_end = v3_begin + v1.size() + v2.size();
 
         std::memcpy(v1_begin, v1.data(), v1.size() * sizeof(TestingType));
         std::memcpy(v2_begin, v2.data(), v2.size() * sizeof(TestingType));
