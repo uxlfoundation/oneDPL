@@ -1375,7 +1375,7 @@ template <typename ForwardIterator>
 std::size_t
 size(MinimalisticView<ForwardIterator> view)
 {
-    return std::distance(view.it_begin, view.it_end);
+    return view.it_end - view.it_begin;
 }
 
 #endif // _ENABLE_STD_RANGES_TESTING
