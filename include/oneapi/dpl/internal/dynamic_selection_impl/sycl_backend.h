@@ -186,6 +186,11 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     template <typename T = ResourceAdapter, typename... ReportReqs >
     default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs)
     {
+	static_assert(((std::is_same_v<ReportReqs, execution_info::task_submission_t> ||
+			std::is_same_v<ReportReqs, execution_info::task_completion_t> ||
+	                std::is_same_v<ReportReqs, execution_info::task_time_t>) && ...),
+		        "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
+
         initialize_default_resources(report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
     }
@@ -300,9 +305,15 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                     this->resources_.push_back(sycl::queue{x, prop_list});
             }
 
-            static_assert(this->resources_.size() > 0,  "Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
-				                        "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
-					                "both of these are required to time kernels.");
+	    if (this->resources_.empty())
+	    {
+                throw std::runtime_error("Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
+				         "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
+					 "both of these are required to time kernels.");
+	    }
+#else
+	    static_assert(false, "SYCL_EXT_ONEAPI_PROFILING_TAG is not defined, but it is required to time kernels. Please use "
+		                 "a SYCL version that supports this tag");
 #endif
 	}
 	else // other reporting requirements beside task_time
