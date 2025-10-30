@@ -775,8 +775,6 @@ __get_subscription_view(_Range&& __rng)
     return std::forward<_Range>(__rng);
 }
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-
 template <typename _Source, typename _Base = std::decay_t<_Source>>
 struct __subscription_impl_view_simple : _Base
 {
@@ -806,19 +804,19 @@ struct __subscription_impl_view_simple : _Base
     constexpr auto
     begin() const
     {
-        return std::ranges::begin(get_base_ref());
+        return __begin(get_base_ref());
     }
 
     constexpr auto
     end() const
     {
-        return std::ranges::end(get_base_ref());
+        return __end(get_base_ref());
     }
 
     constexpr auto
     size() const
     {
-        return std::ranges::size(get_base_ref());
+        return __size(get_base_ref());
     }
 
     decltype(auto)
@@ -849,7 +847,6 @@ __get_subscription_view(_Range&& __rng)
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
 }
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __ranges
 } // namespace dpl
