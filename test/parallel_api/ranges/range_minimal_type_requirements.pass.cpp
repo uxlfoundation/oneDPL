@@ -62,7 +62,7 @@ struct test_count
         auto v1_begin = sycl::malloc_shared<TestingType>(v.size(), queue);
         auto v1_end = v1_begin + v.size();
 
-        std::uninitialized_copy(v1_begin, v.data(), v.size() * sizeof(TestingType));
+        std::uninitialized_copy(v.begin(), v.end(), v1_begin);
 
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
 
@@ -118,9 +118,9 @@ struct test_merge
         auto v3_begin = sycl::malloc_shared<TestingType>(v1.size() + v2.size(), queue);
         auto v3_end = v3_begin + v1.size() + v2.size();
 
-        std::uninitialized_copy(v1_begin, v1.data(), v1.size() * sizeof(TestingType));
-        std::uninitialized_copy(v2_begin, v2.data(), v2.size() * sizeof(TestingType));
-        std::uninitialized_copy(v3_begin, v3.data(), (v1.size() + v2.size()) * sizeof(TestingType));
+        std::uninitialized_copy(v1.begin(), v1.end(), v1_begin);
+        std::uninitialized_copy(v2.begin(), v2.end(), v2_begin);
+        std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r2(v2_begin, v2_end);
@@ -174,8 +174,8 @@ struct test_copy_if
         auto v3_begin = sycl::malloc_shared<TestingType>(v3.size(), queue);
         auto v3_end = v3_begin + v3.size();
 
-        std::uninitialized_copy(v1_begin, v1.data(), v1.size() * sizeof(TestingType));
-        std::uninitialized_copy(v3_begin, v3.data(), v3.size() * sizeof(TestingType));
+        std::uninitialized_copy(v1.begin(), v1.end(), v1_begin);
+        std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r3(v3_begin, v3_end);
@@ -233,9 +233,9 @@ struct test_transform
         auto v3_end = v3_begin + v3_expected.size();
 
         TestingVector v3(v1.size());
-        std::uninitialized_copy(v1_begin, v1.data(), sizeof(TestingType) * v1.size());
-        std::uninitialized_copy(v2_begin, v2.data(), sizeof(TestingType) * v2.size());
-        std::uninitialized_copy(v3_begin, v3.data(), sizeof(TestingType) * v3_expected.size());
+        std::uninitialized_copy(v1.begin(), v1.end(), v1_begin);
+        std::uninitialized_copy(v2.begin(), v2.end(), v2_begin);
+        std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r2(v2_begin, v2_end);
