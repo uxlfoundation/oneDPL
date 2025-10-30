@@ -1372,8 +1372,8 @@ end(MinimalisticView<ForwardIterator> view)
 }
 
 template <typename ForwardIterator>
-auto
-size(MinimalisticView<ForwardIterator> view)
+std::size_t
+size(const MinimalisticView<ForwardIterator>& view)
 {
     return std::distance(view.it_begin, view.it_end);
 }
@@ -1382,6 +1382,7 @@ using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
 
 static_assert(std::ranges::range<MinimalisticRangeForIntVec>);
+static_assert(std::ranges::sized_range<MinimalisticRangeForIntVec>);
 static_assert(std::ranges::view<MinimalisticRangeForIntVec>);
 
 // Check all forms of begin() function
