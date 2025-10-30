@@ -802,7 +802,7 @@ struct __subscription_impl_view_simple : _Base
     __subscription_impl_view_simple&
     operator=(__subscription_impl_view_simple&&) = default;
 
-    constexpr auto
+    auto
     size() const
     {
         // We need to define this function to redirect the ADL mechanism from our (enclosing) class
