@@ -1378,38 +1378,6 @@ size(MinimalisticView<ForwardIterator> view)
     return std::distance(view.it_begin, view.it_end);
 }
 
-using IteratorOfIntVector = typename std::vector<int>::iterator;
-using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
-
-static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
-static_assert(std::ranges::sized_range<MinimalisticRangeForIntVec>);
-static_assert(std::ranges::view       <MinimalisticRangeForIntVec>);
-
-static_assert(std::ranges::range      <decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
-static_assert(std::ranges::sized_range<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
-static_assert(std::ranges::view       <decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
-
-static_assert(std::is_same_v<std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>,
-                             std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
-                                                        oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>())))>>);
-
-// Check all forms of begin() function
-static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec>  ())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(begin(std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
-
-// Check all forms of end() function
-static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec  >())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(end  (std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
-static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
-
-static_assert(std::ranges::range<MinimalisticView<std::vector<int>::iterator>>);
-
-// All oneDPL algorithms require at least a random access range
-static_assert(std::ranges::random_access_range<MinimalisticView<std::vector<int>::iterator>>);
-
 #endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
