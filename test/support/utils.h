@@ -1371,13 +1371,6 @@ end(MinimalisticView<RandomIt> view)
     return view.it_end;
 }
 
-template <typename RandomIt>
-std::size_t
-size(MinimalisticView<RandomIt> view)
-{
-    return view.it_end - view.it_begin;
-}
-
 #endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
