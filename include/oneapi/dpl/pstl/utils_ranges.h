@@ -758,7 +758,7 @@ struct __has_subscription_op : std::false_type
 };
 
 template <typename _R>
-struct __has_subscription_op<_R, std::void_t<decltype(std::declval<std::decay_t<_R>>().operator[](0))>> : std::true_type
+struct __has_subscription_op<_R, std::void_t<decltype(std::declval<_R>().operator[](0))>> : std::true_type
 {
 };
 
