@@ -226,20 +226,17 @@ template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 
 template <std::size_t _RngIndex>
-class __nth_range_size
+struct __nth_range_size
 {
+  private:
     template <std::size_t _RngIndexCurrent, typename _Range, typename... _Ranges>
     auto
     __nth_range_size_impl(const _Range& __rng, const _Ranges&... __rngs) const
     {
         if constexpr (_RngIndexCurrent == _RngIndex)
-        {
             return __size(__rng);
-        }
         else
-        {
             return __nth_range_size_impl<_RngIndexCurrent + 1>(__rngs...);
-        }
     }
 
   public:
