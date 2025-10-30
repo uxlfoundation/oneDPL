@@ -803,22 +803,6 @@ struct __subscription_impl_view_simple : _Base
     operator=(__subscription_impl_view_simple&&) = default;
 
     constexpr auto
-    begin() const
-    {
-        // We need to define this function to redirect the ADL mechanism from our (enclosing) class
-        // to the corresponding call for our base class
-        return __begin(get_base_ref());
-    }
-
-    constexpr auto
-    end() const
-    {
-        // We need to define this function to redirect the ADL mechanism from our (enclosing) class
-        // to the corresponding call for our base class
-        return __end(get_base_ref());
-    }
-
-    constexpr auto
     size() const
     {
         // We need to define this function to redirect the ADL mechanism from our (enclosing) class
@@ -830,7 +814,7 @@ struct __subscription_impl_view_simple : _Base
     operator[](index_type __i) const
     {
         assert(__i < size());
-        return *std::next(begin(), __i);
+        return *std::next(__begin(get_base_ref()), __i);
     }
 
   protected:
