@@ -98,7 +98,7 @@ std::enable_if_t<!__has_size<_Range>::value,
                  decltype(std::distance(__begin(std::declval<_Range>()), __end(std::declval<_Range>())))>
 __size(_Range&& __rng)
 {
-    return std::distance(__begin(__rng), __end(__rng));
+    return __end(__rng) - __begin(__rng);
 }
 #endif
 
