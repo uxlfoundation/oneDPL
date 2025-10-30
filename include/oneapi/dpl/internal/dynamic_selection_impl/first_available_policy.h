@@ -127,7 +127,7 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
                     {
                         if (r->availability_.compare_exchange_weak(expected, expected + 1))
                         {
-                            available_resource = ::std::move(r);
+                            available_resource = std::move(r);
                             return selection_type{first_available_policy<ResourceType, Backend>(*this),
                                                   available_resource};
                         }

@@ -54,20 +54,20 @@ class fixed_resource_policy
     using resource_type = typename base_t::resource_type;
     using typename base_t::backend_t;
 
-    fixed_resource_policy(::std::size_t index = 0)
+    fixed_resource_policy(std::size_t index = 0)
     {
         base_t::initialize();
         selector_->index_ = index;
     }
     fixed_resource_policy(deferred_initialization_t) {}
 
-    fixed_resource_policy(const std::vector<resource_type>& u, ::std::size_t index = 0)
+    fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
     {
         base_t::initialize(u, oneapi::dpl::identity());
         selector_->index_ = index;
     }
 
-    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, ::std::size_t index = 0)
+    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0)
     {
         base_t::initialize(u, adapter);
         selector_->index_ = index;

@@ -139,7 +139,7 @@ class token_policy : public policy_base<token_policy<ResourceType, ResourceAdapt
                 {
                     if (r->availability_.compare_exchange_weak(expected, expected + 1))
                     {
-                        available_resource = ::std::move(r);
+                        available_resource = std::move(r);
                         auto token = std::make_shared<token_t>(available_resource->availability_);
                         return std::make_optional<selection_type>(
                             token_policy<ResourceType, ResourceAdapter, Backend>(*this), available_resource, token);
