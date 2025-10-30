@@ -1342,7 +1342,7 @@ struct NoDefaultCtorWrapper {
 
 #if _ENABLE_STD_RANGES_TESTING
 
-// A minimalistic range to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
+// A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
 // which are not required for a class to be considered a range.
 // Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
 template <typename RandomIt>
