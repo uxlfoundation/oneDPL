@@ -112,23 +112,28 @@ struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std:
 {
 };
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 bool
 __empty(_Range&& __rng)
 {
-#if _ONEDPL_CPP20_RANGES_PRESENT
     return std::ranges::empty(__rng);
-#else
-    if constexpr (__has_empty<_Range>::value)
-    {
-        return __rng.empty();
-    }
-    else
-    {
-        return __size(__rng) == 0;
-    }
-#endif
 }
+#else
+template <typename _Range>
+std::enable_if_t<__has_empty<_Range>::value, bool>
+__empty(_Range&& __rng)
+{
+    return __rng.empty();
+}
+
+template <typename _Range>
+std::enable_if_t<!__has_empty<_Range>::value, bool>
+__empty(_Range&& __rng)
+{
+    return __size(__rng) == 0;
+}
+#endif
 
 } // namespace __ranges
 
