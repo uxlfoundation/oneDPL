@@ -69,6 +69,14 @@ __end(_Range&& __rng) -> decltype(__rng.end())
 }
 #endif
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+auto
+__size(_Range&& __rng) -> decltype(std::ranges::size(std::forward<_Range>(__rng)))
+{
+    return std::ranges::size(std::forward<_Range>(__rng));
+}
+#else
 template <typename _R, typename = void>
 struct __has_size : std::false_type
 {
@@ -79,14 +87,6 @@ struct __has_size<_R, std::void_t<decltype(std::declval<_R>().size())>> : std::t
 {
 };
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-auto
-__size(_Range&& __rng) -> decltype(std::ranges::size(std::forward<_Range>(__rng)))
-{
-    return std::ranges::size(std::forward<_Range>(__rng));
-}
-#else
 template <typename _Range>
 std::enable_if_t<__has_size<_Range>::value, decltype(std::declval<_Range>().size())>
 __size(_Range&& __rng)
@@ -103,6 +103,14 @@ __size(_Range&& __rng)
 }
 #endif
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Range>
+bool
+__empty(_Range&& __rng)
+{
+    return std::ranges::empty(__rng);
+}
+#else
 template <typename _R, typename = void>
 struct __has_empty : std::false_type
 {
@@ -113,14 +121,6 @@ struct __has_empty<_R, std::void_t<decltype(std::declval<_R>().empty())>> : std:
 {
 };
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Range>
-bool
-__empty(_Range&& __rng)
-{
-    return std::ranges::empty(__rng);
-}
-#else
 template <typename _Range>
 std::enable_if_t<__has_empty<_Range>::value, bool>
 __empty(_Range&& __rng)
