@@ -1345,35 +1345,35 @@ struct NoDefaultCtorWrapper {
 // A minimalistic range to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
 // which are not required for a class to be considered a range.
 // Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
-template <typename ForwardIterator>
+template <typename RandomIt>
 struct MinimalisticView : std::ranges::view_base
 {
-    ForwardIterator it_begin;
-    ForwardIterator it_end;
+    RandomIt it_begin;
+    RandomIt it_end;
 
-    MinimalisticView(ForwardIterator it_begin, ForwardIterator it_end) 
+    MinimalisticView(RandomIt it_begin, RandomIt it_end) 
         : it_begin(it_begin), it_end(it_end)
     {
     }
 };
 
-template <typename ForwardIterator>
-ForwardIterator
-begin(MinimalisticView<ForwardIterator> view)
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticView<RandomIt> view)
 {
     return view.it_begin;
 }
 
-template <typename ForwardIterator>
-ForwardIterator
-end(MinimalisticView<ForwardIterator> view)
+template <typename RandomIt>
+RandomIt
+end(MinimalisticView<RandomIt> view)
 {
     return view.it_end;
 }
 
-template <typename ForwardIterator>
+template <typename RandomIt>
 std::size_t
-size(MinimalisticView<ForwardIterator> view)
+size(MinimalisticView<RandomIt> view)
 {
     return view.it_end - view.it_begin;
 }
