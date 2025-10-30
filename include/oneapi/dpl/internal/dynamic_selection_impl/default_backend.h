@@ -43,7 +43,7 @@ class backend_base
     template <typename... Req>
     struct scratch_t : public no_scratch_t<Req...>
     {
-        // default backend does not support any reporting requirements and has no scratch space needs.
+        // default backend does not support any reporting requirements and has no scratch space needs
     };
 
     backend_base() {}
