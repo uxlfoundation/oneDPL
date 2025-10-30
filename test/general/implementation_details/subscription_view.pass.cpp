@@ -17,14 +17,14 @@
 
 #include "support/utils.h"
 
-#ifdef TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 #endif
 
 int
 main()
 {
-#ifdef TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT
     using IntVector = std::vector<int>;
 
     // Check that __get_subscription_view on IntVector produces the same type
