@@ -171,7 +171,7 @@ struct test_copy_if
         auto v1_end = v1_begin + v1.size();
 
         auto v3_begin = sycl::malloc_shared<TestingType>(v3.size(), queue);
-        auto v3_end = v1_begin + v3.size();
+        auto v3_end = v3_begin + v3.size();
 
         std::memcpy(v1_begin, v1.data(), v1.size() * sizeof(TestingType));
         std::memcpy(v3_begin, v3.data(), v3.size() * sizeof(TestingType));
