@@ -772,70 +772,42 @@ __get_subscription_view(_Range&& __rng)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
-// struct subscription_view_simple - holds source range if it's temporary object
-// or reference to it otherwise and provides operator[] access to elements.
-template <typename _BaseRange, typename _BaseRangeHolder = std::decay_t<_BaseRange>>
-struct subscription_view_simple : _BaseRangeHolder
+template <typename _Source, typename _Base = std::decay_t<_Source>>
+struct __subscription_impl_view_simple : _Base
 {
-    using value_type = oneapi::dpl::__internal::__value_t<_BaseRangeHolder>;
+    static_assert(
+        !__has_subscription_op<_Base>::value,
+        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
-    template <typename _Rng>
-    explicit subscription_view_simple(_Rng&& __rng)
-        : _BaseRangeHolder(std::forward<_Rng>(__rng))
+    using value_type = oneapi::dpl::__internal::__value_t<_Base>;
+    using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
+
+    // Define default constructors
+    __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
+
+    // Define custom constructor to forward arguments to the base class
+    template <typename... _Args>
+    __subscription_impl_view_simple(_Args&&... __args) : _Base(std::forward<_Args>(__args)...)
     {
     }
 
-    subscription_view_simple(const subscription_view_simple&) = default;
-    //subscription_view_simple(subscription_view_simple&&) = default;
+    // Define default operator=
+    __subscription_impl_view_simple&
+    operator=(const __subscription_impl_view_simple&) = default;
+    __subscription_impl_view_simple&
+    operator=(__subscription_impl_view_simple&&) = default;
 
-    subscription_view_simple& operator=(const subscription_view_simple&) = default;
-    //subscription_view_simple& operator=(subscription_view_simple&&) = default;
-
-    // TODO is it really needed?
-    auto
-    size() const -> decltype(oneapi::dpl::__ranges::__size(std::declval<_BaseRangeHolder>()))
+    decltype(auto)
+    operator[](index_type __i)
     {
-        return oneapi::dpl::__ranges::__size(get_base_ref());
+        return *std::next(_Base::begin(), __i);
     }
 
-    // TODO is it really needed?
-    bool
-    empty() const
+    decltype(auto)
+    operator[](index_type __i) const
     {
-        return oneapi::dpl::__ranges::__empty(get_base_ref());
-    }
-
-    // TODO is it really needed?
-    _BaseRangeHolder
-    base() const
-    {
-        return get_base_ref();
-    }
-
-    template <typename _Idx>
-    constexpr decltype(auto)
-    operator[](_Idx __idx)
-    {
-        return *(std::ranges::begin(get_base_ref()) + __idx);
-    }
-
-    template <typename _Idx>
-    constexpr decltype(auto)
-    operator[](_Idx __idx) const
-    {
-        return *(std::ranges::begin(get_base_ref()) + __idx);
-    }
-
-protected:
-
-    _BaseRangeHolder& get_base_ref()
-    {
-        return *static_cast<_BaseRangeHolder*>(this);
-    }
-
-    const _BaseRangeHolder& get_base_ref() const
-    {
-        return *static_cast<const _BaseRangeHolder*>(this);
+        return *std::next(_Base::begin(), __i);
     }
 };
 
@@ -843,9 +815,9 @@ template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_R
 auto
 __get_subscription_view(_Range&& __rng)
 {
-    // If the range supports doesn't support operator[] wrap it with subscription_view_simple
+    // If the range supports doesn't support operator[] wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if bnecessary (for temporary ranges).
-    return subscription_view_simple<_Range>(std::forward<_Range>(__rng));
+    return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
