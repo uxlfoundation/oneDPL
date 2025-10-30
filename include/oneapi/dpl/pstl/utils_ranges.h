@@ -801,13 +801,13 @@ struct __subscription_impl_view_simple : _Base
     decltype(auto)
     operator[](index_type __i)
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(std::ranges::begin(*this), __i);
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        return *std::next(_Base::begin(), __i);
+        return *std::next(std::ranges::begin(*this), __i);
     }
 };
 
