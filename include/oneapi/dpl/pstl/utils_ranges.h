@@ -809,6 +809,26 @@ struct __subscription_impl_view_simple : _Base
     {
         return *std::next(std::ranges::begin(*this), __i);
     }
+
+    constexpr auto begin()
+    {
+        return std::ranges::begin(get_base_ref());
+    }
+
+    constexpr auto end()
+    {
+        return std::ranges::end(get_base_ref());
+    }
+
+    constexpr auto size()
+    {
+        return std::ranges::size(get_base_ref());
+    }
+
+protected:
+
+    _Base&       get_base_ref()       { return static_cast<      _Base&>(*this); }
+    const _Base& get_base_ref() const { return static_cast<const _Base&>(*this); }
 };
 
 template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
