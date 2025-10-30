@@ -1373,7 +1373,7 @@ end(MinimalisticView<ForwardIterator> view)
 
 template <typename ForwardIterator>
 std::size_t
-size(const MinimalisticView<ForwardIterator>& view)
+size(MinimalisticView<ForwardIterator> view)
 {
     return std::distance(view.it_begin, view.it_end);
 }
