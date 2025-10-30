@@ -798,17 +798,20 @@ struct __subscription_impl_view_simple : _Base
     __subscription_impl_view_simple&
     operator=(__subscription_impl_view_simple&&) = default;
 
-    constexpr auto begin() const
+    constexpr auto
+    begin() const
     {
         return std::ranges::begin(get_base_ref());
     }
 
-    constexpr auto end() const
+    constexpr auto
+    end() const
     {
         return std::ranges::end(get_base_ref());
     }
 
-    constexpr auto size() const
+    constexpr auto
+    size() const
     {
         return std::ranges::size(get_base_ref());
     }
@@ -820,10 +823,17 @@ struct __subscription_impl_view_simple : _Base
         return *std::next(begin(), __i);
     }
 
-protected:
-
-    _Base&       get_base_ref()       { return static_cast<      _Base&>(*this); }
-    const _Base& get_base_ref() const { return static_cast<const _Base&>(*this); }
+  protected:
+    _Base&
+    get_base_ref()
+    {
+        return static_cast<_Base&>(*this);
+    }
+    const _Base&
+    get_base_ref() const
+    {
+        return static_cast<const _Base&>(*this);
+    }
 };
 
 template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
