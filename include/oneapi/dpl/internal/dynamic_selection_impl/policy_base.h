@@ -28,7 +28,7 @@ namespace dpl
 namespace experimental 
 {
 
-template <typename Policy, typename ResourceType, typename Backend>
+template <typename Policy, typename ResourceType, typename Backend, typename... ReportReqs>
 class policy_base 
 {
   protected:
@@ -38,6 +38,7 @@ class policy_base
     using execution_resource_t = typename backend_t::execution_resource_t;
     using wrapped_resource_t = execution_resource_t;
     using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
+    using report_reqs_t = std::tuple<ReportReqs...>;
 
   public:
     using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
@@ -56,7 +57,7 @@ class policy_base
     void 
     initialize()
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>();
+        if (!backend_) backend_ = std::make_shared<backend_t>(report_reqs_t{});
         static_cast<Policy*>(this)->initialize_impl();
     }
 

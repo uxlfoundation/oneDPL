@@ -183,10 +183,10 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     default_backend_impl&
     operator=(const default_backend_impl&) = delete;
 
-    template <typename T = ResourceAdapter>
-    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0)
+    template <typename T = ResourceAdapter, typename... ReportReqs >
+    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs)
     {
-        initialize_default_resources();
+        initialize_default_resources(report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
     }
 
@@ -270,10 +270,12 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
     // it is the user's responsibilty to initialize the resources
-    template <typename T = ResourceAdapter>
+
+    template <typename T = ResourceAdapter, typename... ReportReqs>
     void
-    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0)
+    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... /*report_reqs*/)
     {
+
         bool profiling = true;
         auto prop_list = sycl::property_list{};
         auto devices = sycl::device::get_devices();
@@ -289,10 +291,27 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         {
             prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
         }
-        for (auto& x : devices)
-        {
-            this->resources_.push_back(sycl::queue{x, prop_list});
-        }
+        if constexpr((std::is_same_v<execution_info::task_time_t, ReportReqs> || ...))
+	{
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
+            for (auto& x : devices)
+            {
+                if (x.has(sycl::aspect::ext_oneapi_queue_profiling_tag))
+                    this->resources_.push_back(sycl::queue{x, prop_list});
+            }
+
+            static_assert(this->resources_.size() > 0,  "Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
+				                        "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
+					                "both of these are required to time kernels.");
+#endif
+	}
+	else // other reporting requirements beside task_time
+	{
+            for (auto& x : devices)
+            {
+                this->resources_.push_back(sycl::queue{x, prop_list});
+            }
+	}
     }
 };
 

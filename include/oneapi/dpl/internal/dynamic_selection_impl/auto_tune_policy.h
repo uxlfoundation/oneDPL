@@ -245,21 +245,10 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
             state_ = std::make_shared<state_t>();
             resample_time_ = resample_time;
             auto u = base_t::get_resources();
-#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
             for (size_type i = 0; i < u.size(); ++i)
             {
-                if (u[i].get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
-	        {
-                    state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
-	        }
+                state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
             }
-#endif
-	    if (state_->resources_with_index_.size() == 0)
-	    {
-                throw std::runtime_error("Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
-				         "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
-					 "both of these are required to time kernels.");
-	    }
 	}
     }
 
