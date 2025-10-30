@@ -16,8 +16,11 @@
 #include "support/utils.h"
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
-template <typename CustomName, typename Policy, typename ResourceContainer, typename FunctionType, typename FunctionType2, typename... Args>
-int run_dynamic_load_policy_tests(const ResourceContainer& resources, const FunctionType& f, const FunctionType2& f2, Args&&... args)
+template <typename CustomName, typename Policy, typename ResourceContainer, typename FunctionType,
+          typename FunctionType2, typename... Args>
+int
+run_dynamic_load_policy_tests(const ResourceContainer& resources, const FunctionType& f, const FunctionType2& f2,
+                              Args&&... args)
 {
     int result = 0;
 
@@ -26,8 +29,10 @@ int run_dynamic_load_policy_tests(const ResourceContainer& resources, const Func
     result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
     result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
     result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(
+        resources, f, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(
+        resources, f, std::forward<Args>(args)...);
 
     return result;
 }
@@ -61,7 +66,6 @@ build_dl_universe(std::vector<sycl::queue>& u)
 struct queue_load;
 struct queue_ptr_load;
 
-
 int
 main()
 {
@@ -78,8 +82,10 @@ main()
     if (n != 0)
     {
         // Test with direct sycl::queue resources
-        using policy_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
-        
+        using policy_t =
+            oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity,
+                                                           oneapi::dpl::experimental::default_backend<sycl::queue>>;
+
         // should be similar to round_robin when waiting on policy
         auto f = [u](int i) { return u[i % u.size()]; };
         auto f2 = [u](int) { return u[0]; };
@@ -89,12 +95,14 @@ main()
         EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_load, policy_t>(u, f, f2)), "");
 
         // Test with sycl::queue* resources and dereference adapter
-        auto deref_op = [](auto pointer){return *pointer;};
-        using policy_pointer_t = oneapi::dpl::experimental::dynamic_load_policy<sycl::queue*, decltype(deref_op), oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
-        
+        auto deref_op = [](auto pointer) { return *pointer; };
+        using policy_pointer_t = oneapi::dpl::experimental::dynamic_load_policy<
+            sycl::queue*, decltype(deref_op),
+            oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
+
         std::vector<sycl::queue*> u_ptrs;
         u_ptrs.reserve(u.size());
-        for (auto& e: u)
+        for (auto& e : u)
         {
             u_ptrs.push_back(&e);
         }
@@ -102,7 +110,9 @@ main()
         auto f2_ptrs = [u_ptrs](int) { return u_ptrs[0]; };
 
         std::cout << "\nRunning dynamic load tests for sycl::queue* ...\n";
-        EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)), "");
+        EXPECT_EQ(0,
+                  (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
+                  "");
 
         bProcessed = true;
     }

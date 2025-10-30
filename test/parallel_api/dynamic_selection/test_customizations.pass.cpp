@@ -26,7 +26,8 @@ test_no_customizations()
 
     trace = 0;
     oneapi::dpl::experimental::submit_and_wait(p, [](int i) { return i; });
-    EXPECT_EQ((int)(t_select | t_submit_function | t_wait), trace, "ERROR: unexpected trace of submit_and_wait function");
+    EXPECT_EQ((int)(t_select | t_submit_function | t_wait), trace,
+              "ERROR: unexpected trace of submit_and_wait function");
 
     std::cout << "test_no_customizations: OK\n";
 

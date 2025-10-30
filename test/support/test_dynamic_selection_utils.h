@@ -27,34 +27,38 @@ using new_kernel_name = unique_kernel_name<std::decay_t<Policy>, idx>;
 
 // Helper to check if backend defines a wait_type
 template <typename T, typename = void> //assumes wait_type does not exist
-struct get_wait_type {
+struct get_wait_type
+{
     using type = int; //defaults to int
 };
 
 template <typename T> //specialization if wait_type exists
-struct get_wait_type<T, std::void_t<typename T::wait_type>> {
+struct get_wait_type<T, std::void_t<typename T::wait_type>>
+{
     using type = typename T::wait_type;
 };
 } // namespace TestUtils
 
-
 //resource providing a wait functionality
-struct DummyResource 
+struct DummyResource
 {
     int value;
 
     DummyResource(int v) : value(v) {}
-    bool operator==(const DummyResource& other) const 
+    bool
+    operator==(const DummyResource& other) const
     {
         return value == other.value;
     }
 
-    bool operator!=(const DummyResource& other) const 
+    bool
+    operator!=(const DummyResource& other) const
     {
         return !(*this == other);
     }
 
-    void wait()
+    void
+    wait()
     {
     }
 };
@@ -158,8 +162,8 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args...
                     pass = false;
                 }
                 ecount += i;
-                if constexpr (std::is_same_v<
-                                    typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
                     return e;
                 else
                     return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
@@ -198,8 +202,8 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args...
                     pass = false;
                 }
                 ecount += i;
-                if constexpr (std::is_same_v<
-                                    typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
                     return e;
                 else
                     return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
@@ -243,8 +247,8 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
                     pass = false;
                 }
                 ecount += i;
-                if constexpr (std::is_same_v<
-                                    typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
                     return e;
                 else
                     return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};

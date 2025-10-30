@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #ifndef _ONEDPL_POLICY_BASE_H
 #define _ONEDPL_POLICY_BASE_H
 
@@ -21,15 +20,15 @@
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
 
-namespace oneapi 
+namespace oneapi
 {
-namespace dpl 
+namespace dpl
 {
-namespace experimental 
+namespace experimental
 {
 
 template <typename Policy, typename ResourceType, typename Backend, typename... ReportReqs>
-class policy_base 
+class policy_base
 {
   protected:
     using backend_t = Backend;
@@ -47,24 +46,27 @@ class policy_base
     std::shared_ptr<backend_t> backend_;
 
   public:
-    auto 
-    get_resources() const 
+    auto
+    get_resources() const
     {
-        if (backend_) return backend_->get_resources();
+        if (backend_)
+            return backend_->get_resources();
         throw std::logic_error("get_resources called before initialization");
     }
 
-    void 
+    void
     initialize()
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>(report_reqs_t{});
+        if (!backend_)
+            backend_ = std::make_shared<backend_t>(report_reqs_t{});
         static_cast<Policy*>(this)->initialize_impl();
     }
 
-    void 
+    void
     initialize(const std::vector<resource_type>& u)
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity());
+        if (!backend_)
+            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity());
         static_cast<Policy*>(this)->initialize_impl();
     }
 
@@ -72,7 +74,8 @@ class policy_base
     void
     initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
     {
-        if (!backend_) backend_ = std::make_shared<backend_t>(u, adapter);
+        if (!backend_)
+            backend_ = std::make_shared<backend_t>(u, adapter);
         static_cast<Policy*>(this)->initialize_impl(args...);
     }
 
@@ -91,8 +94,9 @@ class policy_base
 
     template <typename Function, typename... Args>
     auto //std::optional of the "wait type"
-    try_submit(Function&& f, Args&&... args) -> 
-        std::optional<decltype(backend_->submit(std::declval<decltype(select_impl(f, args...))>(), std::forward<Function>(f), std::forward<Args>(args)...))>
+    try_submit(Function&& f, Args&&... args)
+        -> std::optional<decltype(backend_->submit(std::declval<decltype(select_impl(f, args...))>(),
+                                                   std::forward<Function>(f), std::forward<Args>(args)...))>
     {
         if (backend_)
         {
@@ -104,7 +108,8 @@ class policy_base
             }
             else
             {
-                return std::make_optional<decltype(backend_->submit(e.value(), std::forward<Function>(f), std::forward<Args>(args)...))>(
+                return std::make_optional<decltype(backend_->submit(e.value(), std::forward<Function>(f),
+                                                                    std::forward<Args>(args)...))>(
                     backend_->submit(e.value(), std::forward<Function>(f), std::forward<Args>(args)...));
             }
         }
@@ -112,8 +117,8 @@ class policy_base
     }
 
     template <typename Function, typename... Args>
-    auto 
-    submit(Function&& f, Args&&... args) 
+    auto
+    submit(Function&& f, Args&&... args)
     {
         if (backend_)
         {
@@ -125,15 +130,17 @@ class policy_base
 
     template <typename Function, typename... Args>
     void
-    submit_and_wait(Function&& f, Args&&... args) 
+    submit_and_wait(Function&& f, Args&&... args)
     {
-        oneapi::dpl::experimental::wait(static_cast<Policy*>(this)->submit(std::forward<Function>(f), std::forward<Args>(args)...));
+        oneapi::dpl::experimental::wait(
+            static_cast<Policy*>(this)->submit(std::forward<Function>(f), std::forward<Args>(args)...));
     }
 
-    auto 
-    get_submission_group() 
+    auto
+    get_submission_group()
     {
-        if (backend_) return backend_->get_submission_group();
+        if (backend_)
+            return backend_->get_submission_group();
         throw std::logic_error("get_submission_group called before initialization");
     }
 };
@@ -143,4 +150,3 @@ class policy_base
 } // namespace oneapi
 
 #endif // _ONEDPL_POLICY_BASE_H
-

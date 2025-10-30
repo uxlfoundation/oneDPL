@@ -22,13 +22,17 @@ int
 test_auto_initialization(const std::vector<sycl::queue>& u)
 {
     // initialize
-    oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>> p{u};
+    oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity,
+                                                oneapi::dpl::experimental::default_backend<sycl::queue>>
+        p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     EXPECT_TRUE(std::equal(std::begin(u2), std::end(u2), std::begin(u)),
                 "ERROR: provided resources and queried resources are not equal\n");
 
     // deferred initialization
-    oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>> p2{oneapi::dpl::experimental::deferred_initialization};
+    oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity,
+                                                oneapi::dpl::experimental::default_backend<sycl::queue>>
+        p2{oneapi::dpl::experimental::deferred_initialization};
     try
     {
         auto u3 = oneapi::dpl::experimental::get_resources(p2);
@@ -444,7 +448,9 @@ main()
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
-    using policy_t = oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<sycl::queue>>;
+    using policy_t =
+        oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity,
+                                                    oneapi::dpl::experimental::default_backend<sycl::queue>>;
     std::vector<sycl::queue> u1;
     std::vector<sycl::queue> u2;
     constexpr bool use_event_profiling = true;

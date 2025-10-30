@@ -29,14 +29,19 @@ namespace experimental
 {
 
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
-template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend, execution_info::task_submission_t, execution_info::task_completion_t>
+class dynamic_load_policy
+    : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend,
+                         execution_info::task_submission_t, execution_info::task_completion_t>
 {
   protected:
-    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend, execution_info::task_submission_t, execution_info::task_completion_t>;
+    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend,
+                               execution_info::task_submission_t, execution_info::task_completion_t>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -50,7 +55,6 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     };
     using resource_container_t = std::vector<std::shared_ptr<resource_t>>;
 
-
     template <typename Policy>
     class dl_selection_handle_t
     {
@@ -59,10 +63,9 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
       public:
         dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {}
-        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_submission_t, execution_info::task_completion_t>;
+        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_submission_t,
+                                                                             execution_info::task_completion_t>;
         scratch_space_t scratch_space;
-        
-
 
         auto
         unwrap()
@@ -90,8 +93,6 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     };
     using selection_type = dl_selection_handle_t<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>>;
 
-
-
     struct selector_t
     {
         resource_container_t resources_;
@@ -106,20 +107,23 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
-    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) { base_t::initialize(u, adapter); }
+    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {})
+    {
+        base_t::initialize(u, adapter);
+    }
 
     void
     initialize_impl()
     {
         if (!selector_)
-	{
-	    selector_ = std::make_shared<selector_t>();
-	}
-	auto u = base_t::get_resources();
-	selector_->resources_.clear();
-    for (auto x : u)
-            {
-                selector_->resources_.push_back(std::make_shared<resource_t>(x));
+        {
+            selector_ = std::make_shared<selector_t>();
+        }
+        auto u = base_t::get_resources();
+        selector_->resources_.clear();
+        for (auto x : u)
+        {
+            selector_->resources_.push_back(std::make_shared<resource_t>(x));
             }
 
     }
@@ -129,8 +133,8 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
     try_select_impl(Args&&...)
     {
 
-        if (selector_)
-        {
+            if (selector_)
+            {
             std::shared_ptr<resource_t> least_loaded;
             int least_load = std::numeric_limits<load_t>::max();
 
@@ -144,7 +148,8 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
                     least_loaded = ::std::move(r);
                 }
             }
-            return std::make_optional<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
+            return std::make_optional<selection_type>(
+                dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
         }
         else
         {
@@ -154,7 +159,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 };
 
 //CTAD deduction guide for initializer_list
-template<typename T>
+template <typename T>
 dynamic_load_policy(std::initializer_list<T>) -> dynamic_load_policy<T>; //supports dynamic_load_policy p{ {t1, t2} }
 
 } // namespace experimental
@@ -162,4 +167,3 @@ dynamic_load_policy(std::initializer_list<T>) -> dynamic_load_policy<T>; //suppo
 } // namespace oneapi
 
 #endif // _ONEDPL_DYNAMIC_LOAD_POLICY_H
-

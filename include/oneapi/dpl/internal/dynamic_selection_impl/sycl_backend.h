@@ -38,7 +38,9 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
   private:
     // Base template for scratch storage - empty by default
     template <bool HasStart>
-    struct scratch_storage {};
+    struct scratch_storage
+    {
+    };
 
     // Specialization: needs start event for timing
     template <>
@@ -52,11 +54,11 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     // The return type for user functions must be a sycl::event (to be able to judge completion for lazy reporting of task_completeion)
     using wait_type = sycl::event;
-    
+
     template <typename... Req>
-    struct scratch_t : scratch_storage<
-        execution_info::contains_reporting_req_v<execution_info::task_time_t, Req...>>
-    {};
+    struct scratch_t : scratch_storage<execution_info::contains_reporting_req_v<execution_info::task_time_t, Req...>>
+    {
+    };
 
     using execution_resource_t = resource_type;
     using resource_container_t = std::vector<execution_resource_t>;
@@ -104,8 +106,10 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                 if (s != nullptr)
                 {
                     const auto time_start =
-                        s->scratch_space.my_start_event.template get_profiling_info<sycl::info::event_profiling::command_start>();
-                    const auto time_end = my_end_event.template get_profiling_info<sycl::info::event_profiling::command_end>();
+                        s->scratch_space.my_start_event
+                            .template get_profiling_info<sycl::info::event_profiling::command_start>();
+                    const auto time_end =
+                        my_end_event.template get_profiling_info<sycl::info::event_profiling::command_end>();
 
                     s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
                                                              std::chrono::nanoseconds(time_end - time_start)));
@@ -183,13 +187,14 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     default_backend_impl&
     operator=(const default_backend_impl&) = delete;
 
-    template <typename T = ResourceAdapter, typename... ReportReqs >
+    template <typename T = ResourceAdapter, typename... ReportReqs>
     default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs)
     {
-	static_assert(((std::is_same_v<ReportReqs, execution_info::task_submission_t> ||
-			std::is_same_v<ReportReqs, execution_info::task_completion_t> ||
-	                std::is_same_v<ReportReqs, execution_info::task_time_t>) && ...),
-		        "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
+        static_assert(
+            ((std::is_same_v<ReportReqs, execution_info::task_submission_t> ||
+              std::is_same_v<ReportReqs, execution_info::task_completion_t> ||
+              std::is_same_v<ReportReqs, execution_info::task_time_t>)&&...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
 
         initialize_default_resources(report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
@@ -247,7 +252,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
             waiter.my_end_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending tag
 #endif
         }
-        else {
+        else
+        {
             // if not using profiling, use the normal event
             waiter.my_end_event = workflow_return;
         }
@@ -278,7 +284,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     template <typename T = ResourceAdapter, typename... ReportReqs>
     void
-    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... /*report_reqs*/)
+    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0,
+                                 ReportReqs... /*report_reqs*/)
     {
 
         bool profiling = true;
@@ -296,8 +303,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         {
             prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
         }
-        if constexpr((std::is_same_v<execution_info::task_time_t, ReportReqs> || ...))
-	{
+        if constexpr ((std::is_same_v<execution_info::task_time_t, ReportReqs> || ...))
+        {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
             for (auto& x : devices)
             {
@@ -305,24 +312,26 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                     this->resources_.push_back(sycl::queue{x, prop_list});
             }
 
-	    if (this->resources_.empty())
-	    {
-                throw std::runtime_error("Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
-				         "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
-					 "both of these are required to time kernels.");
-	    }
+            if (this->resources_.empty())
+            {
+                throw std::runtime_error(
+                    "Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
+                    "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
+                    "both of these are required to time kernels.");
+            }
 #else
-	    static_assert(false, "SYCL_EXT_ONEAPI_PROFILING_TAG is not defined, but it is required to time kernels. Please use "
-		                 "a SYCL version that supports this tag");
+            static_assert(
+                false, "SYCL_EXT_ONEAPI_PROFILING_TAG is not defined, but it is required to time kernels. Please use "
+                       "a SYCL version that supports this tag");
 #endif
-	}
-	else // other reporting requirements beside task_time
-	{
+        }
+        else // other reporting requirements beside task_time
+        {
             for (auto& x : devices)
             {
                 this->resources_.push_back(sycl::queue{x, prop_list});
             }
-	}
+        }
     }
 };
 

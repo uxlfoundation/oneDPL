@@ -18,7 +18,8 @@
 int
 main()
 {
-    using policy_t = oneapi::dpl::experimental::fixed_resource_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
+    using policy_t =
+        oneapi::dpl::experimental::fixed_resource_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
     std::vector<int> u{4, 5, 6, 7};
     auto f = [u](size_t, size_t offset = 0) { return u[offset]; };
 
@@ -36,9 +37,12 @@ main()
     test_submit_and_wait_on_group<policy_t>(u, f, 2);
     test_submit_and_wait_on_group<policy_t>(u, f, 3);
 
-    using policy1_t = oneapi::dpl::experimental::fixed_resource_policy<DummyResource, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<DummyResource>>;
+    using policy1_t =
+        oneapi::dpl::experimental::fixed_resource_policy<DummyResource, oneapi::dpl::identity,
+                                                         oneapi::dpl::experimental::default_backend<DummyResource>>;
     std::vector<DummyResource> u1;
-    for (int i=4; i<8; ++i) {
+    for (int i = 4; i < 8; ++i)
+    {
         u1.push_back(DummyResource(i));
     }
     auto f1 = [u1](size_t, size_t offset = 0) { return u1[offset]; };

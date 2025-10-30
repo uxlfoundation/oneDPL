@@ -19,7 +19,8 @@ int
 main()
 {
     //tests using default backend and only a resource type. (no user backend provided)
-    using policy_t = oneapi::dpl::experimental::dynamic_load_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
+    using policy_t =
+        oneapi::dpl::experimental::dynamic_load_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
     std::vector<int> u{4, 5, 6, 7};
 
     // should always pick the "offset" device since executed inline
@@ -31,9 +32,12 @@ main()
     EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");
 
     //tests using minimal backend that only provides a wait functionality through the resource
-    using policy1_t = oneapi::dpl::experimental::dynamic_load_policy<DummyResource, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<DummyResource>>;
+    using policy1_t =
+        oneapi::dpl::experimental::dynamic_load_policy<DummyResource, oneapi::dpl::identity,
+                                                       oneapi::dpl::experimental::default_backend<DummyResource>>;
     std::vector<DummyResource> u1;
-    for (int i=0; i<4; ++i) {
+    for (int i = 0; i < 4; ++i)
+    {
         u1.push_back(DummyResource(i));
     }
     auto f1 = [u1](int) { return u1[0]; };

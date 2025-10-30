@@ -37,13 +37,15 @@ namespace dpl
 namespace experimental
 {
 
-
 #if _DS_BACKEND_SYCL != 0
-template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #else
-template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity, typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
-class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
+class auto_tune_policy
+    : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
 {
 
   protected:
@@ -166,7 +168,7 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         std::shared_ptr<tuner_t> tuner_;
 
       public:
-        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend,execution_info::task_time_t>;
+        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_time_t>;
         scratch_space_t scratch_space;
 
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
@@ -201,7 +203,8 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
     auto_tune_policy(deferred_initialization_t) {}
 
     auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
-    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}, timing_t resample_time = never_resample)
+    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {},
+                     timing_t resample_time = never_resample)
     {
         base_t::initialize(u, adapter, resample_time);
     }
@@ -249,7 +252,7 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
             {
                 state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
             }
-	}
+        }
     }
 
 

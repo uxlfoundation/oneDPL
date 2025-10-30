@@ -19,7 +19,8 @@ int
 main()
 {
     {
-        using policy_t = oneapi::dpl::experimental::round_robin_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
+        using policy_t = oneapi::dpl::experimental::round_robin_policy<int, oneapi::dpl::identity,
+                                                                       TestUtils::int_inline_backend_t<>>;
         std::vector<int> u{4, 5, 6, 7};
         auto f = [u](int i) { return u[(i - 1) % 4]; };
 
@@ -28,7 +29,8 @@ main()
         EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");
     }
     {
-        using policy_t = oneapi::dpl::experimental::round_robin_policy<int, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<int>>;
+        using policy_t = oneapi::dpl::experimental::round_robin_policy<int, oneapi::dpl::identity,
+                                                                       oneapi::dpl::experimental::default_backend<int>>;
         std::vector<int> u{4, 5, 6, 7};
         auto f = [u](int i) { return u[(i - 1) % 4]; };
 
@@ -38,13 +40,15 @@ main()
     }
     {
         //tests using minimal backend that only provides a wait functionality through the resource
-        using policy1_t = oneapi::dpl::experimental::round_robin_policy<DummyResource, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<DummyResource>>;
+        using policy1_t =
+            oneapi::dpl::experimental::round_robin_policy<DummyResource, oneapi::dpl::identity,
+                                                          oneapi::dpl::experimental::default_backend<DummyResource>>;
         std::vector<DummyResource> u1;
-        for (int i=0; i<4; ++i) {
+        for (int i = 0; i < 4; ++i)
+        {
             u1.push_back(DummyResource(i));
         }
         auto f1 = [u1](int i) { return u1[(i - 1) % 4]; };
-
 
         EXPECT_EQ(0, (test_initialization<policy1_t, DummyResource>(u1)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_event<policy1_t>(u1, f1)), "");

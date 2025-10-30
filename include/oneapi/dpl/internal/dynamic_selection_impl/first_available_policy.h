@@ -34,6 +34,7 @@ template <typename ResourceType, typename Backend = default_backend<ResourceType
 class first_available_policy : public policy_base<first_available_policy<ResourceType, Backend>, ResourceType, Backend>
 {
     int capacity;
+
   protected:
     using base_t = policy_base<first_available_policy<ResourceType, Backend>, ResourceType, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
@@ -42,11 +43,10 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
     struct resource_t
     {
         execution_resource_t e_;
-        std::atomic<int> availability_; 
+        std::atomic<int> availability_;
         resource_t(execution_resource_t e) : e_(e), availability_(0) {}
     };
     using resource_container_t = std::vector<std::shared_ptr<resource_t>>;
-
 
     template <typename Policy>
     class dl_selection_handle_t
@@ -55,7 +55,7 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
         std::shared_ptr<resource_t> resource_;
 
       public:
-        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)){} 
+        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {}
 
         auto
         unwrap()
@@ -72,12 +72,10 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
         void
         report(const execution_info::task_completion_t&) const
         {
-            resource_->availability_.fetch_sub(1); 
+            resource_->availability_.fetch_sub(1);
         }
     };
     using selection_type = dl_selection_handle_t<first_available_policy<ResourceType, Backend>>;
-
-
 
     struct selector_t
     {
@@ -89,19 +87,22 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
   public:
     using resource_type = typename base_t::resource_type;
 
-    first_available_policy(const int& c = 1):capacity(c) { base_t::initialize(); }
+    first_available_policy(const int& c = 1) : capacity(c) { base_t::initialize(); }
     first_available_policy(deferred_initialization_t, const int& c = 1) {}
-    first_available_policy(const std::vector<resource_type>& u, const int& c = 1):capacity(c) { base_t::initialize(u); }
+    first_available_policy(const std::vector<resource_type>& u, const int& c = 1) : capacity(c)
+    {
+        base_t::initialize(u);
+    }
 
     void
     initialize_impl()
     {
         if (!selector_)
-	{
-	    selector_ = std::make_shared<selector_t>();
-	}
-	auto u = base_t::get_resources();
-	selector_->resources_.clear();
+        {
+            selector_ = std::make_shared<selector_t>();
+        }
+        auto u = base_t::get_resources();
+        selector_->resources_.clear();
         for (auto x : u)
         {
             selector_->resources_.push_back(std::make_shared<resource_t>(x));
@@ -112,27 +113,28 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
     auto
     select_impl(Args&&...)
     {
-	if (selector_)
+        if (selector_)
         {
             std::shared_ptr<resource_t> available_resource;
 
-            while(true) 
-	    {
+            while (true)
+            {
                 for (auto r : selector_->resources_)
                 {
-		    int expected = r->availability_.load();
+                    int expected = r->availability_.load();
 
-		    while (expected < capacity) ////resource is available 
-		    {
-	                if (r->availability_.compare_exchange_weak(expected, expected + 1)) 
-		        {
+                    while (expected < capacity) ////resource is available
+                    {
+                        if (r->availability_.compare_exchange_weak(expected, expected + 1))
+                        {
                             available_resource = ::std::move(r);
-                            return selection_type{first_available_policy<ResourceType, Backend>(*this), available_resource};  
-		        }
-		    }  
+                            return selection_type{first_available_policy<ResourceType, Backend>(*this),
+                                                  available_resource};
+                        }
+                    }
                 }
-	        std::this_thread::yield();
-	    }
+                std::this_thread::yield();
+            }
         }
         else
         {
@@ -142,12 +144,12 @@ class first_available_policy : public policy_base<first_available_policy<Resourc
 };
 
 //CTAD deduction guide for initializer_list
-template<typename T>
-first_available_policy(std::initializer_list<T>) -> first_available_policy<T>; //supports first_available_policy p{ {t1, t2} }
+template <typename T>
+first_available_policy(std::initializer_list<T>)
+    -> first_available_policy<T>; //supports first_available_policy p{ {t1, t2} }
 
 } // namespace experimental
 } // namespace dpl
 } // namespace oneapi
 
 #endif // _ONEDPL_FIRST_AVAILABLE_POLICY_H
-

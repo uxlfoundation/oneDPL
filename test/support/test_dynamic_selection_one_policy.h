@@ -30,13 +30,15 @@ class one_with_no_customizations
 
       public:
         explicit one_selection_t(one_with_no_customizations& p) : p_(&p) {}
-        
+
         // Make it copyable and movable
         one_selection_t(const one_selection_t&) = default;
         one_selection_t(one_selection_t&&) = default;
-        one_selection_t& operator=(const one_selection_t&) = default;
-        one_selection_t& operator=(one_selection_t&&) = default;
-        
+        one_selection_t&
+        operator=(const one_selection_t&) = default;
+        one_selection_t&
+        operator=(one_selection_t&&) = default;
+
         auto
         unwrap()
         {
@@ -78,6 +80,7 @@ class one_with_no_customizations
     };
 
     using selection_type = one_selection_t;
+
   public:
     using resource_type = int;
 
@@ -133,8 +136,10 @@ class one_with_all_customizations
         // Make it copyable and movable
         one_selection_t(const one_selection_t&) = default;
         one_selection_t(one_selection_t&&) = default;
-        one_selection_t& operator=(const one_selection_t&) = default;
-        one_selection_t& operator=(one_selection_t&&) = default;
+        one_selection_t&
+        operator=(const one_selection_t&) = default;
+        one_selection_t&
+        operator=(one_selection_t&&) = default;
 
         auto
         unwrap()
@@ -177,6 +182,7 @@ class one_with_all_customizations
     };
 
     using selection_type = one_selection_t;
+
   public:
     using resource_type = int;
 

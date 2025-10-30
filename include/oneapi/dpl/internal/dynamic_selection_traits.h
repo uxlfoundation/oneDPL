@@ -96,7 +96,8 @@ has_try_submit_impl(...) -> std::false_type;
 
 template <typename Policy, typename Function, typename... Args>
 auto
-has_try_submit_impl(int) -> decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+has_try_submit_impl(int)
+    -> decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
 template <typename Policy, typename Function, typename... Args>
 struct has_try_submit : decltype(has_try_submit_impl<Policy, Function, Args...>(0))
 {
@@ -111,7 +112,8 @@ has_submit_impl(...) -> std::false_type;
 
 template <typename Policy, typename Function, typename... Args>
 auto
-has_submit_impl(int) -> decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+has_submit_impl(int)
+    -> decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
 
 template <typename Policy, typename Function, typename... Args>
 struct has_submit : decltype(has_submit_impl<Policy, Function, Args...>(0))
@@ -127,7 +129,9 @@ has_submit_and_wait_impl(...) -> std::false_type;
 
 template <typename Policy, typename Function, typename... Args>
 auto
-has_submit_and_wait_impl(int) -> decltype(std::declval<Policy>().submit_and_wait(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+has_submit_and_wait_impl(int)
+    -> decltype(std::declval<Policy>().submit_and_wait(std::declval<Function>(), std::declval<Args>()...),
+                std::true_type{});
 
 template <typename Policy, typename Function, typename... Args>
 struct has_submit_and_wait : decltype(has_submit_and_wait_impl<Policy, Function, Args...>(0))
@@ -218,7 +222,6 @@ unwrap(T&& v)
     }
 }
 
-
 template <typename Policy, typename Function, typename... Args>
 auto
 submit(Policy&& p, Function&& f, Args&&... args)
@@ -231,9 +234,9 @@ submit(Policy&& p, Function&& f, Args&&... args)
 
 template <typename Policy, typename Function, typename... Args>
 auto
-submit(Policy&& p, Function&& f, Args&&... args)
-    -> std::enable_if_t<!internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
-                        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
+submit(Policy&& p, Function&& f, Args&&... args) -> std::enable_if_t<
+    !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
+    decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
 {
     // Policy has a try_submit method
     auto result = std::forward<Policy>(p).try_submit(f, args...);
@@ -254,7 +257,8 @@ submit_and_wait(Policy&& p, Function&& f, Args&&... args)
         // Policy has a direct submit_and_wait method
         return std::forward<Policy>(p).submit_and_wait(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    else if constexpr (internal::has_submit_v<Policy, Function, Args...> || internal::has_try_submit_v<Policy, Function, Args...>)
+    else if constexpr (internal::has_submit_v<Policy, Function, Args...> ||
+                       internal::has_try_submit_v<Policy, Function, Args...>)
     {
         // Fall back to submit + wait
         auto result = submit(std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
@@ -262,7 +266,7 @@ submit_and_wait(Policy&& p, Function&& f, Args&&... args)
     }
     else
     {
-        static_assert(false,"error: submit_and_wait() called on policy which does not support any submission method");
+        static_assert(false, "error: submit_and_wait() called on policy which does not support any submission method");
     }
 }
 
@@ -294,7 +298,9 @@ inline constexpr task_submission_t task_submission;
 // Helpers to check if a type is in a parameter pack.
 // Utilities for scratch space determination based upon variadic pack of the below reporting requirement structs.
 template <typename T, typename... Ts>
-struct contains_reporting_req : std::disjunction<std::is_same<T, Ts>...> {};
+struct contains_reporting_req : std::disjunction<std::is_same<T, Ts>...>
+{
+};
 
 template <typename T, typename... Ts>
 static constexpr bool contains_reporting_req_v = contains_reporting_req<T, Ts...>::value;
