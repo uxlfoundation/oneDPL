@@ -31,6 +31,7 @@
 #if _ENABLE_STD_RANGES_TESTING
 
 using TestingType = int;
+using TestingVector = std::vector<TestingType>;
 
 struct test_count
 {
@@ -38,9 +39,9 @@ struct test_count
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        std::vector<TestingType> v = {0, 1, 2, 3, 4, 5};
+        TestingVector v = {0, 1, 2, 3, 4, 5};
 
-        TestUtils::MinimalisticView r1{v.begin(), v.end()};
+        TestUtils::MinimalisticView r1(v.begin(), v.end());
 
         auto count = oneapi::dpl::ranges::count(policy, r1, 3);
 
@@ -55,14 +56,14 @@ struct test_count
     {
         auto queue = policy.queue();
 
-        std::vector<TestingType> v = {0, 1, 2, 3, 4, 5};
+        TestingVector v = {0, 1, 2, 3, 4, 5};
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v.size(), queue);
         auto v1_end = v1_begin + v.size();
 
         std::memcpy(v1_begin, v.data(), v.size() * sizeof(TestingType));
 
-        TestUtils::MinimalisticView r1{v1_begin, v1_end};
+        TestUtils::MinimalisticView r1(v1_begin, v1_end);
 
         auto count = oneapi::dpl::ranges::count(policy, r1, 3);
 
@@ -80,14 +81,14 @@ struct test_merge
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        std::vector<TestingType> v1 = {0, 2, 4, 6, 8, 10};
-        std::vector<TestingType> v2 = {1, 3, 5, 7, 9, 11};
-        std::vector<TestingType> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-        std::vector<TestingType> v3(v3_expected.size(), 42);
+        TestingVector v1 = {0, 2, 4, 6, 8, 10};
+        TestingVector v2 = {1, 3, 5, 7, 9, 11};
+        TestingVector v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        TestingVector v3(v3_expected.size(), 42);
 
-        TestUtils::MinimalisticView r1{v1.begin(), v1.end()};
-        TestUtils::MinimalisticView r2{v2.begin(), v2.end()};
-        TestUtils::MinimalisticView r3{v3.begin(), v3.end()};
+        TestUtils::MinimalisticView r1(v1.begin(), v1.end());
+        TestUtils::MinimalisticView r2(v2.begin(), v2.end());
+        TestUtils::MinimalisticView r3(v3.begin(), v3.end());
 
         oneapi::dpl::ranges::merge(policy, r1, r2, r3);
 
@@ -100,10 +101,10 @@ struct test_merge
     std::enable_if_t<!oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        std::vector<TestingType> v1 = {0, 2, 4, 6, 8, 10};
-        std::vector<TestingType> v2 = {1, 3, 5, 7, 9, 11};
-        std::vector<TestingType> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-        std::vector<TestingType> v3(v3_expected.size(), 42);
+        TestingVector v1 = {0, 2, 4, 6, 8, 10};
+        TestingVector v2 = {1, 3, 5, 7, 9, 11};
+        TestingVector v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        TestingVector v3(v3_expected.size(), 42);
 
         auto queue = policy.queue();
 
@@ -120,9 +121,9 @@ struct test_merge
         std::memcpy(v2_begin, v2.data(), v2.size() * sizeof(TestingType));
         std::memcpy(v3_begin, v3.data(), (v1.size() + v2.size()) * sizeof(TestingType));
 
-        TestUtils::MinimalisticView r1{v1_begin, v1_end};
-        TestUtils::MinimalisticView r2{v2_begin, v2_end};
-        TestUtils::MinimalisticView r3{v3_begin, v3_end};
+        TestUtils::MinimalisticView r1(v1_begin, v1_end);
+        TestUtils::MinimalisticView r2(v2_begin, v2_end);
+        TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::merge(policy, r1, r2, r3);
 
@@ -142,12 +143,12 @@ struct test_copy_if
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        std::vector<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v3(6);
-        std::vector<TestingType> v3_expected = {0, 2, 4, 6, 8, 10};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3(6);
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10};
 
-        TestUtils::MinimalisticView r1{v1.begin(), v1.end()};
-        TestUtils::MinimalisticView r2{v3.begin(), v3.end()};
+        TestUtils::MinimalisticView r1(v1.begin(), v1.end());
+        TestUtils::MinimalisticView r2(v3.begin(), v3.end());
 
         oneapi::dpl::ranges::copy_if(policy, r1, r2, [](TestingType x) { return x % 2 == 0; });
 
@@ -162,9 +163,9 @@ struct test_copy_if
     {
         auto queue = policy.queue();
 
-        std::vector<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v3_expected = {0, 2, 4, 6, 8, 10};
-        std::vector<TestingType> v3(v3_expected.size());
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10};
+        TestingVector v3(v3_expected.size());
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v1.size(), queue);
         auto v1_end = v1_begin + v1.size();
@@ -175,8 +176,8 @@ struct test_copy_if
         std::memcpy(v1_begin, v1.data(), v1.size() * sizeof(TestingType));
         std::memcpy(v3_begin, v3.data(), v3.size() * sizeof(TestingType));
 
-        TestUtils::MinimalisticView r1{v1_begin, v1_end};
-        TestUtils::MinimalisticView r3{v3_begin, v3_end};
+        TestUtils::MinimalisticView r1(v1_begin, v1_end);
+        TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::copy_if(policy, r1, r3, [](TestingType x) { return x % 2 == 0; });
 
@@ -195,14 +196,14 @@ struct test_transform
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        std::vector<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v3(v1.size());
-        std::vector<TestingType> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3(v1.size());
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
-        TestUtils::MinimalisticView r1{v1.begin(), v1.end()};
-        TestUtils::MinimalisticView r2{v2.begin(), v2.end()};
-        TestUtils::MinimalisticView r3{v3.begin(), v3.end()};
+        TestUtils::MinimalisticView r1(v1.begin(), v1.end());
+        TestUtils::MinimalisticView r2(v2.begin(), v2.end());
+        TestUtils::MinimalisticView r3(v3.begin(), v3.end());
 
         oneapi::dpl::ranges::transform(policy, r1, r2, r3, [](TestingType x1, TestingType x2) { return x1 + x2; });
 
@@ -217,9 +218,9 @@ struct test_transform
     {
         auto queue = policy.queue();
 
-        std::vector<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        std::vector<TestingType> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v1.size(), queue);
         auto v1_end = v1_begin + v1.size();
@@ -230,14 +231,14 @@ struct test_transform
         auto v3_begin = sycl::malloc_shared<TestingType>(v3_expected.size(), queue);
         auto v3_end = v3_begin + v3_expected.size();
 
-        std::vector<TestingType> v3(v1.size());
+        TestingVector v3(v1.size());
         std::memcpy(v1_begin, v1.data(), sizeof(TestingType) * v1.size());
         std::memcpy(v2_begin, v2.data(), sizeof(TestingType) * v2.size());
         std::memcpy(v3_begin, v3.data(), sizeof(TestingType) * v3_expected.size());
 
-        TestUtils::MinimalisticView r1{v1_begin, v1_end};
-        TestUtils::MinimalisticView r2{v2_begin, v2_end};
-        TestUtils::MinimalisticView r3{v3_begin, v3_end};
+        TestUtils::MinimalisticView r1(v1_begin, v1_end);
+        TestUtils::MinimalisticView r2(v2_begin, v2_end);
+        TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::transform(policy, r1, r2, r3, [](TestingType x1, TestingType x2) { return x1 + x2; });
 
