@@ -1381,9 +1381,17 @@ size(const MinimalisticView<ForwardIterator>& view)
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
 
-static_assert(std::ranges::range<MinimalisticRangeForIntVec>);
+static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
 static_assert(std::ranges::sized_range<MinimalisticRangeForIntVec>);
-static_assert(std::ranges::view<MinimalisticRangeForIntVec>);
+static_assert(std::ranges::view       <MinimalisticRangeForIntVec>);
+
+static_assert(std::ranges::range      <decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
+static_assert(std::ranges::sized_range<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
+static_assert(std::ranges::view       <decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>);
+
+static_assert(std::is_same_v<std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()))>,
+                             std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
+                                                        oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>())))>>);
 
 // Check all forms of begin() function
 static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec>  ())), IteratorOfIntVector>);
