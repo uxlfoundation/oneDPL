@@ -31,7 +31,7 @@ main()
     static_assert(std::is_same_v<IntVector,
                                  std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>()))>>);
 
-    // Check that __get_subscription_view is idempotent for MinimalisticRangeForIntVec
+    // Check that __get_subscription_view is idempotent for std::vector<int>
     static_assert(std::is_same_v<std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>()))>,
                                  std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
                                                            oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>())))>>);
@@ -53,7 +53,7 @@ main()
     static_assert(std::ranges::view       <__get_subscription_view_result_t>);
 
 
-    // Check that __get_subscription_view is idempotent for MinimalisticRangeForIntVec
+    // Check that __get_subscription_view is idempotent for std::vector<int>
     static_assert(std::is_same_v<std::decay_t<__get_subscription_view_result_t>,
                              std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
                                                         oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>())))>>);
