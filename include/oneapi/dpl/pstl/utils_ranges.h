@@ -798,31 +798,26 @@ struct __subscription_impl_view_simple : _Base
     __subscription_impl_view_simple&
     operator=(__subscription_impl_view_simple&&) = default;
 
-    decltype(auto)
-    operator[](index_type __i)
+    constexpr auto begin() const
     {
-        return *std::next(std::ranges::begin(*this), __i);
+        return std::ranges::begin(get_base_ref());
+    }
+
+    constexpr auto end() const
+    {
+        return std::ranges::end(get_base_ref());
+    }
+
+    constexpr auto size() const
+    {
+        return std::ranges::size(get_base_ref());
     }
 
     decltype(auto)
     operator[](index_type __i) const
     {
-        return *std::next(std::ranges::begin(*this), __i);
-    }
-
-    constexpr auto begin()
-    {
-        return std::ranges::begin(get_base_ref());
-    }
-
-    constexpr auto end()
-    {
-        return std::ranges::end(get_base_ref());
-    }
-
-    constexpr auto size()
-    {
-        return std::ranges::size(get_base_ref());
+        assert(__i < size());
+        return *std::next(begin(), __i);
     }
 
 protected:
