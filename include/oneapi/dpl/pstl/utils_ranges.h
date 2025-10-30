@@ -841,7 +841,7 @@ auto
 __get_subscription_view(_Range&& __rng)
 {
     // If the range supports doesn't support operator[] wrap it with __subscription_impl_view_simple
-    // to provide operator[] access and extend lifetime if bnecessary (for temporary ranges).
+    // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
