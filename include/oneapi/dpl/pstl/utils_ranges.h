@@ -840,7 +840,7 @@ template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_R
 auto
 __get_subscription_view(_Range&& __rng)
 {
-    // If the range supports doesn't support operator[] wrap it with __subscription_impl_view_simple
+    // If the range doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
 }
