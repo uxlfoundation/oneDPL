@@ -1346,31 +1346,30 @@ struct NoDefaultCtorWrapper {
 // which are not required for a class to be considered a range.
 // Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
 template <typename ForwardIterator>
-class MinimalisticView : public std::ranges::view_interface<MinimalisticView<ForwardIterator>>
+struct MinimalisticView : std::ranges::view_base
 {
-  public:
+    ForwardIterator it_begin;
+    ForwardIterator it_end;
 
-    MinimalisticView(ForwardIterator it_begin, ForwardIterator it_end)
+    MinimalisticView(ForwardIterator it_begin, ForwardIterator it_end) 
         : it_begin(it_begin), it_end(it_end)
     {
     }
-
-    MinimalisticView(const MinimalisticView&) = default;
-    MinimalisticView(MinimalisticView&&) = default;
-
-    MinimalisticView&
-    operator=(const MinimalisticView&) = default;
-    MinimalisticView&
-    operator=(MinimalisticView&&) = default;
-
-    ForwardIterator begin() const { return it_begin; }
-    ForwardIterator end() const { return it_end; }
-
-  private:
-
-    ForwardIterator it_begin;
-    ForwardIterator it_end;
 };
+
+template <typename ForwardIterator>
+ForwardIterator
+begin(MinimalisticView<ForwardIterator> view)
+{
+    return view.it_begin;
+}
+
+template <typename ForwardIterator>
+ForwardIterator
+end(MinimalisticView<ForwardIterator> view)
+{
+    return view.it_end;
+}
 
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
