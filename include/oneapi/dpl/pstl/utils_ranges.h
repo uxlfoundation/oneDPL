@@ -805,11 +805,23 @@ struct __subscription_impl_view_simple : _Base
     __subscription_impl_view_simple&
     operator=(__subscription_impl_view_simple&&) = default;
 
+    // We need to define these begin(), end() and size() functions to redirect the ADL mechanism
+    // from our (enclosing) class to the corresponding call for our base class
+    constexpr auto
+    begin() const
+    {
+        return __begin(get_base_ref());
+    }
+
+    constexpr auto
+    end() const
+    {
+        return __end(get_base_ref());
+    }
+
     auto
     size() const
     {
-        // We need to define this function to redirect the ADL mechanism from our (enclosing) class
-        // to the corresponding call for our base class
         return __size(get_base_ref());
     }
 
