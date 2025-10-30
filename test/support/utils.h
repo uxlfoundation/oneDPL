@@ -1371,6 +1371,13 @@ end(MinimalisticView<ForwardIterator> view)
     return view.it_end;
 }
 
+template <typename ForwardIterator>
+auto
+size(MinimalisticView<ForwardIterator> view)
+{
+    return std::distance(view.it_begin, view.it_end);
+}
+
 using IteratorOfIntVector = typename std::vector<int>::iterator;
 using MinimalisticRangeForIntVec = MinimalisticView<IteratorOfIntVector>;
 
