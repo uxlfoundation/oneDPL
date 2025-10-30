@@ -40,21 +40,10 @@ class backend_base
     using resource_container_t = std::vector<ResourceType>;
     using report_duration = std::chrono::milliseconds;
 
-    template <bool needs_scratch = false, typename... Req>
-    struct scratch_t_check : public no_scratch_t<Req...>
-    {
-    };
-
-    // maximal scratch space to handle all requirements
     template <typename... Req>
-    struct scratch_t_check<true, Req...>
+    struct scratch_t : public no_scratch_t<Req...>
     {
-    };
-
-    // check for task_time_t and define scratch space
-    template <typename... Req>
-    struct scratch_t : public scratch_t_check<any_of_v<execution_info::task_time_t, Req...>, Req...>
-    {
+        // default backend does not support any reporting requirements and has no scratch space needs.
     };
 
     backend_base() {}

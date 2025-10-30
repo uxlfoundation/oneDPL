@@ -20,15 +20,6 @@ namespace dpl
 namespace experimental
 {
 
-//utility to check if any of a variadic pack is equal to a specific type passed first
-template <typename compare_to, typename... T>
-struct any_of : std::disjunction<std::is_same<compare_to, T>...>
-{
-};
-
-template <typename compare_to, typename... T>
-inline constexpr bool any_of_v = any_of<compare_to, T...>::value;
-
 // Default trait for scratch space
 template <typename... T>
 struct no_scratch_t
