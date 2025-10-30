@@ -266,8 +266,7 @@ void call_test_algo()
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
-int
-main()
+int main()
 {
 #if _ENABLE_STD_RANGES_TESTING
 
