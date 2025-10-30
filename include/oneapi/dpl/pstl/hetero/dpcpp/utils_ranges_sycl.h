@@ -125,6 +125,7 @@ struct all_view_fn
     decltype(auto)
     operator()(_R&& __r) const
     {
+        // Returns __r if it implements operator[] or __subscription_impl_view_simple(__r) otherwise
         return oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r));
     }
 };
@@ -146,6 +147,7 @@ struct all_host_view_fn
     decltype(auto)
     operator()(_R&& __r) const
     {
+        // Returns __r if it implements operator[] or __subscription_impl_view_simple(__r) otherwise
         return oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R>(__r));
     }
 };
