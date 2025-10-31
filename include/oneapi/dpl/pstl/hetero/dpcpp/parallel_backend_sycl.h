@@ -2233,7 +2233,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         __result_end,
         oneapi::dpl::__ranges::take_view_simple(oneapi::dpl::__ranges::views::all_read(__idx), __result_end),
         oneapi::dpl::__ranges::views::all_read(__tmp_out_values), std::forward<_Range4>(__out_values))
-        .__checked_deferrable_wait();
+        .__checked_deferrable_wait(__unconditional_wait_for_ranges);
     return __result_end;
 }
 

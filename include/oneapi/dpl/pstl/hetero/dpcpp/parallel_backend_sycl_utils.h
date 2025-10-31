@@ -924,6 +924,10 @@ struct __deferrable_mode
 {
 };
 
+// We may have temporary objects on upper stack levels about ranges/views
+// so we need to ensure that all kernels are finished before they go out of scope
+static constexpr bool __unconditional_wait_for_ranges = true;
+
 //A contract for future class: <sycl::event or other event, a value, sycl::buffers..., or __usm_host_or_buffer_storage>
 //Impl details: inheritance (private) instead of aggregation for enabling the empty base optimization.
 template <typename _Event, typename... _Args>
@@ -990,7 +994,7 @@ class __future : private std::tuple<_Args...>
     }
 
     void
-    __checked_deferrable_wait()
+    __checked_deferrable_wait(bool _uncoditional = false)
     {
 #if !ONEDPL_ALLOW_DEFERRED_WAITING
         wait();
@@ -999,6 +1003,13 @@ class __future : private std::tuple<_Args...>
         {
             // We should have this wait() call to ensure that the temporary data is not destroyed before the kernel code finished
             wait();
+        }
+        else
+        {
+            // Wait in some special cases when we probably has temporal objects
+            // on stack passed into a function on current stack frame
+            if (_uncoditional)
+                wait();
         }
 #endif
     }
