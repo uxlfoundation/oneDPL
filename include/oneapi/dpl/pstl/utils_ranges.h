@@ -798,19 +798,19 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
     constexpr auto
     begin() const
     {
-        return __begin(base());
+        return __begin(__base);
     }
 
     constexpr auto
     end() const
     {
-        return __end(base());
+        return __end(__base);
     }
 
     constexpr auto
     size() const
     {
-        return __size(base());
+        return __size(__base);
     }
 
     constexpr _View
