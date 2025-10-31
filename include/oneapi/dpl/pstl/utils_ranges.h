@@ -779,80 +779,54 @@ __get_subscription_view(_Range&& __rng)
     return std::forward<_Range>(__rng);
 }
 
-template <typename _Source, typename _Base = std::decay_t<_Source>>
-struct __subscription_impl_view_simple : _Base
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <std::ranges::view _View>
+    requires std::ranges::random_access_range<_View>
+struct __subscription_impl_view_simple : std::ranges::view_interface<__subscription_impl_view_simple<_View>>
 {
-    static_assert(
-        !__has_subscription_op<_Base>::value,
-        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
+    static_assert(!__has_subscription_op<_View>::value,
+                  "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
-    using value_type = oneapi::dpl::__internal::__value_t<_Base>;
-    using index_type = oneapi::dpl::__internal::__difference_t<_Base>;
+    _View __base;
 
-    // Define default constructors
-    __subscription_impl_view_simple(const __subscription_impl_view_simple&) = default;
-    __subscription_impl_view_simple(__subscription_impl_view_simple&&) = default;
+    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
 
-    // Define custom constructor to forward arguments to the base class
-    template <typename... _Args>
-    __subscription_impl_view_simple(_Args&&... __args) : _Base(std::forward<_Args>(__args)...)
-    {
-    }
-
-    // Define default operator=
-    __subscription_impl_view_simple&
-    operator=(const __subscription_impl_view_simple&) = default;
-    __subscription_impl_view_simple&
-    operator=(__subscription_impl_view_simple&&) = default;
-
-    // We need to define these begin(), end() and size() functions to redirect the ADL mechanism
-    // from our (enclosing) class to the corresponding call for our base class
     constexpr auto
     begin() const
     {
-        return __begin(get_base_ref());
+        return __begin(__base);
     }
 
     constexpr auto
     end() const
     {
-        return __end(get_base_ref());
+        return __end(__base);
     }
 
-    auto
+    constexpr auto
     size() const
     {
-        return __size(get_base_ref());
+        return __size(__base);
     }
 
-    decltype(auto)
-    operator[](index_type __i) const
+    constexpr _View
+    base() const
     {
-        assert(__i < size());
-        return *std::next(__begin(get_base_ref()), __i);
-    }
-
-  protected:
-    _Base&
-    get_base_ref()
-    {
-        return static_cast<_Base&>(*this);
-    }
-    const _Base&
-    get_base_ref() const
-    {
-        return static_cast<const _Base&>(*this);
+        return __base;
     }
 };
 
-template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
+template <typename _View, typename _ViewInstance = std::remove_cvref_t<_View>>
+    requires(!__has_subscription_op<_ViewInstance>::value) && std::ranges::view<_ViewInstance> &&
+            std::ranges::random_access_range<_ViewInstance>
 auto
-__get_subscription_view(_Range&& __rng)
+__get_subscription_view(_View&& __view)
 {
-    // If the range doesn't support operator[], wrap it with __subscription_impl_view_simple
+    // If the view doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
-    return __subscription_impl_view_simple<_Range>(std::forward<_Range>(__rng));
+    return __subscription_impl_view_simple<_ViewInstance>(__view);
 }
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __ranges
 } // namespace dpl
