@@ -782,7 +782,7 @@ __get_subscription_view(_Range&& __rng)
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 template <std::ranges::view _View>
-    requires std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>
+    requires std::ranges::view<_View> && std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>
 class __subscription_impl_view_simple : public std::ranges::view_interface<__subscription_impl_view_simple<_View>>
 {
     static_assert(
@@ -795,29 +795,35 @@ class __subscription_impl_view_simple : public std::ranges::view_interface<__sub
   public:
     __subscription_impl_view_simple() = default;
 
-    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)){}
+    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
 
-    constexpr decltype(auto) operator[](std::ranges::range_difference_t<_View> __idx) const
+    constexpr decltype(auto)
+    operator[](std::ranges::range_difference_t<_View> __idx) const
     {
+        assert(__idx < size());
         return begin()[__idx];
     }
 
-    constexpr auto begin() const
+    constexpr auto
+    begin() const
     {
-        return std::ranges::begin(base());
+        return oneapi::dpl::__ranges::__begin(base());
     }
 
-    constexpr auto end() const
+    constexpr auto
+    end() const
     {
-        return std::ranges::end(base());
+        return oneapi::dpl::__ranges::__end(base());
     }
 
-    constexpr auto size() const
+    constexpr auto
+    size() const
     {
-        return std::ranges::size(base());
+        return oneapi::dpl::__ranges::__size(base());
     }
 
-    constexpr const _View& base() const
+    constexpr const _View&
+    base() const
     {
         return __base;
     }
