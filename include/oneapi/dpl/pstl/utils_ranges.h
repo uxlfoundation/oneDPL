@@ -95,8 +95,7 @@ __size(_Range&& __rng)
 }
 
 template <typename _Range>
-std::enable_if_t<!__has_size<_Range>::value,
-                 decltype(__end(std::declval<_Range>()) - __begin(std::declval<_Range>()))>
+std::enable_if_t<!__has_size<_Range>::value, decltype(__end(std::declval<_Range>()) - __begin(std::declval<_Range>()))>
 __size(_Range&& __rng)
 {
     return __end(__rng) - __begin(__rng);
