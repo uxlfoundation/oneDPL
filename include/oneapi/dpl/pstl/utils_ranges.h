@@ -820,14 +820,14 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
     }
 };
 
-template <typename _View, typename = std::enable_if_t<!__has_subscription_op<_View>::value>>
-    requires std::ranges::view<std::remove_cvref_t<_View>> && std::ranges::random_access_range<std::remove_cvref_t<_View>>
-auto
-__get_subscription_view(_View&& __view)
+template <typename _View, typename _ViewInstance = std::remove_cvref_t<_View>>
+    requires (!__has_subscription_op<_ViewInstance>::value) && std::ranges::view<_ViewInstance> &&
+             std::ranges::random_access_range<_ViewInstance>
+auto __get_subscription_view(_View&& __view)
 {
     // If the view doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
-    return __subscription_impl_view_simple<std::remove_cvref_t<_View>>(__view);
+    return __subscription_impl_view_simple<_ViewInstance>(__view);
 }
 
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
