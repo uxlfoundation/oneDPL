@@ -813,7 +813,7 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
         return __size(base());
     }
 
-    constexpr const _View&
+    constexpr _View
     base() const
     {
         return __base;
