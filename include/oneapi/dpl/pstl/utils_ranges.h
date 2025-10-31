@@ -823,16 +823,15 @@ class __subscription_impl_view_simple : public std::ranges::view_interface<__sub
     }
 };
 
-template <typename _View, typename = std::enable_if_t<!__has_subscription_op<_View>::value>>
-    requires std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>
+template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
+    requires std::ranges::random_access_range<_Range> && std::ranges::sized_range<_Range>
 auto
-__get_subscription_view(_View&& __view)
+__get_subscription_view(_Range&& __rng)
 {
-    auto __view_all = std::ranges::views::all(std::forward<_View>(__view));
-
     // If the view doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
-    return __subscription_impl_view_simple<decltype(__view_all)>(std::move(__view_all));
+    auto __view = std::ranges::views::all(std::forward<_Range>(__rng));
+    return __subscription_impl_view_simple<decltype(__view)>(std::move(__view));
 }
 
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
