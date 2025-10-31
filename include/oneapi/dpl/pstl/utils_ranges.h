@@ -787,21 +787,12 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
 {
     static_assert(
         !__has_subscription_op<_View>::value,
-        "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
+        "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
     _View __base;
 
-    __subscription_impl_view_simple() = default;
-
     constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view))
     {
-    }
-
-    constexpr decltype(auto)
-    operator[](std::ranges::range_difference_t<_View> __idx) const
-    {
-        assert(__idx < size());
-        return begin()[__idx];
     }
 
     constexpr auto
