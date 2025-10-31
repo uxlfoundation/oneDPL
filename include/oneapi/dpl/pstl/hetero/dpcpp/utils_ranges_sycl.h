@@ -253,6 +253,45 @@ using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
 
+template <typename _Range>
+struct __contains_host_pointer : std::false_type
+{
+};
+
+template <class T, std::size_t Extent>
+struct __contains_host_pointer<std::span<T, Extent>> : std::true_type
+{
+};
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Rng>
+struct __contains_host_pointer<std::ranges::ref_view<_Rng>> : std::true_type
+{
+};
+#endif
+
+// TODO required to implement for:
+//      class all_view
+//      class zip_view
+//      class quard_view
+
+template <typename _Rng>
+constexpr bool __contains_host_pointer_v = __contains_host_pointer<_Rng>::value;
+
+template <>
+constexpr void __detect_views_with_host_pointers()
+{
+}
+
+template <typename _Rng, typename... _Ranges>
+constexpr void __detect_views_with_host_pointers(_Rng&& __rng, _Ranges&&... __rngs)
+{
+    static_assert(!__contains_host_pointer_v<std::decay_t<_Rng>>,
+                  "oneDPL does not support ranges/views over host pointers in SYCL kernels");
+
+    __detect_views_with_host_pointers(std::forward<_Ranges>(__rngs)...);
+}
+
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
 void
@@ -284,6 +323,7 @@ __require_access_zip(sycl::handler& __cgh, oneapi::dpl::__ranges::zip_view<_Rang
 inline void
 __require_access(sycl::handler&)
 {
+    // __detect_views_with_host_pointers
 }
 
 template <typename T, sycl::access::mode M>
@@ -313,6 +353,7 @@ template <typename _BaseRange>
 void
 __require_access_range(sycl::handler&, _BaseRange&)
 {
+    // __detect_views_with_host_pointers
 }
 
 template <typename _Range, typename... _Ranges>
