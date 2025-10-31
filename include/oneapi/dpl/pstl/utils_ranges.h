@@ -780,20 +780,16 @@ __get_subscription_view(_Range&& __rng)
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-
 template <std::ranges::view _View>
     requires std::ranges::random_access_range<_View>
 struct __subscription_impl_view_simple : std::ranges::view_interface<__subscription_impl_view_simple<_View>>
 {
-    static_assert(
-        !__has_subscription_op<_View>::value,
-        "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
+    static_assert(!__has_subscription_op<_View>::value,
+                  "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
     _View __base;
 
-    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view))
-    {
-    }
+    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
 
     constexpr auto
     begin() const
@@ -821,15 +817,15 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
 };
 
 template <typename _View, typename _ViewInstance = std::remove_cvref_t<_View>>
-    requires (!__has_subscription_op<_ViewInstance>::value) && std::ranges::view<_ViewInstance> &&
-             std::ranges::random_access_range<_ViewInstance>
-auto __get_subscription_view(_View&& __view)
+    requires(!__has_subscription_op<_ViewInstance>::value) && std::ranges::view<_ViewInstance> &&
+            std::ranges::random_access_range<_ViewInstance>
+auto
+__get_subscription_view(_View&& __view)
 {
     // If the view doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_ViewInstance>(__view);
 }
-
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __ranges
