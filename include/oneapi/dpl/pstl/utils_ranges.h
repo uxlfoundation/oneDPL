@@ -798,19 +798,19 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
     constexpr auto
     begin() const
     {
-        return oneapi::dpl::__ranges::__begin(base());
+        return __begin(base());
     }
 
     constexpr auto
     end() const
     {
-        return oneapi::dpl::__ranges::__end(base());
+        return __end(base());
     }
 
     constexpr auto
     size() const
     {
-        return oneapi::dpl::__ranges::__size(base());
+        return __size(base());
     }
 
     constexpr const _View&
