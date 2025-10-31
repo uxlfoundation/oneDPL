@@ -782,7 +782,7 @@ __get_subscription_view(_Range&& __rng)
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 template <std::ranges::view _View>
-    requires std::ranges::view<_View> && std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>
+    requires std::ranges::view<_View> && std::ranges::random_access_range<_View>
 struct __subscription_impl_view_simple : std::ranges::view_interface<__subscription_impl_view_simple<_View>>
 {
     static_assert(
@@ -821,7 +821,7 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
 };
 
 template <typename _Range, typename = std::enable_if_t<!__has_subscription_op<_Range>::value>>
-    requires std::ranges::random_access_range<_Range> && std::ranges::sized_range<_Range>
+    requires std::ranges::random_access_range<_Range>
 auto
 __get_subscription_view(_Range&& __rng)
 {
