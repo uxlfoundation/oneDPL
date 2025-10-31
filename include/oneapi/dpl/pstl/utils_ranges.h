@@ -783,19 +783,19 @@ __get_subscription_view(_Range&& __rng)
 
 template <std::ranges::view _View>
     requires std::ranges::view<_View> && std::ranges::random_access_range<_View> && std::ranges::sized_range<_View>
-class __subscription_impl_view_simple : public std::ranges::view_interface<__subscription_impl_view_simple<_View>>
+struct __subscription_impl_view_simple : std::ranges::view_interface<__subscription_impl_view_simple<_View>>
 {
     static_assert(
         !__has_subscription_op<_View>::value,
         "The usage of __subscription_impl_view_simple prohibited if std::decay_t<_Source>::operator[] implemented");
 
-  private:
     _View __base;
 
-  public:
     __subscription_impl_view_simple() = default;
 
-    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
+    constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view))
+    {
+    }
 
     constexpr decltype(auto)
     operator[](std::ranges::range_difference_t<_View> __idx) const
