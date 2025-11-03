@@ -931,7 +931,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     auto __res = __par_backend_hetero::__parallel_copy_if(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                                          __buf1.all_view(), __buf2.all_view(), __n, __pred);
+                                                          __buf1.all_view(), __buf2.all_view(), __n, __n, __pred);
 
     ::std::size_t __num_copied = __res.get(); //is a blocking call
     return __result_first + __num_copied;
