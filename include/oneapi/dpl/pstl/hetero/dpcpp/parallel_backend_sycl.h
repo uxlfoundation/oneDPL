@@ -473,8 +473,8 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
 {
     template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
     __future<sycl::event, __result_and_scratch_storage<_Size>>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _UnaryOp __unary_op,
-               _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, std::size_t __m,
+               _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
     {
         using _ValueType = std::uint16_t;
 
@@ -514,9 +514,11 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
 
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
-                        if (__lacc[__idx])
-                            __assign(static_cast<__tuple_type>(__in_rng[__idx]),
-                                     __out_rng[__lacc[__idx + __n_uniform]]);
+                        if (__lacc[__idx]) {
+                            _ValueType __out_idx = __lacc[__idx + __n_uniform];
+                            if (__out_idx < __m)
+                                __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                        }
                     }
 
                     if (__item_id == 0)
@@ -899,7 +901,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
         return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
-            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __pred, __assign,
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
