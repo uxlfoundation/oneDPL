@@ -654,14 +654,15 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1);
-    if (__n == 0)
+    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1),
+                                                     __m = oneapi::dpl::__ranges::__size(__rng2);
+    if (__n == 0 || __m == 0)
         return 0;
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), __n, __pred, __assign);
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), __n, __m, __pred, __assign);
 
     return __res.get(); //is a blocking call
 }
@@ -675,6 +676,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 {
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
+    // TODO: either __pattern_copy_if should return two stop positions or a new pattern is needed (or maybe direct use of __parallel_copy_if
     auto __res_idx = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
         std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__in_r),
         oneapi::dpl::__ranges::views::all_write(__out_r), __pred_1,
