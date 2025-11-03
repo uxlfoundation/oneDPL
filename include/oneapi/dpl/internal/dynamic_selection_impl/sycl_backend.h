@@ -289,13 +289,11 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
     // it is the user's responsibilty to initialize the resources
-
     template <typename T = ResourceAdapter, typename... ReportReqs>
     void
     initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0,
                                  ReportReqs... /*report_reqs*/)
     {
-
         bool profiling = true;
         auto prop_list = sycl::property_list{};
         auto devices = sycl::device::get_devices();
