@@ -19,6 +19,7 @@
 #include <type_traits>
 
 #include "iterator_utils.h"
+#include "oneapi/dpl/execution"
 
 namespace TestUtils
 {
