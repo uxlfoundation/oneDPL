@@ -13,11 +13,10 @@
 #include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
+#include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
 
 #if _DS_BACKEND_SYCL != 0
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
-#else
-#    include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
 #endif
 
 namespace oneapi
