@@ -85,12 +85,20 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     template <typename Selection>
     class async_waiter : public async_waiter_base
     {
-        std::shared_ptr<Selection> s;
-      public:
+      private:
         // Always need the end event for waiting independent from any reporting
         sycl::event my_end_event;
+
+        std::shared_ptr<Selection> s;
+      public:
         async_waiter() = default;
         async_waiter(std::shared_ptr<Selection> selection) : s(selection) {}
+
+        void
+        set_end_event(sycl::event e)
+        {
+            my_end_event = e;
+        }
 
         void
         wait()
@@ -249,13 +257,13 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
             // if we are using timing, we use the profiling event as the end event
-            waiter.my_end_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //ending tag
+            waiter.set_end_event(sycl::ext::oneapi::experimental::submit_profiling_tag(q)); //ending tag
 #endif
         }
         else
         {
             // if not using profiling, use the normal event
-            waiter.my_end_event = workflow_return;
+            waiter.set_end_event(workflow_return);
         }
 
         return waiter;
