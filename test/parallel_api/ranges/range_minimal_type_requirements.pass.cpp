@@ -31,6 +31,12 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+// Define macros to generate compile-time errors for testing purposes
+#define GENERATE_COMPILE_ERROR_COUNT     0
+#define GENERATE_COMPILE_ERROR_MERGE     0
+#define GENERATE_COMPILE_ERROR_COPY_IF   0
+#define GENERATE_COMPILE_ERROR_TRANSFORM 0
+
 using TestingType = int;
 using TestingVector = std::vector<TestingType>;
 
@@ -64,10 +70,17 @@ struct test_count
 
         std::uninitialized_copy(v.begin(), v.end(), v1_begin);
 
+#if !GENERATE_COMPILE_ERROR_COUNT
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
 
         auto count = oneapi::dpl::ranges::count(policy, r1, 3);
+#else
+        TestUtils::MinimalisticRange r1(v1_begin, v1_end);
 
+        auto r1_view = std::ranges::views::all(r1);
+
+        auto count = oneapi::dpl::ranges::count(policy, r1_view, 3);
+#endif
         std::string msg = "wrong return value from count, " + std::string(typeid(Policy).name());
         EXPECT_EQ(count, 1, msg.c_str());
 
@@ -122,11 +135,23 @@ struct test_merge
         std::uninitialized_copy(v2.begin(), v2.end(), v2_begin);
         std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
+#if !GENERATE_COMPILE_ERROR_MERGE
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r2(v2_begin, v2_end);
         TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::merge(policy, r1, r2, r3);
+#else
+        TestUtils::MinimalisticRange r1(v1_begin, v1_end);
+        TestUtils::MinimalisticRange r2(v2_begin, v2_end);
+        TestUtils::MinimalisticRange r3(v3_begin, v3_end);
+
+        auto r1_view = std::ranges::views::all(r1);
+        auto r2_view = std::ranges::views::all(r2);
+        auto r3_view = std::ranges::views::all(r3);
+
+        oneapi::dpl::ranges::merge(policy, r1_view, r2_view, r3_view);
+#endif
 
         std::string msg = "wrong effect from merge, " + std::string(typeid(Policy).name());
         EXPECT_EQ_N(v3_expected.begin(), v3_begin, v3_expected.size(), msg.c_str());
@@ -177,10 +202,20 @@ struct test_copy_if
         std::uninitialized_copy(v1.begin(), v1.end(), v1_begin);
         std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
+#if !GENERATE_COMPILE_ERROR_COPY_IF
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::copy_if(policy, r1, r3, [](TestingType x) { return x % 2 == 0; });
+#else
+        TestUtils::MinimalisticRange r1(v1_begin, v1_end);
+        TestUtils::MinimalisticRange r3(v3_begin, v3_end);
+
+        auto r1_view = std::ranges::views::all(r1);
+        auto r3_view = std::ranges::views::all(r3);
+
+        oneapi::dpl::ranges::copy_if(policy, r1_view, r3_view, [](TestingType x) { return x % 2 == 0; });
+#endif
 
         std::string msg = "wrong effect from copy_if, " + std::string(typeid(Policy).name());
         EXPECT_EQ_N(v3_expected.begin(), v3_begin, v3_expected.size(), msg.c_str());
@@ -237,11 +272,23 @@ struct test_transform
         std::uninitialized_copy(v2.begin(), v2.end(), v2_begin);
         std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
 
+#if !GENERATE_COMPILE_ERROR_TRANSFORM
         TestUtils::MinimalisticView r1(v1_begin, v1_end);
         TestUtils::MinimalisticView r2(v2_begin, v2_end);
         TestUtils::MinimalisticView r3(v3_begin, v3_end);
 
         oneapi::dpl::ranges::transform(policy, r1, r2, r3, [](TestingType x1, TestingType x2) { return x1 + x2; });
+#else
+        TestUtils::MinimalisticRange r1(v1_begin, v1_end);
+        TestUtils::MinimalisticRange r2(v2_begin, v2_end);
+        TestUtils::MinimalisticRange r3(v3_begin, v3_end);
+
+        auto r1_view = std::ranges::views::all(r1);
+        auto r2_view = std::ranges::views::all(r2);
+        auto r3_view = std::ranges::views::all(r3);
+
+        oneapi::dpl::ranges::transform(policy, r1_view, r2_view, r3_view, [](TestingType x1, TestingType x2) { return x1 + x2; });
+#endif
 
         std::string msg = "wrong effect from transform, " + std::string(typeid(Policy).name());
         EXPECT_EQ_N(v3_expected.begin(), v3_begin, v3_expected.size(), msg.c_str());
