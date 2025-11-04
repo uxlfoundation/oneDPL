@@ -58,7 +58,7 @@ class policy_base
     initialize()
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(report_reqs_t{});
+            backend_ = std::make_shared<backend_t>(ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_impl();
     }
 
@@ -66,7 +66,7 @@ class policy_base
     initialize(const std::vector<resource_type>& u)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity());
+            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_impl();
     }
 
@@ -75,7 +75,7 @@ class policy_base
     initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(u, adapter);
+            backend_ = std::make_shared<backend_t>(u, adapter, ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_impl(args...);
     }
 

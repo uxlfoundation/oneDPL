@@ -46,10 +46,17 @@ class backend_base
         // default backend does not support any reporting requirements and has no scratch space needs
     };
 
-    backend_base() {}
-
-    backend_base(const std::vector<ResourceType>& u)
+    template <typename... ReportReqs>
+    backend_base(ReportReqs...)
     {
+        static_assert(sizeof...(ReportReqs) == 0, "Default backend does not support reporting");
+    }
+
+    template <typename... ReportReqs>
+    backend_base(const std::vector<ResourceType>& u, ReportReqs...)
+    {
+        static_assert(sizeof...(ReportReqs) == 0, "Default backend does not support reporting");
+
         for (const auto& e : u)
             resources_.push_back(e);
     }
@@ -149,8 +156,13 @@ class default_backend_impl
     using resource_type = ResourceType;
     using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
 
-    default_backend_impl() : my_base() {}
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_) : my_base(u), adapter(adapter_)
+    template <typename... ReportReqs>
+    default_backend_impl(ReportReqs... reqs) : my_base(reqs...)
+    {
+    }
+    template <typename... ReportReqs>
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportReqs... reqs)
+        : my_base(u, reqs...), adapter(adapter_)
     {
     }
 
@@ -169,8 +181,15 @@ class default_backend
                              ResourceType, ResourceAdapter>;
 
   public:
-    default_backend() {}
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}) : base_t(r, adapt) {}
+    template <typename... ReportReqs>
+    default_backend(ReportReqs... reqs) : base_t(reqs...)
+    {
+    }
+    template <typename... ReportReqs>
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}, ReportReqs... reqs)
+        : base_t(r, adapt, reqs...)
+    {
+    }
 };
 
 } // namespace experimental

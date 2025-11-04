@@ -90,6 +90,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         sycl::event my_end_event;
 
         std::shared_ptr<Selection> s;
+
       public:
         async_waiter() = default;
         async_waiter(std::shared_ptr<Selection> selection) : s(selection) {}
@@ -196,12 +197,14 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     operator=(const default_backend_impl&) = delete;
 
     template <typename T = ResourceAdapter, typename... ReportReqs>
-    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs): base_t(), adapter()
+    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs)
+        : base_t(), adapter()
     {
         static_assert(
-        (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t, execution_info::task_completion_t, execution_info::task_time_t> && ...),
-        "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
-
+            (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t,
+                                                      execution_info::task_completion_t, execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
 
         if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
         {
@@ -212,8 +215,14 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     }
 
     template <typename NativeUniverseVector, typename... ReportReqs>
-    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_, ReportReqs... report_reqs) : base_t(), adapter(adapter_)
+    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_, ReportReqs... report_reqs)
+        : base_t(), adapter(adapter_)
     {
+        static_assert(
+            (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t,
+                                                      execution_info::task_completion_t, execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
         if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
         {
             is_profiling_enabled = true;
@@ -226,12 +235,9 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     auto
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
-        constexpr bool report_task_completion =
-            report_info_v<SelectionHandle, execution_info::task_completion_t>;
-        constexpr bool report_task_submission =
-            report_info_v<SelectionHandle, execution_info::task_submission_t>;
-        constexpr bool report_task_time =
-            report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+        constexpr bool report_task_completion = report_info_v<SelectionHandle, execution_info::task_completion_t>;
+        constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
+        constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
         auto resource = unwrap(s);
         auto q = adapter(resource);

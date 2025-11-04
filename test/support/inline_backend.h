@@ -100,14 +100,31 @@ class int_inline_backend_t
     };
 
   public:
-    int_inline_backend_t()
+    template <typename... ReportReqs>
+    int_inline_backend_t(ReportReqs...)
     {
+        static_assert(
+            (oneapi::dpl::experimental::execution_info::contains_reporting_req_v<
+                 ReportReqs, oneapi::dpl::experimental::execution_info::task_submission_t,
+                 oneapi::dpl::experimental::execution_info::task_completion_t,
+                 oneapi::dpl::experimental::execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the inline backend");
+
         for (int i = 1; i < 4; ++i)
             resources_.push_back(execution_resource_t{i, ResourceAdapter{}});
     }
 
-    int_inline_backend_t(const native_resource_container_t& u, ResourceAdapter a = {}) : adapter_(a)
+    template <typename... ReportReqs>
+    int_inline_backend_t(const native_resource_container_t& u, ResourceAdapter a = {}, ReportReqs...) : adapter_(a)
     {
+        static_assert(
+            (oneapi::dpl::experimental::execution_info::contains_reporting_req_v<
+                 ReportReqs, oneapi::dpl::experimental::execution_info::task_submission_t,
+                 oneapi::dpl::experimental::execution_info::task_completion_t,
+                 oneapi::dpl::experimental::execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the inline backend");
         for (const auto& e : u)
             resources_.push_back(execution_resource_t{e, a});
     }
