@@ -117,27 +117,27 @@ class int_inline_backend_t
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
         std::chrono::steady_clock::time_point t0;
-        if constexpr (oneapi::dpl::experimental::internal::report_value_v<
+        if constexpr (oneapi::dpl::experimental::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
             t0 = std::chrono::steady_clock::now();
         }
-        if constexpr (oneapi::dpl::experimental::internal::report_info_v<
+        if constexpr (oneapi::dpl::experimental::report_info_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_submission_t>)
         {
             s.report(oneapi::dpl::experimental::execution_info::task_submission);
         }
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
 
-        if constexpr (oneapi::dpl::experimental::internal::report_info_v<
+        if constexpr (oneapi::dpl::experimental::report_info_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_completion_t>)
         {
-            oneapi::dpl::experimental::internal::report(s, oneapi::dpl::experimental::execution_info::task_completion);
+            oneapi::dpl::experimental::report(s, oneapi::dpl::experimental::execution_info::task_completion);
         }
-        if constexpr (oneapi::dpl::experimental::internal::report_value_v<
+        if constexpr (oneapi::dpl::experimental::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
-            oneapi::dpl::experimental::internal::report(
+            oneapi::dpl::experimental::report(
                 s, oneapi::dpl::experimental::execution_info::task_time,
                 std::chrono::duration_cast<report_duration>(std::chrono::steady_clock::now() - t0));
         }

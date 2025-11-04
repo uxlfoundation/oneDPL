@@ -109,7 +109,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         void
         report() const override
         {
-            if constexpr (internal::report_value_v<Selection, execution_info::task_time_t, report_duration>)
+            if constexpr (report_value_v<Selection, execution_info::task_time_t, report_duration>)
             {
                 if (s != nullptr)
                 {
@@ -123,7 +123,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                                                              std::chrono::nanoseconds(time_end - time_start)));
                 }
             }
-            if constexpr (internal::report_info_v<Selection, execution_info::task_completion_t>)
+            if constexpr (report_info_v<Selection, execution_info::task_completion_t>)
             {
                 if (s != nullptr)
                 {
@@ -227,17 +227,17 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     submit_impl(SelectionHandle s, Function&& f, Args&&... args)
     {
         constexpr bool report_task_completion =
-            internal::report_info_v<SelectionHandle, execution_info::task_completion_t>;
+            report_info_v<SelectionHandle, execution_info::task_completion_t>;
         constexpr bool report_task_submission =
-            internal::report_info_v<SelectionHandle, execution_info::task_submission_t>;
+            report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time =
-            internal::report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+            report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 
         auto resource = unwrap(s);
         auto q = adapter(resource);
 
         if constexpr (report_task_submission)
-            oneapi::dpl::experimental::internal::report(s, execution_info::task_submission);
+            oneapi::dpl::experimental::report(s, execution_info::task_submission);
 
         sycl::event my_start_event{};
         if constexpr (report_task_time)
