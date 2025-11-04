@@ -17,7 +17,7 @@
 
 #include "support/utils.h"
 
-#if _ENABLE_STD_RANGES_TESTING
+#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 
 using IntVector = std::vector<int>;
@@ -141,13 +141,14 @@ check_contains_host_pointer_in_drop_view()
     static_assert(contains_host_pointer_v<decltype(dropped_view)> == false);
     static_assert(contains_host_pointer_on_any_layers_v<decltype(dropped_view)> == true);
 }
-
-#endif // _ENABLE_STD_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if _ENABLE_STD_RANGES_TESTING
+    bool bProcessed = false;
+
+#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
     // Check that __get_subscription_view on IntVector produces the same type
     static_assert(std::is_same_v<IntVector,
@@ -198,7 +199,7 @@ main()
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
-#endif // _ENABLE_STD_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
-    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
+    return TestUtils::done(bProcessed);
 }
