@@ -17,7 +17,7 @@
 
 #include "support/utils.h"
 
-#if TEST_DPCPP_BACKEND_PRESENT
+#if _ENABLE_STD_RANGES_TESTING
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 
 using IntVector = std::vector<int>;
@@ -39,8 +39,6 @@ struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
         return *(oneapi::dpl::__ranges::__begin(*this) + index);
     }
 };
-
-#if _ENABLE_STD_RANGES_TESTING
 
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
@@ -145,12 +143,11 @@ check_contains_host_pointer_in_drop_view()
 }
 
 #endif // _ENABLE_STD_RANGES_TESTING
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if _ENABLE_STD_RANGES_TESTING
 
     // Check that __get_subscription_view on IntVector produces the same type
     static_assert(std::is_same_v<IntVector,
@@ -160,8 +157,6 @@ main()
     static_assert(std::is_same_v<std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>()))>,
                                  std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
                                                            oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>())))>>);
-
-#if _ENABLE_STD_RANGES_TESTING
 
     check_contains_host_pointer();
     check_contains_host_pointer_in_zip_view();
@@ -204,7 +199,6 @@ main()
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
 #endif // _ENABLE_STD_RANGES_TESTING
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
