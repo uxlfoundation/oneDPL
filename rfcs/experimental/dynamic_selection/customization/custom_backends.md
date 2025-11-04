@@ -52,6 +52,38 @@ Note: any partial specialization of `default_backend_impl` that targets a partic
 - **Trait Support**: Type traits for `resource_t<T>`, and lazy reporting detection
 - **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
 
+### Reporting requirements and scratch space contract
+
+Backends must now explicitly accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
+
+#### Requirements for backend implementors
+
+- Constructor contract: backend constructors (both the default and the one accepting a universe of resources) must accept an trailing variadic pack of reporting requirement types. For example:
+
+```cpp
+template <typename... ReportingReqs>
+default_backend_impl(ReportingReqs... reqs);
+template <typename... ReportingReqs>
+default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter, ReportingReqs... reqs);
+```
+
+- Compile-time checks: The backend implementation should `static_assert` if any type in `ReportingReqs...` is not a supported reporting requirement for that backend. This makes unsupported combinations a hard error at compile time.
+
+- Resource filtering: Some reporting requirements imply properties of the underlying resource or device (for example, timing via `task_time_t` may require device support for profiling tags and queues created with profiling enabled). Backends must examine the provided resources (or query devices when default-initializing resources) and filter out any resources that do not support all requested reporting requirements. Any special resource properties required to implement a reporting requirement must be checked here (for instance, checking `device.has(sycl::aspect::ext_oneapi_queue_profiling_tag)` in addition to creating queues with `sycl::property::queue::enable_profiling()` when `task_time_t` is requested). If after filtering the set of candidate resources there are no resources left that satisfy all requested reporting requirements, the backend must throw a `std::runtime_error` documenting that the requested reporting requirements cannot be satisfied on the available resources.
+
+- Scratch space requirement: Backends must provide a nested template struct that allocates whatever per-selection scratch space is necessary for the requested reporting requirements. The required name and form are:
+
+```cpp
+template <typename... ReportingReqs>
+struct scratch_space_t {
+    // members required to implement reporting for ReportingReqs...
+};
+```
+
+For example, the SYCL backend must provide `scratch_space_t<execution_info::task_time_t>` that includes an extra `sycl::event` to store the "start" profiling tag. Policies will use the backend trait `backend_traits::selection_scratch_t<Backend, ReportingReqs...>` (or equivalent) to declare the `scratch_space` member inside selection handle types.
+
+Policy selection handles must declare a member `scratch_space` of the appropriate `scratch_space_t` instantiation in their selection handles when they require reporting.
+
 ### Implementation Details
 
 The `backend_base` class provides core functionality that can be customized by derived classes:
