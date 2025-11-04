@@ -374,17 +374,13 @@ template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
-    __require_access_range(__cgh, __rng);
+    //getting an access for the all_view based range
+    auto base_rng = oneapi::dpl::__ranges::pipeline_base_range<_Range>(::std::forward<_Range>(__rng)).base_range();
 
-    oneapi::dpl::__ranges::pipeline_base_range<_Range> __pipeline(__rng);
-
-    if constexpr (decltype(__pipeline)::value)
-    {
-        __require_access_range(__cgh, __pipeline.get_range_on_next_layer());
-    }
+    __require_access_range(__cgh, base_rng);
 
     //getting an access for the rest ranges
-    __require_access(__cgh, std::forward<_Ranges>(__rest)...);
+    __require_access(__cgh, ::std::forward<_Ranges>(__rest)...);
 }
 
 template <typename _R>
