@@ -367,21 +367,26 @@ static_assert_not_contains_host_pointer()
 
 template <typename _Range>
 void
-__require_access_range(sycl::handler&, _BaseRange&)
+__require_access_range(sycl::handler&, _Range&&)
 {
+    static_assert_not_contains_host_pointer<_Range>();
 }
 
 template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
-    //getting an access for the all_view based range
-    auto base_rng = oneapi::dpl::__ranges::pipeline_base_range<_Range>(::std::forward<_Range>(__rng)).base_range();
+    __require_access_range(__cgh, __rng);
 
-    __require_access_range(__cgh, base_rng);
+    oneapi::dpl::__ranges::pipeline_base_range<_Range> __pipeline(__rng);
+
+    if constexpr (decltype(__pipeline)::value)
+    {
+        __require_access_range(__cgh, __pipeline.get_range_on_next_layer());
+    }
 
     //getting an access for the rest ranges
-    __require_access(__cgh, ::std::forward<_Ranges>(__rest)...);
+    __require_access(__cgh, std::forward<_Ranges>(__rest)...);
 }
 
 template <typename _R>
