@@ -199,10 +199,9 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs): base_t(), adapter()
     {
         static_assert(
-            ((std::is_same_v<ReportReqs, execution_info::task_submission_t> ||
-              std::is_same_v<ReportReqs, execution_info::task_completion_t> ||
-              std::is_same_v<ReportReqs, execution_info::task_time_t>)&&...),
-            "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
+        (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t, execution_info::task_completion_t, execution_info::task_time_t> && ...),
+        "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
+
 
         if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
         {
