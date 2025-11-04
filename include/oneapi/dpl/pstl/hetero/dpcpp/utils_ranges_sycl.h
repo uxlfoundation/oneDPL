@@ -309,7 +309,63 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
-template <typename _BaseRange>
+template <typename _Range>
+struct __contains_host_pointer : std::false_type
+{
+};
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <typename _Rng>
+struct __contains_host_pointer<std::ranges::ref_view<_Rng>> : std::true_type
+{
+};
+#endif
+
+template <typename _Rng>
+inline constexpr bool __contains_host_pointer_v = __contains_host_pointer<std::decay_t<_Rng>>::value;
+
+template <typename...>
+struct __contains_host_pointer_on_any_layers;
+
+// 1. Checking the top-level view
+// 2. Searching view with host pointer in internal views(layers)
+template <typename _View>
+struct __contains_host_pointer_on_any_layers<_View>
+    : std::disjunction<__contains_host_pointer<std::remove_cvref_t<_View>>,
+                       std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::value,
+                                          __contains_host_pointer_on_any_layers<
+                                              typename oneapi::dpl::__ranges::pipeline_base<_View>::view_type_on_next_layer>,
+                                          std::false_type>>
+{
+};
+
+// 1.1. Checking the top-level view
+// 1.2. Searching view with host pointer in internal views(layers)
+// 2.1. Searching view with host pointer in the rest of views
+template <typename _View, typename... _Views>
+struct __contains_host_pointer_on_any_layers<_View, _Views...>
+    : std::disjunction<__contains_host_pointer_on_any_layers<_View>, __contains_host_pointer_on_any_layers<_Views...>>
+{
+};
+
+template <typename... _Ranges>
+struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ranges...>>
+    : __contains_host_pointer_on_any_layers<_Ranges...>
+{
+};
+
+template <typename... _Views>
+inline constexpr bool __contains_host_pointer_on_any_layers_v = __contains_host_pointer_on_any_layers<_Views...>::value;
+
+template <typename _Rng>
+constexpr void
+static_assert_not_contains_host_pointer()
+{
+    static_assert(!__contains_host_pointer_on_any_layers<std::decay_t<_Rng>>::value,
+                  "oneDPL does not support ranges/views over host pointers in SYCL kernels");
+}
+
+template <typename _Range>
 void
 __require_access_range(sycl::handler&, _BaseRange&)
 {
