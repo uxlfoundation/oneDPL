@@ -45,6 +45,9 @@ struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
 
+template <typename _Rng>
+inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<_Rng>;
+
 // oneapi::dpl::__ranges::__contains_host_pointer functional
 void
 check_contains_host_pointer()
@@ -56,7 +59,7 @@ check_contains_host_pointer()
         MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
         auto all_view = std::ranges::views::all(mr);
         static_assert(contains_host_pointer_v<decltype(all_view)> == true);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
     }
 
     // Check that MinimalisticRangeForIntVec can be used in oneDPL algorithms
@@ -65,7 +68,7 @@ check_contains_host_pointer()
         IntVector vec;
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
 
     // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms as far it doesn't contains host pointers
@@ -74,7 +77,7 @@ check_contains_host_pointer()
         MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
         auto all_view = std::ranges::views::all(mr_view);
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
 }
 
@@ -92,7 +95,7 @@ check_contains_host_pointer_in_zip_view()
 
         static_assert(contains_host_pointer_v<decltype(all_view)> == true);
         static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
     }
 
     // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms
@@ -105,7 +108,7 @@ check_contains_host_pointer_in_zip_view()
 
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(zip_view)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == false);
     }
 }
 
@@ -122,7 +125,7 @@ check_contains_host_pointer_in_take_view()
 
     static_assert(contains_host_pointer_v<decltype(all_view)> == true);
     static_assert(contains_host_pointer_v<decltype(taken_view)> == false);
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(taken_view)> == true);
+    static_assert(contains_host_pointer_on_any_layers_v<decltype(taken_view)> == true);
 }
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::drop_view
@@ -138,7 +141,7 @@ check_contains_host_pointer_in_drop_view()
 
     static_assert(contains_host_pointer_v<decltype(all_view)> == true);
     static_assert(contains_host_pointer_v<decltype(dropped_view)> == false);
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(dropped_view)> == true);
+    static_assert(contains_host_pointer_on_any_layers_v<decltype(dropped_view)> == true);
 }
 
 #endif // _ENABLE_STD_RANGES_TESTING
