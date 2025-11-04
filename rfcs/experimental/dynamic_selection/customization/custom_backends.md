@@ -219,7 +219,7 @@ class default_submission_group {
     }
 };
 ```
-**Assumptions**: For group waiting to work, the `BaseResourecType` must provide a `wait()` method
+**Assumptions**: For group waiting to work, the `BaseResourceType` must provide a `wait()` method
 that blocks until all work on that resource is complete. Note that the default implementation does
 not wait on each submission, but instead waits on each resource. This works for some resource types,
 such as SYCL queues or oneTBB `task_group` objects, but may not be applicable to all types. Using
