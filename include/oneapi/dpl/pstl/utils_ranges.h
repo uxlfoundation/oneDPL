@@ -303,7 +303,7 @@ struct pipeline_base<Range, ::std::enable_if_t<is_pipeline_object<Range>::value>
 
 //pipeline_base_range
 template <typename Range, typename = void>
-struct pipeline_base_range
+struct pipeline_base_range : std::false_type
 {
     Range rng;
 
@@ -317,7 +317,7 @@ struct pipeline_base_range
 
 // use ::std::conditional to understand what class to inherit from
 template <typename Range>
-struct pipeline_base_range<Range, ::std::enable_if_t<is_pipeline_object<Range>::value>>
+struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::value>> : std::true_type
 {
     Range rng;
 
