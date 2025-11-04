@@ -363,11 +363,11 @@ static_assert_not_contains_host_pointer()
                   "oneDPL does not support ranges/views over host pointers in SYCL kernels");
 }
 
-template <typename _Range>
+template <typename _BaseRange>
 void
-__require_access_range(sycl::handler&, _Range&&)
+__require_access_range(sycl::handler&, _BaseRange&)
 {
-    static_assert_not_contains_host_pointer<_Range>();
+    static_assert_not_contains_host_pointer<_BaseRange>();
 }
 
 template <typename _Range, typename... _Ranges>
