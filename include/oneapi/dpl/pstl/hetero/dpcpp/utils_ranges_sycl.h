@@ -329,7 +329,7 @@ struct __contains_host_pointer_on_any_layers;
 template <typename _View>
 struct __contains_host_pointer_on_any_layers<_View>
     : std::disjunction<
-          __contains_host_pointer<std::remove_cvref_t<_View>>,
+          __contains_host_pointer<_View>,
           std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::value,
                              __contains_host_pointer_on_any_layers<
                                  typename oneapi::dpl::__ranges::pipeline_base<_View>::view_type_on_next_layer>,
