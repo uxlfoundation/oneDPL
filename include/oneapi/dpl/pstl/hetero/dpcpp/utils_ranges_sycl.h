@@ -321,9 +321,6 @@ struct __contains_host_pointer<std::ranges::ref_view<_Rng>> : std::true_type
 };
 #endif
 
-template <typename _Rng>
-inline constexpr bool __contains_host_pointer_v = __contains_host_pointer<std::decay_t<_Rng>>::value;
-
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
 

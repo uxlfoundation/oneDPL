@@ -42,6 +42,9 @@ struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
 
 #if _ENABLE_STD_RANGES_TESTING
 
+template <typename _Rng>
+inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
+
 // oneapi::dpl::__ranges::__contains_host_pointer functional
 void
 check_contains_host_pointer()
@@ -52,7 +55,7 @@ check_contains_host_pointer()
         IntVector vec;
         MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
         auto all_view = std::ranges::views::all(mr);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
         static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
     }
 
@@ -61,7 +64,7 @@ check_contains_host_pointer()
     {
         IntVector vec;
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == false);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
 
@@ -70,7 +73,7 @@ check_contains_host_pointer()
         IntVector vec;
         MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
         auto all_view = std::ranges::views::all(mr_view);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == false);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
 }
@@ -87,8 +90,8 @@ check_contains_host_pointer_in_zip_view()
         auto all_view = std::ranges::views::all(mr);
         auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view, all_view);
 
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == true);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(zip_view)> == false);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
         static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
     }
 
@@ -100,8 +103,8 @@ check_contains_host_pointer_in_zip_view()
         auto all_view = std::ranges::views::all(mrv);
         auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view, all_view);
 
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(zip_view)> == false);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
+        static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
         static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(zip_view)> == false);
     }
 }
@@ -117,8 +120,8 @@ check_contains_host_pointer_in_take_view()
     auto all_view = std::ranges::views::all(mr);
     auto taken_view = std::ranges::take_view(all_view, all_view.size());
 
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == true);
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(taken_view)> == false);
+    static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+    static_assert(contains_host_pointer_v<decltype(taken_view)> == false);
     static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(taken_view)> == true);
 }
 
@@ -133,8 +136,8 @@ check_contains_host_pointer_in_drop_view()
     auto all_view = std::ranges::views::all(mr);
     auto dropped_view = std::ranges::drop_view(all_view, 0);
 
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(all_view)> == true);
-    static_assert(oneapi::dpl::__ranges::__contains_host_pointer_v<decltype(dropped_view)> == false);
+    static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+    static_assert(contains_host_pointer_v<decltype(dropped_view)> == false);
     static_assert(oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<decltype(dropped_view)> == true);
 }
 
