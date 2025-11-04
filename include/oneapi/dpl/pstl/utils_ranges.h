@@ -291,12 +291,14 @@ template <typename Range, typename = void>
 struct pipeline_base
 {
     using type = Range;
+    using view_type_on_next_layer = Range;
 };
 
 template <typename Range>
 struct pipeline_base<Range, ::std::enable_if_t<is_pipeline_object<Range>::value>>
 {
     using type = typename pipeline_base<::std::decay_t<decltype(::std::declval<Range>().base())>>::type;
+    using view_type_on_next_layer = decltype(std::declval<Range>().base());
 };
 
 //pipeline_base_range
