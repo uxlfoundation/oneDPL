@@ -331,11 +331,12 @@ struct __contains_host_pointer_on_any_layers;
 // 2. Searching view with host pointer in internal views(layers)
 template <typename _View>
 struct __contains_host_pointer_on_any_layers<_View>
-    : std::disjunction<__contains_host_pointer<std::remove_cvref_t<_View>>,
-                       std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::value,
-                                          __contains_host_pointer_on_any_layers<
-                                              typename oneapi::dpl::__ranges::pipeline_base<_View>::view_type_on_next_layer>,
-                                          std::false_type>>
+    : std::disjunction<
+          __contains_host_pointer<std::remove_cvref_t<_View>>,
+          std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::value,
+                             __contains_host_pointer_on_any_layers<
+                                 typename oneapi::dpl::__ranges::pipeline_base<_View>::view_type_on_next_layer>,
+                             std::false_type>>
 {
 };
 
