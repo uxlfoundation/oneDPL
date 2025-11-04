@@ -196,7 +196,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     operator=(const default_backend_impl&) = delete;
 
     template <typename T = ResourceAdapter, typename... ReportReqs>
-    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs)
+    default_backend_impl(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0, ReportReqs... report_reqs): base_t(), adapter()
     {
         static_assert(
             ((std::is_same_v<ReportReqs, execution_info::task_submission_t> ||
@@ -204,22 +204,22 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
               std::is_same_v<ReportReqs, execution_info::task_time_t>)&&...),
             "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
 
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
+        {
+            is_profiling_enabled = true;
+        }
         initialize_default_resources(report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
     }
 
-    template <typename NativeUniverseVector>
-    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_) : base_t(v), adapter(adapter_)
+    template <typename NativeUniverseVector, typename... ReportReqs>
+    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_, ReportReqs... report_reqs) : base_t(), adapter(adapter_)
     {
-        bool profiling = true;
-        for (auto e : this->get_resources())
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
         {
-            if (!adapter(e).template has_property<sycl::property::queue::enable_profiling>())
-            {
-                profiling = false;
-            }
+            is_profiling_enabled = true;
         }
-        is_profiling_enabled = profiling;
+        filter_add_resources(v, report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), adapter);
     }
 
@@ -287,35 +287,17 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
   private:
     std::unique_ptr<submission_group> sgroup_ptr_;
 
-    // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
-    // it is the user's responsibilty to initialize the resources
-    template <typename T = ResourceAdapter, typename... ReportReqs>
+    template <typename NativeUniverseVector, typename... ReportReqs>
     void
-    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0,
-                                 ReportReqs... /*report_reqs*/)
+    filter_add_resources(const NativeUniverseVector& v, ReportReqs...)
     {
-        bool profiling = true;
-        auto prop_list = sycl::property_list{};
-        auto devices = sycl::device::get_devices();
-        for (auto& x : devices)
-        {
-            if (!x.has(sycl::aspect::queue_profiling))
-            {
-                profiling = false;
-            }
-        }
-        is_profiling_enabled = profiling;
-        if (is_profiling_enabled)
-        {
-            prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
-        }
-        if constexpr ((std::is_same_v<execution_info::task_time_t, ReportReqs> || ...))
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
-            for (auto& x : devices)
+            for (auto& x : v)
             {
-                if (x.has(sycl::aspect::ext_oneapi_queue_profiling_tag))
-                    this->resources_.push_back(sycl::queue{x, prop_list});
+                if (adapter(x).get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
+                    this->resources_.push_back(x);
             }
 
             if (this->resources_.empty())
@@ -333,11 +315,44 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         }
         else // other reporting requirements beside task_time
         {
-            for (auto& x : devices)
+            for (auto& x : v)
             {
-                this->resources_.push_back(sycl::queue{x, prop_list});
+                this->resources_.push_back(x);
             }
         }
+    }
+
+    // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
+    // it is the user's responsibilty to initialize the resources
+    template <typename T = ResourceAdapter, typename... ReportReqs>
+    void
+    initialize_default_resources(std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>, int> = 0,
+                                 ReportReqs... report_reqs)
+    {
+        auto devices = sycl::device::get_devices();
+        std::vector<sycl::queue> v;
+
+        auto prop_list = sycl::property_list{};
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
+        {
+            prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
+        }
+
+        for (auto& x : devices)
+        {
+            if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
+            {
+                if (adapter(x).template has_property<sycl::property::queue::enable_profiling>())
+                {
+                    v.push_back(sycl::queue(x, prop_list));
+                }
+            }
+            else
+            {
+                v.push_back(sycl::queue(x, prop_list));
+            }
+        }
+        filter_add_resources(v, report_reqs...);
     }
 };
 
