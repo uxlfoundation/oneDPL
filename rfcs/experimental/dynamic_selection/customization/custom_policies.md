@@ -16,7 +16,8 @@ type `T` satisfies the *Policy* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `p.__try_select_impl(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
+| `p.try_select_impl(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
+| `p.select_impl(args...)` | Loops calling `try_select_impl(args...)` until a selection is returned. |
 | `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::optional` holding the submission object. Returns empty optional if no resource is available for selection. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
@@ -36,7 +37,7 @@ customization while providing sensible defaults for resource management and back
 ### Key Components
 
 1. **`policy_base<Policy, ResourceType, Backend>`**: A proposed base class template that implements the core policy functionality using CRTP.
-2. **Selection Strategy Implementation**: Derived policies only need to implement `__try_select_impl()` and `initialize_impl()` methods.
+2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select_impl()` and `initialize_impl()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
 ### Core Features
@@ -44,7 +45,7 @@ customization while providing sensible defaults for resource management and back
 - **Resource Management**: Policies store and manage resources through the backend
 - **Backend Integration**: All backend operations are handled by the base class
 - **Initialization Support**: Both immediate and deferred initialization patterns
-- **Selection Delegation**: The base class delegates selection to the derived policy's `__try_select_impl()` method
+- **Selection Delegation**: The base class delegates selection to the derived policy's `try_select_impl()` method
 - **Submission Handling**: All submission operations are forwarded to the backend
 - **Error Handling**: Proper error checking for uninitialized policies
 
@@ -108,12 +109,12 @@ void initialize_impl() {
 }
 ```
 
-#### `__try_select_impl()` Implementation  
+#### `try_select_impl()` Implementation  
 Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
-std::optional<selection_type> __try_select_impl(Args&&... args) {
+std::optional<selection_type> try_select_impl(Args&&... args) {
     // Implement selection logic here
     // Return std::optional{selection_type{*this, selected_resource}}
 }
@@ -175,7 +176,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     // Round-robin selection strategy
     template <typename... Args>
-    std::optional<selection_type> __try_select_impl(Args&&...) {
+    std::optional<selection_type> try_select_impl(Args&&...) {
         if (selector_) {
             resource_container_size_t current;
             // Atomic round-robin selection
@@ -253,7 +254,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Load-based selection strategy
     template <typename... Args>
-    std::optional<selection_type> __try_select_impl(Args&&...) {
+    std::optional<selection_type> try_select_impl(Args&&...) {
         if (!resources_.empty()) {
             // Find resource with minimum load
             auto min_resource = std::min_element(resources_.begin(), resources_.end(),
