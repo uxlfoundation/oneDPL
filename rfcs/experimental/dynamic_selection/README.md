@@ -106,7 +106,7 @@ The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`, where `/*ret_type*/` is provided by the documentation of the individual backend.
+- `f` a function object with signature `ret-type fun(resource_t<T>, Args…);`, where *ret-type* is provided by the documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -196,7 +196,7 @@ The type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`  where the required `/*ret_type*/` is described by documentation of the individual backend.
+- `f` a function object with signature `ret-type fun(resource_t<T>, Args…)`  where the required *ret-type* is described by documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
