@@ -317,7 +317,7 @@ struct pipeline_base_range
 
 // use ::std::conditional to understand what class to inherit from
 template <typename Range>
-struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::value>>
+struct pipeline_base_range<Range, ::std::enable_if_t<is_pipeline_object<Range>::value>>
 {
     Range rng;
     using has_next_layer_t = std::true_type;
