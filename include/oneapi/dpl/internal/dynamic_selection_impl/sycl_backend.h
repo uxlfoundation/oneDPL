@@ -361,7 +361,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     }
 };
 
-using sycl_backend = oneapi::dpl::default_backend<sycl::queue, oneapi::dpl::identity>;
+using sycl_backend = default_backend<sycl::queue, oneapi::dpl::identity>;
 
 } //namespace experimental
 } //namespace dpl
