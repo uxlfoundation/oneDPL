@@ -188,6 +188,15 @@ unwrap(T&& v)
 
 template <typename Policy, typename Function, typename... Args>
 auto
+try_submit(Policy&& p, Function&& f, Args&&... args)
+    -> std::enable_if_t<internal::has_try_submit_v<Policy, Function, Args...>, 
+                        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
+{
+    return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);
+}
+
+template <typename Policy, typename Function, typename... Args>
+auto
 submit(Policy&& p, Function&& f, Args&&... args)
     -> std::enable_if_t<internal::has_submit_v<Policy, Function, Args...>,
                         decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...))>
