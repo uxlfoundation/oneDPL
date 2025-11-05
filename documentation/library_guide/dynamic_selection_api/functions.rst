@@ -13,7 +13,7 @@ Submit
 
   namespace oneapi::dpl::experimental {
     template<typename Policy, typename F, typename... Args> 
-    submission_t<Policy> submit(Policy&& p, F&& f, Args&&... args);
+    auto submit(Policy&& p, F&& f, Args&&... args);
   }
 
 Chooses a resource using the policy ``p`` and 
