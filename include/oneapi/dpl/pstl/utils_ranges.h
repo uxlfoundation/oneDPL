@@ -307,9 +307,10 @@ struct pipeline_base<Range, std::enable_if_t<is_pipeline_object<Range>::value>>
 
 //pipeline_base_range
 template <typename Range, typename = void>
-struct pipeline_base_range : std::false_type
+struct pipeline_base_range
 {
     Range rng;
+    using has_next_layer_t = std::false_type;
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr Range
@@ -321,9 +322,10 @@ struct pipeline_base_range : std::false_type
 
 // use ::std::conditional to understand what class to inherit from
 template <typename Range>
-struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::value>> : std::true_type
+struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::value>>
 {
     Range rng;
+    using has_next_layer_t = std::true_type;
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr auto
