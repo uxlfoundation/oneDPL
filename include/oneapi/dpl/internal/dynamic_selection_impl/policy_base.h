@@ -54,16 +54,22 @@ class policy_base
         throw std::logic_error("get_resources called before initialization");
     }
 
-    template <typename... Args,
-          typename = std::enable_if_t<(sizeof...(Args) == 0 ||
-                                       !std::is_same_v<std::decay_t<std::tuple_element_t<0, std::tuple<Args...>>>,
-                                                      std::vector<resource_type>>)>>
     void
-    initialize(Args... args)
+    initialize()
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl(args...);
+        static_cast<Policy*>(this)->initialize_impl();
+    }
+
+    template <typename Arg0, typename... Args,
+          typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, std::vector<resource_type>>>>
+    void
+    initialize(Arg0&& arg0, Args&&... args)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_t>(ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_impl(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
     }
 
     void
