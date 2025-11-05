@@ -34,10 +34,10 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
 class fixed_resource_policy
-    : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
+    : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using selection_type = typename base_t::selection_type;
 
@@ -55,30 +55,28 @@ class fixed_resource_policy
 
     fixed_resource_policy(std::size_t index = 0)
     {
-        base_t::initialize();
-        selector_->index_ = index;
+        base_t::initialize(index);
     }
     fixed_resource_policy(deferred_initialization_t) {}
-
+    
     fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
     {
-        base_t::initialize(u, oneapi::dpl::identity());
-        selector_->index_ = index;
+        base_t::initialize(u, oneapi::dpl::identity(), index);
     }
-
+    
     fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0)
     {
-        base_t::initialize(u, adapter);
-        selector_->index_ = index;
+        base_t::initialize(u, adapter, index);
     }
-
+    
     void
-    initialize_impl()
+    initialize_impl(std::size_t index = 0)
     {
         if (!selector_)
         {
             selector_ = std::make_shared<selector_t>();
         }
+        selector_->index_ = index;
         auto u = base_t::get_resources();
         selector_->resources_ = u;
         selector_->index_ = 0;

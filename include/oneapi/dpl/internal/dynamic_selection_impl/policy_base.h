@@ -27,7 +27,7 @@ namespace dpl
 namespace experimental
 {
 
-template <typename Policy, typename ResourceType, typename Backend, typename... ReportReqs>
+template <typename Policy, typename ResourceType, typename ResourceAdapter, typename Backend, typename... ReportReqs>
 class policy_base
 {
   protected:
@@ -54,12 +54,16 @@ class policy_base
         throw std::logic_error("get_resources called before initialization");
     }
 
+    template <typename... Args,
+          typename = std::enable_if_t<(sizeof...(Args) == 0 ||
+                                       !std::is_same_v<std::decay_t<std::tuple_element_t<0, std::tuple<Args...>>>,
+                                                      std::vector<resource_type>>)>>
     void
-    initialize()
+    initialize(Args... args)
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl();
+        static_cast<Policy*>(this)->initialize_impl(args...);
     }
 
     void
@@ -70,7 +74,17 @@ class policy_base
         static_cast<Policy*>(this)->initialize_impl();
     }
 
-    template <typename ResourceAdapter, typename... Args>
+    template <typename Arg0, typename... Args,
+              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, ResourceAdapter>>>
+    void
+    initialize(const std::vector<resource_type>& u, Arg0&& arg0, Args&&... args)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_impl(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
     void
     initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
     {
