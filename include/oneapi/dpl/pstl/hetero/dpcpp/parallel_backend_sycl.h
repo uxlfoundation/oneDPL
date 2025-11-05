@@ -871,7 +871,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
-__future<sycl::event, __result_and_scratch_storage<_Size>>
+_Size
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
                    _OutRng&& __out_rng, _Size __n, _Size __m, _Pred __pred, _Assign __assign = _Assign{})
 // TODO: __parallel_copy_if should return two stop positions
@@ -902,7 +902,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __scan_copy_single_wg_kernel<_CustomName>>;
         return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
-            static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
+            static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)))
+            .get();
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
@@ -912,7 +913,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                              std::forward<_OutRng>(__out_rng), __n,
                                                              _GenMask{__pred, {}}, _WriteOp{__assign},
-                                                             /*_IsUniquePattern=*/std::false_type{});
+                                                             /*_IsUniquePattern=*/std::false_type{}).get();
     }
     else
     {
@@ -923,7 +924,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
         return __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
-                                                 _CopyOp{_ReduceOp{}, __assign});
+                                                 _CopyOp{_ReduceOp{}, __assign}).get();
     }
 }
 
@@ -2184,8 +2185,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2, __n,
         __n, __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
-        unseq_backend::__brick_assign_key_position{})
-        .get();
+        unseq_backend::__brick_assign_key_position{});
 
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -2223,8 +2223,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
         __view3.size(), __view3.size(),
         __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
-        unseq_backend::__brick_assign_key_position{})
-        .get();
+        unseq_backend::__brick_assign_key_position{});
 
     //reduce by segment
     oneapi::dpl::__par_backend_hetero::__parallel_for(
