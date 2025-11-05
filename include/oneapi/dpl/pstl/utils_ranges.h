@@ -313,11 +313,6 @@ struct pipeline_base_range : std::false_type
     {
         return rng;
     }
-    constexpr Range
-    get_range_on_next_layer()
-    {
-        return base_range();
-    }
 };
 
 // use ::std::conditional to understand what class to inherit from
@@ -331,11 +326,6 @@ struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::va
     base_range() -> decltype(pipeline_base_range<decltype(rng.base())>(rng.base()).base_range())
     {
         return pipeline_base_range<decltype(rng.base())>(rng.base()).base_range();
-    }
-    constexpr auto
-    get_range_on_next_layer() -> decltype(std::declval<Range>().base())
-    {
-        return rng.base();
     }
 };
 
