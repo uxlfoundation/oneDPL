@@ -51,33 +51,6 @@ struct scratch_space_member : decltype(has_scratch_space_member<SelectionHandle>
 {
 };
 
-template <typename S, typename Info>
-auto
-has_report_impl(...) -> std::false_type;
-
-template <typename S, typename Info>
-auto
-has_report_impl(int) -> decltype(std::declval<S>().report(std::declval<Info>()), std::true_type{});
-
-template <typename S, typename Info>
-struct has_report : decltype(has_report_impl<S, Info>(0))
-{
-};
-
-template <typename S, typename Info, typename ValueType>
-auto
-has_report_value_impl(...) -> std::false_type;
-
-template <typename S, typename Info, typename ValueType>
-auto
-has_report_value_impl(int)
-    -> decltype(std::declval<S>().report(std::declval<Info>(), std::declval<ValueType>()), std::true_type{});
-
-template <typename S, typename Info, typename ValueType>
-struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
-{
-};
-
 template <typename T>
 auto
 has_wait_impl(...) -> std::false_type;
@@ -140,6 +113,33 @@ struct has_submit_and_wait : decltype(has_submit_and_wait_impl<Policy, Function,
 
 template <typename Policy, typename Function, typename... Args>
 inline constexpr bool has_submit_and_wait_v = has_submit_and_wait<Policy, Function, Args...>::value;
+
+template <typename S, typename Info>
+auto
+has_report_impl(...) -> std::false_type;
+
+template <typename S, typename Info>
+auto
+has_report_impl(int) -> decltype(std::declval<S>().report(std::declval<Info>()), std::true_type{});
+
+template <typename S, typename Info>
+struct has_report : decltype(has_report_impl<S, Info>(0))
+{
+};
+
+template <typename S, typename Info, typename ValueType>
+auto
+has_report_value_impl(...) -> std::false_type;
+
+template <typename S, typename Info, typename ValueType>
+auto
+has_report_value_impl(int)
+    -> decltype(std::declval<S>().report(std::declval<Info>(), std::declval<ValueType>()), std::true_type{});
+
+template <typename S, typename Info, typename ValueType>
+struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
+{
+};
 
 } //namespace internal
 
