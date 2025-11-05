@@ -341,7 +341,6 @@ template <typename Iterator>
 using is_const_iterator =
     typename ::std::is_const<::std::remove_pointer_t<typename ::std::iterator_traits<Iterator>::pointer>>;
 
-
 // Invoker for different types of iterators.
 template <typename IteratorTag, typename IsReverse>
 struct iterator_invoker

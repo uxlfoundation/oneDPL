@@ -33,11 +33,12 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class fixed_resource_policy
-    : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>
+class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>,
+                                                 ResourceType, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
+    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceType,
+                               ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using selection_type = typename base_t::selection_type;
 
@@ -53,22 +54,19 @@ class fixed_resource_policy
     using resource_type = typename base_t::resource_type;
     using typename base_t::backend_t;
 
-    fixed_resource_policy(std::size_t index = 0)
-    {
-        base_t::initialize(index);
-    }
+    fixed_resource_policy(std::size_t index = 0) { base_t::initialize(index); }
     fixed_resource_policy(deferred_initialization_t) {}
-    
+
     fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
     {
         base_t::initialize(u, oneapi::dpl::identity(), index);
     }
-    
+
     fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0)
     {
         base_t::initialize(u, adapter, index);
     }
-    
+
     void
     initialize_impl(std::size_t index = 0)
     {

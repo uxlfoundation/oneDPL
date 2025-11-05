@@ -33,11 +33,12 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class round_robin_policy
-    : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>
+class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType,
+                                              ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
+    using base_t =
+        policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using typename base_t::selection_type;
 

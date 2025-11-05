@@ -35,12 +35,13 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
 class dynamic_load_policy
-    : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend,
-                         execution_info::task_submission_t, execution_info::task_completion_t>
+    : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter,
+                         Backend, execution_info::task_submission_t, execution_info::task_completion_t>
 {
   protected:
-    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend,
-                               execution_info::task_submission_t, execution_info::task_completion_t>;
+    using base_t =
+        policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend,
+                    execution_info::task_submission_t, execution_info::task_completion_t>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -123,8 +124,7 @@ class dynamic_load_policy
         for (auto x : u)
         {
             selector_->resources_.push_back(std::make_shared<resource_t>(x));
-            }
-
+        }
     }
 
     template <typename... Args>
@@ -132,8 +132,8 @@ class dynamic_load_policy
     try_select_impl(Args&&...)
     {
 
-            if (selector_)
-            {
+        if (selector_)
+        {
             std::shared_ptr<resource_t> least_loaded;
             int least_load = std::numeric_limits<load_t>::max();
 

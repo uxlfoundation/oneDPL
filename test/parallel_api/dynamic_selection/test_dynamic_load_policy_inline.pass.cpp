@@ -21,14 +21,14 @@ main()
     try
     {
         //tests using default backend and only a resource type. (no user backend provided)
-        using policy_t =
-            oneapi::dpl::experimental::dynamic_load_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
+        using policy_t = oneapi::dpl::experimental::dynamic_load_policy<int, oneapi::dpl::identity,
+                                                                        TestUtils::int_inline_backend_t<>>;
         std::vector<int> u{4, 5, 6, 7};
-    
+
         // should always pick the "offset" device since executed inline
         // there is no overlap and so "offset" is always unloaded at selection time
         auto f = [u](int) { return u[0]; };
-    
+
         EXPECT_EQ(0, (test_initialization<policy_t, int>(u)), "");
         EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t>(u, f)), "");
         EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");

@@ -125,7 +125,6 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
                 ecount += i;
 
                 return launch_kernel<TestUtils::unique_kernel_name<KernelName, 1>>(q, j, v);
-
             });
         oneapi::dpl::experimental::wait(s);
 
@@ -207,7 +206,6 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource)
     std::cout << "submit and wait on group: OK\n";
     return 0;
 }
-
 
 template <typename Policy, typename KernelName, typename UniverseContainer>
 int

@@ -198,8 +198,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     template <typename... ReportReqs, typename T = ResourceAdapter,
               typename = std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>>>
-    default_backend_impl(ReportReqs... report_reqs)
-        : base_t(), adapter()
+    default_backend_impl(ReportReqs... report_reqs) : base_t(), adapter()
     {
         static_assert(
             (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t,

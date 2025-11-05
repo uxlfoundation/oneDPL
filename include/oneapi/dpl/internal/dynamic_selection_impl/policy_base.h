@@ -63,7 +63,7 @@ class policy_base
     }
 
     template <typename Arg0, typename... Args,
-          typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, std::vector<resource_type>>>>
+              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, std::vector<resource_type>>>>
     void
     initialize(Arg0&& arg0, Args&&... args)
     {

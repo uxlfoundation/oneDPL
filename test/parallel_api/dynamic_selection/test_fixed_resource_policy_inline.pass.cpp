@@ -20,8 +20,8 @@ main()
 {
     try
     {
-        using policy_t =
-            oneapi::dpl::experimental::fixed_resource_policy<int, oneapi::dpl::identity, TestUtils::int_inline_backend_t<>>;
+        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<int, oneapi::dpl::identity,
+                                                                          TestUtils::int_inline_backend_t<>>;
         std::vector<int> u{4, 5, 6, 7};
         auto f = [u](size_t, size_t offset = 0) { return u[offset]; };
 
@@ -41,7 +41,7 @@ main()
 
         using policy1_t =
             oneapi::dpl::experimental::fixed_resource_policy<DummyResource, oneapi::dpl::identity,
-                                                            oneapi::dpl::experimental::default_backend<DummyResource>>;
+                                                             oneapi::dpl::experimental::default_backend<DummyResource>>;
         std::vector<DummyResource> u1;
         for (int i = 4; i < 8; ++i)
         {

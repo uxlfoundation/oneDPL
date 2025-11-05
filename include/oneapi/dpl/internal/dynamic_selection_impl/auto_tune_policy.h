@@ -45,12 +45,13 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
-class auto_tune_policy
-    : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>
+class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType,
+                                            ResourceAdapter, Backend>
 {
 
   protected:
-    using base_t = policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
+    using base_t =
+        policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
 
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;
@@ -203,11 +204,9 @@ class auto_tune_policy
 
     auto_tune_policy(deferred_initialization_t) {}
 
-    auto_tune_policy(timing_t resample_time = never_resample)
-    {
-        base_t::initialize(resample_time);
-    }
-    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}, timing_t resample_time = never_resample)
+    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
+    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {},
+                     timing_t resample_time = never_resample)
     {
         base_t::initialize(u, adapter, resample_time);
     }

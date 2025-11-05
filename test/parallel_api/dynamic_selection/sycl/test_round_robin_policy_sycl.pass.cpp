@@ -52,7 +52,7 @@ main()
             // Test with direct sycl::queue resources
             using policy_t =
                 oneapi::dpl::experimental::round_robin_policy<sycl::queue, oneapi::dpl::identity,
-                                                            oneapi::dpl::experimental::default_backend<sycl::queue>>;
+                                                              oneapi::dpl::experimental::default_backend<sycl::queue>>;
             auto f = [u, n](int i) { return u[(i - 1) % n]; };
 
             std::cout << "\nRunning round robin tests for sycl::queue ...\n";
@@ -78,7 +78,6 @@ main()
             bProcessed = true;
         }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
-
     }
     catch (const std::exception& exc)
     {

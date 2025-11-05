@@ -88,7 +88,7 @@ main()
             // Test with direct sycl::queue resources
             using policy_t =
                 oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity,
-                                                            oneapi::dpl::experimental::default_backend<sycl::queue>>;
+                                                               oneapi::dpl::experimental::default_backend<sycl::queue>>;
 
             // should be similar to round_robin when waiting on policy
             auto f = [u](int i) { return u[i % u.size()]; };
@@ -115,8 +115,8 @@ main()
 
             std::cout << "\nRunning dynamic load tests for sycl::queue* ...\n";
             EXPECT_EQ(0,
-                    (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
-                    "");
+                (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
+                "");
 
             bProcessed = true;
         }
