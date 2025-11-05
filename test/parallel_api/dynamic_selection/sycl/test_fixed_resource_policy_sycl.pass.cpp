@@ -37,40 +37,53 @@ main()
 {
     bool bProcessed = false;
 
-#if TEST_DYNAMIC_SELECTION_AVAILABLE
-    std::vector<sycl::queue> u;
-    build_universe(u);
-    if (!u.empty())
+    try
     {
-        // Test with direct sycl::queue resources
-        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<
-            sycl::queue, oneapi::dpl::identity,
-            oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::identity>>;
-        auto f = [u](int, int offset = 0) { return u[offset]; };
-
-        std::cout << "\nRunning tests for sycl::queue ...\n";
-        EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f)), "");
-
-        // Test with sycl::queue* resources and dereference adapter
-        auto deref_op = [](auto pointer) { return *pointer; };
-        using policy_pointer_t = oneapi::dpl::experimental::fixed_resource_policy<
-            sycl::queue*, decltype(deref_op),
-            oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
-
-        std::vector<sycl::queue*> u_ptrs;
-        u_ptrs.reserve(u.size());
-        for (auto& e : u)
+#if TEST_DYNAMIC_SELECTION_AVAILABLE
+        std::vector<sycl::queue> u;
+        build_universe(u);
+        if (!u.empty())
         {
-            u_ptrs.push_back(&e);
+            // Test with direct sycl::queue resources
+            using policy_t = oneapi::dpl::experimental::fixed_resource_policy<
+                sycl::queue, oneapi::dpl::identity,
+                oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::identity>>;
+            auto f = [u](int, int offset = 0) { return u[offset]; };
+
+            std::cout << "\nRunning tests for sycl::queue ...\n";
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f)), "");
+
+            // Test with sycl::queue* resources and dereference adapter
+            auto deref_op = [](auto pointer) { return *pointer; };
+            using policy_pointer_t = oneapi::dpl::experimental::fixed_resource_policy<
+                sycl::queue*, decltype(deref_op),
+                oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
+
+            std::vector<sycl::queue*> u_ptrs;
+            u_ptrs.reserve(u.size());
+            for (auto& e : u)
+            {
+                u_ptrs.push_back(&e);
+            }
+            auto f_ptrs = [u_ptrs](int, int offset = 0) { return u_ptrs[offset]; };
+
+            std::cout << "\nRunning tests for sycl::queue* ...\n";
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
+
+            bProcessed = true;
         }
-        auto f_ptrs = [u_ptrs](int, int offset = 0) { return u_ptrs[offset]; };
-
-        std::cout << "\nRunning tests for sycl::queue* ...\n";
-        EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
-
-        bProcessed = true;
-    }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
+    }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done(bProcessed);
 }

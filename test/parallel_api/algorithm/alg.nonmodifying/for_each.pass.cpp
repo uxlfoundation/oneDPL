@@ -34,7 +34,7 @@ struct Gen
     operator()(::std::size_t k)
     {
         return Type(k % 5 != 1 ? 3 * k + 7 : 0);
-    };
+    }
 };
 
 template <typename T>
@@ -56,11 +56,11 @@ struct test_for_each
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Iterator expected_first, Iterator expected_last, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         // Try for_each
         ::std::for_each(expected_first, expected_last, Flip<T>(1));
-        for_each(exec, first, last, Flip<T>(1));
+        for_each(std::forward<Policy>(exec), first, last, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each");
     }
 };
@@ -72,11 +72,11 @@ struct test_for_each_n
     void
     operator()(Policy&& exec, Iterator first, Iterator, Iterator expected_first, Iterator /* expected_last */, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         // Try for_each_n
         ::std::for_each_n(oneapi::dpl::execution::seq, expected_first, n, Flip<T>(1));
-        for_each_n(exec, first, n, Flip<T>(1));
+        for_each_n(std::forward<Policy>(exec), first, n, Flip<T>(1));
         EXPECT_EQ_N(expected_first, first, n, "wrong effect from for_each_n");
     }
 };
@@ -100,15 +100,23 @@ test()
     }
 }
 
+template <typename TRef>
+struct TransformOp
+{
+    void operator()(TRef x) const
+    {
+        x = x + 1;
+    }
+};
+
 struct test_non_const_for_each
 {
     template <typename Policy, typename Iterator>
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
-        for_each(exec, iter, iter, non_const(f));
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
+        for_each(std::forward<Policy>(exec), iter, iter, non_const(f));
     }
 };
 
@@ -118,9 +126,8 @@ struct test_non_const_for_each_n
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto f = [](typename ::std::iterator_traits<Iterator>::reference x) { x = x + 1; };
-
-        for_each_n(exec, iter, 0, non_const(f));
+        auto f = TransformOp<typename std::iterator_traits<Iterator>::reference>{};
+        for_each_n(std::forward<Policy>(exec), iter, 0, non_const(f));
     }
 };
 

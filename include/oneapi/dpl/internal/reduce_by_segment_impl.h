@@ -106,9 +106,9 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
         return ::std::make_pair(result1 + 1, result2 + 1);
     }
 
-    typedef uint64_t FlagType;
-    typedef typename ::std::iterator_traits<InputIterator2>::value_type ValueType;
-    typedef uint64_t CountType;
+    using FlagType = uint64_t;
+    using ValueType = typename std::iterator_traits<InputIterator2>::value_type;
+    using CountType = uint64_t;
 
     // buffer that is used to store a flag indicating if the associated key is not equal to
     // the next key, and thus its associated sum should be part of the final result
@@ -137,7 +137,7 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     // Compute the sum of the segments. scanned_tail_flags values are not used.
     inclusive_scan(policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
                    make_zip_iterator(_scanned_values.get(), _scanned_tail_flags.get()),
-                   internal::segmented_scan_fun<ValueType, FlagType, BinaryOperator>(binary_op));
+                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, BinaryOperator>{binary_op});
 
     // for example: _scanned_values     = { 1, 2, 3, 4, 1, 2, 3, 6, 1, 2, 3, 6, 0 }
 
@@ -183,17 +183,11 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
     //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
     //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
 
-    using _CountType = std::uint64_t;
-
-    namespace __bknd = __par_backend_hetero;
-
-    const auto n = std::distance(first1, last1);
-
-    if (n == 0)
+    if (first1 == last1)
         return std::make_pair(result1, result2);
 
     // number of unique keys
-    _CountType __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
+    const auto __n = oneapi::dpl::__internal::__pattern_reduce_by_segment(
         __tag, std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred, binary_op);
 
     return std::make_pair(result1 + __n, result2 + __n);
@@ -219,7 +213,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<Output
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2, BinaryPred binary_pred)
 {
-    typedef typename ::std::iterator_traits<InputIt2>::value_type T;
+    using T = typename std::iterator_traits<InputIt2>::value_type;
 
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
                              ::std::plus<T>());
@@ -230,7 +224,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<Output
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2)
 {
-    typedef typename ::std::iterator_traits<InputIt1>::value_type T;
+    using T = typename std::iterator_traits<InputIt1>::value_type;
 
     return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2,
                              ::std::equal_to<T>());

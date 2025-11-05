@@ -566,7 +566,7 @@ test_algo_four_sequences()
     test_algo_four_sequences<typename TestName::UsedValueType, TestName, TPolicyInvoker>();
 }
 
-}; // namespace TestUtils
+} // namespace  TestUtils
 
 //--------------------------------------------------------------------------------------------------------------------//
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -675,7 +675,7 @@ TestUtils::test_base_data_buffer<TestValueType>::retrieve_data(UDTKind kind, Tes
     auto acc = data_item.src_data_buf.get_host_access(sycl::read_write);
 
     auto __index = data_item.offset;
-    for (auto __it = __it_from; __it != __it_to; ++__it, ++__index)
+    for (auto __it = __it_from; __it != __it_to; ++__it, (void) ++__index)
     {
         *__it = acc[__index];
     }

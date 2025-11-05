@@ -93,6 +93,12 @@ Difference with Standard C++ Parallel Algorithms
   the execution will remain serial for other iterator types.
 * Function objects passed in to algorithms executed with device policies must provide ``const``-qualified ``operator()``.
   The `SYCL specification`_ states that writing to such an object during a SYCL kernel is undefined behavior.
+* For algorithms ``reduce``, ``transform_reduce``, ``inclusive_scan``, ``exclusive_scan``,
+  ``transform_inclusive_scan``, and ``transform_exclusive_scan``, the initial value type must be ``MoveAssignable``
+  in addition to the existing ``MoveConstructible`` requirement. While this is not required by the C++ standard, it is
+  necessary for reasonable (non-recursive) implementations and is consistent with other standard library implementations
+  in practice. Insufficient type requirements for numeric algorithms are discussed in detail in
+  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0571r2.html.
 * For the following algorithms, ``par_unseq`` and ``unseq`` policies do not result in SIMD execution:
   ``includes``, ``inplace_merge``, ``merge``, ``set_difference``, ``set_intersection``,
   ``set_symmetric_difference``, ``set_union``, ``stable_partition``, ``unique``.
@@ -106,15 +112,19 @@ Restrictions
 When called with device execution policies, |onedpl_short| algorithms apply the same restrictions as
 |dpcpp_short| does (see the |dpcpp_cpp| documentation and the SYCL specification for details), such as:
 
-* Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm.
-* Passing data types, which are not trivially copyable, is only allowed via USM,
-  but not via buffers or host-allocated containers.
+* Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
+  `SYCL device-copyable`_.
+* Data types which are not SYCL device-copyable may only be passed to |onedpl_short| algorithms via USM pointers.
+  SYCL buffers or host-allocated containers must have a SYCL device-copyable value type.
 * Objects of pointer-to-member types cannot be passed to an algorithm.
 * The definition of lambda functions used with parallel algorithms should not depend on preprocessor macros
   that makes it different for the host and the device. Otherwise, the behavior is undefined.
 * When used within SYCL kernels or transferred to/from a device, a container class can only hold objects
   whose type meets SYCL requirements for use in kernels and for data transfer, respectively.
 * Calling the API that throws exception is not allowed within callable objects passed to an algorithm.
+
+Please see :ref:`Pass Data to Algorithms <pass-data-algorithms>` for more details on how to pass data to algorithms, and the
+restrictions on the data types that can be passed to algorithms executed with device execution policies.
 
 Known Limitations
 *****************
@@ -129,7 +139,9 @@ Known Limitations
   If these conditions are not met, the result of these algorithm calls is undefined.
 * For ``transform_exclusive_scan``, ``transform_inclusive_scan`` algorithms the result of the unary operation should be
   convertible to the type of the initial value if one is provided, otherwise it is convertible to the type of values
-  in the processed data sequence: ``std::iterator_traits<IteratorType>::value_type``.
+  in the processed data sequence: ``std::iterator_traits<InputIt>::value_type``. Similarly, for ``inclusive_scan`` and
+  ``exclusive_scan``, ``std::iterator_traits<InputIt>::value_type`` should be convertible to the initial value type if
+  provided.
 * ``exclusive_scan`` and ``transform_exclusive_scan`` algorithms may provide wrong results with
   unsequenced execution policies when building a program with GCC 10 and using ``-O0`` option.
 * Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_cpp| versions 2021 and older
@@ -160,9 +172,12 @@ Known Limitations
 * ``reduce_by_segment``, when used with C++ standard aligned policies, imposes limitations on the value type.
   Firstly, it must satisfy the ``DefaultConstructible`` requirements.
   Secondly, a default-constructed instance of that type should act as the identity element for the binary reduction function.
-* The initial value type for ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
-  ``inclusive_scan_by_segment``, ``reduce``, ``reduce_by_segment``, ``transform_reduce``, ``transform_exclusive_scan``,
-  ``transform_inclusive_scan`` should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* The initial value type for ``reduce_by_segment``, ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment``
+  should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
+* The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
+``CopyAssignable`` requirements when used with device execution policies.
+* The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,
+  ``transform_inclusive_scan`` should satisfy the ``CopyConstructible`` and the ``CopyAssignable`` requirements.
 * For ``max_element``, ``min_element``, ``minmax_element``, ``partial_sort``, ``partial_sort_copy``, ``sort``, ``stable_sort``
   the dereferenced value type of the provided iterators should satisfy the ``DefaultConstructible`` requirements.
 * For ``remove``, ``remove_if``, ``unique`` the dereferenced value type of the provided
@@ -180,5 +195,9 @@ Known Limitations
 * ``std::ranges::drop_view`` from libstdc++ version 10 may throw exceptions.
   This can lead to a "SYCL kernel cannot use exceptions" compilation error
   when it is used to pass data to a range-based algorithm with a device policy.
+* Range-based ``sort`` and ``stable_sort`` algorithms called with device execution policies
+  use ``std::swap`` instead of ``std::ranges::iter_swap``.
+  As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
+.. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable

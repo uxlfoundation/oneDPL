@@ -20,6 +20,7 @@
 #include <oneapi/dpl/iterator>
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/binary_search_utils.h"
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -65,28 +66,25 @@ DEFINE_TEST(test_binary_search)
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
         TestDataTransfer<UDTKind::eRes,  Size> host_res (*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
+        using ValueT = typename std::iterator_traits<Iterator1>::value_type;
 
         // call algorithm with no optional arguments
         initialize_data(host_keys.get(), host_vals.get(), host_res.get(), n);
         update_data(host_keys, host_vals, host_res);
 
-        auto new_policy = make_new_policy<new_kernel_name<Policy, 0>>(exec);
-        auto res1 = oneapi::dpl::binary_search(new_policy, first, last, value_first, value_last, result_first);
+        auto res1 = oneapi::dpl::binary_search(CLONE_TEST_POLICY_IDX(exec, 0), first, last, value_first, value_last, result_first);
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, device policy");
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
         host_res.update_data();
 
         // call algorithm with comparator
-        auto new_policy2 = make_new_policy<new_kernel_name<Policy, 1>>(exec);
-        auto res2 = oneapi::dpl::binary_search(new_policy2, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
+        auto res2 = oneapi::dpl::binary_search(CLONE_TEST_POLICY_IDX(exec, 1), first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
         exec.queue().wait_and_throw();
 
-        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, device policy");
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, device policy");
         host_res.retrieve_data();
         check_and_clean(host_res.get(), n);
     }
@@ -102,19 +100,18 @@ DEFINE_TEST(test_binary_search)
     operator()(Policy&& exec, Iterator1 first, Iterator1 last, Iterator2 value_first, Iterator2 value_last,
                Iterator3 result_first, Iterator3 /*result_last*/, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator1>::value_type ValueT;
+        using ValueT = typename std::iterator_traits<Iterator1>::value_type;
 
         // call algorithm with no optional arguments
         initialize_data(first, value_first, result_first, n);
 
-        auto res1 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first);
-        EXPECT_TRUE(std::distance(result_first, res1) == n, "wrong return value, host policy");
+        auto res1 = oneapi::dpl::binary_search(CLONE_TEST_POLICY(exec), first, last, value_first, value_last, result_first);
+        EXPECT_EQ(n, std::distance(result_first, res1), "wrong return value, host policy");
         check_and_clean(result_first, n);
 
         // call algorithm with comparator
-        auto res2 = oneapi::dpl::binary_search(exec, first, last, value_first, value_last, result_first,
-                                               [](ValueT first, ValueT second) { return first < second; });
-        EXPECT_TRUE(std::distance(result_first, res2) == n, "wrong return value, with predicate, host policy");
+        auto res2 = oneapi::dpl::binary_search(CLONE_TEST_POLICY(exec), first, last, value_first, value_last, result_first, TestUtils::IsLess<ValueT>{});
+        EXPECT_EQ(n, std::distance(result_first, res2), "wrong return value, with predicate, host policy");
         check_and_clean(result_first, n);
     }
 

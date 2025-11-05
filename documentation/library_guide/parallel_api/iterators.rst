@@ -1,10 +1,12 @@
+.. _iterator-details:
+
 Iterators
 #########
 
 The definitions of the iterators are available through the ``<oneapi/dpl/iterator>``
 header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 
-* ``counting_iterator``: a random-access iterator-like type whose dereferenced value is an integer
+* ``counting_iterator``: a random-access iterator-like type whose dereferenced result is an prvalue integer
   counter. Instances of a ``counting_iterator`` provide read-only dereference operations. The counter of an
   ``counting_iterator`` instance changes according to the arithmetic of the random-access iterator type:
 
@@ -17,8 +19,8 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto sum = dpl::reduce(dpl::execution::dpcpp_default,
                            count_a, count_b, init); // sum is (0 + 0 + 1 + ... + 9) = 45
 
-* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of
-  ``zip_iterator`` dereferencing is a tuple-like object of an unspecified type that holds the values
+* ``zip_iterator``: an iterator constructed with one or more iterators as input. The result of dereferencing
+  ``zip_iterator`` is a temporary tuple-like object of an unspecified type that holds the values
   returned by dereferencing the member iterators, which the ``zip_iterator`` wraps. Arithmetic operations
   performed on a ``zip_iterator`` instance are also applied to each of the member iterators.
 
@@ -73,20 +75,35 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
 * ``transform_iterator``: an iterator defined over another iterator whose dereferenced value is the result
   of a function applied to the corresponding element of the base iterator. Both the type of the base
   iterator and the unary function applied during dereference operations are required template parameters of
-  the ``transform_iterator`` class. 
+  the ``transform_iterator`` class.
 
   The unary functor provided to a ``transform_iterator`` should have a ``const``-qualified call operator which accepts
   the reference type of the base iterator as argument. The functor's call operator should not have any side effects and
   should not modify the state of the functor object.
-  
+
+  .. note::
+     When using ``transform_iterator`` with base iterators that return prvalues (temporary objects) upon dereferencing
+     (such as ``counting_iterator`` or ``zip_iterator``), care must be taken with the transform functor. Functors that
+     return references they accepted as input reference arguments (like ``oneapi::dpl::identity`` or ``std::identity``)
+     will create dangling references when applied to prvalues, resulting in undefined behavior. Instead, in these
+     situations, use functors that return values by copy:
+
+     .. code:: cpp
+
+       //  DANGEROUS: identity returns reference to prvalue (dangling reference)
+       auto bad_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, dpl::identity{});
+       
+       //  SAFE: custom functor returns by value
+       auto safe_transform = dpl::make_transform_iterator(dpl::counting_iter<int>{0}, [](auto x) { return x; });
+
   The ``transform_iterator`` class provides the following constructors:
 
   * ``transform_iterator()``: instantiates the iterator using a default constructed base iterator and unary functor.
     This constructor participates in overload resolution only if the base iterator and unary functor are both default constructible.
-  
+
   * ``transform_iterator(iter)``: instantiates the iterator using the base iterator provided and a default constructed
     unary functor. This constructor participates in overload resolution only if the unary functor is default constructible.
-  
+
   * ``transform_iterator(iter, func)``: instantiates the iterator using the base iterator and unary functor provided.
 
   To simplify the construction of the iterator, ``oneapi::dpl::make_transform_iterator`` is provided. The
@@ -128,3 +145,4 @@ header.  All iterators are implemented in the ``oneapi::dpl`` namespace.
     auto permutation_first = dpl::make_permutation_iterator(first, multiply_index_by_two());
     auto permutation_last = permutation_first + num_elements;
     dpl::copy(dpl::execution::dpcpp_default, permutation_first, permutation_last, result);
+

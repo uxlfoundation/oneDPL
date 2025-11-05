@@ -21,6 +21,7 @@
 #include _PSTL_TEST_HEADER(algorithm)
 
 #include "support/utils.h"
+#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 
 #include <cmath>
 #include <chrono>
@@ -86,9 +87,9 @@ struct test_set_union
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_union");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect");
     }
 
@@ -100,9 +101,9 @@ struct test_set_union
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_union(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_union without comparator");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_union without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect without comparator");
     }
 
@@ -145,10 +146,9 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_intersection(create_new_policy_idx<0>(std::forward<Policy>(exec)), first1, last1, first2,
-                                           last2, out.begin(), comp);
+        auto res = std::set_intersection(CLONE_TEST_POLICY_IDX(exec, 0), first1, last1, first2, last2, out.begin(), comp);
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_intersection");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect");
 
         if constexpr (TestUtils::is_base_of_iterator_category<std::random_access_iterator_tag,
@@ -175,9 +175,9 @@ struct test_set_intersection
 
             auto zip_expect_res = std::set_intersection(zip_first1, zip_last1, zip_first2, zip_last2, zip_expect,
                                                         comp_select_first(comp));
-            auto zip_res = std::set_intersection(create_new_policy_idx<1>(std::forward<Policy>(exec)), zip_first1,
-                                                 zip_last1, zip_first2, zip_last2, zip_out, comp_select_first(comp));
-            EXPECT_TRUE(zip_expect_res - zip_expect == zip_res - zip_out, "wrong result for zipped set_intersection");
+            auto zip_res = std::set_intersection(CLONE_TEST_POLICY_IDX(exec, 1), zip_first1, zip_last1, zip_first2,
+                                                 zip_last2, zip_out, comp_select_first(comp));
+            EXPECT_EQ(zip_expect_res - zip_expect, zip_res - zip_out, "wrong result for zipped set_intersection");
             EXPECT_EQ_N(zip_expect, zip_out, std::distance(zip_out, zip_res), "wrong zipped set_intersection effect");
         }
     }
@@ -190,9 +190,9 @@ struct test_set_intersection
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_intersection(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_intersection(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_intersection(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_intersection without comparator");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_intersection without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_intersection effect without comparator");
     }
 
@@ -221,9 +221,9 @@ struct test_set_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_difference");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_difference effect");
     }
 
@@ -235,10 +235,10 @@ struct test_set_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_difference(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_difference(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
-                    "wrong result for set_difference without comparator");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(),
+                  "wrong result for set_difference without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res),
                     "wrong set_difference effect without comparator");
     }
@@ -268,9 +268,9 @@ struct test_set_symmetric_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin(), comp);
-        auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin(), comp);
+        auto res = std::set_symmetric_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin(), comp);
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(), "wrong result for set_symmetric_difference");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_symmetric_difference");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res),
                     "wrong set_symmetric_difference effect");
     }
@@ -283,10 +283,10 @@ struct test_set_symmetric_difference
         auto expect = sequences.first;
         auto out = sequences.second;
         auto expect_res = ::std::set_symmetric_difference(first1, last1, first2, last2, expect.begin());
-        auto res = ::std::set_symmetric_difference(exec, first1, last1, first2, last2, out.begin());
+        auto res = std::set_symmetric_difference(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
-        EXPECT_TRUE(expect_res - expect.begin() == res - out.begin(),
-                    "wrong result for set_symmetric_difference without comparator");
+        EXPECT_EQ(expect_res - expect.begin(), res - out.begin(),
+                  "wrong result for set_symmetric_difference without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res),
                     "wrong set_symmetric_difference effect without comparator");
     }
@@ -332,6 +332,15 @@ test_set(Compare compare, bool comp_flag)
     }
 }
 
+template <typename T>
+struct ValueLessOp
+{
+    bool operator()(const T& val1, const T& val2) const
+    {
+        return val1.value() < val2.value();
+    }
+};
+
 template <template <typename T> typename TestType>
 void
 run_test_set()
@@ -349,11 +358,9 @@ run_test_set()
 #endif // !ONEDPL_FPGA_DEVICE
 
 #if !TEST_DPCPP_BACKEND_PRESENT
-    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(
-        [](const Num<std::int64_t>& x, const Num<std::int32_t>& y) { return x < y; }, true);
+    test_set<TestType, Num<std::int64_t>, Num<std::int32_t>>(TestUtils::IsLess<Num<std::int32_t>>{}, true);
 
-    test_set<TestType, MemoryChecker, MemoryChecker>(
-        [](const MemoryChecker& val1, const MemoryChecker& val2) -> bool { return val1.value() < val2.value(); }, true);
+    test_set<TestType, MemoryChecker, MemoryChecker>(ValueLessOp<MemoryChecker>{}, true);
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0,
                 "wrong effect from set algorithms: number of ctor and dtor calls is not equal");
 #endif // !TEST_DPCPP_BACKEND_PRESENT

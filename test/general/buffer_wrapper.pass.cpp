@@ -37,7 +37,7 @@ struct test_buffer_wrapper
         sycl::host_accessor buf_accessor(buf, sycl::read_only);
         auto actual_data = buf_accessor.get_pointer();
 
-        EXPECT_TRUE(actual_data == expected_data, "wrong effect of iterator's method get_buffer");
+        EXPECT_EQ(expected_data, actual_data, "wrong effect of iterator's method get_buffer");
     }
 };
 #endif

@@ -11,4 +11,4 @@ else()
   # Add custom target for running
   add_custom_target(run ./${PROJECT_NAME})
 endif()
-  add_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})
+add_test(NAME ${PROJECT_NAME} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME})

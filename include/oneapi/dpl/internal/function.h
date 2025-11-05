@@ -43,27 +43,6 @@ struct is_discard_iterator<Iter, ::std::enable_if_t<Iter::is_discard::value>> : 
 };
 
 // Used by: exclusive_scan_by_key
-// Lambda: [pred, &new_value](Ref1 a, Ref2 s) {return pred(s) ? new_value : a; });
-template <typename T, typename Predicate>
-struct replace_if_fun
-{
-    using result_of = T;
-
-    replace_if_fun(Predicate _pred, T _new_value) : pred(_pred), new_value(_new_value) {}
-
-    template <typename _T1, typename _T2>
-    T
-    operator()(_T1&& a, _T2&& s) const
-    {
-        return pred(s) ? new_value : a;
-    }
-
-  private:
-    Predicate pred;
-    const T new_value;
-};
-
-// Used by: exclusive_scan_by_key
 template <typename ValueType, typename FlagType, typename BinaryOp>
 struct scan_by_key_fun
 {
@@ -77,27 +56,6 @@ struct scan_by_key_fun
     {
         using ::std::get;
         return ::std::make_tuple(get<1>(y) ? get<0>(y) : binary_op(get<0>(x), get<0>(y)), get<1>(x) | get<1>(y));
-    }
-
-  private:
-    BinaryOp binary_op;
-};
-
-// Used by: reduce_by_key
-template <typename ValueType, typename FlagType, typename BinaryOp>
-struct segmented_scan_fun
-{
-    segmented_scan_fun(BinaryOp input) : binary_op(input) {}
-
-    template <typename _T1, typename _T2>
-    _T1
-    operator()(const _T1& x, const _T2& y) const
-    {
-        using ::std::get;
-        using x_t = ::std::tuple_element_t<0, _T1>;
-        auto new_x = get<1>(y) ? x_t(get<0>(y)) : x_t(binary_op(get<0>(x), get<0>(y)));
-        auto new_y = get<1>(x) | get<1>(y);
-        return _T1(new_x, new_y);
     }
 
   private:

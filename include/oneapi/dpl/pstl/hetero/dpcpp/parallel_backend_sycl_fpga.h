@@ -25,6 +25,7 @@
 #include <type_traits>
 
 #include "sycl_defs.h"
+#include "../../utils_ranges.h" // __min_size_calc
 #include "parallel_backend_sycl_utils.h"
 // workaround until we implement more performant optimization for patterns
 #include "parallel_backend_sycl.h"
@@ -60,8 +61,7 @@ struct __parallel_for_fpga_submitter<__internal::__optional_kernel_name<_Name...
     __future<sycl::event>
     operator()(sycl::queue& __q, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        assert(std::min({std::make_unsigned_t<std::common_type_t<oneapi::dpl::__internal::__difference_t<_Ranges>...>>(
-                   __rngs.size())...}) > 0);
+        assert(oneapi::dpl::__ranges::__min_size_calc{}(__rngs...) > 0);
         assert(__count > 0);
 
         _PRINT_INFO_IN_DEBUG_MODE(__q);

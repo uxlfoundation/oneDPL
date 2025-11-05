@@ -60,7 +60,7 @@ struct test_shift
     operator()(Policy&& exec, It first, typename ::std::iterator_traits<It>::difference_type m,
         It first_exp, typename ::std::iterator_traits<It>::difference_type n, Algo algo)
     {
-        //run a test with host policy and host itertors
+        //run a test with host policy and host iterators
         It res = algo(::std::forward<Policy>(exec), first, ::std::next(first, m), n);
         //check result
         algo.check(res, first, m, first_exp, n);
@@ -77,21 +77,18 @@ struct test_shift
         using _ValueType = typename ::std::iterator_traits<It>::value_type;
         using _DiffType = typename ::std::iterator_traits<It>::difference_type;
 
-        auto queue = exec.queue();
-
         // allocate USM memory and copying data to USM shared/device memory
-        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(queue, first, m);
+        TestUtils::usm_data_transfer<alloc_type, _ValueType> dt_helper(exec, first, m);
 
         auto ptr = dt_helper.get_data();
-        auto het_res =
-            algo(TestUtils::make_device_policy<USMKernelName<Algo, _ValueType>>(std::forward<Policy>(exec)), ptr,
-                 ptr + m, n);
+        using _NewKernelName = USMKernelName<Algo, _ValueType>;
+        auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), ptr, ptr + m, n);
         _DiffType res_idx = het_res - ptr;
 
         //3.2 check result
         dt_helper.retrieve_data(first);
         algo.check(first + res_idx, first, m, first_exp, n);
-    };
+    }
 
 #endif
 
@@ -102,13 +99,15 @@ struct test_shift
     {
         using _ValueType = typename std::iterator_traits<It>::value_type;
         using _DiffType = typename std::iterator_traits<It>::difference_type;
-        auto buffer_policy = TestUtils::make_device_policy<BufferKernelName<_ValueType, Algo>>(exec);
-        //1.1 run a test with hetero policy and host itertors
-        auto res = algo(buffer_policy, first, first + m, n);
+
+        using _NewKernelName = BufferKernelName<_ValueType, Algo>;
+
+        //1.1 run a test with hetero policy and host iterators
+        auto res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), first, first + m, n);
         //1.2 check result
         algo.check(res, first, m, first_exp, n);
 
-        //2.1 run a test with hetero policy and hetero itertors
+        //2.1 run a test with hetero policy and hetero iterators
         _DiffType res_idx(0);
         {//scope for SYCL buffer lifetime
             sycl::buffer<_ValueType> buf(first, first + m);
@@ -117,7 +116,7 @@ struct test_shift
 
             auto het_begin = oneapi::dpl::begin(buf);
 
-            auto het_res = algo(buffer_policy, het_begin, het_begin + m, n);
+            auto het_res = algo(CLONE_TEST_POLICY_NAME(exec, _NewKernelName), het_begin, het_begin + m, n);
             res_idx = het_res - het_begin;
         }
         //2.2 check result
@@ -125,8 +124,8 @@ struct test_shift
 
 #if _PSTL_SYCL_TEST_USM
         //3. run a test with hetero policy and USM shared/device memory pointers
-        test_usm<sycl::usm::alloc::shared>(exec, first, m, first_exp, n, algo);
-        test_usm<sycl::usm::alloc::device>(std::forward<Policy>(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::shared>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
+        test_usm<sycl::usm::alloc::device>(CLONE_TEST_POLICY(exec), first, m, first_exp, n, algo);
 #endif
     }
 #endif
@@ -150,7 +149,7 @@ struct shift_left_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, m - n) : (n > 0 ? first : __last));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_left");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_left");
 
         if(res != first && res != __last)
         {
@@ -187,7 +186,7 @@ struct shift_right_algo
         It __last = ::std::next(first, m);
         auto res_exp = (n > 0 && n < m ? ::std::next(first, n) : (n > 0 ? __last : first));
 
-        EXPECT_TRUE(res_exp == res, "wrong return value of shift_right");
+        EXPECT_EQ(res_exp, res, "wrong return value of shift_right");
 
         if (res != first && res != __last)
         {

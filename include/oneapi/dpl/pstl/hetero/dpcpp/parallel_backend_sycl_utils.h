@@ -518,6 +518,9 @@ struct __result_and_scratch_storage_base
 template <typename _T, std::size_t _NResults = 1>
 struct __result_and_scratch_storage : __result_and_scratch_storage_base
 {
+    static_assert(sycl::is_device_copyable_v<_T>,
+                  "The type _T must be device copyable to use __result_and_scratch_storage.");
+
   private:
     using __sycl_buffer_t = sycl::buffer<_T, 1>;
 
@@ -667,9 +670,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            _T __tmp;
-            __q.memcpy(&__tmp, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-            return __tmp;
+            // Avoid default constructor for _T. We know that _T is device copyable and therefore a copy construction
+            // is equivalent to a bitwise copy. We may treat __lazy_ctor_storage.__v as constructed after the memcpy.
+            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
+            __q.memcpy(&__lazy_ctor_storage.__v, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
+
+            // Setting up _T to be destroyed as this function exits. The __scoped_destroyer calls destroy when it
+            // leaves scope. _T being device copyable provides that it has a public non deleted destructor.
+            oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__lazy_ctor_storage};
+            return __lazy_ctor_storage.__v;
         }
         else
         {
@@ -921,15 +930,15 @@ struct __scalar_store_transform_op
     // Unary transformations into an output buffer
     template <typename _IdxType1, typename _IdxType2, typename _SourceAcc, typename _DestAcc>
     void
-    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _SourceAcc __source_acc, _DestAcc __dest_acc) const
+    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _SourceAcc&& __source_acc, _DestAcc&& __dest_acc) const
     {
         __transform(__source_acc[__idx_source], __dest_acc[__idx_dest]);
     }
     // Binary transformations into an output buffer
     template <typename _IdxType1, typename _IdxType2, typename _Source1Acc, typename _Source2Acc, typename _DestAcc>
     void
-    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _Source1Acc __source1_acc, _Source2Acc __source2_acc,
-               _DestAcc __dest_acc) const
+    operator()(_IdxType1 __idx_source, _IdxType2 __idx_dest, _Source1Acc&& __source1_acc, _Source2Acc&& __source2_acc,
+               _DestAcc&& __dest_acc) const
     {
         __transform(__source1_acc[__idx_source], __source2_acc[__idx_source], __dest_acc[__idx_dest]);
     }
@@ -997,18 +1006,24 @@ struct __vector_reverse
     static_assert(__vec_size <= 4, "Only vector sizes of 4 or less are supported");
     template <typename _Idx, typename _Array>
     void
-    operator()(/*__is_full*/ std::true_type, const _Idx /*__elements_to_process*/, _Array __array) const
+    operator()(/*__is_full*/ std::true_type, const _Idx /*__elements_to_process*/, _Array&& __array) const
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint8_t __i = 0; __i < __vec_size / 2; ++__i)
-            std::swap(__array[__i], __array[__vec_size - __i - 1]);
+        {
+            using std::swap;
+            swap(__array[__i], __array[__vec_size - __i - 1]);
+        }
     }
     template <typename _Idx, typename _Array>
     void
-    operator()(/*__is_full*/ std::false_type, const _Idx __elements_to_process, _Array __array) const
+    operator()(/*__is_full*/ std::false_type, const _Idx __elements_to_process, _Array&& __array) const
     {
         for (std::uint8_t __i = 0; __i < __elements_to_process / 2; ++__i)
-            std::swap(__array[__i], __array[__elements_to_process - __i - 1]);
+        {
+            using std::swap;
+            swap(__array[__i], __array[__elements_to_process - __i - 1]);
+        }
     }
 };
 

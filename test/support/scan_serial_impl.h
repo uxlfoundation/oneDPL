@@ -24,7 +24,7 @@ template <class InputIterator, class OutputIterator, class T>
 OutputIterator
 exclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, T init)
 {
-    for (; first != last; ++first, ++result)
+    for (; first != last; ++first, (void) ++result)
     {
         auto res = init;
         init = init + *first;
@@ -37,7 +37,7 @@ template <class InputIterator, class OutputIterator, class T, class BinaryOperat
 OutputIterator
 exclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, T init, BinaryOperation binary_op)
 {
-    for (; first != last; ++first, ++result)
+    for (; first != last; ++first, (void) ++result)
     {
         auto res = init;
         init = binary_op(init, *first);
@@ -68,7 +68,7 @@ template <class InputIterator, class OutputIterator, class BinaryOperation, clas
 OutputIterator
 inclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result, BinaryOperation binary_op, T init)
 {
-    for (; first != last; ++first, ++result)
+    for (; first != last; ++first, (void) ++result)
     {
         init = binary_op(init, *first);
         *result = init;
@@ -96,7 +96,7 @@ template <class InputIterator, class OutputIterator>
 OutputIterator
 inclusive_scan_serial(InputIterator first, InputIterator last, OutputIterator result)
 {
-    typedef typename ::std::iterator_traits<InputIterator>::value_type input_type;
+    using input_type = typename std::iterator_traits<InputIterator>::value_type;
     return inclusive_scan_serial(first, last, result, ::std::plus<input_type>());
 }
 

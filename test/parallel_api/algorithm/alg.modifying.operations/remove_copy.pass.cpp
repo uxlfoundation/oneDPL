@@ -41,7 +41,7 @@ struct run_remove_copy
 
         // Run copy_if
         [[maybe_unused]] auto i = remove_copy(first, last, expected_first, value);
-        auto k = remove_copy(exec, first, last, out_first, value);
+        auto k = remove_copy(std::forward<Policy>(exec), first, last, out_first, value);
 #if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy effect");
         for (size_t j = 0; j < GuardSize; ++j)
@@ -52,7 +52,7 @@ struct run_remove_copy
 #else
         auto expected_count = ::std::distance(expected_first, i);
         auto out_count = ::std::distance(out_first, k);
-        EXPECT_TRUE(expected_count == out_count, "wrong return value from remove_copy");
+        EXPECT_EQ(expected_count, out_count, "wrong return value from remove_copy");
         EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong remove_copy effect");
 #endif
     }

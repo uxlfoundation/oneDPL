@@ -130,9 +130,9 @@ struct __leaf_sorter
 
     __leaf_sorter(const _Range& __rng, _Compare __comp, std::uint16_t __data_per_workitem,
                   std::uint32_t __workgroup_size)
-        : __rng(__rng), __comp(__comp), __n(__rng.size()), __data_per_workitem(__data_per_workitem),
-          __workgroup_size(__workgroup_size), __process_size(__data_per_workitem * __workgroup_size),
-          __sub_group_sorter(), __group_sorter()
+        : __rng(__rng), __comp(__comp), __n(oneapi::dpl::__ranges::__size(__rng)),
+          __data_per_workitem(__data_per_workitem), __workgroup_size(__workgroup_size),
+          __process_size(__data_per_workitem * __workgroup_size), __sub_group_sorter(), __group_sorter()
     {
         assert((__process_size & (__process_size - 1)) == 0 && "Process size must be a power of 2");
     }
@@ -217,8 +217,8 @@ struct __merge_sort_leaf_submitter<__internal::__optional_kernel_name<_LeafSortN
         return __q.submit([&__rng, &__leaf_sorter](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __storage_acc = __leaf_sorter.create_storage_accessor(__cgh);
-            const std::uint32_t __wg_count =
-                oneapi::dpl::__internal::__dpl_ceiling_div(__rng.size(), __leaf_sorter.__process_size);
+            const std::uint32_t __wg_count = oneapi::dpl::__internal::__dpl_ceiling_div(
+                oneapi::dpl::__ranges::__size(__rng), __leaf_sorter.__process_size);
             const sycl::nd_range<1> __nd_range(sycl::range<1>(__wg_count * __leaf_sorter.__workgroup_size),
                                                sycl::range<1>(__leaf_sorter.__workgroup_size));
             __cgh.parallel_for<_LeafSortName...>(
@@ -385,7 +385,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                                  const nd_range_params& __nd_range_params,
                                  _Storage& __base_diagonals_sp_global_storage) const
     {
-        const _IndexT __n = __rng.size();
+        const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
 
         return __q.submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, __nd_range_params,
                            &__base_diagonals_sp_global_storage, __n](sycl::handler& __cgh) {
@@ -401,8 +401,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             const std::size_t __chunk = __nd_range_params.chunk * __nd_range_params.steps_between_two_base_diags;
 
             __cgh.parallel_for<_DiagonalsKernelName...>(
-                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.base_diag_count), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
@@ -476,7 +476,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                        sycl::queue& __q, _Range& __rng, _TempBuf& __temp_buf, _Compare __comp,
                        const nd_range_params& __nd_range_params) const
     {
-        const _IndexT __n = __rng.size();
+        const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
 
         return __q.submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, __nd_range_params,
                            __n](sycl::handler& __cgh) {
@@ -486,8 +486,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
             sycl::accessor __dst(__temp_buf, __cgh, sycl::read_write, sycl::no_init);
 
             __cgh.parallel_for<_GlobalSortName1...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     const WorkDataArea __data_area(__n, __n_sorted, __linear_id, __nd_range_params.chunk);
 
@@ -518,7 +518,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                                       _Compare __comp, const nd_range_params& __nd_range_params,
                                       _Storage& __base_diagonals_sp_global_storage) const
     {
-        const _IndexT __n = __rng.size();
+        const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
 
         return __q.submit([&__event_chain, __n_sorted, __data_in_temp, &__rng, &__temp_buf, __comp, __nd_range_params,
                            &__base_diagonals_sp_global_storage, __n](sycl::handler& __cgh) {
@@ -531,8 +531,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
                 __base_diagonals_sp_global_storage.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
 
             __cgh.parallel_for<_GlobalSortName2...>(
-                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item_id) {
-                    const std::size_t __linear_id = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__nd_range_params.steps), [=](sycl::item</*dim=*/1> __item) {
+                    const std::size_t __linear_id = __item.get_linear_id();
 
                     auto __base_diagonals_sp_global_ptr =
                         _Storage::__get_usm_or_buffer_accessor_ptr(__base_diagonals_sp_global_acc);
@@ -571,7 +571,7 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
         // 1 final base diagonal for save final sp(0,0)
         constexpr std::size_t __1_final_base_diag = 1;
 
-        const _IndexT __n = __rng.size();
+        const _IndexT __n = oneapi::dpl::__ranges::__size(__rng);
         _IndexT __n_sorted = __leaf_size;
 
         bool __data_in_temp = false;
@@ -667,9 +667,9 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
             oneapi::dpl::__ranges::__require_access(__cgh, __rng);
             auto __temp_acc = __temp_buf.template get_access<access_mode::read>(__cgh);
             // We cannot use __cgh.copy here because of zip_iterator usage
-            __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(__rng.size()),
-                                                 [=](sycl::item</*dim=*/1> __item_id) {
-                                                     const std::size_t __idx = __item_id.get_linear_id();
+            __cgh.parallel_for<_CopyBackName...>(sycl::range</*dim=*/1>(oneapi::dpl::__ranges::__size(__rng)),
+                                                 [=](sycl::item</*dim=*/1> __item) {
+                                                     const std::size_t __idx = __item.get_linear_id();
                                                      __rng[__idx] = __temp_acc[__idx];
                                                  });
         });
@@ -708,7 +708,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
     using _CopyBackKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_copy_back_kernel<_CustomName>>;
 
-    assert(__rng.size() > 1);
+    assert(oneapi::dpl::__ranges::__size(__rng) > 1);
     assert((__leaf_sorter.__process_size & (__leaf_sorter.__process_size - 1)) == 0 &&
            "Leaf size must be a power of 2");
 
@@ -716,7 +716,7 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
     sycl::event __event_leaf_sort = __merge_sort_leaf_submitter<_LeafSortKernel>()(__q, __rng, __leaf_sorter);
 
     // 2. Merge sorting
-    oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp(__rng.size());
+    oneapi::dpl::__par_backend_hetero::__buffer<_Tp> __temp(oneapi::dpl::__ranges::__size(__rng));
     auto __temp_buf = __temp.get_buffer();
     auto [__event_sort, __data_in_temp, __temp_sp_storages] =
         __merge_sort_global_submitter<_IndexT, _DiagonalsKernelName, _GlobalSortKernel1, _GlobalSortKernel2>()(
@@ -738,7 +738,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
     using _Leaf = __leaf_sorter<std::decay_t<_Range>, _Compare>;
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
-    const std::size_t __n = __rng.size();
+    const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
     sycl::device __device = __q.get_device();
 
     const std::size_t __max_wg_size = __device.template get_info<sycl::info::device::max_work_group_size>();
@@ -782,7 +782,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp)
 
     _Leaf __leaf(__rng, __comp, __data_per_workitem, __wg_size);
     return __merge_sort<_CustomName, _IndexT>(__q, std::forward<_Range>(__rng), __comp, __leaf);
-};
+}
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare>
 __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
@@ -793,7 +793,7 @@ __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
 
     sycl::queue __q_local = __exec.queue();
 
-    if (__rng.size() <= std::numeric_limits<std::uint32_t>::max())
+    if (oneapi::dpl::__ranges::__size(__rng) <= std::numeric_limits<std::uint32_t>::max())
     {
         return __submit_selecting_leaf<_CustomName, std::uint32_t>(__q_local, std::forward<_Range>(__rng), __comp);
     }

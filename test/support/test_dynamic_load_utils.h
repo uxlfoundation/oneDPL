@@ -121,7 +121,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Resourc
                         auto accessorA = bufferA.get_access<sycl::access::mode::read>(cgh);
                         auto accessorB = bufferB.get_access<sycl::access::mode::read>(cgh);
                         auto accessorResultMatrix = bufferResultMatrix.get_access<sycl::access::mode::write>(cgh);
-                        cgh.parallel_for<TestUtils::unique_kernel_name<CustomName, 1>>(
+                        cgh.parallel_for<TestUtils::unique_kernel_name<CustomName, 0>>(
                             sycl::range<1>(rows_c), [=](sycl::item<1> row_c) {
                                 for (size_t col_c = 0; col_c < cols_c; ++col_c)
                                 {

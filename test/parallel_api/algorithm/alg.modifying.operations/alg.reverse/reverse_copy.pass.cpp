@@ -37,20 +37,6 @@ struct wrapper
     }
 };
 
-template <typename T1, typename T2>
-bool
-eq(const wrapper<T1>& a, const wrapper<T2>& b)
-{
-    return a.t == b.t;
-}
-
-template <typename T1, typename T2>
-bool
-eq(const T1& a, const T2& b)
-{
-    return a == b;
-}
-
 template<typename T1, typename T2>
 struct test_one_policy
 {
@@ -60,7 +46,7 @@ struct test_one_policy
     {
         using namespace std;
         fill(actual_b, actual_e, T2(-123));
-        Iterator2 actual_return = reverse_copy(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = reverse_copy(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
 
         EXPECT_TRUE(actual_return == actual_e, "wrong result of reverse_copy");
 

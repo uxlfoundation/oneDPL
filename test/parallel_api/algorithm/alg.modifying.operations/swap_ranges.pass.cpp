@@ -76,6 +76,18 @@ struct check_swap<wrapper<T>>
     }
 };
 
+template <typename T, typename T_ref>
+struct TransformOp
+{
+    std::size_t& i;
+
+    TransformOp(std::size_t& i_) : i(i_) {}
+    bool operator()(T_ref a) const
+    {
+        return a == T(const_cast<std::size_t&>(i)++);
+    }
+};
+
 template <typename Type>
 struct test_one_policy
 {
@@ -90,14 +102,14 @@ struct test_one_policy
         iota(data_b, data_e, 0);
         iota(actual_b, actual_e, ::std::distance(data_b, data_e));
 
-        Iterator2 actual_return = swap_ranges(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = swap_ranges(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
         bool check_return = (actual_return == actual_e);
         EXPECT_TRUE(check_return, "wrong result of swap_ranges");
         if (check_return)
         {
             ::std::size_t i = 0;
-            bool check = all_of(actual_b, actual_e, [&i](T_ref a) { return a == T(i++); }) &&
-                         all_of(data_b, data_e, [&i](T_ref a) { return a == T(i++); });
+            bool check = all_of(actual_b, actual_e, TransformOp<T, T_ref>{i}) &&
+                         all_of(data_b, data_e, TransformOp<T, T_ref>{i});
 
             EXPECT_TRUE(check, "wrong effect of swap_ranges");
 

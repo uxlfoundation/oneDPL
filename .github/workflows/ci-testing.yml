@@ -14,6 +14,7 @@ on:
       - 'test/**/*'
       - 'CMakeLists.txt'
       - '.clang-format'
+      - 'examples/**/*'
 
 
 
@@ -23,10 +24,11 @@ env:
   BUILD_CONCURRENCY: 4
   MACOS_BUILD_CONCURRENCY: 3
   TEST_TIMEOUT: 360
-  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/bfa5ed88-0925-401c-b40d-5baaeb8d849c/intel-onetbb-2022.1.0.428_offline.exe
-  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/05e81d1b-1010-4b7d-8c2e-a4f0882a9d7c/intel-dpcpp-cpp-compiler-2025.1.0.574_offline.exe
+  WINDOWS_TBB_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d6497040-a73d-435a-a018-a6040bdf39ec/intel-onetbb-2022.2.0.506_offline.exe
+  WINDOWS_ICPX_DOWNLOAD_LINK: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/dc2bc071-6e5c-4b48-8fdd-a39d20c25e5a/intel-dpcpp-cpp-compiler-2025.2.0.528_offline.exe
   WINDOWS_ONEAPI_PATH: C:\Program Files (x86)\Intel\oneAPI
   LINUX_ONEAPI_PATH: /opt/intel/oneapi
+  VS2022_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -145,6 +147,12 @@ jobs:
             build_type: RelWithAsserts
             backend: omp
             device_type: HOST
+          - os: ubuntu-latest
+            cxx_compiler: g++
+            std: 20
+            build_type: RelWithAsserts
+            backend: serial
+            device_type: HOST
     steps:
       - uses: actions/checkout@v4
       - name: Set up Intel APT repository
@@ -160,12 +168,17 @@ jobs:
         run: |
           sudo apt-get install intel-oneapi-tbb-devel -y
       - name: Install Intel® oneAPI DPC++/C++ Compiler
-        if: (matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
+        if: (matrix.device_type != 'FPGA_EMU' &&
+              (matrix.cxx_compiler == 'icpx'  ||
+               matrix.cxx_compiler == 'icx'   ||
+               matrix.cxx_compiler == 'icx-cl'||
+               matrix.cxx_compiler == 'dpcpp' ||
+               matrix.cxx_compiler == 'dpcpp-cl'))
         run: |
           sudo apt-get install intel-oneapi-compiler-dpcpp-cpp -y
           # Avoid accidental use of a released version, keeping libpstloffload.so
           sudo rm -rf ${LINUX_ONEAPI_PATH}/dpl/latest/include
-      - name: Install Intel® oneAPI DPC++/C++ Compiler SYCL* FPGA Emulator Runtime
+      - name: Install Intel® oneAPI DPC++/C++ Compiler with SYCL* FPGA Emulator Runtime
         if: (matrix.device_type == 'FPGA_EMU')
         run: |
           sudo apt-get install intel-oneapi-compiler-fpga -y
@@ -183,20 +196,28 @@ jobs:
 
           if [[ "${{ matrix.backend }}" == "dpcpp" ]]; then
             # build and run the examples
+            example_dirs=()
             for example_dir in ${GITHUB_WORKSPACE}/examples/*; do
-            # Skip the example if it is not a directory
-            if [[ -d "$example_dir" ]]; then
+              if [[ -d "$example_dir" && -f "$example_dir/CMakeLists.txt" ]]; then
+                example_dirs+=("$example_dir")
+              fi
+            done
+            for example_dir in "${example_dirs[@]}"; do
               cd "$example_dir"
               mkdir build && cd build
               cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
               make VERBOSE=1 |& tee build.log
               ctest --timeout ${TEST_TIMEOUT} --output-on-failure |& tee ctest.log
-            fi
             done
 
-            #set targets to just sycl iterator for dpcpp tests
-            make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests"
-            ctest_flags="-R (sycl_iterator_.*)|(std_ranges_.*)\.pass"
+            # set targets for dpcpp tests
+            make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
+            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)"
+            if [[ "${{ matrix.device_type }}" != "FPGA_EMU" ]]; then
+              make_targets+=" build-onedpl-ranges-tests"
+              tests_regex+="|(std_ranges_.*)"
+            fi
+            ctest_flags="-R ${tests_regex}\.pass"
           else
             make_targets="build-onedpl-tests"
           fi
@@ -205,7 +226,8 @@ jobs:
           mkdir build && cd build
           lscpu
 
-          warning_flags="-Wall -Werror -Wno-error=sign-compare"
+          # TODO: fix or justify the excluded warnings
+          warning_flags="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
             warning_flags="${warning_flags} -Wno-error=pass-failed"
           fi
@@ -258,6 +280,24 @@ jobs:
             build_type: release
             backend: dpcpp
             device_type: CPU
+          - os: windows-latest
+            cxx_compiler: cl
+            std: 20
+            build_type: RelWithAsserts
+            backend: serial
+            device_type: HOST
+          - os: windows-latest
+            cxx_compiler: icx-cl
+            std: 20
+            build_type: RelWithAsserts
+            backend: tbb
+            device_type: HOST
+          - os: windows-latest
+            cxx_compiler: icx
+            std: 20
+            build_type: RelWithAsserts
+            backend: dpcpp
+            device_type: CPU
     steps:
       - uses: actions/checkout@v4
       - name: Install Intel® oneAPI Threading Building Blocks
@@ -269,6 +309,7 @@ jobs:
           del tbb_install.exe
       - name: Install Intel® oneAPI DPC++/C++ Compiler
         shell: cmd
+        if: (matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'icx')
         run: |
           curl %WINDOWS_ICPX_DOWNLOAD_LINK% --output icpx_install.exe
           icpx_install.exe -s -a --silent --eula accept -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
@@ -280,6 +321,12 @@ jobs:
         run: |
           if exist "%WINDOWS_ONEAPI_PATH%\setvars.bat" (
             call "%WINDOWS_ONEAPI_PATH%\setvars.bat"
+          ) else (
+            if exist "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" (
+              call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+            ) else (
+              echo "Warning: Neither %WINDOWS_ONEAPI_PATH%\setvars.bat nor %VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat were found."
+            )
           )
 
           :: Set enable delayed expansion to allow proper resolution of errors in if statements and loops
@@ -293,9 +340,14 @@ jobs:
           set BASE_DIR=%cd%
           if "${{ matrix.backend }}" == "dpcpp" (
             :: Build and run examples
+            set "example_dirs="
             for /D %%i in (%GITHUB_WORKSPACE%\examples\*) do (
-              cd "%%i"
-              :: Get current directory name
+              if exist "%%i\CMakeLists.txt" (
+                set "example_dirs=!example_dirs! "%%i""
+              )
+            )
+            for %%d in (!example_dirs!) do (
+              cd "%%d"
               mkdir build && cd build
               cmake -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} ..
               if !errorlevel! neq 0 set exit_code=!errorlevel!
@@ -306,11 +358,11 @@ jobs:
               type ctest_ex.log
               type build_ex.log
               if !exit_code! neq 0 exit /b !exit_code!
-
+              cd %BASE_DIR%
             )
 
-            set ninja_targets="build-onedpl-sycl_iterator-tests"
-            set ctest_flags=-R sycl_iterator_.*\.pass
+            set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests
+            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
@@ -318,11 +370,19 @@ jobs:
           cd %BASE_DIR%
           mkdir build && cd build
 
-          warning_flags="/W4 /We4005 /We4100 /We4101 /We4189 /We4505 /We4805"
+          :: TODO: fix or justify the excluded warnings
+          if "${{ matrix.cxx_compiler }}" == "cl" (
+            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4700 /wd4805 /wd4996
+          ) else (
+            set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
+          )
+
           cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
-          ninja -j 2 -v %ninja_targets% > build.log 2>&1
-          if !errorlevel! neq 0 set exit_code=!errorlevel!
+          for %%t in (%ninja_targets%) do (
+            ninja -j 2 -v "%%t" >> build.log 2>&1
+            if !errorlevel! neq 0 set exit_code=!errorlevel!
+          )
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           type ctest.log
@@ -378,6 +438,7 @@ jobs:
           export OpenMP_ROOT=$(brew --prefix)/opt/libomp
           mkdir build && cd build
 
+          # TODO: fix or justify the excluded warnings
           warning_flags="-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed"
 
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \

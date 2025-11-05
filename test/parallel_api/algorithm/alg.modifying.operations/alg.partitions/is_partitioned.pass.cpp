@@ -30,8 +30,8 @@ struct test_is_partitioned
     operator()(ExecutionPolicy&& exec, Iterator1 begin1, Iterator1 end1, Predicate pred)
     {
         const bool expected = ::std::is_partitioned(begin1, end1, pred);
-        const bool actual = ::std::is_partitioned(exec, begin1, end1, pred);
-        EXPECT_TRUE(actual == expected, "wrong return result from is_partitioned");
+        const bool actual = std::is_partitioned(std::forward<ExecutionPolicy>(exec), begin1, end1, pred);
+        EXPECT_EQ(expected, actual, "wrong return result from is_partitioned");
     }
 };
 
@@ -65,11 +65,8 @@ struct test_non_const
     void
     operator()(Policy&& exec, Iterator iter)
     {
-        auto is_even = [&](float64_t v) {
-            std::uint32_t i = (std::uint32_t)v;
-            return i % 2 == 0;
-        };
-        is_partitioned(exec, iter, iter, non_const(is_even));
+        auto is_even = TestUtils::IsEven<float64_t>{};
+        is_partitioned(std::forward<Policy>(exec), iter, iter, non_const(is_even));
     }
 };
 

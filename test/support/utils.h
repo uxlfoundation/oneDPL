@@ -53,8 +53,8 @@
 namespace TestUtils
 {
 
-typedef double float64_t;
-typedef float float32_t;
+using float64_t = double;
+using float32_t = float;
 
 template <class T, ::std::size_t N>
 constexpr size_t
@@ -89,13 +89,20 @@ issue_error_message(::std::stringstream& outstr)
     ::std::exit(EXIT_FAILURE);
 }
 
+template <typename TStream>
+inline void
+log_file_lineno_msg(TStream& os, const char* file, std::int32_t line, const char* message)
+{
+    os << "error at " << file << ":" << line << " - " << message;
+}
+
 inline void
 expect(bool expected, bool condition, const char* file, std::int32_t line, const char* message)
 {
     if (condition != expected)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
         issue_error_message(outstr);
     }
 }
@@ -123,6 +130,59 @@ is_equal_val(const T1& val1, const T2& val2)
     }
 }
 
+template <typename T, typename TOutputStream, typename = void>
+struct IsOutputStreamable : std::false_type
+{
+};
+
+template <typename T, typename TOutputStream>
+struct IsOutputStreamable<T, TOutputStream,
+                             std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>> : std::true_type
+{
+};
+
+struct TagExpected{};
+struct TagActual{};
+
+inline
+std::string log_value_title(TagExpected)
+{
+    return " expected ";
+}
+
+inline
+std::string log_value_title(TagActual)
+{
+    return " got ";
+}
+
+template <typename TStream, typename Tag, typename TValue>
+ void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+{
+    if (bCommaNeeded)
+        os << ",";
+    os << log_value_title(Tag{});
+
+    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
+    {
+        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
+        {
+            if (value)
+                os << "true";
+            else
+                os << "false";
+        }
+        else
+        {
+            os << value;
+        }
+    }
+    else
+    {
+        os << "(unable to log value)";
+    }
+}
+
 // Do not change signature to const T&.
 // Function must be able to detect const differences between expected and actual.
 template <typename T1, typename T2>
@@ -132,8 +192,10 @@ expect_equal_val(const T1& expected, const T2& actual, const char* file, std::in
     if (!is_equal_val(expected, actual))
     {
         std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected " << expected << " got "
-               << actual;
+        log_file_lineno_msg(outstr, file, line, message);
+        log_value(outstr, TagExpected{}, expected, true);
+        log_value(outstr, TagActual{}, actual, true);
+
         issue_error_message(outstr);
     }
 }
@@ -146,9 +208,9 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     size_t m = actual.size();
     if (n != m)
     {
-        ::std::stringstream outstr;
-        outstr << "error at " << file << ":" << line << " - " << message << ", expected sequence of size " << n
-               << " got sequence of size " << m;
+        std::stringstream outstr;
+        log_file_lineno_msg(outstr, file, line, message);
+        outstr << ", expected sequence of size " << n << " got sequence of size " << m;
         issue_error_message(outstr);
         return;
     }
@@ -157,9 +219,12 @@ expect_equal(const R1& expected, const R2& actual, const char* file, std::int32_
     {
         if (!is_equal_val(expected[k], actual[k]))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k << " expected "
-                   << expected[k] << " got " << actual[k];
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, expected[k], false);
+            log_value(outstr, TagActual{}, actual[k], false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -179,12 +244,16 @@ expect_equal(Iterator1 expected_first, Iterator2 actual_first, Size n, const cha
              const char* message)
 {
     size_t error_count = 0;
-    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, ++actual_first)
+    for (size_t k = 0; k < n && error_count < 10; ++k, ++expected_first, (void) ++actual_first)
     {
         if (!is_equal_val(*expected_first, *actual_first))
         {
-            ::std::stringstream outstr;
-            outstr << "error at " << file << ":" << line << " - " << message << ", at index " << k;
+            std::stringstream outstr;
+            log_file_lineno_msg(outstr, file, line, message);
+            outstr << ", at index " << k;
+            log_value(outstr, TagExpected{}, *expected_first, false);
+            log_value(outstr, TagActual{}, *actual_first, false);
+
             issue_error_message(outstr);
             ++error_count;
         }
@@ -670,7 +739,7 @@ class Wrapper
     get_my_field() const
     {
         return my_field.get();
-    };
+    }
     static size_t
     Count()
     {
@@ -930,43 +999,6 @@ constexpr bool __vector_impl_distinguishes_usm_allocator_from_default_v =
 
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
-////////////////////////////////////////////////////////////////////////////////
-// Implementation of create_new_policy for all policies (host + hetero)
-template <typename Policy>
-using __is_able_to_create_new_policy =
-#if TEST_DPCPP_BACKEND_PRESENT
-    oneapi::dpl::__internal::__is_hetero_execution_policy<::std::decay_t<Policy>>;
-#else
-    ::std::false_type;
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-#if TEST_DPCPP_BACKEND_PRESENT
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return TestUtils::make_new_policy<_NewKernelName>(::std::forward<Policy>(policy));
-}
-#endif // TEST_DPCPP_BACKEND_PRESENT
-
-template <typename _NewKernelName, typename Policy, ::std::enable_if_t<!__is_able_to_create_new_policy<Policy>::value, int> = 0>
-auto
-create_new_policy(Policy&& policy)
-{
-    return ::std::forward<Policy>(policy);
-}
-
-template <int idx, typename Policy>
-auto
-create_new_policy_idx(Policy&& policy)
-{
-#if TEST_DPCPP_BACKEND_PRESENT
-    return create_new_policy<TestUtils::new_kernel_name<Policy, idx>>(::std::forward<Policy>(policy));
-#else
-    return ::std::forward<Policy>(policy);
-#endif
-}
-
 #if TEST_DPCPP_BACKEND_PRESENT
 template <typename KernelName, int idx>
 struct kernel_name_with_idx
@@ -1060,6 +1092,286 @@ get_pattern_for_test_sizes()
 #endif
     return sizes;
 }
+
+template <typename T>
+struct IsMultipleOf
+{
+    T value;
+
+    bool operator()(T v) const
+    {
+        return v % value == 0;
+    }
+};
+
+template <typename T>
+struct IsEven
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 == 0;
+        }
+        else
+        {
+            return v % 2 == 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsOdd
+{
+    bool
+    operator()(T v) const
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            std::uint32_t i = (std::uint32_t)v;
+            return i % 2 != 0;
+        }
+        else
+        {
+            return v % 2 != 0;
+        }
+    }
+};
+
+template <typename T>
+struct IsGreatThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v > value;
+    }
+};
+
+template <typename T>
+struct IsLessThan
+{
+    T value;
+
+    bool
+    operator()(T v) const
+    {
+        return v < value;
+    }
+};
+
+template <typename T>
+struct IsGreat
+{
+    bool operator()(T x, T y) const
+    {
+        return x > y;
+    }
+};
+
+template <typename T>
+struct IsLess
+{
+    bool operator()(T x, T y) const
+    {
+        return x < y;
+    }
+};
+
+template <typename T>
+struct IsEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x == y;
+    }
+};
+
+template <typename T>
+struct IsNotEqual
+{
+    bool operator()(T x, T y) const
+    {
+        return x != y;
+    }
+};
+
+template <typename T>
+struct IsEqualTo
+{
+    T val;
+
+    bool operator()(T x) const
+    {
+        return val == x;
+    }
+};
+
+template <typename T, typename Predicate>
+struct NotPred
+{
+    Predicate pred;
+
+    bool
+    operator()(T x) const
+    {
+        return !pred(x);
+    }
+};
+
+template <typename T1, typename T2>
+struct SumOp
+{
+    auto operator()(T1 i, T2 j) const
+    {
+        return i + j;
+    }
+};
+
+template <typename T>
+struct SumWithOp
+{
+    T const_val;
+
+    auto operator()(T val) const
+    {
+        return val + const_val;
+    }
+};
+
+template <typename T>
+struct Pow2
+{
+    T
+    operator()(T x) const
+    {
+        return x * x;
+    }
+};
+
+template <typename _T>
+struct MoveOnlyWrapper {
+    _T value;
+
+    // Default constructor
+    MoveOnlyWrapper() = delete;
+
+    MoveOnlyWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    MoveOnlyWrapper(MoveOnlyWrapper&&) = default;
+
+    // Move assignment operator
+    MoveOnlyWrapper& operator=(MoveOnlyWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    MoveOnlyWrapper(const MoveOnlyWrapper&) = delete;
+    MoveOnlyWrapper& operator=(const MoveOnlyWrapper&) = delete;
+
+    MoveOnlyWrapper operator-() const
+    {
+        return MoveOnlyWrapper{-value};
+    }
+    friend bool operator==(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return a.value == b.value;
+    }
+    friend MoveOnlyWrapper operator+(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value + b.value};
+    }
+
+    friend MoveOnlyWrapper operator*(const MoveOnlyWrapper& a, const MoveOnlyWrapper& b)
+    {
+        return MoveOnlyWrapper{a.value * b.value};
+    }
+};
+
+template <typename _T>
+struct NoDefaultCtorWrapper {
+    _T value;
+
+    // Default constructor
+    NoDefaultCtorWrapper() = delete;
+
+    NoDefaultCtorWrapper(_T v) : value(v) {}
+
+    operator _T() const { return value; }
+
+    // Move constructor
+    NoDefaultCtorWrapper(NoDefaultCtorWrapper&&) = default;
+
+    // Move assignment operator
+    NoDefaultCtorWrapper& operator=(NoDefaultCtorWrapper&&) = default;
+
+    // Deleted copy constructor and copy assignment operator
+    NoDefaultCtorWrapper(const NoDefaultCtorWrapper&) = default;
+    NoDefaultCtorWrapper& operator=(const NoDefaultCtorWrapper&) = default;
+    
+    NoDefaultCtorWrapper operator-() const
+    {
+        return NoDefaultCtorWrapper{-value};
+    }
+
+    friend bool operator==(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return a.value == b.value;
+    } 
+    friend NoDefaultCtorWrapper operator+(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value + b.value};
+    } 
+
+    friend NoDefaultCtorWrapper operator*(const NoDefaultCtorWrapper& a, const NoDefaultCtorWrapper& b)
+    {
+        return NoDefaultCtorWrapper{a.value * b.value};
+    } 
+
+    // non-trivial destructor for testing
+    ~NoDefaultCtorWrapper()
+    {
+        value.~_T();
+    }
+};
+
+#if _ENABLE_STD_RANGES_TESTING
+
+// A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
+// which are not required for a class to be considered a range.
+// Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
+template <typename RandomIt>
+struct MinimalisticView : std::ranges::view_base
+{
+    RandomIt it_begin;
+    RandomIt it_end;
+
+    MinimalisticView(RandomIt it_begin, RandomIt it_end) 
+        : it_begin(it_begin), it_end(it_end)
+    {
+    }
+};
+
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticView<RandomIt> view)
+{
+    return view.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(MinimalisticView<RandomIt> view)
+{
+    return view.it_end;
+}
+
+#endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
 

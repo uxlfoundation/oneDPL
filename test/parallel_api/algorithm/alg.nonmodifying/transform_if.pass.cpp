@@ -75,7 +75,7 @@ struct test_transform_if_binary
         using in_value_type2 = typename ::std::iterator_traits<InputIterator2>::value_type;
         using out_value_type = typename ::std::iterator_traits<OutputIterator>::value_type;
         // call transform_if
-        oneapi::dpl::transform_if(exec, first, last, mask, result_begin,
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), first, last, mask, result_begin,
                                   mutable_negate_first<in_value_type1, in_value_type2>{},
                                   mutable_check_mask_second<in_value_type1, in_value_type2>{});
 
@@ -84,7 +84,7 @@ struct test_transform_if_binary
         auto in_iter = first;
         auto mask_iter = mask;
         auto expected_iter = expected.begin();
-        for (; in_iter != last; in_iter++, mask_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) mask_iter++, expected_iter++)
         {
             *expected_iter = *mask_iter == 1 ? -(*in_iter) : out_value_type(init_val);
         }
@@ -108,14 +108,14 @@ struct test_transform_if_unary
         using out_value_type = typename ::std::iterator_traits<OutputIterator>::value_type;
 
         // call transform_if
-        oneapi::dpl::transform_if(exec, first, last, result_begin, mutable_negate<in_value_type>{},
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), first, last, result_begin, mutable_negate<in_value_type>{},
                                   mutable_check_mod3_is_0<in_value_type>{});
 
         //calculate expected
         std::vector<out_value_type> expected(n);
         auto expected_iter = expected.begin();
         auto in_iter = first;
-        for (; in_iter != last; in_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) expected_iter++)
         {
             *expected_iter = *in_iter % 3 == 0 ? -(*in_iter) : out_value_type(init_val);
         }
@@ -141,14 +141,14 @@ struct test_transform_if_unary_inplace
         std::copy(first, last, result_begin);
 
         // call transform_if inplace
-        oneapi::dpl::transform_if(exec, result_begin, result_end, result_begin, mutable_negate<in_value_type>{},
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), result_begin, result_end, result_begin, mutable_negate<in_value_type>{},
                                   mutable_check_mod3_is_0<in_value_type>{});
 
         //calculate expected
         std::vector<in_value_type> expected(n);
         auto expected_iter = expected.begin();
         auto in_iter = first;
-        for (; in_iter != last; in_iter++, expected_iter++)
+        for (; in_iter != last; in_iter++, (void) expected_iter++)
         {
             *expected_iter = *in_iter % 3 == 0 ? -(*in_iter) : *in_iter;
         }

@@ -98,16 +98,16 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     {
     }
 
-    template <typename Operand>
+    template <typename Policy, typename Operand>
     void
-    operator()(Operand op)
+    operator()(Policy&& exec, Operand op)
     {
         auto indexes_begin = dpl::counting_iterator<TSourceDataSize>(0);
 
         auto permItBegin = dpl::make_permutation_iterator(data.itSource, indexes_begin);
         auto permItEnd = permItBegin + data.src_data_size;
 
-        op(permItBegin, permItEnd);
+        op(std::forward<Policy>(exec), permItBegin, permItEnd);
     }
 };
 
@@ -122,9 +122,9 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     {
     }
 
-    template <typename Operand>
+    template <typename Policy, typename Operand>
     void
-    operator()(Operand op)
+    operator()(Policy&& exec, Operand op)
     {
         ::std::vector<TSourceDataSize> indexes;
 
@@ -138,7 +138,7 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, indexes.begin());
             auto permItEnd = permItBegin + indexes.size();
 
-            op(permItBegin, permItEnd);
+            op(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
         }
     }
 };
@@ -156,32 +156,44 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     {
     }
 
-    template <typename Operand>
-    void
-    operator()(Operand op)
+#if TEST_DPCPP_BACKEND_PRESENT
+    template <typename Policy, typename Operand>
+    std::enable_if_t<oneapi::dpl::__internal::__is_hetero_execution_policy_v<::std::decay_t<Policy>>>
+    operator()(Policy&& exec, Operand op)
     {
         using TestBaseData = TestUtils::test_base_data_usm<sycl::usm::alloc::shared, TSourceDataSize>;
 
-        TestBaseData test_base_data(TestUtils::get_test_queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
+        TestBaseData test_base_data(exec.queue(), {{TestUtils::max_n, TestUtils::inout1_offset}});
         TSourceDataSize* itIndexStart = test_base_data.get_start_from(TestUtils::UDTKind::eKeys);
 
-        std::vector<TSourceDataSize> indexes;
-
-        for (TSourceDataSize perm_idx_step = 1; perm_idx_step < data.src_data_size;
+        for (TSourceDataSize perm_idx_step = 1; perm_idx_step <= data.src_data_size;
              perm_idx_step = kDefaultIndexStepOp(perm_idx_step))
         {
+
             const TSourceDataSize idx_size = data.src_data_size / perm_idx_step;
-            indexes.resize(idx_size);
+
             for (TSourceDataSize idx = 0, val = 0; idx < idx_size; ++idx, val += perm_idx_step)
-                indexes[idx] = val;
-
-            test_base_data.update_data(TestUtils::UDTKind::eKeys, indexes.data(), indexes.data() + indexes.size());
-
+            {
+                itIndexStart[idx] = val;
+            }
             auto permItBegin = dpl::make_permutation_iterator(data.itSource, itIndexStart);
-            auto permItEnd = permItBegin + indexes.size();
+            auto permItEnd = permItBegin + idx_size;
 
-            op(permItBegin, permItEnd);
+            op(CLONE_TEST_POLICY(exec), permItBegin, permItEnd);
         }
+    }
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+    template <typename Policy, typename Operand>
+    std::enable_if_t<
+#if TEST_DPCPP_BACKEND_PRESENT
+        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> && 
+#endif
+        true>
+    operator()(Policy&& /*exec*/, Operand /*op*/)
+    {
+        // We work on USM shared memory only with hetero execution policies
+        // so we just skip host execution policies
     }
 };
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -209,16 +221,16 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
         }
     };
 
-    template <typename Operand>
+    template <typename Policy, typename Operand>
     void
-    operator()(Operand op)
+    operator()(Policy&& exec, Operand op)
     {
         auto indexes_begin = dpl::counting_iterator<TSourceDataSize>(0);
         auto itTransformBegin = dpl::make_transform_iterator(indexes_begin, NoTransform{});
         auto permItBegin = dpl::make_permutation_iterator(data.itSource, itTransformBegin);
         auto permItEnd = permItBegin + data.src_data_size;
 
-        op(permItBegin, permItEnd);
+        op(std::forward<Policy>(exec), permItBegin, permItEnd);
     }
 };
 
@@ -233,14 +245,14 @@ struct test_through_permutation_iterator<TSourceIterator, TSourceDataSize, perm_
     {
     }
 
-    template <typename Operand>
+    template <typename Policy, typename Operand>
     void
-    operator()(Operand op)
+    operator()(Policy&& exec, Operand op)
     {
         auto permItBegin = dpl::make_permutation_iterator(data.itSource, kDefaultIndexStepOp);
         auto permItEnd = permItBegin + kDefaultIndexStepOp.eval_items_count(data.src_data_size);
 
-        op(permItBegin, permItEnd);
+        op(std::forward<Policy>(exec), permItBegin, permItEnd);
     }
 };
 

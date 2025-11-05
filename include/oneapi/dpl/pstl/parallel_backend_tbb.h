@@ -24,6 +24,7 @@
 
 #include "parallel_backend_utils.h"
 #include "execution_impl.h"
+#include "utils.h"
 
 // Bring in minimal required subset of Intel(R) Threading Building Blocks (Intel(R) TBB)
 #include <tbb/blocked_range.h>
@@ -131,21 +132,21 @@ __parallel_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&
 template <class _Index, class _Up, class _Tp, class _Cp, class _Rp>
 struct __par_trans_red_body
 {
-    alignas(_Tp) char _M_sum_storage[sizeof(_Tp)]; // Holds generalized non-commutative sum when has_sum==true
-    _Rp _M_brick_reduce;                           // Most likely to have non-empty layout
+    std::optional<_Tp> __lazy_sum;
+    _Rp _M_brick_reduce;
     _Up _M_u;
     _Cp _M_combine;
     bool _M_has_sum; // Put last to minimize size of class
-    _Tp&
+    _Tp
     sum()
     {
         __TBB_ASSERT(_M_has_sum, "sum expected");
-        return *(_Tp*)_M_sum_storage;
+        return std::move(__lazy_sum.value());
     }
     __par_trans_red_body(_Up __u, _Tp __init, _Cp __c, _Rp __r)
         : _M_brick_reduce(__r), _M_u(__u), _M_combine(__c), _M_has_sum(true)
     {
-        new (_M_sum_storage) _Tp(__init);
+        __lazy_sum.emplace(std::move(__init));
     }
 
     __par_trans_red_body(__par_trans_red_body& __left, tbb::split)
@@ -153,17 +154,11 @@ struct __par_trans_red_body
     {
     }
 
-    ~__par_trans_red_body()
-    {
-        // 17.6.5.12 tells us to not worry about catching exceptions from destructors.
-        if (_M_has_sum)
-            sum().~_Tp();
-    }
-
     void
     join(__par_trans_red_body& __rhs)
     {
-        sum() = _M_combine(sum(), __rhs.sum());
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_combine(std::move(__sum), std::move(__rhs.__lazy_sum.value()));
     }
 
     void
@@ -174,14 +169,14 @@ struct __par_trans_red_body
         if (!_M_has_sum)
         {
             __TBB_ASSERT(__range.size() > 1, "there should be at least 2 elements");
-            new (&_M_sum_storage)
-                _Tp(_M_combine(_M_u(__i), _M_u(__i + 1))); // The condition i+1 < j is provided by the grain size of 3
+            __lazy_sum.emplace(_M_combine(_M_u(__i), _M_u(__i + 1)));
             _M_has_sum = true;
             ::std::advance(__i, 2);
             if (__i == __j)
                 return;
         }
-        sum() = _M_brick_reduce(__i, __j, sum());
+        _Tp& __sum = __lazy_sum.value();
+        __sum = _M_brick_reduce(__i, __j, std::move(__sum));
     }
 };
 
@@ -190,7 +185,8 @@ _Tp
 __parallel_transform_reduce(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first,
                             _Index __last, _Up __u, _Tp __init, _Cp __combine, _Rp __brick_reduce)
 {
-    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, __init, __combine, __brick_reduce);
+    __tbb_backend::__par_trans_red_body<_Index, _Up, _Tp, _Cp, _Rp> __body(__u, std::move(__init), __combine,
+                                                                           __brick_reduce);
     // The grain size of 3 is used in order to provide minimum 2 elements for each body
     tbb::this_task_arena::isolate(
         [__first, __last, &__body]() { tbb::parallel_reduce(tbb::blocked_range<_Index>(__first, __last, 3), __body); });
@@ -619,7 +615,7 @@ class __func_task : public __task
         _M_recycle = false;
         __task* __next = _M_func(this);
         return finalize(__next);
-    };
+    }
 
     __task*
     cancel(tbb::detail::d1::execution_data&) override
@@ -685,7 +681,7 @@ class __root_task : public __task
     {
         _M_wait_object.release();
         return nullptr;
-    };
+    }
 
     __task*
     cancel(tbb::detail::d1::execution_data&) override
@@ -719,10 +715,10 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
           typename _LeafMerge>
 class __merge_func
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::value_type _ValueType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _ValueType = typename std::iterator_traits<_RandomAccessIterator1>::value_type;
 
     _RandomAccessIterator1 _M_x_beg;
     _RandomAccessIterator2 _M_z_beg;
@@ -786,7 +782,7 @@ class __merge_func
         {
             if (__last1 - __first1 < __merge_cut_off)
             {
-                for (; __first1 != __last1; ++__first1, ++__first2)
+                for (; __first1 != __last1; ++__first1, (void)++__first2)
                     __move_value_construct()(__first1, __first2);
                 return __first2;
             }
@@ -1097,9 +1093,9 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
 class __stable_sort_func
 {
   public:
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
   private:
     _RandomAccessIterator1 _M_xs, _M_xe, _M_x_beg;
@@ -1128,9 +1124,8 @@ template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, type
 __task*
 __stable_sort_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, _LeafSort>::operator()(__task* __self)
 {
-    typedef __merge_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare, __utils::__serial_destroy,
-                         __utils::__serial_move_merge>
-        _MergeTaskType;
+    using _MergeTaskType = __merge_func<_RandomAccessIterator1, _RandomAccessIterator2, _Compare,
+                                        __utils::__serial_destroy, __utils::__serial_move_merge>;
 
     assert(_M_nsort > 0);
 
@@ -1169,8 +1164,8 @@ __parallel_stable_sort(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPol
 {
     tbb::this_task_arena::isolate([=, &__nsort]() {
         //sorting based on task tree and parallel merge
-        typedef typename ::std::iterator_traits<_RandomAccessIterator>::value_type _ValueType;
-        typedef typename ::std::iterator_traits<_RandomAccessIterator>::difference_type _DifferenceType;
+        using _ValueType = typename std::iterator_traits<_RandomAccessIterator>::value_type;
+        using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
         const _DifferenceType __n = __xe - __xs;
 
         const _DifferenceType __sort_cut_off = _ONEDPL_STABLE_SORT_CUT_OFF;
@@ -1219,9 +1214,9 @@ __task*
 __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3, __M_Compare, _LeafMerge>::
 operator()(__task* __self)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (_M_xe - _M_xs) + (_M_ye - _M_ys);
     if (__n <= __merge_cut_off)
     {
@@ -1259,9 +1254,9 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
                  _RandomAccessIterator1 __xe, _RandomAccessIterator2 __ys, _RandomAccessIterator2 __ye,
                  _RandomAccessIterator3 __zs, _Compare __comp, _LeafMerge __leaf_merge)
 {
-    typedef typename ::std::iterator_traits<_RandomAccessIterator1>::difference_type _DifferenceType1;
-    typedef typename ::std::iterator_traits<_RandomAccessIterator2>::difference_type _DifferenceType2;
-    typedef typename ::std::common_type_t<_DifferenceType1, _DifferenceType2> _SizeType;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _SizeType = typename std::common_type_t<_DifferenceType1, _DifferenceType2>;
     const _SizeType __n = (__xe - __xs) + (__ye - __ys);
     if (__n <= __merge_cut_off)
     {
@@ -1271,9 +1266,8 @@ __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&,
     else
     {
         tbb::this_task_arena::isolate([=]() {
-            typedef __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3,
-                                        _Compare, _LeafMerge>
-                _TaskType;
+            using _TaskType = __merge_func_static<_RandomAccessIterator1, _RandomAccessIterator2,
+                                                  _RandomAccessIterator3, _Compare, _LeafMerge>;
             __root_task<_TaskType> __root{__xs, __xe, __ys, __ye, __zs, __comp, __leaf_merge};
             __task::spawn_root_and_wait(__root);
         });

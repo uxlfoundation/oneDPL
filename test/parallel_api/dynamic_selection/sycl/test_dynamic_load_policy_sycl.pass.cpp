@@ -71,53 +71,66 @@ main()
 {
     bool bProcessed = false;
 
+    try
+    {
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
-    std::vector<sycl::queue> u;
-    build_dl_universe(u);
+        std::vector<sycl::queue> u;
+        build_dl_universe(u);
 
-    auto n = u.size();
+        auto n = u.size();
 
-    //If building the universe is not a success, return
-    if (n != 0)
-    {
-        // Test with direct sycl::queue resources
-        using policy_t =
-            oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity,
-                                                           oneapi::dpl::experimental::default_backend<sycl::queue>>;
-
-        // should be similar to round_robin when waiting on policy
-        auto f = [u](int i) { return u[i % u.size()]; };
-        auto f2 = [u](int) { return u[0]; };
-        // should always pick first when waiting on sync in each iteration
-
-        std::cout << "\nRunning dynamic load tests for sycl::queue ...\n";
-        EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_load, policy_t>(u, f, f2)), "");
-
-        // Test with sycl::queue* resources and dereference adapter
-        auto deref_op = [](auto pointer) { return *pointer; };
-        using policy_pointer_t = oneapi::dpl::experimental::dynamic_load_policy<
-            sycl::queue*, decltype(deref_op),
-            oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
-
-        std::vector<sycl::queue*> u_ptrs;
-        u_ptrs.reserve(u.size());
-        for (auto& e : u)
+        //If building the universe is not a success, return
+        if (n != 0)
         {
-            u_ptrs.push_back(&e);
+            // Test with direct sycl::queue resources
+            using policy_t =
+                oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity,
+                                                            oneapi::dpl::experimental::default_backend<sycl::queue>>;
+
+            // should be similar to round_robin when waiting on policy
+            auto f = [u](int i) { return u[i % u.size()]; };
+            auto f2 = [u](int) { return u[0]; };
+            // should always pick first when waiting on sync in each iteration
+
+            std::cout << "\nRunning dynamic load tests for sycl::queue ...\n";
+            EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_load, policy_t>(u, f, f2)), "");
+
+            // Test with sycl::queue* resources and dereference adapter
+            auto deref_op = [](auto pointer) { return *pointer; };
+            using policy_pointer_t = oneapi::dpl::experimental::dynamic_load_policy<
+                sycl::queue*, decltype(deref_op),
+                oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
+
+            std::vector<sycl::queue*> u_ptrs;
+            u_ptrs.reserve(u.size());
+            for (auto& e : u)
+            {
+                u_ptrs.push_back(&e);
+            }
+            auto f_ptrs = [u_ptrs](int i) { return u_ptrs[i % u_ptrs.size()]; };
+            auto f2_ptrs = [u_ptrs](int) { return u_ptrs[0]; };
+
+            std::cout << "\nRunning dynamic load tests for sycl::queue* ...\n";
+            EXPECT_EQ(0,
+                    (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
+                    "");
+
+            bProcessed = true;
         }
-        auto f_ptrs = [u_ptrs](int i) { return u_ptrs[i % u_ptrs.size()]; };
-        auto f2_ptrs = [u_ptrs](int) { return u_ptrs[0]; };
-
-        std::cout << "\nRunning dynamic load tests for sycl::queue* ...\n";
-        EXPECT_EQ(0,
-                  (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
-                  "");
-
-        bProcessed = true;
-    }
 #endif // Devices available are CPU and GPU
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
+    }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done(bProcessed);
 }

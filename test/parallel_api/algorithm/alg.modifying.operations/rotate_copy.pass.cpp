@@ -84,7 +84,7 @@ struct test_one_policy
         Iterator1 data_m = ::std::next(data_b, shift);
 
         fill(actual_b, actual_e, T(-123));
-        Iterator2 actual_return = rotate_copy(exec, data_b, data_m, data_e, actual_b);
+        Iterator2 actual_return = rotate_copy(std::forward<ExecutionPolicy>(exec), data_b, data_m, data_e, actual_b);
 
         EXPECT_TRUE(actual_return == actual_e, "wrong result of rotate_copy");
         auto comparer = comparator<T, Iterator1, Iterator2>();

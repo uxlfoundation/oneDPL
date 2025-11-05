@@ -41,15 +41,13 @@ template <class _ExecutionPolicy, class _InputIterator, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_copy(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
-                  std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
@@ -67,15 +65,13 @@ template <class _ExecutionPolicy, class _InputIterator, class _Size, class _Forw
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_copy_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __n, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, _InRefType> && // required operation is trivial
-                  std::is_trivially_default_constructible_v<_OutValueType> &&     // actual operations are trivial
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
@@ -95,15 +91,13 @@ template <class _ExecutionPolicy, class _InputIterator, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_move(_ExecutionPolicy&& __exec, _InputIterator __first, _InputIterator __last, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
-                  std::is_trivially_default_constructible_v<_OutValueType> &&
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
@@ -121,15 +115,13 @@ template <class _ExecutionPolicy, class _InputIterator, class _Size, class _Forw
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_move_n(_ExecutionPolicy&& __exec, _InputIterator __first, _Size __n, _ForwardIterator __result)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _OutValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference  _OutRefType;
-    typedef typename std::iterator_traits<_InputIterator>::reference    _InRefType;
+    using _OutValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_ForwardIterator>::reference;
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
-    if constexpr (std::is_trivially_constructible_v<_OutValueType, std::remove_reference_t<_InRefType>&&> &&
-                  std::is_trivially_default_constructible_v<_OutValueType> &&
-                  std::is_trivially_assignable_v<_OutRefType, _InRefType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_move<_OutValueType, _OutRefType, _InRefType>)
     {
         return oneapi::dpl::__internal::__pattern_walk2_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
@@ -149,13 +141,11 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_fill(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_constructible_v<_ValueType, _Tp> &&    // required operation is trivial
-                  std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _Tp>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -173,13 +163,11 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Tp
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, const _Tp& __value)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_constructible_v<_ValueType, _Tp> &&    // required operation is trivial
-                  std::is_trivially_default_constructible_v<_ValueType> && // actual operations are trivial
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _Tp>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
@@ -193,62 +181,27 @@ uninitialized_fill_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size 
     }
 }
 
-#if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-
-inline const oneapi::dpl::execution::parallel_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::parallel_unsequenced_policy&)
-{
-    return oneapi::dpl::execution::par;
-}
-
-inline const oneapi::dpl::execution::sequenced_policy&
-get_unvectorized_policy(const oneapi::dpl::execution::unsequenced_policy&)
-{
-    return oneapi::dpl::execution::seq;
-}
-
-template <typename _ExecutionPolicy>
-const _ExecutionPolicy&
-get_unvectorized_policy(const _ExecutionPolicy& __exec)
-{
-    return __exec;
-}
-
-#endif // (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-
-namespace __internal
-{
-template <typename _ValueType, typename _ReferenceType>
-struct __destroy_fn
-{
-    void
-    operator()(_ReferenceType __val) const
-    {
-        __val.~_ValueType();
-    }
-};
-}; // namespace __internal
-
 // [specialized.destroy]
 
 template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 destroy(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (!std::is_trivially_destructible_v<_ValueType>)
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(get_unvectorized_policy(__exec), __first);
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::__get_unvectorized_policy(__exec),
+                                                      __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                 __last, __internal::__destroy_fn<_ValueType, _ReferenceType>{});
+        oneapi::dpl::__internal::__pattern_walk1(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
 }
 
@@ -256,8 +209,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
-    typedef typename std::iterator_traits<_ForwardIterator>::reference _ReferenceType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (std::is_trivially_destructible_v<_ValueType>)
     {
@@ -267,14 +219,15 @@ destroy_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
     {
         const auto __dispatch_tag =
 #if (_PSTL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN || _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN)
-            oneapi::dpl::__internal::__select_backend(get_unvectorized_policy(__exec), __first);
+            oneapi::dpl::__internal::__select_backend(oneapi::dpl::__internal::__get_unvectorized_policy(__exec),
+                                                      __first);
 #else
             oneapi::dpl::__internal::__select_backend(__exec, __first);
 #endif
 
-        return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-                                                          __first, __n,
-                                                          __internal::__destroy_fn<_ValueType, _ReferenceType>{});
+        return oneapi::dpl::__internal::__pattern_walk1_n(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{});
     }
 }
 
@@ -284,7 +237,7 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_default_construct(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -300,7 +253,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_default_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     if constexpr (std::is_trivially_default_constructible_v<_ValueType>)
     {
@@ -322,12 +275,11 @@ template <class _ExecutionPolicy, class _ForwardIterator>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
 uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         oneapi::dpl::__internal::__pattern_walk_brick(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
@@ -345,12 +297,11 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Size>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
 uninitialized_value_construct_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n)
 {
-    typedef typename std::iterator_traits<_ForwardIterator>::value_type _ValueType;
+    using _ValueType = typename std::iterator_traits<_ForwardIterator>::value_type;
 
     auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    if constexpr (std::is_trivially_default_constructible_v<_ValueType> &&
-                  std::is_trivially_copy_assignable_v<_ValueType>)
+    if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
         return oneapi::dpl::__internal::__pattern_walk_brick_n(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __n,

@@ -76,7 +76,7 @@ compute_and_check(Iterator1 first, Iterator1 last, Iterator2 d_first, T, Functio
     Iterator1 second = ::std::next(first);
 
     ++d_first;
-    for (; second != last; ++first, ++second, ++d_first)
+    for (; second != last; ++first, (void) ++second, ++d_first)
     {
         T2 temp2(f(*second, *first));
         if (!compare(temp2, *d_first))
@@ -108,7 +108,7 @@ struct test_adjacent_difference
 
         fill(actual_b, actual_e, trash);
 
-        Iterator2 actual_return = adjacent_difference(exec, data_b, data_e, actual_b);
+        Iterator2 actual_return = adjacent_difference(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b);
         EXPECT_TRUE(compute_and_check(data_b, data_e, actual_b, T2(0), ::std::minus<T2>()),
                     "wrong effect of adjacent_difference");
         EXPECT_TRUE(actual_return == actual_e, "wrong result of adjacent_difference");
@@ -128,7 +128,7 @@ struct test_adjacent_difference_functor
 
         fill(actual_b, actual_e, trash);
 
-        Iterator2 actual_return = adjacent_difference(exec, data_b, data_e, actual_b, f);
+        Iterator2 actual_return = adjacent_difference(std::forward<ExecutionPolicy>(exec), data_b, data_e, actual_b, f);
         EXPECT_TRUE(compute_and_check(data_b, data_e, actual_b, T2(0), f),
                     "wrong effect of adjacent_difference with functor");
         EXPECT_TRUE(actual_return == actual_e, "wrong result of adjacent_difference with functor");

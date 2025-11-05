@@ -48,7 +48,7 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
 
     if (__size <= __num_threads || __policy.__n_chunks < 2)
     {
-        return __reduction(__first, __last, __init);
+        return __reduction(__first, __last, std::move(__init));
     }
 
     // Here, we cannot use OpenMP UDR because we must store the init value in
@@ -70,17 +70,17 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
         oneapi::dpl::__omp_backend::__process_chunk(
             __policy, __first + __num_threads, __chunk, [&](auto __chunk_first, auto __chunk_last) {
                 auto __thread_num = omp_get_thread_num();
-                __accums[__thread_num] = __reduction(__chunk_first, __chunk_last, __accums[__thread_num]);
+                __accums[__thread_num] = __reduction(__chunk_first, __chunk_last, std::move(__accums[__thread_num]));
             });
     }
 
     // combine by accumulators
     for (std::size_t __i = 0; __i < __num_threads; ++__i)
     {
-        __init = __combiner(__init, __accums[__i]);
+        __init = __combiner(std::move(__init), std::move(__accums[__i]));
     }
 
-    return __init;
+    return std::move(__init);
 }
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _UnaryOp, class _Value, class _Combiner,
@@ -90,13 +90,13 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _Executi
                             _RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryOp __unary_op,
                             _Value __init, _Combiner __combiner, _Reduction __reduction)
 {
-    _Value __result = __init;
+    _Value __result = std::move(__init);
     if (omp_in_parallel())
     {
         // We don't create a nested parallel region in an existing parallel
         // region: just create tasks
-        __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, __init, __combiner,
-                                                                       __reduction);
+        __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, std::move(__result),
+                                                                       __combiner, __reduction);
     }
     else
     {
@@ -105,8 +105,8 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__omp_backend_tag, _Executi
         _ONEDPL_PRAGMA(omp parallel)
         _ONEDPL_PRAGMA(omp single nowait)
         {
-            __result = oneapi::dpl::__omp_backend::__transform_reduce_body(__first, __last, __unary_op, __init,
-                                                                           __combiner, __reduction);
+            __result = oneapi::dpl::__omp_backend::__transform_reduce_body(
+                __first, __last, __unary_op, std::move(__result), __combiner, __reduction);
         }
     }
 

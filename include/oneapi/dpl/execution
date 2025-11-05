@@ -43,6 +43,9 @@
 
 #if _ONEDPL_MEMORY_FORWARD_DECLARED
 #    include "oneapi/dpl/pstl/glue_memory_impl.h"
+// Even though no forward declaration for the range memory algorithms are defined,
+// pull the implementations if the memory header is included first.
+#    include "oneapi/dpl/pstl/glue_memory_ranges_impl.h"
 #endif // _ONEDPL_MEMORY_FORWARD_DECLARED
 
 #if _ONEDPL_NUMERIC_FORWARD_DECLARED

@@ -495,8 +495,8 @@ __future<sycl::event>
 __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
-    using _private_histogram_type = ::std::uint16_t;
-    using _local_histogram_type = ::std::uint32_t;
+    using _private_histogram_type = std::uint16_t;
+    using _local_histogram_type = std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
     const auto __num_bins = __bins.size();
@@ -504,7 +504,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
     auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    constexpr ::std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
+    constexpr std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
 
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)

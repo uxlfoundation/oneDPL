@@ -30,11 +30,11 @@ class output_iterator
     friend class output_iterator;
 
   public:
-    typedef ::std::output_iterator_tag iterator_category;
-    typedef void value_type;
-    typedef typename ::std::iterator_traits<It>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<It>::pointer pointer;
-    typedef typename ::std::iterator_traits<It>::reference reference;
+    using iterator_category = std::output_iterator_tag;
+    using value_type = void;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using reference = typename std::iterator_traits<It>::reference;
 
     It
     base() const
@@ -78,11 +78,11 @@ class input_iterator
     friend class input_iterator;
 
   public:
-    typedef ::std::input_iterator_tag iterator_category;
-    typedef typename ::std::iterator_traits<It>::value_type value_type;
-    typedef typename ::std::iterator_traits<It>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<It>::pointer pointer;
-    typedef typename ::std::iterator_traits<It>::reference reference;
+    using iterator_category = std::input_iterator_tag;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using reference = typename std::iterator_traits<It>::reference;
 
     constexpr It
     base() const
@@ -162,11 +162,11 @@ class forward_iterator
     friend class forward_iterator;
 
   public:
-    typedef ::std::forward_iterator_tag iterator_category;
-    typedef typename ::std::iterator_traits<It>::value_type value_type;
-    typedef typename ::std::iterator_traits<It>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<It>::pointer pointer;
-    typedef typename ::std::iterator_traits<It>::reference reference;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using reference = typename std::iterator_traits<It>::reference;
 
     constexpr It
     base() const
@@ -246,11 +246,11 @@ class bidirectional_iterator
     friend class bidirectional_iterator;
 
   public:
-    typedef ::std::bidirectional_iterator_tag iterator_category;
-    typedef typename ::std::iterator_traits<It>::value_type value_type;
-    typedef typename ::std::iterator_traits<It>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<It>::pointer pointer;
-    typedef typename ::std::iterator_traits<It>::reference reference;
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using reference = typename std::iterator_traits<It>::reference;
 
     constexpr It
     base() const
@@ -338,11 +338,11 @@ class random_access_iterator
     friend class random_access_iterator;
 
   public:
-    typedef ::std::random_access_iterator_tag iterator_category;
-    typedef typename ::std::iterator_traits<It>::value_type value_type;
-    typedef typename ::std::iterator_traits<It>::difference_type difference_type;
-    typedef typename ::std::iterator_traits<It>::pointer pointer;
-    typedef typename ::std::iterator_traits<It>::reference reference;
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using reference = typename std::iterator_traits<It>::reference;
 
     constexpr It
     base() const

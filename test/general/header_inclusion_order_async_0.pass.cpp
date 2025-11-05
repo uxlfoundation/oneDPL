@@ -10,7 +10,7 @@
 #include "support/test_config.h"
 
 #include _PSTL_TEST_HEADER(execution)
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 #    include _PSTL_TEST_HEADER(async)
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
@@ -21,9 +21,10 @@
 int
 main()
 {
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 
-    sycl::queue q = TestUtils::get_test_queue();
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
 
     constexpr std::size_t n = 100;
 
@@ -33,7 +34,7 @@ main()
     allocator alloc(q);
     std::vector<T, allocator> data(n, 1, alloc);
 
-    auto f = oneapi::dpl::experimental::reduce_async(TestUtils::make_device_policy(q), data.begin(), data.end());
+    auto f = oneapi::dpl::experimental::reduce_async(policy, data.begin(), data.end());
     f.wait();
 
 #endif // TEST_DPCPP_BACKEND_PRESENT

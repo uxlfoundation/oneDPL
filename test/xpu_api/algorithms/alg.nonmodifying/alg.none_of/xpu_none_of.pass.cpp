@@ -21,15 +21,6 @@
 
 using oneapi::dpl::none_of;
 
-struct test1
-{
-    constexpr bool
-    operator()(const int& i) const
-    {
-        return i % 2 == 0;
-    }
-};
-
 void
 kernel_test(sycl::queue& deviceQueue)
 {
@@ -44,21 +35,21 @@ kernel_test(sycl::queue& deviceQueue)
                     int ia[] = {2, 4, 6, 8};
                     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
                     ret_acc[0] &=
-                        !none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), test1());
-                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
+                        !none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), TestUtils::IsEven<int>());
+                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), TestUtils::IsEven<int>());
                 }
                 {
                     const int ia[] = {2, 4, 5, 8};
                     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
                     ret_acc[0] &=
-                        !none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), test1());
-                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
+                        !none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), TestUtils::IsEven<int>());
+                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), TestUtils::IsEven<int>());
                 }
                 {
                     const int ia[] = {1, 3, 5, 7};
                     const unsigned sa = sizeof(ia) / sizeof(ia[0]);
-                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), test1());
-                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), test1());
+                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia + sa), TestUtils::IsEven<int>());
+                    ret_acc[0] &= none_of(input_iterator<const int*>(ia), input_iterator<const int*>(ia), TestUtils::IsEven<int>());
                 }
             });
         });
