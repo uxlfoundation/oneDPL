@@ -69,7 +69,7 @@ test_dl_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Reso
 {
     using my_policy_t = Policy;
 
-    // This doesnt test the default initializer for policy when adapter isn't provided, but other tests do.
+    // This doesn't test the default initializer for policy when adapter isn't provided, but other tests do.
     my_policy_t p{u, adapter};
 
     // Do a matrix multiply operation with each work item processing a row of the result matrix

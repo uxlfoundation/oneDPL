@@ -329,7 +329,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     }
 
     // We can only default initialize adapter is oneapi::dpl::identity. If a non base resource is provided with an adapter, then
-    // it is the user's responsibilty to initialize the resources
+    // it is the user's responsibility to initialize the resources
     template <typename... ReportReqs, typename T = ResourceAdapter,
               typename = std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>>>
     void
