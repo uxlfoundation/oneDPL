@@ -85,8 +85,8 @@ has_submit_impl(...) -> std::false_type;
 
 template <typename Policy, typename Function, typename... Args>
 auto
-has_submit_impl(int)
-    -> decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...), std::true_type{});
+has_submit_impl(int) -> decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...),
+                                 std::true_type{});
 
 template <typename Policy, typename Function, typename... Args>
 struct has_submit : decltype(has_submit_impl<Policy, Function, Args...>(0))
@@ -102,9 +102,9 @@ has_submit_and_wait_impl(...) -> std::false_type;
 
 template <typename Policy, typename Function, typename... Args>
 auto
-has_submit_and_wait_impl(int)
-    -> decltype(std::declval<Policy>().submit_and_wait(std::declval<Function>(), std::declval<Args>()...),
-                std::true_type{});
+has_submit_and_wait_impl(int) -> decltype(std::declval<Policy>().submit_and_wait(std::declval<Function>(),
+                                                                                 std::declval<Args>()...),
+                                          std::true_type{});
 
 template <typename Policy, typename Function, typename... Args>
 struct has_submit_and_wait : decltype(has_submit_and_wait_impl<Policy, Function, Args...>(0))
@@ -207,9 +207,10 @@ submit(Policy&& p, Function&& f, Args&&... args)
 
 template <typename Policy, typename Function, typename... Args>
 auto
-submit(Policy&& p, Function&& f, Args&&... args) -> std::enable_if_t<
-    !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
-    decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
+submit(Policy&& p, Function&& f, Args&&... args)
+    -> std::enable_if_t<
+        !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
+        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
 {
     // Policy has a try_submit method
     auto result = std::forward<Policy>(p).try_submit(f, args...);
