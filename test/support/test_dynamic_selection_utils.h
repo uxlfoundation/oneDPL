@@ -97,6 +97,50 @@ test_initialization(const std::vector<T>& u, Args... args)
     return 0;
 }
 
+template <typename Policy, typename... Args>
+int
+test_default_universe_initialization([[maybe_unused]] Args&&... args)
+{
+    // Default universe initialization only works with identity adapter
+    // Check if Policy has a resource type of a queue or if it has a custom adapter
+    if constexpr (!std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, sycl::queue>)
+    {
+        std::cout << "default universe initialization: SKIPPED (custom adapter)\n" << std::flush;
+        return 0;
+    }
+    else
+    {
+        // Test default universe initialization (no resource vector provided)
+        Policy p{oneapi::dpl::experimental::deferred_initialization};
+        p.initialize();
+        
+        // Verify that we got some resources from default initialization
+        auto u = oneapi::dpl::experimental::get_resources(p);
+        if (u.empty())
+        {
+            std::cout << "ERROR: default universe initialization resulted in empty resources\n";
+            return 1;
+        }
+
+        // Test that we can actually submit to the default universe
+        bool executed = false;
+        oneapi::dpl::experimental::submit_and_wait(
+            p, [&executed](auto e) {
+                executed = true;
+                return sycl::event{};
+            });
+        
+        if (!executed)
+        {
+            std::cout << "ERROR: default universe initialization did not execute task\n";
+            return 1;
+        }
+
+        std::cout << "default universe initialization: OK\n" << std::flush;
+        return 0;
+    }
+}
+
 template <typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
 test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args... args)

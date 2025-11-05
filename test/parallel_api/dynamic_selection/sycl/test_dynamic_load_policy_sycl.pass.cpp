@@ -13,6 +13,7 @@
 #include "oneapi/dpl/functional"
 #include <iostream>
 #include "support/test_dynamic_load_utils.h"
+#include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
@@ -25,13 +26,14 @@ run_dynamic_load_policy_tests(const ResourceContainer& resources, const Function
     int result = 0;
 
     result += test_dl_initialization<Policy, ResourceContainer>(resources, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy>(std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
     result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
     result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(
+    result += test_dl_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(
         resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(
+    result += test_dl_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(
         resources, f, std::forward<Args>(args)...);
 
     return result;

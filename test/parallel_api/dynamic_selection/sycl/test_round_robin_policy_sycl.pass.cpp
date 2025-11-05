@@ -23,6 +23,7 @@ run_round_robin_policy_tests(const ResourceContainer& resources, const FunctionT
 
     result +=
         test_initialization<Policy, typename ResourceContainer::value_type>(resources, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy>(std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
     result += test_submit_and_wait<Policy>(resources, f, std::forward<Args>(args)...);
