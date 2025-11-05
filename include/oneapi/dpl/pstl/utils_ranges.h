@@ -291,18 +291,12 @@ template <typename Range, typename = void>
 struct pipeline_base
 {
     using type = Range;
-    using view_type_on_next_layer = Range;
 };
 
 template <typename Range>
 struct pipeline_base<Range, std::enable_if_t<is_pipeline_object<Range>::value>>
 {
-  private:
-    using base_range_t = decltype(std::declval<Range>().base());
-
-  public :
-    using type = typename pipeline_base<std::decay_t<base_range_t>>::type;
-    using view_type_on_next_layer = base_range_t;
+    using type = typename pipeline_base<std::decay_t<decltype(std::declval<Range>().base())>>::type;
 };
 
 //pipeline_base_range
@@ -311,6 +305,7 @@ struct pipeline_base_range
 {
     Range rng;
     using has_next_layer_t = std::false_type;
+    using next_layer_view_t = Range;
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr Range
@@ -326,6 +321,7 @@ struct pipeline_base_range<Range, std::enable_if_t<is_pipeline_object<Range>::va
 {
     Range rng;
     using has_next_layer_t = std::true_type;
+    using next_layer_view_t = decltype(std::declval<Range>().base());
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr auto

@@ -332,7 +332,7 @@ struct __contains_host_pointer_on_any_layers<_View>
           __contains_host_pointer<_View>,
           std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::has_next_layer_t::value,
                              __contains_host_pointer_on_any_layers<
-                                 typename oneapi::dpl::__ranges::pipeline_base<_View>::view_type_on_next_layer>,
+                                 typename oneapi::dpl::__ranges::pipeline_base_range<_View>::next_layer_view_t>,
                              std::false_type>>
 {
 };
