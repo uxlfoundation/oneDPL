@@ -121,4 +121,4 @@ More detailed information about the API is provided in the following sections:
    round_robin_policy
    dynamic_load_policy
    auto_tune_policy
-   
+   token_policy
