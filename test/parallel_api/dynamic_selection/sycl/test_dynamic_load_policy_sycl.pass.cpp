@@ -17,24 +17,24 @@
 #include "support/utils.h"
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
-template <typename CustomName, typename Policy, typename ResourceContainer, typename FunctionType,
+template <typename CustomName, typename Policy, typename ResourceContainer, typename ResourceAdapter, typename FunctionType,
           typename FunctionType2, typename... Args>
 int
 run_dynamic_load_policy_tests(const ResourceContainer& resources, const FunctionType& f, const FunctionType2& f2,
-                              Args&&... args)
+                              ResourceAdapter adapter, Args&&... args)
 {
     int result = 0;
 
-    result += test_dl_initialization<Policy, ResourceContainer>(resources, std::forward<Args>(args)...);
-    result += test_default_universe_initialization<Policy>(std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f2, std::forward<Args>(args)...);
+    result += test_dl_initialization<Policy, ResourceContainer>(resources, adapter, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f2, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f2, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f2, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f2, adapter, std::forward<Args>(args)...);
     result += test_dl_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 0>, Policy>(
-        resources, f, std::forward<Args>(args)...);
+        resources, f, adapter, std::forward<Args>(args)...);
     result += test_dl_submit_and_wait_on_group<TestUtils::unique_kernel_name<CustomName, 1>, Policy>(
-        resources, f, std::forward<Args>(args)...);
+        resources, f, adapter, std::forward<Args>(args)...);
 
     return result;
 }
@@ -96,7 +96,7 @@ main()
             // should always pick first when waiting on sync in each iteration
 
             std::cout << "\nRunning dynamic load tests for sycl::queue ...\n";
-            EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_load, policy_t>(u, f, f2)), "");
+            EXPECT_EQ(0, (run_dynamic_load_policy_tests<queue_load, policy_t>(u, f, f2, oneapi::dpl::identity{})), "");
 
             // Test with sycl::queue* resources and dereference adapter
             auto deref_op = [](auto pointer) { return *pointer; };

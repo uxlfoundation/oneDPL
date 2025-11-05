@@ -14,21 +14,21 @@
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 
-template <typename Policy, typename ResourceContainer, typename FunctionType, typename... Args>
+template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter, typename... Args>
 int
-run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, Args&&... args)
+run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter, Args&&... args)
 {
     int result = 0;
 
     result +=
-        test_initialization<Policy, typename ResourceContainer::value_type>(resources, std::forward<Args>(args)...);
-    result += test_default_universe_initialization<Policy>(std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, std::forward<Args>(args)...);
+        test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
 
     return result;
 }
@@ -52,7 +52,7 @@ main()
             auto f = [u](int, int offset = 0) { return u[offset]; };
 
             std::cout << "\nRunning tests for sycl::queue ...\n";
-            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f)), "");
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f, oneapi::dpl::identity{})), "");
 
             // Test with sycl::queue* resources and dereference adapter
             auto deref_op = [](auto pointer) { return *pointer; };

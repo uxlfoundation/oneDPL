@@ -97,14 +97,13 @@ test_initialization(const std::vector<T>& u, Args... args)
     return 0;
 }
 
-template <typename Policy, typename... Args>
+template <typename Policy, typename ResourceAdapter, typename... Args>
 int
-test_default_universe_initialization([[maybe_unused]] Args&&... args)
+test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&... args)
 {
     // Default universe initialization only works with identity adapter
     // Check if Policy has a resource type of a queue or if it has a custom adapter
-    if constexpr (!std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
-                                  sycl::queue>)
+    if constexpr (!std::is_same_v<ResourceAdapter, oneapi::dpl::identity>)
     {
         std::cout << "default universe initialization: SKIPPED (custom adapter)\n" << std::flush;
         return 0;
@@ -127,7 +126,11 @@ test_default_universe_initialization([[maybe_unused]] Args&&... args)
         bool executed = false;
         oneapi::dpl::experimental::submit_and_wait(p, [&executed](auto e) {
             executed = true;
-            return sycl::event{};
+            if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                            int>)
+                return e;
+            else
+                return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
         });
 
         if (!executed)

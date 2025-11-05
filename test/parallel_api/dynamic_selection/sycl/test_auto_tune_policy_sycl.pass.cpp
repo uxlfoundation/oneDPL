@@ -356,12 +356,8 @@ main()
                     return u1[0];
             };
 
-            constexpr bool just_call_submit = false;
-            constexpr bool call_select_before_submit = true;
-
-
             EXPECT_EQ(0, (test_auto_initialization(u1)), "");
-            EXPECT_EQ(0, (test_default_universe_initialization<policy_t>()), "");
+            EXPECT_EQ(0, (test_default_universe_initialization<policy_t>(oneapi::dpl::identity{})), "");
 
             EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel1>(u1, 0)), "");
             EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel2>(u1, 1)), "");
