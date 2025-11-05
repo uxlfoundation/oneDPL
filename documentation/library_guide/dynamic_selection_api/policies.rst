@@ -121,6 +121,7 @@ More detailed information about the built-in policies is provided in the followi
    round_robin_policy
    dynamic_load_policy
    auto_tune_policy
+   token_policy
 
 Backends
 --------
