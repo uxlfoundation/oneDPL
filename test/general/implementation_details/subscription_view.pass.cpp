@@ -77,6 +77,14 @@ check_contains_host_pointer()
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
+
+    // Check that std::string_view can't be used in oneDPL algorithms
+    // as far it contains host pointers
+    {
+        std::string str;
+        std::string_view str_view(str);
+        static_assert(contains_host_pointer_v<decltype(str_view)> == true);
+    }
 }
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::zip_view

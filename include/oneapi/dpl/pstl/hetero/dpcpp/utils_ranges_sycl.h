@@ -18,6 +18,7 @@
 
 #include <iterator>
 #include <type_traits>
+#include <string_view> // for std::string_view
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -320,6 +321,11 @@ struct __contains_host_pointer<std::ranges::ref_view<_Rng>> : std::true_type
 {
 };
 #endif
+
+template <class CharT, class Traits>
+struct __contains_host_pointer<std::basic_string_view<CharT, Traits>> : std::true_type
+{
+};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
