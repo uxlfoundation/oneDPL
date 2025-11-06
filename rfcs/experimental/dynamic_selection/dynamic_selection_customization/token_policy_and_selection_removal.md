@@ -98,7 +98,7 @@ Beyond simplifying the public interface and requirements, these changes may prov
 
 ## Declined Feedback
 
-- Bigger design alternative to TokenPolicy (feedback from presentation 10/9/2025):
+- Bigger design alternative to TokenPolicy:
   Shift the responsibility of resource availability to the backend resource or backend, not policy. Policy becomes only about selection from available resource. Any selection mechanism (policy) can have resources with capacity caps. Use dynamic load after changes with limited resource availability in the backend or resources directly.
   - Declining this feedback as it goes against previous decision to keep universes static for the length of the program, and the cost of redesign is too high to consider at this time.
 
