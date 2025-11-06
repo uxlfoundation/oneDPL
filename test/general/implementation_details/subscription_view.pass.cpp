@@ -199,6 +199,8 @@ main()
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
+    bProcessed = true;
+
 #endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done(bProcessed);
