@@ -337,7 +337,20 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
 int
 main()
 {
+    //return 77;
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
+    // Macro is defined; perform the runtime device aspect check
+    sycl::queue q;
+    if (!q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag)) {
+        std::cout << "SKIPPED: Device does not support ext_oneapi_queue_profiling_tag aspect." << std::endl;
+        return 77;
+    }
+#else
+    // Macro not defined
+    std::cout << "SKIPPED: SYCL_EXT_ONEAPI_PROFILING_TAG not defined." << std::endl;
     return 77;
+#endif
+
     bool bProcessed = false;
 
     try
