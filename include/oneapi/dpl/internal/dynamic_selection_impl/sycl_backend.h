@@ -67,7 +67,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
   private:
     using base_t = backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>;
-    static inline bool is_profiling_enabled = false;
+    static inline bool is_lazy_reporting_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
 
@@ -206,9 +206,10 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
              ...),
             "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
 
-        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...> ||
+                      execution_info::contains_reporting_req_v<execution_info::task_completion_t, ReportReqs...>)
         {
-            is_profiling_enabled = true;
+            is_lazy_reporting_enabled = true;
         }
         initialize_default_resources(report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->resources_, adapter);
@@ -223,9 +224,10 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
                                                       execution_info::task_completion_t, execution_info::task_time_t> &&
              ...),
             "Only reporting for task_submission, task_completion and task_time are supported by the SYCL backend");
-        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
+        if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...> ||
+                      execution_info::contains_reporting_req_v<execution_info::task_completion_t, ReportReqs...>)
         {
-            is_profiling_enabled = true;
+            is_lazy_reporting_enabled = true;
         }
         filter_add_resources(v, report_reqs...);
         sgroup_ptr_ = std::make_unique<submission_group>(this->get_resources(), adapter);
@@ -282,7 +284,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     void
     lazy_report()
     {
-        if (is_profiling_enabled)
+        if (is_lazy_reporting_enabled)
         {
             async_waiter_list.lazy_report();
         }

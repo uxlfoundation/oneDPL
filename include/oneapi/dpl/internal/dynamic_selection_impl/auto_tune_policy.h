@@ -218,7 +218,7 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits::lazy_report_v<Backend>)
         {
-            backend_->lazy_report();
+            this->backend_->lazy_report();
         }
         if (state_)
         {
@@ -278,7 +278,6 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         tuner_by_key_t tuner_by_key_;
     };
 
-    std::shared_ptr<Backend> backend_;
     std::shared_ptr<state_t> state_;
 
     //

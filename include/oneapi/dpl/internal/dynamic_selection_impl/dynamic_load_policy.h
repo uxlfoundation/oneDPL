@@ -131,7 +131,10 @@ class dynamic_load_policy
     std::optional<selection_type>
     try_select_impl(Args&&...)
     {
-
+        if constexpr (backend_traits::lazy_report_v<Backend>)
+        {
+            this->backend_->lazy_report();
+        }
         if (selector_)
         {
             std::shared_ptr<resource_t> least_loaded;
