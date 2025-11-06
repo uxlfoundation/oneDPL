@@ -28,7 +28,7 @@ int
 test_dl_initialization(const UniverseContainer& u, Args&&... args)
 {
     // initialize
-    Policy p{u, std::forward<Args>(args)...}; //TODO:Remove need for type specification
+    Policy p{u, std::forward<Args>(args)...};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
