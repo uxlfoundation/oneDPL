@@ -18,7 +18,6 @@
 
 #include <iterator>
 #include <type_traits>
-#include <string_view> // for std::string_view
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -312,10 +311,6 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
 
 template <typename...>
 constexpr auto __contains_host_pointer_probe(...) -> std::false_type;
-
-// for std::basic_string_view
-template <class CharT, class Traits>
-constexpr auto __contains_host_pointer_probe(std::basic_string_view<CharT, Traits> const*) -> std::true_type;
 
 // for std::ranges::ref_view
 #if _ONEDPL_CPP20_RANGES_PRESENT
