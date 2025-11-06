@@ -310,12 +310,14 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
 }
 
 template <typename...>
-constexpr auto __contains_host_pointer_probe(...) -> std::false_type;
+constexpr auto
+__contains_host_pointer_probe(...) -> std::false_type;
 
 // for std::ranges::ref_view
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <std::ranges::range Rng>
-constexpr auto __contains_host_pointer_probe(std::ranges::ref_view<Rng> const*) -> std::true_type;
+constexpr auto
+__contains_host_pointer_probe(std::ranges::ref_view<Rng> const*) -> std::true_type;
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename T>
