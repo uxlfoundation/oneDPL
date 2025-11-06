@@ -26,6 +26,11 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
                                                 oneapi::dpl::experimental::default_backend<sycl::queue>>
         p{u};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
+    if (u2.empty())
+    {
+        std::cout << "No devices that support profiling kernels found " << std::endl;
+        return 77;
+    }
     EXPECT_TRUE(std::equal(std::begin(u2), std::end(u2), std::begin(u)),
                 "ERROR: provided resources and queried resources are not equal\n");
 
