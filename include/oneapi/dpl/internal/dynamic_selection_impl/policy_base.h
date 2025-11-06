@@ -114,9 +114,9 @@ class policy_base
 
     template <typename Function, typename... Args>
     auto //std::optional of the "wait type"
-    try_submit(Function&& f, Args&&... args)
-        -> std::optional<decltype(backend_->submit(std::declval<decltype(select_impl(f, args...))>(),
-                                                   std::forward<Function>(f), std::forward<Args>(args)...))>
+    try_submit(Function&& f, Args&&... args) -> std::optional<decltype(backend_->submit(
+        std::declval<decltype(select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
+        std::forward<Function>(f), std::forward<Args>(args)...))>
     {
         if (backend_)
         {
