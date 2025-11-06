@@ -332,9 +332,17 @@ template <std::ranges::range Rng>
 constexpr auto __contains_host_pointer_probe(std::ranges::ref_view<Rng> const*) -> std::true_type;
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
+#if _ONEDPL_CPP20_REMOVE_CVREF_T_PRESENT
+template <typename T>
+using __remove_cv_ref_t = std::remove_cvref_t<T>;
+#else
+template <typename T>
+using __remove_cv_ref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+#endif
+
 template <typename T>
 struct __contains_host_pointer
-    : decltype(__contains_host_pointer_probe(static_cast<std::remove_cvref_t<T> const*>(nullptr))){};
+    : decltype(__contains_host_pointer_probe(static_cast<__remove_cv_ref_t<T> const*>(nullptr))){};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
