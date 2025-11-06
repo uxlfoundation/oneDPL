@@ -19,9 +19,6 @@
 #include <iterator>
 #include <type_traits>
 #include <string_view> // for std::string_view
-#if _ONEDPL_CPP20_SPAN_PRESENT
-#include <span>        // for std::span
-#endif
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -319,12 +316,6 @@ constexpr auto __contains_host_pointer_probe(...) -> std::false_type;
 // for std::basic_string_view
 template <class CharT, class Traits>
 constexpr auto __contains_host_pointer_probe(std::basic_string_view<CharT, Traits> const*) -> std::true_type;
-
-// for std::span
-#if _ONEDPL_CPP20_SPAN_PRESENT
-template <class Elem, std::size_t Extent>
-constexpr auto __contains_host_pointer_probe(std::span<Elem, Extent> const*) -> std::true_type;
-#endif // _ONEDPL_CPP20_SPAN_PRESENT
 
 // for std::ranges::ref_view
 #if _ONEDPL_CPP20_RANGES_PRESENT
