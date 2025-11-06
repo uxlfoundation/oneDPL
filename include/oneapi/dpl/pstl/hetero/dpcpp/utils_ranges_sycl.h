@@ -19,6 +19,9 @@
 #include <iterator>
 #include <type_traits>
 #include <string_view> // for std::string_view
+#if _ONEDPL_CPP20_SPAN_PRESENT
+#include <span>        // for std::span
+#endif
 
 #include "../../utils_ranges.h"
 #include "../../iterator_impl.h"
@@ -326,6 +329,13 @@ template <class CharT, class Traits>
 struct __contains_host_pointer<std::basic_string_view<CharT, Traits>> : std::true_type
 {
 };
+
+#if _ONEDPL_CPP20_SPAN_PRESENT
+template<class T, std::size_t Extent>
+struct __contains_host_pointer<std::span<T, Extent>> : std::true_type
+{
+};
+#endif
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
