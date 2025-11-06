@@ -46,6 +46,19 @@ inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contain
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<_Rng>;
 
+#if TEST_CPP20_SPAN_PRESENT
+template<class T, std::size_t Extent = std::dynamic_extent>
+class my_span : public std::span<T, Extent>
+{
+  public:
+
+    template <typename... Args>
+    my_span(Args&&... args) : std::span<T, Extent>(std::forward<Args>(args)...)
+    {
+    }
+};
+#endif
+
 // oneapi::dpl::__ranges::__contains_host_pointer functional
 void
 check_contains_host_pointer()
@@ -93,6 +106,9 @@ check_contains_host_pointer()
         int int_array[5] = {1, 2, 3, 4, 5};
         std::span span_view = int_array;
         static_assert(contains_host_pointer_v<decltype(span_view)> == true);
+
+        my_span<int> my_span_view(int_array);
+        static_assert(contains_host_pointer_v<decltype(my_span_view)> == true);
     }
 #endif
 }

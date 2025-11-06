@@ -313,29 +313,28 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
-template <typename _Range>
-struct __contains_host_pointer : std::false_type
-{
-};
+template <typename...>
+constexpr auto __contains_host_pointer_probe(...) -> std::false_type;
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _Rng>
-struct __contains_host_pointer<std::ranges::ref_view<_Rng>> : std::true_type
-{
-};
-#endif
-
+// for std::basic_string_view
 template <class CharT, class Traits>
-struct __contains_host_pointer<std::basic_string_view<CharT, Traits>> : std::true_type
-{
-};
+constexpr auto __contains_host_pointer_probe(std::basic_string_view<CharT, Traits> const*) -> std::true_type;
 
+// for std::span
 #if _ONEDPL_CPP20_SPAN_PRESENT
-template<class T, std::size_t Extent>
-struct __contains_host_pointer<std::span<T, Extent>> : std::true_type
-{
-};
-#endif
+template <class Elem, std::size_t Extent>
+constexpr auto __contains_host_pointer_probe(std::span<Elem, Extent> const*) -> std::true_type;
+#endif // _ONEDPL_CPP20_SPAN_PRESENT
+
+// for std::ranges::ref_view
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <std::ranges::range Rng>
+constexpr auto __contains_host_pointer_probe(std::ranges::ref_view<Rng> const*) -> std::true_type;
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename T>
+struct __contains_host_pointer
+    : decltype(__contains_host_pointer_probe(static_cast<std::remove_cvref_t<T> const*>(nullptr))){};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
