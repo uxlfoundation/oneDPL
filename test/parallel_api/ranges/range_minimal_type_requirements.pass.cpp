@@ -31,14 +31,16 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-template <typename TestingType, template <typename> typename TestingContainer>
+using TestingType = int;
+using TestingVector = std::vector<TestingType>;
+
 struct test_count
 {
     template <typename Policy>
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        TestingContainer<TestingType> v = {0, 1, 2, 3, 4, 5};
+        TestingVector v = {0, 1, 2, 3, 4, 5};
 
         TestUtils::MinimalisticView r1(v.begin(), v.end());
 
@@ -55,7 +57,7 @@ struct test_count
     {
         auto queue = policy.queue();
 
-        TestingContainer<TestingType> v = {0, 1, 2, 3, 4, 5};
+        TestingVector v = {0, 1, 2, 3, 4, 5};
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v.size(), queue);
         auto v1_end = v1_begin + v.size();
@@ -74,17 +76,16 @@ struct test_count
 #endif
 };
 
-template <typename TestingType, template <typename> typename TestingContainer>
 struct test_merge
 {
     template <typename Policy>
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        TestingContainer<TestingType> v1 = {0, 2, 4, 6, 8, 10};
-        TestingContainer<TestingType> v2 = {1, 3, 5, 7, 9, 11};
-        TestingContainer<TestingType> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-        TestingContainer<TestingType> v3(v3_expected.size(), 42);
+        TestingVector v1 = {0, 2, 4, 6, 8, 10};
+        TestingVector v2 = {1, 3, 5, 7, 9, 11};
+        TestingVector v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        TestingVector v3(v3_expected.size(), 42);
 
         TestUtils::MinimalisticView r1(v1.begin(), v1.end());
         TestUtils::MinimalisticView r2(v2.begin(), v2.end());
@@ -101,10 +102,10 @@ struct test_merge
     std::enable_if_t<!oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        TestingContainer<TestingType> v1 = {0, 2, 4, 6, 8, 10};
-        TestingContainer<TestingType> v2 = {1, 3, 5, 7, 9, 11};
-        TestingContainer<TestingType> v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-        TestingContainer<TestingType> v3(v3_expected.size(), 42);
+        TestingVector v1 = {0, 2, 4, 6, 8, 10};
+        TestingVector v2 = {1, 3, 5, 7, 9, 11};
+        TestingVector v3_expected = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        TestingVector v3(v3_expected.size(), 42);
 
         auto queue = policy.queue();
 
@@ -137,16 +138,15 @@ struct test_merge
 #endif
 };
 
-template <typename TestingType, template <typename> typename TestingContainer>
 struct test_copy_if
 {
     template <typename Policy>
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        TestingContainer<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v3(6);
-        TestingContainer<TestingType> v3_expected = {0, 2, 4, 6, 8, 10};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3(6);
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10};
 
         TestUtils::MinimalisticView r1(v1.begin(), v1.end());
         TestUtils::MinimalisticView r2(v3.begin(), v3.end());
@@ -164,9 +164,9 @@ struct test_copy_if
     {
         auto queue = policy.queue();
 
-        TestingContainer<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v3_expected = {0, 2, 4, 6, 8, 10};
-        TestingContainer<TestingType> v3(v3_expected.size());
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10};
+        TestingVector v3(v3_expected.size());
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v1.size(), queue);
         auto v1_end = v1_begin + v1.size();
@@ -191,17 +191,16 @@ struct test_copy_if
 #endif
 };
 
-template <typename TestingType, template <typename> typename TestingContainer>
 struct test_transform
 {
     template <typename Policy>
     std::enable_if_t<oneapi::dpl::__internal::__is_host_execution_policy<std::decay_t<Policy>>::value>
     operator()(Policy&& policy)
     {
-        TestingContainer<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v3(v1.size());
-        TestingContainer<TestingType> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3(v1.size());
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
         TestUtils::MinimalisticView r1(v1.begin(), v1.end());
         TestUtils::MinimalisticView r2(v2.begin(), v2.end());
@@ -220,9 +219,9 @@ struct test_transform
     {
         auto queue = policy.queue();
 
-        TestingContainer<TestingType> v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        TestingContainer<TestingType> v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
+        TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v2 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        TestingVector v3_expected = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
         auto v1_begin = sycl::malloc_shared<TestingType>(v1.size(), queue);
         auto v1_end = v1_begin + v1.size();
@@ -233,7 +232,7 @@ struct test_transform
         auto v3_begin = sycl::malloc_shared<TestingType>(v3_expected.size(), queue);
         auto v3_end = v3_begin + v3_expected.size();
 
-        TestingContainer<TestingType> v3(v1.size());
+        TestingVector v3(v1.size());
         std::uninitialized_copy(v1.begin(), v1.end(), v1_begin);
         std::uninitialized_copy(v2.begin(), v2.end(), v2_begin);
         std::uninitialized_copy(v3.begin(), v3.end(), v3_begin);
@@ -268,23 +267,14 @@ void call_test_algo()
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
-#if _ENABLE_STD_RANGES_TESTING
-template <typename TestingType, template <typename> typename TestingContainer>
-void
-call_test_algo_for_type()
-{
-    call_test_algo<test_count    <TestingType, TestingContainer>>();
-    call_test_algo<test_merge    <TestingType, TestingContainer>>();
-    call_test_algo<test_copy_if  <TestingType, TestingContainer>>();
-    call_test_algo<test_transform<TestingType, TestingContainer>>();
-}
-#endif // _ENABLE_STD_RANGES_TESTING
-
 int main()
 {
 #if _ENABLE_STD_RANGES_TESTING
 
-    call_test_algo_for_type<int, std::vector>();
+    call_test_algo<test_count>    ();
+    call_test_algo<test_merge>    ();
+    call_test_algo<test_copy_if>  ();
+    call_test_algo<test_transform>();
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
