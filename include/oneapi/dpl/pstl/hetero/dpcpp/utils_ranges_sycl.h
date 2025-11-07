@@ -309,22 +309,21 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
-template <typename...>
-constexpr auto
-__contains_host_pointer_probe(...) -> std::false_type;
+template <typename T>
+struct __contains_host_pointer : std::false_type
+{
+};
 
 // for std::ranges::ref_view
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <std::ranges::range Rng>
-constexpr auto
-__contains_host_pointer_probe(std::ranges::ref_view<Rng>*) -> std::true_type;
+struct __contains_host_pointer<std::ranges::ref_view<Rng>> : std::true_type
+{
+};
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename T>
 using __remove_cv_ref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
-
-template <typename T>
-struct __contains_host_pointer : decltype(__contains_host_pointer_probe(static_cast<T*>(nullptr))){};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
