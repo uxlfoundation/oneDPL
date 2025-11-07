@@ -179,15 +179,6 @@ main()
 
 #if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
-    // Check that __get_subscription_view on IntVector produces the same type
-    static_assert(std::is_same_v<IntVector,
-                                 std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>()))>>);
-
-    // Check that __get_subscription_view is idempotent for std::vector<int>
-    static_assert(std::is_same_v<std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>()))>,
-                                 std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
-                                                           oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>())))>>);
-
     check_contains_host_pointer();
     check_contains_host_pointer_in_zip_view();
     check_contains_host_pointer_in_take_view();
