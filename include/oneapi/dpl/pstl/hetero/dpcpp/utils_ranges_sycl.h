@@ -342,15 +342,6 @@ struct __contains_host_pointer_on_any_layers<_View>
 {
 };
 
-// 1.1. Checking the top-level view
-// 1.2. Searching view with host pointer in internal views(layers)
-// 2.1. Searching view with host pointer in the rest of views
-template <typename _View, typename... _Views>
-struct __contains_host_pointer_on_any_layers<_View, _Views...>
-    : std::disjunction<__contains_host_pointer_on_any_layers<_View>, __contains_host_pointer_on_any_layers<_Views...>>
-{
-};
-
 template <typename... _Ranges>
 struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ranges...>>
     : std::disjunction<__contains_host_pointer_on_any_layers<_Ranges>...>
