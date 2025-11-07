@@ -317,7 +317,7 @@ __contains_host_pointer_probe(...) -> std::false_type;
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <std::ranges::range Rng>
 constexpr auto
-__contains_host_pointer_probe(std::ranges::ref_view<Rng> const*) -> std::true_type;
+__contains_host_pointer_probe(std::ranges::ref_view<Rng>*) -> std::true_type;
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 template <typename T>
@@ -325,7 +325,7 @@ using __remove_cv_ref_t = typename std::remove_cv<typename std::remove_reference
 
 template <typename T>
 struct __contains_host_pointer
-    : decltype(__contains_host_pointer_probe(static_cast<__remove_cv_ref_t<T> const*>(nullptr))){};
+    : decltype(__contains_host_pointer_probe(static_cast<T*>(nullptr))){};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
@@ -335,7 +335,7 @@ struct __contains_host_pointer_on_any_layers;
 template <typename _View>
 struct __contains_host_pointer_on_any_layers<_View>
     : std::disjunction<
-          __contains_host_pointer<_View>,
+          __contains_host_pointer<__remove_cv_ref_t<_View>>,
           std::conditional_t<oneapi::dpl::__ranges::pipeline_base_range<_View>::has_next_layer_t::value,
                              __contains_host_pointer_on_any_layers<
                                  typename oneapi::dpl::__ranges::pipeline_base_range<_View>::next_layer_view_t>,
