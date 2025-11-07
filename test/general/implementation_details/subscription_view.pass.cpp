@@ -44,7 +44,7 @@ template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
 
 template <typename _Rng>
-inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers_v<_Rng>;
+inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers<_Rng>::value;
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional
 void
