@@ -124,7 +124,7 @@ check_contains_host_pointer_in_zip_view()
     }
 
     // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
+    // as far as it doesn't contain host pointer in the std::ranges::ref_view
     {
         IntVector vec;
 
