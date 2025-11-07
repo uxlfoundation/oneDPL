@@ -324,8 +324,7 @@ template <typename T>
 using __remove_cv_ref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
 
 template <typename T>
-struct __contains_host_pointer
-    : decltype(__contains_host_pointer_probe(static_cast<T*>(nullptr))){};
+struct __contains_host_pointer : decltype(__contains_host_pointer_probe(static_cast<T*>(nullptr))){};
 
 template <typename...>
 struct __contains_host_pointer_on_any_layers;
