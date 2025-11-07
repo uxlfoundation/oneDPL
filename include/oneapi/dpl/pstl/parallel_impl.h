@@ -17,6 +17,7 @@
 #define _ONEDPL_PARALLEL_IMPL_H
 
 #include <atomic>
+#include <functional>
 // This header defines the minimum set of parallel routines required to support Parallel STL,
 // implemented on top of Intel(R) Threading Building Blocks (Intel(R) TBB) library
 
@@ -51,14 +52,14 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
                                   [__comp, __f, __first, &__extremum](_Index __i, _Index __j) {
                                       // See "Reducing Contention Through Priority Updates", PPoPP '13, for discussion of
                                       // why using a shared variable scales fairly well in this situation.
-                                      if (__comp(__i - __first, __extremum))
+                                      if (std::invoke(__comp, __i - __first, __extremum))
                                       {
                                           _Index __res = __f(__i, __j);
                                           // If not '__last' returned then we found what we want so put this to extremum
                                           if (__res != __j)
                                           {
                                               const _DifferenceType __k = __res - __first;
-                                              for (_DifferenceType __old = __extremum; __comp(__k, __old);
+                                              for (_DifferenceType __old = __extremum; std::invoke(__comp, __k, __old);
                                                    __old = __extremum)
                                               {
                                                   __extremum.compare_exchange_weak(__old, __k);
