@@ -17,167 +17,15 @@
 
 #include "support/utils.h"
 
-#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
-
-using IntVector = std::vector<int>;
-using IteratorOfIntVector = typename IntVector::iterator;
-
-using MinimalisticRangeForIntVec     = TestUtils::MinimalisticRange<IteratorOfIntVector>;
-using MinimalisticRangeViewForIntVec = TestUtils::MinimalisticView <IteratorOfIntVector>;
-
-template <typename RandomIt>
-struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
-{
-    MinimalisticViewWithSubscription(RandomIt it_begin, RandomIt it_end)
-        : TestUtils::MinimalisticView<RandomIt>(it_begin, it_end)
-    {
-    }
-
-    auto operator[](std::size_t index) const
-    {
-        return *(oneapi::dpl::__ranges::__begin(*this) + index);
-    }
-};
-
-template <typename _Rng>
-inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
-
-template <typename... _Rng>
-inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers<_Rng...>::value;
-
-// oneapi::dpl::__ranges::__contains_host_pointer functional
-void
-check_contains_host_pointer()
-{
-    // Check that MinimalisticRangeForIntVec can be used in oneDPL algorithms
-    // as it doesn't contain host pointer in the std::ranges::ref_view in this case
-    {
-        IntVector vec;
-        auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
-        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
-    }
-
-    // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms as far it doesn't contains host pointers
-    {
-        IntVector vec;
-        MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
-        auto all_view = std::ranges::views::all(mr_view);
-        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
-    }
-
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
-    {
-        IntVector vec;
-
-        MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
-        auto all_view1 = std::ranges::views::all(mr_view);
-
-        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-        auto all_view2 = std::ranges::views::all(mr);
-
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view1)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view2)> == true);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view1), decltype(all_view2)> == true);
-    }
-}
-
-// oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::zip_view
-void
-check_contains_host_pointer_in_zip_view()
-{
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
-    {
-        IntVector vec;
-
-        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-        auto all_view = std::ranges::views::all(mr);
-
-        auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view, all_view);
-
-        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
-        static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
-    }
-
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
-    {
-        IntVector vec;
-
-        MinimalisticViewWithSubscription mrv(vec.begin(), vec.end());
-        auto all_view1 = std::ranges::views::all(mrv);
-
-        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-        auto all_view2 = std::ranges::views::all(mr);
-
-        auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view1, all_view2);
-
-        static_assert(contains_host_pointer_v<decltype(all_view1)> == false);
-        static_assert(contains_host_pointer_v<decltype(all_view2)> == true);
-        static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
-    }
-
-    // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms
-    // as it doesn't contain host pointer in the std::ranges::ref_view
-    {
-        IntVector vec;
-
-        MinimalisticViewWithSubscription mrv(vec.begin(), vec.end());
-        auto all_view = std::ranges::views::all(mrv);
-
-        auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view, all_view);
-
-        static_assert(contains_host_pointer_v<decltype(all_view)> == false);
-        static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == false);
-    }
-}
-
-// oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::take_view
-void
-check_contains_host_pointer_in_take_view()
-{
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
-    IntVector vec;
-    MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-    auto all_view = std::ranges::views::all(mr);
-    auto taken_view = std::ranges::take_view(all_view, all_view.size());
-
-    static_assert(contains_host_pointer_v<decltype(all_view)> == true);
-    static_assert(contains_host_pointer_v<decltype(taken_view)> == false);
-    static_assert(contains_host_pointer_on_any_layers_v<decltype(taken_view)> == true);
-}
-
-// oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::drop_view
-void
-check_contains_host_pointer_in_drop_view()
-{
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far as it contain host pointer in the std::ranges::ref_view
-    IntVector vec;
-    MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-    auto all_view = std::ranges::views::all(mr);
-    auto dropped_view = std::ranges::drop_view(all_view, 0);
-
-    static_assert(contains_host_pointer_v<decltype(all_view)> == true);
-    static_assert(contains_host_pointer_v<decltype(dropped_view)> == false);
-    static_assert(contains_host_pointer_on_any_layers_v<decltype(dropped_view)> == true);
-}
-#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+#endif
 
 int
 main()
 {
-    bool bProcessed = false;
-
-#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT
+    using IntVector = std::vector<int>;
 
     // Check that __get_subscription_view on IntVector produces the same type
     static_assert(std::is_same_v<IntVector,
@@ -188,18 +36,18 @@ main()
                                  std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
                                                            oneapi::dpl::__ranges::__get_subscription_view(std::declval<IntVector>())))>>);
 
-    check_contains_host_pointer();
-    check_contains_host_pointer_in_zip_view();
-    check_contains_host_pointer_in_take_view();
-    check_contains_host_pointer_in_drop_view();
+#if _ENABLE_STD_RANGES_TESTING
 
-    // Check that MinimalisticRangeViewForIntVec satisfies range, sized_range and view concepts
-    static_assert(std::ranges::range      <MinimalisticRangeViewForIntVec>);
-    static_assert(std::ranges::sized_range<MinimalisticRangeViewForIntVec>);
-    static_assert(std::ranges::view       <MinimalisticRangeViewForIntVec>);
+    using IteratorOfIntVector = typename IntVector::iterator;
+    using MinimalisticRangeForIntVec = TestUtils::MinimalisticView<IteratorOfIntVector>;
+
+    // Check that MinimalisticRangeForIntVec satisfies range, sized_range and view concepts
+    static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
+    static_assert(std::ranges::sized_range<MinimalisticRangeForIntVec>);
+    static_assert(std::ranges::view       <MinimalisticRangeForIntVec>);
 
     // Check that __get_subscription_view produces a range, sized_range and view
-    using __get_subscription_view_result_t = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeViewForIntVec>()));
+    using __get_subscription_view_result_t = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>()));
     static_assert(std::ranges::range      <__get_subscription_view_result_t>);
     static_assert(std::ranges::sized_range<__get_subscription_view_result_t>);
     static_assert(std::ranges::view       <__get_subscription_view_result_t>);
@@ -208,19 +56,19 @@ main()
     // Check that __get_subscription_view is idempotent for std::vector<int>
     static_assert(std::is_same_v<std::decay_t<__get_subscription_view_result_t>,
                              std::decay_t<decltype(oneapi::dpl::__ranges::__get_subscription_view(
-                                                        oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeViewForIntVec>())))>>);
+                                                        oneapi::dpl::__ranges::__get_subscription_view(std::declval<MinimalisticRangeForIntVec>())))>>);
 
     // Check all forms of begin() function
-    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeViewForIntVec>  ())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeViewForIntVec& >())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(begin(std::declval<const MinimalisticRangeViewForIntVec& >())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeViewForIntVec&&>())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec>  ())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(begin(std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(begin(std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
     
     // Check all forms of end() function
-    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeViewForIntVec  >())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeViewForIntVec& >())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(end  (std::declval<const MinimalisticRangeViewForIntVec& >())), IteratorOfIntVector>);
-    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeViewForIntVec&&>())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec  >())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(end  (std::declval<const MinimalisticRangeForIntVec& >())), IteratorOfIntVector>);
+    static_assert(std::is_same_v< decltype(end  (std::declval<      MinimalisticRangeForIntVec&&>())), IteratorOfIntVector>);
     
     // Check that MinimalisticView with vector<int>::iterator is a range
     static_assert(std::ranges::range<TestUtils::MinimalisticView<IntVector::iterator>>);
@@ -228,9 +76,8 @@ main()
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
-    bProcessed = true;
+#endif // _ENABLE_STD_RANGES_TESTING
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
-#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
-
-    return TestUtils::done(bProcessed);
+    return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
 }
