@@ -63,9 +63,9 @@ struct __pattern_minmax_element_reduce_fn
         auto __chosen_for_min = __a;
         auto __chosen_for_max = __b;
 
-        if (__comp(get<2>(__b), get<2>(__a)))
+        if (std::invoke(__comp, get<2>(__b), get<2>(__a)))
             __chosen_for_min = std::move(__b);
-        if (__comp(get<3>(__b), get<3>(__a)))
+        if (std::invoke(__comp, get<3>(__b), get<3>(__a)))
             __chosen_for_max = std::move(__a);
         return _ReduceValueType{get<0>(__chosen_for_min), get<1>(__chosen_for_max), get<2>(__chosen_for_min),
                                 get<3>(__chosen_for_max)};
@@ -87,7 +87,7 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator doesn't track the lowest found index in case of equal min. or max. values. Thus, this operator is
             // not commutative.
-            if (__comp(get<1>(__b), get<1>(__a)))
+            if (std::invoke(__comp, get<1>(__b), get<1>(__a)))
             {
                 return __b;
             }
@@ -97,8 +97,8 @@ struct __pattern_min_element_reduce_fn
         {
             // This operator keeps track of the lowest found index in case of equal min. or max. values. Thus, this operator is
             // commutative.
-            bool _is_a_lt_b = __comp(get<1>(__a), get<1>(__b));
-            bool _is_b_lt_a = __comp(get<1>(__b), get<1>(__a));
+            bool _is_a_lt_b = std::invoke(__comp, get<1>(__a), get<1>(__b));
+            bool _is_b_lt_a = std::invoke(__comp, get<1>(__b), get<1>(__a));
 
             if (_is_b_lt_a || (!_is_a_lt_b && get<0>(__b) < get<0>(__a)))
             {
