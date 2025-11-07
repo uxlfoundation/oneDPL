@@ -43,23 +43,13 @@ struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
 
-template <typename _Rng>
-inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers<_Rng>::value;
+template <typename... _Rng>
+inline constexpr bool contains_host_pointer_on_any_layers_v = oneapi::dpl::__ranges::__contains_host_pointer_on_any_layers<_Rng...>::value;
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional
 void
 check_contains_host_pointer()
 {
-    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
-    // as far it contains host pointers in the std::ranges::ref_view
-    {
-        IntVector vec;
-        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-        auto all_view = std::ranges::views::all(mr);
-        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
-        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
-    }
-
     // Check that MinimalisticRangeForIntVec can be used in oneDPL algorithms
     // as far it doesn't contains host pointers in the std::ranges::ref_view in this case
     {
@@ -76,6 +66,22 @@ check_contains_host_pointer()
         auto all_view = std::ranges::views::all(mr_view);
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
+    }
+
+    // Check that MinimalisticRangeForIntVec can't be used in oneDPL algorithms
+    // as far it contains host pointers in the std::ranges::ref_view
+    {
+        IntVector vec;
+
+        MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
+        auto all_view1 = std::ranges::views::all(mr_view);
+
+        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
+        auto all_view2 = std::ranges::views::all(mr);
+
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view1)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view2)> == true);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view1), decltype(all_view2)> == true);
     }
 }
 
