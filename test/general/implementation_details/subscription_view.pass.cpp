@@ -51,7 +51,7 @@ void
 check_contains_host_pointer()
 {
     // Check that MinimalisticRangeForIntVec can be used in oneDPL algorithms
-    // as far as it doesn't contain host pointer in the std::ranges::ref_view in this case
+    // as it doesn't contain host pointer in the std::ranges::ref_view in this case
     {
         IntVector vec;
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
@@ -124,7 +124,7 @@ check_contains_host_pointer_in_zip_view()
     }
 
     // Check that MinimalisticViewWithSubscription can be used in oneDPL algorithms
-    // as far as it doesn't contain host pointer in the std::ranges::ref_view
+    // as it doesn't contain host pointer in the std::ranges::ref_view
     {
         IntVector vec;
 
