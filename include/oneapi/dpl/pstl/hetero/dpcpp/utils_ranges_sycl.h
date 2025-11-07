@@ -358,9 +358,6 @@ struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ra
 {
 };
 
-template <typename... _Views>
-inline constexpr bool __contains_host_pointer_on_any_layers_v = __contains_host_pointer_on_any_layers<_Views...>::value;
-
 template <typename _BaseRange>
 void
 __require_access_range(sycl::handler&, _BaseRange&)
