@@ -351,9 +351,9 @@ struct __contains_host_pointer_on_any_layers<_View, _Views...>
 {
 };
 
-template <typename _Range, typename... _Ranges>
-struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Range, _Ranges...>>
-    : std::disjunction<__contains_host_pointer_on_any_layers<_Range>, __contains_host_pointer_on_any_layers<_Ranges...>>
+template <typename... _Ranges>
+struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ranges...>>
+    : std::disjunction<__contains_host_pointer_on_any_layers<_Ranges>...>
 {
 };
 
