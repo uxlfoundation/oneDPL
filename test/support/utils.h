@@ -39,6 +39,7 @@
 #include <random>
 #include <limits>
 #include <cassert>
+#include <functional>
 
 #include "utils_const.h"
 #include "iterator_utils.h"
