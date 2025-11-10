@@ -104,34 +104,34 @@ class policy_base
     select_impl(Args&&... args)
     {
         auto e = static_cast<Policy*>(this)->try_select_impl(args...);
-        while (!e.has_value())
+        while (!e)
         {
             e = static_cast<Policy*>(this)->try_select_impl(args...);
             std::this_thread::yield();
         }
-        return e.value();
+        return *e;
     }
 
     template <typename Function, typename... Args>
-    auto //std::optional of the "wait type"
+    auto //std::shared_ptr of the "wait type"
     try_submit(Function&& f, Args&&... args)
-        -> std::optional<decltype(backend_->submit(
+        -> std::shared_ptr<decltype(backend_->submit(
             std::declval<decltype(select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
             std::forward<Function>(f), std::forward<Args>(args)...))>
     {
         if (backend_)
         {
             auto e = static_cast<Policy*>(this)->try_select_impl(f, args...);
-            if (!e.has_value())
+            if (!e)
             {
-                // return an empty optional
+                // return an empty shared_ptr
                 return {};
             }
             else
             {
-                return std::make_optional<decltype(backend_->submit(e.value(), std::forward<Function>(f),
+                return std::make_shared<decltype(backend_->submit(*e, std::forward<Function>(f),
                                                                     std::forward<Args>(args)...))>(
-                    backend_->submit(e.value(), std::forward<Function>(f), std::forward<Args>(args)...));
+                    backend_->submit(e.get(), std::forward<Function>(f), std::forward<Args>(args)...));
             }
         }
         throw std::logic_error("submit called before initialization");

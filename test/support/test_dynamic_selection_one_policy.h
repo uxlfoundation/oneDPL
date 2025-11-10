@@ -93,11 +93,11 @@ class one_with_no_customizations
     }
 
     template <typename... Args>
-    std::optional<selection_type>
+    std::shared_ptr<selection_type>
     try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return std::make_optional<selection_type>(*this);
+        return std::make_shared<selection_type>(*this);
     }
 
     // required
@@ -106,7 +106,7 @@ class one_with_no_customizations
     submit(Function&&, Args&&... args)
     {
         auto e = try_select_impl(args...);
-        while (!e.has_value())
+        while (!e)
         {
             e = try_select_impl(args...);
             std::this_thread::yield();
@@ -196,11 +196,13 @@ class one_with_all_customizations
 
     // required
     template <typename... Args>
-    std::optional<selection_type>
+    std::shared_ptr<selection_type>
     try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return std::make_optional<selection_type>(*this);
+        return std::make_shared<selection_type>(*this);
+    }
+
     }
 
     // required
@@ -208,9 +210,8 @@ class one_with_all_customizations
     auto
     submit(Function&&, Args&&... args)
     {
-
         auto e = try_select_impl(args...);
-        while (!e.has_value())
+        while (!e)
         {
             e = try_select_impl(args...);
             std::this_thread::yield();
@@ -225,7 +226,7 @@ class one_with_all_customizations
     submit_and_wait(Function&&, Args&&... args)
     {
         auto e = try_select_impl(args...);
-        while (!e.has_value())
+        while (!e)
         {
             e = try_select_impl(args...);
             std::this_thread::yield();

@@ -208,18 +208,18 @@ submit(Policy&& p, Function&& f, Args&&... args)
 template <typename Policy, typename Function, typename... Args>
 auto
 submit(Policy&& p, Function&& f, Args&&... args)
-    -> std::enable_if_t<
-        !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
-        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...).value())>
+     -> std::enable_if_t<
+         !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
+         decltype(*std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
 {
     // Policy has a try_submit method
     auto result = std::forward<Policy>(p).try_submit(f, args...);
-    while (!result.has_value())
+    while (!result)
     {
         std::this_thread::yield();
         result = std::forward<Policy>(p).try_submit(f, args...);
     }
-    return result.value();
+    return *result;
 }
 
 template <typename Policy, typename Function, typename... Args>
