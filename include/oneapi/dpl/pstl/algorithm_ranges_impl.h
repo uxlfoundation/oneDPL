@@ -902,7 +902,6 @@ using __set_intersection_return_t =
 
 // Bounded set intersection: performs set_intersection with output range capacity checking.
 // Truncates result if output range is too small.
-
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
 __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
@@ -952,8 +951,7 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                     std::ranges::borrowed_iterator_t<_OutRange>>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::false_type) noexcept
 {
@@ -962,8 +960,7 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                     std::ranges::borrowed_iterator_t<_OutRange>>
+__set_intersection_return_t<_R1, _R2, _OutRange>
 __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::true_type) noexcept
 {
