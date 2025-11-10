@@ -987,54 +987,54 @@ struct __scan
 // __brick_includes
 //------------------------------------------------------------------------
 
-template <typename _Size1, typename _Size2, typename _Compare, typename _Proj1 = oneapi::dpl::identity,
-          typename _Proj2 = oneapi::dpl::identity>
+template <typename _Compare, typename _Size1, typename _Size2>
 struct __brick_includes
 {
-    _Size1 __size1;
-    _Size2 __size2;
     _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _Size1 __na;
+    _Size2 __nb;
 
-    __brick_includes(_Size1 __size1, _Size2 __size2, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
-        : __size1(__size1), __size2(__size2), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
+    __brick_includes(_Compare __c, _Size1 __n1, _Size2 __n2) : __comp(__c), __na(__n1), __nb(__n2) {}
 
-    template <typename _ItemId, typename __Rng1, typename __Rng2>
+    template <typename _ItemId, typename _Acc1, typename _Acc2>
     bool
-    operator()(_ItemId __idx, const __Rng1& __rng1, const __Rng2& __rng2) const
+    operator()(_ItemId __idx, const _Acc1& __b_acc, const _Acc2& __a_acc) const
     {
-        using std::get;
+        using ::std::get;
+
+        auto __a = __a_acc;
+        auto __b = __b_acc;
+
+        auto __a_beg = _Size1(0);
+        auto __a_end = __na;
+
+        auto __b_beg = _Size2(0);
+        auto __b_end = __nb;
 
         // testing __comp(*__first2, *__first1) or __comp(*(__last1 - 1), *(__last2 - 1))
-        if ((__idx == 0 && std::invoke(__comp, std::invoke(__proj1, __rng1[0]), std::invoke(__proj2, __rng2[0]))) ||
-            (__idx == __size1 - 1 &&
-             std::invoke(__comp, std::invoke(__proj2, __rng2[__size2 - 1]), std::invoke(__proj1, __rng1[__size1 - 1]))))
-            return true; //__rng2 doesn't include __rng1
+        if ((__idx == 0 && __comp(__b[__b_beg + 0], __a[__a_beg + 0])) ||
+            (__idx == __nb - 1 && __comp(__a[__a_end - 1], __b[__b_end - 1])))
+            return true; //__a doesn't include __b
 
-        const auto __idx_b = 0 + __idx;
-        const auto __val_b = __rng1[__idx_b];
+        const auto __idx_b = __b_beg + __idx;
+        const auto __val_b = __b[__idx_b];
+        auto __res = __internal::__pstl_lower_bound(__a, __a_beg, __a_end, __val_b, __comp);
 
-        auto __res =
-            __internal::__pstl_lower_bound(__rng2, _Size1{0}, __size2, std::invoke(__proj1, __val_b), __comp, __proj2);
+        // {a} < {b} or __val_b != __a[__res]
+        if (__res == __a_end || __comp(__val_b, __a[__res]))
+            return true; //__a doesn't include __b
 
-        // {a} < {b} or __val_b != __rng2[__res]
-        if (__res == __size2 || std::invoke(__comp, std::invoke(__proj1, __val_b), std::invoke(__proj2, __rng2[__res])))
-            return true; //__rng2 doesn't include __rng1
-
-        auto __val_a = __rng2[__res];
+        auto __val_a = __a[__res];
 
         //searching number of duplication
-        const auto __count_a =
-            __internal::__pstl_right_bound(__rng2, __res, __size2, std::invoke(__proj2, __val_a), __comp, __proj2) -
-            __internal::__pstl_left_bound(__rng2, _Size1{0}, __res, std::invoke(__proj2, __val_a), __comp, __proj2);
+        const auto __count_a = __internal::__pstl_right_bound(__a, __res, __a_end, __val_a, __comp) -
+                               __internal::__pstl_left_bound(__a, __a_beg, __res, __val_a, __comp);
 
-        const auto __count_b = __internal::__pstl_right_bound(__rng1, _Size2(__idx_b), __size1,
-                                                              std::invoke(__proj1, __val_b), __comp, __proj1) -
-                               __internal::__pstl_left_bound(__rng1, _Size2{0}, _Size2(__idx_b),
-                                                             std::invoke(__proj1, __val_b), __comp, __proj1);
+        const auto __count_b = __internal::__pstl_right_bound(__b, _Size2(__idx_b), __b_end, __val_b, __comp) -
+                               __idx_b + __idx_b -
+                               __internal::__pstl_left_bound(__b, __b_beg, _Size2(__idx_b), __val_b, __comp);
 
-        return __count_b > __count_a; //false means __rng2 includes __rng1
+        return __count_b > __count_a; //false means __a includes __b
     }
 };
 
@@ -1228,48 +1228,39 @@ struct __rotate_copy
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
 
-template <typename _IsOneShot>
-struct _IntersectionTag : public ::std::false_type
+struct _IntersectionTag
 {
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _DifferenceTag : public ::std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _UnionTag : public std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
-};
-template <typename _IsOneShot>
-struct _SymmetricDifferenceTag : public std::true_type
-{
-    static constexpr bool __can_write_from_rng2_v = _IsOneShot::value;
 };
 
-template <typename _Size1, typename _Size2, typename _IsOpDifference, typename _Compare,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+struct _DifferenceTag
+{
+};
+
+struct _UnionTag
+{
+};
+
+struct _SymmetricDifferenceTag
+{
+};
+
+template <typename _SetTag, typename _Compare, typename _Size1, typename _Size2>
 class __brick_set_op
 {
+    _Compare __comp;
     _Size1 __na;
     _Size2 __nb;
-    _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
 
   public:
-    __brick_set_op(_Size1 __na, _Size2 __nb, _Compare __comp, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
-        : __na(__na), __nb(__nb), __comp(__comp), __proj1(__proj1), __proj2(__proj2) {}
+    __brick_set_op(_Compare __c, _Size1 __n1, _Size2 __n2) : __comp(__c), __na(__n1), __nb(__n2) {}
 
     template <typename _ItemId, typename _Acc>
     bool
     operator()(_ItemId __idx, const _Acc& __inout_acc) const
     {
         using ::std::get;
-        auto __a = get<0>(__inout_acc.tuple()); // first sequence: applied __proj1
-        auto __b = get<1>(__inout_acc.tuple()); // second sequence: applied __proj2
+        auto __a = get<0>(__inout_acc.tuple()); // first sequence
+        auto __b = get<1>(__inout_acc.tuple()); // second sequence
         auto __c = get<2>(__inout_acc.tuple()); // mask buffer
 
         auto __a_beg = _Size1(0);
@@ -1279,12 +1270,11 @@ class __brick_set_op
         const auto __idx_a = __idx;
         auto __val_a = __a[__a_beg + __idx_a];
 
-        auto __res =
-            __internal::__pstl_lower_bound(__b, _Size2(0), __nb, std::invoke(__proj1, __val_a), __comp, __proj2);
+        auto __res = __internal::__pstl_lower_bound(__b, _Size2(0), __nb, __val_a, __comp);
 
-        bool bres = _IsOpDifference(); //initialization in true in case of difference operation; false - intersection.
-        if (__res == __nb ||
-            std::invoke(__comp, std::invoke(__proj1, __val_a), std::invoke(__proj2, __b[__b_beg + __res])))
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
+        bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
+        if (__res == __nb || __comp(__val_a, __b[__b_beg + __res]))
         {
             // there is no __val_a in __b, so __b in the difference {__a}/{__b};
         }
@@ -1298,15 +1288,14 @@ class __brick_set_op
             //Intersection operation logic: if number of duplication in __a on left side from __idx <= total number of
             //duplication in __b than a mask is 1
 
-            const _Size1 __count_a_left = __idx_a - __internal::__pstl_left_bound(__a,
-                _Size1(0), _Size1(__idx_a), std::invoke(__proj1, __val_a), __comp, __proj1) + 1;
+            const _Size1 __count_a_left =
+                __idx_a - __internal::__pstl_left_bound(__a, _Size1(0), _Size1(__idx_a), __val_a, __comp) + 1;
 
-            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb,
-                                                                    std::invoke(__proj2, __val_b), __comp, __proj2) -
-                                     __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res),
-                                                                   std::invoke(__proj2, __val_b), __comp, __proj2);
+            const _Size2 __count_b = __internal::__pstl_right_bound(__b, _Size2(__res), __nb, __val_b, __comp) - __res +
+                                     __res -
+                                     __internal::__pstl_left_bound(__b, _Size2(0), _Size2(__res), __val_b, __comp);
 
-            if constexpr (_IsOpDifference::value)
+            if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
             else
                 bres = __count_a_left <= __count_b; /*intersection*/

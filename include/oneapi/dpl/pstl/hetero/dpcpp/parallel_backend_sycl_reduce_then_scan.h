@@ -251,7 +251,7 @@ struct __write_scan_by_seg
 // Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
-// of elements to write. Used for __parallel_set_reduce_then_scan.
+// of elements to write. Used for __parallel_set_write_a_b_op.
 template <typename _Assign>
 struct __write_multiple_to_id
 {
@@ -374,7 +374,7 @@ struct __gen_unique_mask
 
 // A mask generator for set operations (difference or intersection) to determine if an element from Set A should be
 // written to the output sequence based on its presence in Set B and the operation type (difference or intersection).
-template <typename _IsOpDifference, typename _Compare>
+template <typename _SetTag, typename _Compare>
 struct __gen_set_mask
 {
     template <typename _InRng>
@@ -392,9 +392,11 @@ struct __gen_set_mask
         auto __val_a = __set_a[__id];
 
         auto __res = oneapi::dpl::__internal::__pstl_lower_bound(__set_b, std::size_t{0}, __nb, __val_a, __comp);
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
-        bool bres =
-            _IsOpDifference::value; //initialization is true in case of difference operation; false - intersection.
+        //initialization is true in case of difference operation; false - intersection.
+        bool bres = __is_difference;
+
         if (__res == __nb || __comp(__val_a, __set_b[__res]))
         {
             // there is no __val_a in __set_b, so __set_b in the difference {__set_a}/{__set_b};
@@ -416,7 +418,7 @@ struct __gen_set_mask
                 oneapi::dpl::__internal::__pstl_right_bound(__set_b, __res, __nb, __val_b, __comp) -
                 oneapi::dpl::__internal::__pstl_left_bound(__set_b, std::size_t{0}, __res, __val_b, __comp);
 
-            if constexpr (_IsOpDifference::value)
+            if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
             else
                 bres = __count_a_left <= __count_b; /*intersection*/
@@ -427,7 +429,7 @@ struct __gen_set_mask
     _Compare __comp;
 };
 
-// __parallel_set_reduce_then_scan
+// __parallel_set_write_a_b_op
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
@@ -561,22 +563,21 @@ template <typename _SetTag>
 struct __get_set_operation;
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag<std::true_type>> : public __set_intersection
+struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag<std::true_type>> : public __set_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
 {
 };
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag<std::true_type>> : public __set_union
+struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag<std::true_type>>
-    : public __set_symmetric_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
 {
 };
 
