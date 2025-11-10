@@ -203,8 +203,6 @@ class one_with_all_customizations
         return std::make_shared<selection_type>(*this);
     }
 
-    }
-
     // required
     template <typename Function, typename... Args>
     auto
