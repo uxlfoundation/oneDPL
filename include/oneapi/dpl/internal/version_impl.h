@@ -12,7 +12,7 @@
 
 // The library version
 #define ONEDPL_VERSION_MAJOR 2022
-#define ONEDPL_VERSION_MINOR 9
+#define ONEDPL_VERSION_MINOR 10
 #define ONEDPL_VERSION_PATCH 0
 
 // The oneAPI Specification version this implementation is compliant with
