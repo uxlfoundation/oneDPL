@@ -18,29 +18,42 @@ main()
 {
     bool bProcessed = false;
 
-#if TEST_DYNAMIC_SELECTION_AVAILABLE
-    using policy_t = oneapi::dpl::experimental::fixed_resource_policy<oneapi::dpl::experimental::sycl_backend>;
-    std::vector<sycl::queue> u;
-    build_universe(u);
-    if (!u.empty())
+    try
     {
-        auto f = [u](int, int offset = 0) { return u[offset]; };
+#if TEST_DYNAMIC_SELECTION_AVAILABLE
+        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<oneapi::dpl::experimental::sycl_backend>;
+        std::vector<sycl::queue> u;
+        build_universe(u);
+        if (!u.empty())
+        {
+            auto f = [u](int, int offset = 0) { return u[offset]; };
 
-        constexpr bool just_call_submit = false;
-        constexpr bool call_select_before_submit = true;
+            constexpr bool just_call_submit = false;
+            constexpr bool call_select_before_submit = true;
 
-        EXPECT_EQ(0, (test_initialization<policy_t, sycl::queue>(u)), "");
-        EXPECT_EQ(0, (test_select<policy_t, decltype(u), decltype(f)&, false>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait_on_event<just_call_submit, policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_initialization<policy_t, sycl::queue>(u)), "");
+            EXPECT_EQ(0, (test_select<policy_t, decltype(u), decltype(f)&, false>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_event<just_call_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
 
-        bProcessed = true;
-    }
+            bProcessed = true;
+        }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
+    }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done(bProcessed);
 }

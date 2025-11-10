@@ -78,8 +78,21 @@ test_all_customizations()
 int
 main()
 {
-    test_no_customizations();
-    test_all_customizations();
+    try
+    {
+        test_no_customizations();
+        test_all_customizations();
+    }
+    catch (const std::exception& exc)
+    {
+        std::stringstream str;
+
+        str << "Exception occurred";
+        if (exc.what())
+            str << " : " << exc.what();
+
+        TestUtils::issue_error_message(str);
+    }
 
     return TestUtils::done();
 }
