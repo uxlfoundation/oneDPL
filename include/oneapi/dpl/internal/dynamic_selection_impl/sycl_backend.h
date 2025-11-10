@@ -300,7 +300,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
             for (auto& x : v)
             {
-                ///if (adapter(x).get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
+                if (adapter(x).get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag))
                     this->resources_.push_back(x);
             }
 
