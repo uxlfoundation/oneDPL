@@ -586,7 +586,9 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
 {
     auto __it_in = std::ranges::begin(__in_r);
     auto __it_out = std::ranges::begin(__out_r);
-    for (; __it_in != std::ranges::end(__in_r) && __it_out != std::ranges::end(__out_r); ++__it_in)
+    auto __end_in = std::ranges::end(__in_r);
+    auto __end_out = std::ranges::end(__out_r);
+    for (; __it_in != __end_in && __it_out != __end_out; ++__it_in)
     {
         if (std::invoke(__pred, std::invoke(__proj, *__it_in)))
         {

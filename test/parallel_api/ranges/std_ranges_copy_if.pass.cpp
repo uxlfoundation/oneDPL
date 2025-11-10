@@ -28,17 +28,17 @@ main()
         using ret_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
             std::ranges::borrowed_iterator_t<decltype(r_out)>>;
 
-        auto it_in = std::ranges::begin(r_in);
-        auto it_out = std::ranges::begin(r_out);
-        for(; it_in != std::ranges::end(r_in) && it_out != std::ranges::end(r_out); ++it_in)
+        auto in = std::ranges::begin(r_in);
+        auto out = std::ranges::begin(r_out);
+        std::size_t i = 0, j = 0;
+        for(; i < std::ranges::size(r_in) && j < std::ranges::size(r_out); ++i)
         {
-             if (std::invoke(pred, std::invoke(proj, *it_in)))
+             if (std::invoke(pred, std::invoke(proj, in[i])))
              {
-                 *it_out = *it_in;
-                 ++it_out;
+                 out[j++] = in[i];
              }
         }
-        return ret_type{it_in, it_out};
+        return ret_type{in + i, out + j};
     };
 
     test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if,  copy_if_checker, pred);
