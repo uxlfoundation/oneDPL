@@ -2167,7 +2167,7 @@ __parallel_stable_sort(oneapi::dpl::__internal::__device_backend_tag, _Execution
 {
     return __parallel_sort_impl(oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
                                 std::forward<_Range>(__rng),
-                                oneapi::dpl::__internal::__compare<_Compare, _Proj>{__comp, __proj});
+                                oneapi::dpl::__internal::__binary_op<_Compare, _Proj, _Proj>{__comp, __proj, __proj});
 }
 
 //------------------------------------------------------------------------

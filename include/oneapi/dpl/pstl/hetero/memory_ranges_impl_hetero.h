@@ -75,15 +75,13 @@ __pattern_uninitialized_value_construct(__hetero_tag<_BackendTag> __tag, _Execut
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType()},
-            std::forward<_R>(__r));
+            oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _ValueType>{_ValueType()}, __r);
     }
     else
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{},
-            std::forward<_R>(__r));
+            oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{}, __r);
     }
 
     return __last;
@@ -222,7 +220,7 @@ __pattern_destroy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R
     {
         oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag, std::forward<_ExecutionPolicy>(__exec),
-            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{}, std::forward<_R>(__r));
+            oneapi::dpl::__internal::__op_destroy<std::decay_t<_ExecutionPolicy>>{}, __r);
     }
 
     return __last;
