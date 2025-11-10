@@ -116,7 +116,7 @@ class policy_base
     auto //std::shared_ptr of the "wait type"
     try_submit(Function&& f, Args&&... args)
         -> std::shared_ptr<decltype(backend_->submit(
-            std::declval<decltype(select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
+            std::declval<decltype(*try_select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
             std::forward<Function>(f), std::forward<Args>(args)...))>
     {
         if (backend_)
