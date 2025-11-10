@@ -1340,6 +1340,26 @@ struct NoDefaultCtorWrapper {
     }
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// A minimalistic range that only provides begin() and end() methods.
+template <typename ForwardIterator>
+struct MinimalisticRange
+{
+    ForwardIterator it_begin;
+    ForwardIterator it_end;
+
+    ForwardIterator begin() const { return it_begin; };
+    ForwardIterator end()   const { return it_end;   };
+};
+
+#if _ENABLE_STD_RANGES_TESTING
+
+static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
+// All oneDPL algorithms require at least a random access range
+static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
+
+#endif // _ENABLE_STD_RANGES_TESTING
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
