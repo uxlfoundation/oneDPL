@@ -88,7 +88,7 @@ struct test_shift
         //3.2 check result
         dt_helper.retrieve_data(first);
         algo.check(first + res_idx, first, m, first_exp, n);
-    };
+    }
 
 #endif
 

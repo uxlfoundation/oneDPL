@@ -265,7 +265,7 @@ struct pipeline_base_range
     base_range()
     {
         return rng;
-    };
+    }
 };
 
 // use ::std::conditional to understand what class to inherit from
@@ -279,7 +279,7 @@ struct pipeline_base_range<Range, ::std::enable_if_t<is_pipeline_object<Range>::
     base_range() -> decltype(pipeline_base_range<decltype(rng.base())>(rng.base()).base_range())
     {
         return pipeline_base_range<decltype(rng.base())>(rng.base()).base_range();
-    };
+    }
 };
 
 template <typename _TupleType, typename _F, ::std::size_t... _Ip>

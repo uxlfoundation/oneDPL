@@ -36,14 +36,14 @@ __abs_impl(_Source __t, ::std::true_type)
     if (__t == ::std::numeric_limits<_Source>::min())
         return -static_cast<_Result>(__t);
     return -__t;
-};
+}
 
 template <typename _Result, typename _Source>
 _Result
 __abs_impl(_Source __t, ::std::false_type)
 {
     return __t;
-};
+}
 
 template <typename _Result, typename _Source>
 constexpr _Result
