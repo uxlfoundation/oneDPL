@@ -629,9 +629,9 @@ __dpl_signbit(const _T& __x)
     return (__x & __mask) != 0;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     auto __cur = __n;
@@ -652,9 +652,9 @@ __pstl_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
     return __first;
 }
 
-template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Acc, typename _Size, typename _Value, typename _Compare, typename _Proj>
 _Size
-__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj = {})
+__pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
@@ -663,9 +663,9 @@ __pstl_upper_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __valu
 }
 
 // Searching for the first element strongly greater than a passed value - right bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj = {})
+__pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
     return __pstl_upper_bound(__a, __first, __last, __val, __comp, __proj);
 }
@@ -674,11 +674,9 @@ __pstl_right_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __
 // When __bias_last==true, it searches first near the last element, otherwise it searches first near the first element.
 // After each iteration which fails to capture the element in the small side, it reduces the "bias", eventually
 // resulting in a standard binary search.
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare,
-          typename _Proj = oneapi::dpl::identity>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp,
-                     _Proj __proj = {})
+__biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     auto __n = __last - __first;
     std::int8_t __shift_right_div = 10; // divide by 2^10 = 1024
@@ -714,11 +712,9 @@ __biased_lower_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __
     return __first;
 }
 
-template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare,
-          typename _Proj = oneapi::dpl::identity>
+template <bool __bias_last = true, typename _Acc, typename _Size1, typename _Value, typename _Compare, typename _Proj>
 _Size1
-__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp,
-                     _Proj __proj = {})
+__biased_upper_bound(_Acc __acc, _Size1 __first, _Size1 __last, const _Value& __value, _Compare __comp, _Proj __proj)
 {
     __reorder_pred<_Compare> __reordered_comp{__comp};
     __not_pred<decltype(__reordered_comp)> __negation_reordered_comp{__reordered_comp};
@@ -787,9 +783,9 @@ struct _ReverseCounter
 };
 
 // Reverse searching for the first element strongly less than a passed value - left bound
-template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj = oneapi::dpl::identity>
+template <typename _Buffer, typename _Index, typename _Value, typename _Compare, typename _Proj>
 _Index
-__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj = {})
+__pstl_left_bound(_Buffer& __a, _Index __first, _Index __last, const _Value& __val, _Compare __comp, _Proj __proj)
 {
     auto __beg = _ReverseCounter<_Index, _Buffer>{__last - 1};
     auto __end = _ReverseCounter<_Index, _Buffer>{__first - 1};

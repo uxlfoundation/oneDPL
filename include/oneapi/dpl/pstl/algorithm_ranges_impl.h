@@ -726,7 +726,6 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         [__first1, __last1, __first2, __last2, __comp, __proj1, __proj2](_RandomAccessIterator2 __i,
                                                                          _RandomAccessIterator2 __j) {
             assert(__j > __i);
-            //assert(__j - __i > 1);
 
             //1. moving boundaries to "consume" subsequence of equal elements
             auto __is_equal_sorted = [&__comp, __proj2](_RandomAccessIterator2 __a,
@@ -756,8 +755,6 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                        oneapi::dpl::__internal::__pstl_lower_bound(__first1, _DifferenceType1{0}, __last1 - __first1,
                                                                    std::invoke(__proj2, *__i), __comp, __proj1);
 
-            //assert(!__comp(*(__last1 - 1), *__b));
-            //assert(!__comp(*(__j - 1), *__i));
             return !std::ranges::includes(__b, __last1, __i, __j, __comp, __proj1, __proj2);
         });
 }
@@ -869,10 +866,10 @@ using __pattern_set_union_return_t =
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _Proj1, typename _Proj2>
 __pattern_set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                    _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                    _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -881,11 +878,10 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
-          typename _Proj1 = oneapi::dpl::identity, typename _Proj2 = oneapi::dpl::identity>
+          typename _Proj1, typename _Proj2>
 __pattern_set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1 = oneapi::dpl::identity{},
-                    _Proj2 __proj2 = oneapi::dpl::identity{})
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
@@ -906,14 +902,14 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                                   __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_union_construct(
-                __first1, __last1, __first2, __last2, __result, __comp,
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+                __first1, __last1, __first2, __last2, __result,
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
         },
-        __proj1, __proj2);
+        __comp, __proj1, __proj2);
 
     return __pattern_set_union_return_t<_R1, _R2, _OutRange>{__first1 + __n1, __first2 + __n2,
                                                              __result + (__out_last - __result)};
@@ -1063,42 +1059,45 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
-        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-            __comp,
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                return oneapi::dpl::__utils::__set_intersection_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp,
-                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                    /*CopyFromFirstSet = */ std::true_type{}, __proj1, __proj2);
-            },
-            __proj1, __proj2);
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+        return __internal::__except_handler([&]() {
+            auto __out_last = __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
+                [](_DifferenceType1 __n, _DifferenceType2 __m) { return std::min(__n, __m); },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first1, __last1, __first2, __last2, __result,
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                        /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
+                },
+                __comp, __proj1, __proj2);
+            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+        });
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
     if (__m2 > oneapi::dpl::__internal::__set_algo_cut_off)
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-            __comp,
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                return oneapi::dpl::__utils::__set_intersection_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp,
-                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                    /*CopyFromFirstSet = */ std::false_type{}, __proj1, __proj2);
-            },
-            __proj1, __proj2);
-        return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+        return __internal::__except_handler([&]() {
+            auto __out_last = __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
+                [](_DifferenceType1 __n, _DifferenceType2 __m) { return std::min(__n, __m); },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first2, __last2, __first1, __last1, __result,
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                        /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
+                },
+                __comp, __proj1, __proj2);
+            return __pattern_set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+        });
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return __serial_set_intersection<_R1, _R2, _OutRange>(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2,
-                                                          std::ranges::begin(__out_r), std::ranges::end(__out_r),
-                                                          __comp, __proj1, __proj2);
+    return std::ranges::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2,
+                                         std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1200,7 +1199,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _Tp = std::ranges::range_value_t<_OutRange>;
+    using _T = std::ranges::range_value_t<_OutRange>;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
@@ -1251,18 +1250,18 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __out_last};
     }
 
-    if (__n1 + __n2 > oneapi::dpl::__internal::__set_algo_cut_off)
+    if (__n1 + __n2 > __set_algo_cut_off)
     {
-        auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        auto __out_last = __parallel_set_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+            [](_DifferenceType1 __n, _DifferenceType2) { return __n; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                return oneapi::dpl::__utils::__set_difference_construct(
-                    __first1, __last1, __first2, __last2, __result, __comp,
-                    oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+               _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                return oneapi::dpl::__utils::__set_difference_construct(__first1, __last1, __first2, __last2, __result,
+                                                                        __BrickCopyConstruct<_IsVector>(), __comp,
+                                                                        __proj1, __proj2);
             },
-            __proj1, __proj2);
-
+            __comp, __proj1, __proj2);
         return __pattern_set_difference_return_t<_R1, _OutRange>{__last1, __result + (__out_last - __result)};
     }
 
@@ -1275,8 +1274,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 // set_symmetric_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp,
+          typename _Proj1, typename _Proj2>
 std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                              std::ranges::borrowed_iterator_t<_R2>,
                                              std::ranges::borrowed_iterator_t<_OutRange>>
@@ -1397,14 +1396,14 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                                                  std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
     auto __out_last = oneapi::dpl::__internal::__parallel_set_union_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result, __comp,
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                __first1, __last1, __first2, __last2, __result, __comp,
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __proj1, __proj2);
+                __first1, __last1, __first2, __last2, __result,
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
         },
-        __proj1, __proj2);
+        __comp, __proj1, __proj2);
 
     return __pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
 }
