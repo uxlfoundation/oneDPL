@@ -292,7 +292,7 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
 
     try
     {
-        auto device_cpu1 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu1 = sycl::device(sycl::gpu_selector_v);
         sycl::queue cpu1_queue{device_cpu1, prop_list};
         u.push_back(cpu1_queue);
     }
@@ -302,7 +302,7 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     }
     try
     {
-        auto device_cpu2 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu2 = sycl::device(sycl::gpu_selector_v);
         sycl::queue cpu2_queue{device_cpu2, prop_list};
         u.push_back(cpu2_queue);
     }
@@ -312,7 +312,7 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     }
     try
     {
-        auto device_cpu3 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu3 = sycl::device(sycl::gpu_selector_v);
         sycl::queue cpu3_queue{device_cpu3, prop_list};
         u.push_back(cpu3_queue);
     }
@@ -322,7 +322,7 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     }
     try
     {
-        auto device_cpu4 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu4 = sycl::device(sycl::gpu_selector_v);
         sycl::queue cpu4_queue{device_cpu4, prop_list};
         u.push_back(cpu4_queue);
     }
