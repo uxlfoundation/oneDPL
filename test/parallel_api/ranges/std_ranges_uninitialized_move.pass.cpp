@@ -15,14 +15,12 @@
 
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/memory>
-#include <oneapi/dpl/ranges>
 
 #include "support/test_config.h"
 #include "support/test_macros.h"
 #include "support/utils.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-
 #include "std_ranges_memory_test.h"
 
 namespace test_std_ranges
