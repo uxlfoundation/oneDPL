@@ -359,6 +359,9 @@ template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
+    static_assert(!__contains_host_pointer_on_any_layers<_Range>::value,
+                  "oneDPL does not support std::ranges::ref_view in SYCL-kernel code");
+
     //getting an access for the all_view based range
     auto base_rng = oneapi::dpl::__ranges::pipeline_base_range<_Range>(::std::forward<_Range>(__rng)).base_range();
 
