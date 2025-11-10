@@ -22,8 +22,8 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto copy_if_checker = [](std::ranges::random_access_range auto&& r_in,
-                           std::ranges::random_access_range auto&& r_out, auto pred, auto proj)
+    auto copy_if_checker = []<typename Proj = std::identity>(std::ranges::random_access_range auto&& r_in,
+                           std::ranges::random_access_range auto&& r_out, auto pred, Proj proj = {})
     {
         using ret_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
             std::ranges::borrowed_iterator_t<decltype(r_out)>>;
@@ -41,7 +41,7 @@ main()
         return ret_type{it_in, it_out};
     };
 
-    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if,  copy_if_checker, pred, std::identity{});
+    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if,  copy_if_checker, pred);
     test_range_algo<1, int, data_in_out_lim>{}(dpl_ranges::copy_if,  copy_if_checker, pred, proj);
     test_range_algo<2, P2, data_in_out_lim>{}(dpl_ranges::copy_if,  copy_if_checker, pred, &P2::x);
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if,  copy_if_checker, pred, &P2::proj);
