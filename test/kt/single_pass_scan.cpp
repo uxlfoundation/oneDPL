@@ -184,6 +184,16 @@ test_general_cases(sycl::queue q, std::size_t size, BinOp bin_op, KernelParam pa
 #endif
 }
 
+// Custom type to ensure the implementation supports custom function objects
+template <typename T>
+struct my_bit_xor
+{
+    T operator()(T x, T y) const
+    {
+        return x ^ y;
+    }
+};
+
 template <typename T, typename KernelParam>
 void
 test_all_cases(sycl::queue q, std::size_t size, KernelParam param)
@@ -197,6 +207,11 @@ test_all_cases(sycl::queue q, std::size_t size, KernelParam param)
     if constexpr (!int64_mult_broken)
     {
         test_general_cases<T>(q, size, std::multiplies<T>{}, TestUtils::create_new_kernel_param_idx<1>(param));
+    }
+    // Custom operator test
+    if constexpr (std::is_integral_v<T>)
+    {
+        test_general_cases<T>(q, size, my_bit_xor<T>{}, TestUtils::create_new_kernel_param_idx<2>(param));
     }
 }
 
