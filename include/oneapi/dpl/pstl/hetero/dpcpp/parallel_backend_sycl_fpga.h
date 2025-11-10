@@ -25,6 +25,7 @@
 #include <type_traits>
 
 #include "sycl_defs.h"
+#include "../../utils_ranges.h" // __min_size_calc
 #include "parallel_backend_sycl_utils.h"
 // workaround until we implement more performant optimization for patterns
 #include "parallel_backend_sycl.h"
