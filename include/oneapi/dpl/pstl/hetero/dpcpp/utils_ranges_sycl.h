@@ -349,7 +349,7 @@ struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ra
 
 template <typename _Rng>
 constexpr void
-static_assert_not_contains_host_pointer()
+__static_assert_not_contains_host_pointer()
 {
     static_assert(!__contains_host_pointer_on_any_layers<std::decay_t<_Rng>>::value,
                   "oneDPL does not support std::ranges::ref_view in SYCL-kernel code");
@@ -359,14 +359,14 @@ template <typename _BaseRange>
 void
 __require_access_range(sycl::handler&, _BaseRange&)
 {
-    static_assert_not_contains_host_pointer<_BaseRange>();
+    __static_assert_not_contains_host_pointer<_BaseRange>();
 }
 
 template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
-    static_assert_not_contains_host_pointer<_Range>();
+    __static_assert_not_contains_host_pointer<_Range>();
 
     //getting an access for the all_view based range
     auto base_rng = oneapi::dpl::__ranges::pipeline_base_range<_Range>(::std::forward<_Range>(__rng)).base_range();
