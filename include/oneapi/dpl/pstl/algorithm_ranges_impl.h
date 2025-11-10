@@ -753,10 +753,9 @@ using __set_union_return_t =
 template<std::ranges::random_access_range _R1,
          std::ranges::random_access_range _R2,
          std::ranges::random_access_range _OutRange,
-         typename _Comp = std::ranges::less, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+         typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp = {},
-                   _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __it1 = std::ranges::begin(__r1);
     auto __in1_sz = std::ranges::size(__r1);
@@ -904,13 +903,12 @@ using __set_intersection_return_t =
 // Bounded set intersection: performs set_intersection with output range capacity checking.
 // Truncates result if output range is too small.
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = identity, typename _Proj2 = identity>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
 __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
                           std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
                           std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
-                          _Comp __comp = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
@@ -937,12 +935,9 @@ __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::itera
     return {__it1, __it2, __out_it};
 }
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = identity, typename _Proj2 = identity>
-std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                     std::ranges::borrowed_iterator_t<_OutRange>>
-__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
-                          _Proj2 __proj2 = {})
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__set_intersection_return_t<_R1, _R2, _OutRange>
+__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __it1 = std::ranges::begin(__r1);
     auto __end1 = __it1 + std::ranges::size(__r1);
@@ -1085,13 +1080,12 @@ template <typename _R1, typename _OutRange>
 using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                                                      std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
 __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
                         std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
                         std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
-                        _Comp __comp = {}, _Proj1 __proj1 = {}, _Proj2 __proj2 = {})
+                        _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
@@ -1118,11 +1112,9 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
     return {__it1, __out_it};
 }
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
-__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
-                        _Proj2 __proj2 = {})
+__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto __it1 = std::ranges::begin(__r1);
     auto __end1 = __it1 + std::ranges::size(__r1);
@@ -1257,14 +1249,13 @@ using __set_symmetric_difference_return_t =
                                                  std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp,
-          typename _Proj1, typename _Proj2>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
                                   std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
                                   std::ranges::iterator_t<_OutRange> __out_it,
-                                  std::ranges::iterator_t<_OutRange> __out_end, _Comp __comp = {}, _Proj1 __proj1 = {},
-                                  _Proj2 __proj2 = {})
+                                  std::ranges::iterator_t<_OutRange> __out_end, _Comp __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
 {
     while (__it1 != __end1 && __it2 != __end2 /*&& __out_it != __out_end*/)     // TODO commented till other implementations will be improved to check limited output range size
     {
@@ -1294,13 +1285,12 @@ __serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::range
     return {__copy1.in, __copy2.in, __copy2.out};
 }
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp = std::ranges::less,
-          typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                              std::ranges::borrowed_iterator_t<_R2>,
                                              std::ranges::borrowed_iterator_t<_OutRange>>
-__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp = {}, _Proj1 __proj1 = {},
-                                  _Proj2 __proj2 = {})
+__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
 {
     return __serial_set_symmetric_difference<_R1, _R2, _OutRange>(
         std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
