@@ -902,7 +902,6 @@ using __set_intersection_return_t =
 
 // Bounded set intersection: performs set_intersection with output range capacity checking.
 // Truncates result if output range is too small.
-
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
 __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
