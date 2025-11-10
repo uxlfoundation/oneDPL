@@ -30,7 +30,7 @@ struct test_mismatch
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2)
     {
         using namespace std;
-        typedef typename iterator_traits<Iterator1>::value_type T;
+        using T = typename iterator_traits<Iterator1>::value_type;
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
             const auto res4 = mismatch(std::forward<Policy>(exec), first1, last1, first2);
@@ -42,7 +42,7 @@ struct test_mismatch
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2)
     {
         using namespace std;
-        typedef typename iterator_traits<Iterator1>::value_type T;
+        using T = typename iterator_traits<Iterator1>::value_type;
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
             const auto res2 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2);
@@ -59,7 +59,7 @@ struct test_mismatch_predicate
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2)
     {
         using namespace std;
-        typedef typename iterator_traits<Iterator1>::value_type T;
+        using T = typename iterator_traits<Iterator1>::value_type;
         {
             const auto expected = ::std::mismatch(first1, last1, first2, ::std::equal_to<T>());
             const auto res3 = mismatch(std::forward<Policy>(exec), first1, last1, first2, std::equal_to<T>());
@@ -71,7 +71,7 @@ struct test_mismatch_predicate
     operator()(Policy&& exec, Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2)
     {
         using namespace std;
-        typedef typename iterator_traits<Iterator1>::value_type T;
+        using T = typename iterator_traits<Iterator1>::value_type;
         {
             const auto expected = mismatch(oneapi::dpl::execution::seq, first1, last1, first2, last2, ::std::equal_to<T>());
             const auto res1 = mismatch(std::forward<Policy>(exec), first1, last1, first2, last2, std::equal_to<T>());

@@ -106,7 +106,7 @@ DEFINE_TEST(test_uninitialized_fill)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         std::uninitialized_fill(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2),
@@ -130,7 +130,7 @@ DEFINE_TEST(test_uninitialized_fill_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         std::uninitialized_fill_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, value + 1);
@@ -152,7 +152,7 @@ DEFINE_TEST(test_uninitialized_default_construct)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1{ 2 };
 
         T1 exp_value; // default-constructed value
@@ -179,7 +179,7 @@ DEFINE_TEST(test_uninitialized_default_construct_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1{ 2 };
 
         T1 exp_value; // default-constructed value
@@ -205,7 +205,7 @@ DEFINE_TEST(test_uninitialized_value_construct)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
@@ -230,7 +230,7 @@ DEFINE_TEST(test_uninitialized_value_construct_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -255,7 +255,7 @@ DEFINE_TEST(test_destroy)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1{ 2 };
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
@@ -282,7 +282,7 @@ DEFINE_TEST(test_destroy_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1{ 2 };
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -310,7 +310,7 @@ DEFINE_TEST(test_fill)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         std::fill(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2), value);
@@ -331,7 +331,7 @@ DEFINE_TEST(test_fill_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         std::fill_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, value + 1);
@@ -352,7 +352,7 @@ DEFINE_TEST(test_generate)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(4);
 
         std::generate(CLONE_TEST_POLICY_IDX(exec, 0), first1 + (n / 3), first1 + (n / 2),
@@ -375,7 +375,7 @@ DEFINE_TEST(test_generate_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(4);
 
         std::generate_n(CLONE_TEST_POLICY_IDX(exec, 0), first1, n, Generator_count<T1>(value + 1));
@@ -397,7 +397,7 @@ DEFINE_TEST(test_for_each)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(6);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -426,7 +426,7 @@ DEFINE_TEST(test_for_each_n)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(6);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -451,7 +451,7 @@ DEFINE_TEST(test_replace)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(5);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -476,7 +476,7 @@ DEFINE_TEST(test_replace_if)
     {
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(6);
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
@@ -787,7 +787,7 @@ DEFINE_TEST(test_transform_unary)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(2);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -816,7 +816,7 @@ DEFINE_TEST(test_transform_binary)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(3);
 
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
@@ -842,7 +842,7 @@ DEFINE_TEST(test_replace_copy)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(5);
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();
@@ -867,7 +867,7 @@ DEFINE_TEST(test_replace_copy_if)
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
-        typedef typename ::std::iterator_traits<Iterator1>::value_type T1;
+        using T1 = typename std::iterator_traits<Iterator1>::value_type;
         auto value = T1(6);
         ::std::fill(host_keys.get(), host_keys.get() + n, value);
         host_keys.update_data();

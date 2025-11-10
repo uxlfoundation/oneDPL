@@ -56,7 +56,7 @@ struct test_for_each
     void
     operator()(Policy&& exec, Iterator first, Iterator last, Iterator expected_first, Iterator expected_last, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         // Try for_each
         ::std::for_each(expected_first, expected_last, Flip<T>(1));
@@ -72,7 +72,7 @@ struct test_for_each_n
     void
     operator()(Policy&& exec, Iterator first, Iterator, Iterator expected_first, Iterator /* expected_last */, Size n)
     {
-        typedef typename ::std::iterator_traits<Iterator>::value_type T;
+        using T = typename std::iterator_traits<Iterator>::value_type;
 
         // Try for_each_n
         ::std::for_each_n(oneapi::dpl::execution::seq, expected_first, n, Flip<T>(1));

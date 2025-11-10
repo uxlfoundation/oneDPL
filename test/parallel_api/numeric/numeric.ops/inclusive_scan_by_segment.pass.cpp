@@ -91,7 +91,7 @@ DEFINE_TEST_2(test_inclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         if (n < 1)
             return;
 
-        typedef typename ::std::iterator_traits<Iterator2>::value_type ValT;
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
 
         ::std::vector<ValT> expected_val_res(n);
         inclusive_scan_by_segment_serial(host_keys, host_vals, ::std::begin(expected_val_res),

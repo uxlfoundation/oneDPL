@@ -21,8 +21,8 @@
 template <typename Predicate, typename Arg>
 struct unary_counting_predicate {
 public:
-    typedef Arg argument_type;
-    typedef bool result_type;
+    using argument_type = Arg;
+    using result_type = bool;
 
     unary_counting_predicate(Predicate p) : p_(p), count_(0) {}
     ~unary_counting_predicate() {}

@@ -305,7 +305,7 @@ struct __parallel_transform_reduce_impl
     {
         using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __reduce_kernel, _CustomName, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
+            __reduce_kernel, _CustomName, _Tp, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
 
         auto __transform_pattern1 =
             unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,

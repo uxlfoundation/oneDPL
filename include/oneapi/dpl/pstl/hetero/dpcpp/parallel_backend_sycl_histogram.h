@@ -495,6 +495,7 @@ __future<sycl::event>
 __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_event, _Range1&& __input,
                                    _Range2&& __bins, const _BinHashMgr& __binhash_manager)
 {
+    using _private_histogram_type = std::uint16_t;
     using _local_histogram_type = std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
@@ -503,13 +504,8 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
     auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-
-// DPC++ 2025.3 fails with a segfault when compiling __histogram_general_registers_local_reduction kernel
-// for CPU devices
-// defining ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION to a non-zero value bypasses this issue
-#if !ONEDPL_DISABLE_HISTOGRAM_REGISTER_REDUCTION
-    using _private_histogram_type = std::uint16_t;
     constexpr std::uint8_t __max_work_item_private_bins = 16 / sizeof(_private_histogram_type);
+
     // if bins fit into registers, use register private accumulation
     if (__num_bins <= __max_work_item_private_bins)
     {
@@ -518,11 +514,8 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
             __q, __init_event, __work_group_size, std::forward<_Range1>(__input), std::forward<_Range2>(__bins),
             __binhash_manager));
     }
-    else
-#endif
-    if (__num_bins * sizeof(_local_histogram_type) +
-
     // if bins fit into SLM, use local atomics
+    else if (__num_bins * sizeof(_local_histogram_type) +
                  __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type) <
              __local_mem_size)
     {
