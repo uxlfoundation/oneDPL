@@ -77,7 +77,6 @@ class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceT
         selector_->index_ = index;
         auto u = base_t::get_resources();
         selector_->resources_ = u;
-        selector_->index_ = 0;
     }
 
     template <typename... Args>
