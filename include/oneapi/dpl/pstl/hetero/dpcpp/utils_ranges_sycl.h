@@ -347,6 +347,12 @@ struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ra
 {
 };
 
+template <typename _Source, typename _M>
+struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::permutation_view_simple<_Source, _M>>
+    : __contains_host_pointer_on_any_layers<_Source>
+{
+};
+
 template <typename _Rng>
 constexpr void
 __static_assert_not_contains_host_pointer()
