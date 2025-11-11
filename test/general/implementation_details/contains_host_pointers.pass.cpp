@@ -52,6 +52,14 @@ check_contains_host_pointer()
 {
     {
         IntVector vec;
+        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
+        auto all_view = std::ranges::views::all(mr);
+        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
+    }
+
+    {
+        IntVector vec;
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
