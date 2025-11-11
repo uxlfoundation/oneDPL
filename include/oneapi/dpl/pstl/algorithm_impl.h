@@ -1115,19 +1115,24 @@ struct __brick_move<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 {
     template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
     _RandomAccessIterator2
-    operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-               /*vec*/ ::std::true_type) const
+    operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last,           // bounds for data1
+               _RandomAccessIterator2 __result1, _RandomAccessIterator2 __result2,      // bounds for results
+               /*vec*/ std::true_type) const
     {
+        const auto __n = std::min(__last - __first, __result2 - __result1);
         return __unseq_backend::__simd_assign(
-            __first, __last - __first, __result,
-            [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = ::std::move(*__first); });
+            __first, __n, __result1,
+            [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = std::move(*__first); });
     }
 
     template <typename _Iterator, typename _OutputIterator>
     _OutputIterator
-    operator()(_Iterator __first, _Iterator __last, _OutputIterator __result, /*vec*/ ::std::false_type) const
+    operator()(_Iterator __first, _Iterator __last,                                     // bounds for data1
+               _OutputIterator __result1, _OutputIterator __result2,                    // bounds for results
+               /*vec*/ std::false_type) const
     {
-        return ::std::move(__first, __last, __result);
+        const auto __n = std::min(__last - __first, __result2 - __result1);
+        return std::move(__first, __first + __n, __result1);
     }
 
     template <typename _ReferenceType1, typename _ReferenceType2>
@@ -1997,19 +2002,25 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__middle, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
-                                                  __b, __e, __result + (__b - __middle), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __result + (__b - __middle), __result + (__b - __middle) + (__e - __b),   // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __b + (__last - __middle), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __b + (__last - __middle), __b + (__last - __middle) + (__e - __b),       // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + (__n - __m), [__first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __first + (__b - __result), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __first + (__b - __result), __first + (__b - __result) + (__e - __b),     // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             return __first + (__last - __middle);
@@ -2023,19 +2034,25 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
-                                                  __b, __e, __result + (__b - __first), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __result + (__b - __first), __result + (__b - __first) + (__e - __b),     // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __first + (__b - __middle), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __first + (__b - __middle), __first + (__b - __middle) + (__e - __b),     // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
+                                                  __b, __e,                                                                                             // bounds for data1
+                                                  __first + ((__n - __m) + (__b - __result)), __first + ((__n - __m) + (__b - __result)) + (__e - __b), // bounds for results w/o limit
+                                                  _IsVector{}); 
                                           });
 
             return __first + (__last - __middle);
@@ -3442,10 +3459,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     const _DifferenceType2 __n2 = __last2 - __first2;
     const _DifferenceTypeOutput __n_out = __result2 - __result1;
 
-    __par_backend::__buffer<_T> __buf(__size_func(__n1, __n2));
+    const auto __buf_size = std::min(__n_out, __size_func(__n1, __n2));
+    __par_backend::__buffer<_T> __buf(__buf_size);
 
     return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result1, __result2,
-                                         __size_func, __set_op, &__buf, __comp, __proj1, __proj2]() {
+                                         __size_func, __set_op, &__buf, __buf_size, __comp, __proj1, __proj2]() {
         auto __tmp_memory = __buf.get();
         _DifferenceType1 __m{};
         auto __scan = [__tmp_memory, __result = __result1](_DifferenceType1, _DifferenceType1,
@@ -3494,10 +3512,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                                                  __proj2, __proj1);
 
                 const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
-                auto __buffer_b = __tmp_memory + __buf_pos;
+                //auto __buffer_b = __tmp_memory + __buf_pos;
+                auto __buffer_b = __advance_it(__tmp_memory, __buf_pos, __tmp_memory + __buf_size);
                 auto __res = __set_op(__b, __e,                                         // bounds for data1
                                       __bb, __ee,                                       // bounds for data2
-                                      __buffer_b, __buffer_b,                           // bounds for results
+                                      __buffer_b, __tmp_memory + __buf_size,            // bounds for results
                                       __comp, __proj1, __proj2);
 
                 return _SetRange{0, __res - __buffer_b, __buf_pos};
@@ -3682,9 +3701,9 @@ struct __BrickCopyConstruct
 {
     template <typename _ForwardIterator, typename _OutputIterator>
     _OutputIterator
-    operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
+    operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result1, _OutputIterator __result2)
     {
-        return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+        return __brick_uninitialized_copy(__first, __last, __result1, __result2, _IsVector());
     }
 };
 
@@ -3738,7 +3757,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
                 __result, __result + __n1 + __n2,               // bounds for results w/o limitation
-                __BrickCopyConstruct<_IsVector>(), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                __BrickCopyConstruct<_IsVector>(),
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
@@ -3827,9 +3847,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
                    oneapi::dpl::identity) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1,              // bounds for data1
-                        __first2, __last2,              // bounds for data2
-                        __result1, __result2,           // bounds for results
+                        __first1, __last1,                  // bounds for data1
+                        __first2, __last2,                  // bounds for data2
+                        __result, __result + __n1 + __n2,   // bounds for results w/o limitation
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
                         /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
                         oneapi::dpl::identity{});
@@ -3855,7 +3875,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         __first2, __last2,                          // bounds for data1
                         __first1, __last1,                          // bounds for data2
-                        __result1, __result2,                       // bounds for results
+                        __result, __result + __n1 + __n2,           // bounds for results w/o limitation
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
                         /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
                         oneapi::dpl::identity{});
@@ -3955,8 +3975,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result, __result + __n1 + __n2,       // bounds for results
-                    __BrickCopyConstruct<_IsVector>(), __comp,
-                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    __BrickCopyConstruct<_IsVector>(),
+                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 
@@ -4030,8 +4050,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result, __result + __n1 + __n2,       // bounds for results w/o limitation
-                    __BrickCopyConstruct<_IsVector>(), __comp,
-                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    __BrickCopyConstruct<_IsVector>(),
+                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
     });
@@ -4613,7 +4633,9 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
                                           [__first, __n](_DiffType __i, _DiffType __j) {
                                               __brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                                  __first + __i, __first + __j,                                                     // bounds for data1
+                                                  __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
         }
         else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
@@ -4625,7 +4647,9 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                 __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
                                               [__first, __n](_DiffType __i, _DiffType __j) {
                                                   __brick_move<__parallel_tag<_IsVector>>{}(
-                                                      __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                                      __first + __i, __first + __j,                                                     // bounds for data1
+                                                      __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                      _IsVector{});
                                               });
             }
         }

@@ -928,7 +928,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
                 __result1, __result2,                           // bounds for results
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
+                __comp, __proj1, __proj2);
         },
         __comp, __proj1, __proj2);
 
@@ -1053,7 +1054,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
@@ -1061,7 +1062,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first2, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
@@ -1069,7 +1070,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first1, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
@@ -1245,8 +1246,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                __first1, __first1 + __n,
+                                                __result1,
+                                                __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
@@ -1257,8 +1261,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
     {
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                __first1, __first1 + __n,       
+                                                __result1,
+                                                __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
@@ -1269,9 +1276,12 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
         auto __out_last =
-            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                              __result, __brick_copy<__parallel_tag<_IsVector>>{});
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                              __first1, __first1 + __n,
+                                              __result1,
+                                              __brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
@@ -1289,11 +1299,12 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result1, __result2,                   // bounds for results
-                    __BrickCopyConstruct<_IsVector>(), __comp,
-                    __proj1, __proj2);
+                    __BrickCopyConstruct<_IsVector>(), 
+                    __comp, __proj1, __proj2);
             },
             __comp, __proj1, __proj2);
-        return {__last1, __result + (__out_last - __result)};
+        //return {__last1, __out_last__result1 + (__out_last - __result1)};
+        return {__last1, __out_last};
     }
 
     // use serial algorithm
@@ -1424,14 +1435,15 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,
         __first2, __last2,
-        __result,
+        __result1, __result2,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
            _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                 __first1, __last1,                  // bounds for data1                   
                 __first2, __last2,                  // bounds for data2
                 __result1, __result2,               // bounds for results
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
+                __comp, __proj1, __proj2);
         },
         __comp, __proj1, __proj2);
 

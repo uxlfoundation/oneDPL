@@ -231,7 +231,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     for (; __first1 != __last1 && __result1 != __result2; ++__result1)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result1);
+            return __cc_range(__first1, __last1, __result1, __result2);
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
@@ -247,7 +247,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
         }
     }
 
-    return __cc_range(__first2, __last2, __result1);
+    return __cc_range(__first2, __last2, __result1, __result2);
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
@@ -295,7 +295,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     while (__first1 != __last1 && __result1 != __result2)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+            return __cc_range(__first1, __last1, __result1, __result2);
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
@@ -328,7 +328,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     while (__first1 != __last1 && __result1 != __result2)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+            return __cc_range(__first1, __last1, __result1, __result2);
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
@@ -349,7 +349,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
     }
 
-    return __cc_range(__first2, __last2, __result1);
+    return __cc_range(__first2, __last2, __result1, __result2);
 }
 
 template <template <typename, typename...> typename _Concrete, typename _ValueType, typename... _Args>
