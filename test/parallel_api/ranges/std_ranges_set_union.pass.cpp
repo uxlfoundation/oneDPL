@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
 template<>
@@ -136,14 +136,14 @@ struct set_union_checker_fn
     }
 } set_union_checker;
 
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif // _ENABLE_STD_RANGES_TESTING
 
 int
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
@@ -163,7 +163,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }
