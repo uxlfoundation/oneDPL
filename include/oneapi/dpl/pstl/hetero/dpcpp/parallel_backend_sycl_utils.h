@@ -435,8 +435,8 @@ __allocate_usm(sycl::queue __q, std::size_t __elements)
     {
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         // Only use host USM on L0 GPUs. Other devices should use device USM instead to avoid notable slowdown.
-        if (__device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations)
-            && __device.get_backend() == __dpl_sycl::__level_zero_backend)
+        if (__device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
+            __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
             __result = sycl::malloc<_T>(__elements, __q, __alloc_t);
         }
@@ -547,23 +547,24 @@ struct __usm_or_buffer_accessor
 template <typename _T>
 struct __result_storage
 {
-    static_assert(sycl::is_device_copyable_v<_T>,
-                  "The type _T must be device copyable to use __result_and_scratch_storage.");
+    static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
+
   private:
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
     sycl::buffer<_T, 1> __sycl_buf;
+    std::size_t __sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 
   public:
-    __result_storage(sycl::queue __q, std::size_t __n) : __sycl_buf(nullptr, sycl::range(0))
+    __result_storage(sycl::queue __q, std::size_t __n) : __sycl_buf(nullptr, sycl::range(0)), __sz(__n)
     {
-        assert(__n > 0);
+        assert(__sz > 0);
         __kind = sycl::usm::alloc::host;
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __n);
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __sz);
         if (!__ptr)
         {
             __kind = sycl::usm::alloc::device;
-            __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);            
+            __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __sz);
         }
         if (__ptr)
         {
@@ -572,7 +573,7 @@ struct __result_storage
         else
         {
             __kind = sycl::usm::alloc::unknown;
-            __sycl_buf = sycl::buffer<_T, 1>(__n);
+            __sycl_buf = sycl::buffer<_T, 1>(__sz);
         }
     }
 
@@ -584,29 +585,23 @@ struct __result_storage
     }
 
     // Note: this member function assumes a kernel has completed and the result can be transferred to host
-    _T
-    __get_value(std::size_t __idx = 0)
+    void
+    __copy_data(_T* __dst, std::size_t __n)
     {
+        if (__sz < __n)
+            __n = __sz;
         if (__kind == sycl::usm::alloc::host)
         {
-            return *(__result_buf.get() + __idx);
+            std::copy_n(__result_buf.get(), __n, __dst);
         }
         else if (__kind == sycl::usm::alloc::device)
         {
             sycl::queue& __q = __result_buf.get_deleter().__q;
-            // Avoid default constructor for _T. It is device copyable, therefore a copy construction
-            // is equivalent to a bitwise copy and __space.__v is effectively constructed after memcpy.
-            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q.memcpy(&__space.__v, __result_buf.get() + __idx, sizeof(_T)).wait();
-
-            // The __scoped_destroyer calls __space.destroy() when it leaves the scope.
-            // _T being device copyable provides that it has a public non deleted destructor.
-            oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__space};
-            return __space.__v;
+            __q.memcpy(__dst, __result_buf.get(), __n * sizeof(_T)).wait();
         }
         else
         {
-            return __sycl_buf.get_host_access(sycl::read_only)[__idx];
+            std::copy_n(__sycl_buf.get_host_access(sycl::read_only).get_pointer(), __n, __dst);
         }
     }
 };
@@ -731,8 +726,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         if (__use_USM_host && __supports_USM_device)
             return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __result_buf.get(), __prop_list);
         else if (__supports_USM_device)
-            return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __scratch_buf.get(), __scratch_n,
-                                                                       __prop_list);
+            return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __scratch_buf.get(), __scratch_n, __prop_list);
         return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
 #else
         return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);

@@ -28,6 +28,7 @@
 #include <cmath>
 #include <limits>
 #include <cstdint>
+#include <array>
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -490,7 +491,7 @@ template <typename _Size, typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
-    _Size
+    std::array<_Size, 2>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, std::size_t __m,
                _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
     {
@@ -500,7 +501,7 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
             std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        __result_storage<_Size> __result{__q, 1};
+        __result_storage<_Size> __result{__q, 2};
 
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
@@ -512,8 +513,8 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
             auto __res_acc =
                 __result.template __get_result_acc<sycl::access_mode::write>(__hdl, __dpl_sycl::__no_init{});
 
-            __hdl.parallel_for<_ScanKernelName...>(
-                sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
+            __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
+                [=](sycl::nd_item<1> __self_item) {
                     _Size* __res_ptr = __res_acc.__get_pointer();
                     const auto& __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
@@ -533,18 +534,22 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
                             if (__out_idx < __m)
                                 __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                            if (__out_idx == __m)
+                                __res_ptr[0] = __idx; // the stop position in the input
                         }
                     }
 
                     if (__item_id == 0)
                     {
                         // Add predicate of last element to account for the scan's exclusivity
-                        *__res_ptr = __lacc[__n_uniform + __n - 1] + __lacc[__n - 1];
+                        __res_ptr[1] = __lacc[__n_uniform + __n - 1] + __lacc[__n - 1];
                     }
                 });
         }).wait_and_throw();
 
-        return __result.__get_value();
+        std::array<_Size, 2> __ret;
+        __result.__copy_data(__ret.data(), __ret.size());
+        return __ret;
     }
 };
 
@@ -917,7 +922,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __scan_copy_single_wg_kernel<_CustomName>>;
         return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
-            static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
+            static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)))
+            .back();
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
