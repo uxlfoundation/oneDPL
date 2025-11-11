@@ -76,7 +76,7 @@ check_contains_host_pointer()
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::zip_view
 void
-check_contains_host_pointer_in_zip_view()
+check_contains_host_pointer_in_onedpl_zip_view()
 {
     {
         IntVector vec;
@@ -140,7 +140,7 @@ struct SimpleFunctorForPermutationView
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::permutation_view_simple
 void
-check_contains_host_pointer_in_permutation_view_simple()
+check_contains_host_pointer_in_onedpl_permutation_view_simple()
 {
     {
         IntVector vec;
@@ -177,7 +177,7 @@ check_contains_host_pointer_in_permutation_view_simple()
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::take_view
 void
-check_contains_host_pointer_in_take_view()
+check_contains_host_pointer_in_std_take_view()
 {
     IntVector vec;
     MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
@@ -191,7 +191,7 @@ check_contains_host_pointer_in_take_view()
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::drop_view
 void
-check_contains_host_pointer_in_drop_view()
+check_contains_host_pointer_in_std_drop_view()
 {
     IntVector vec;
     MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
@@ -212,10 +212,10 @@ main()
 #if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
 
     check_contains_host_pointer();
-    check_contains_host_pointer_in_zip_view();
-    check_contains_host_pointer_in_permutation_view_simple();
-    check_contains_host_pointer_in_take_view();
-    check_contains_host_pointer_in_drop_view();
+    check_contains_host_pointer_in_onedpl_zip_view();
+    check_contains_host_pointer_in_onedpl_permutation_view_simple();
+    check_contains_host_pointer_in_std_take_view();
+    check_contains_host_pointer_in_std_drop_view();
 
     bProcessed = true;
 
