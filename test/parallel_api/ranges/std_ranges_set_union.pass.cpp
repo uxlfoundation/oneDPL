@@ -83,6 +83,59 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+struct set_union_checker_fn
+{
+    template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
+              typename Proj2 = std::identity>
+    std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>,
+                                  std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_ROut>>
+    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    {
+        auto it_1 = std::ranges::begin(r_1);
+        auto it_1_e = std::ranges::end(r_1);
+
+        auto it_2 = std::ranges::begin(r_2);
+        auto it_2_e = std::ranges::end(r_2);
+
+        auto it_out = std::ranges::begin(r_out);
+        auto it_out_e = std::ranges::end(r_out);
+
+        while (it_1 != it_1_e && it_2 != it_2_e && it_out != it_out_e)
+        {
+            auto&& v1 = *it_1;
+            auto&& v2 = *it_2;
+
+            if (std::invoke(comp, std::invoke(proj1, v1), std::invoke(proj2, v2)))
+            {
+                *it_out = v1;
+                ++it_1;
+            }
+            else if (std::invoke(comp, std::invoke(proj2, v2), std::invoke(proj1, v1)))
+            {
+                *it_out = v2;
+                ++it_2;
+            }
+            else
+            {
+                *it_out = v1;
+                ++it_1;
+                ++it_2;
+            }
+            ++it_out;
+        }
+
+        for (; it_1 != it_1_e && it_out != it_out_e; ++it_1, (void) ++it_out)
+            *it_out = *it_1;
+        for (; it_2 != it_2_e && it_out != it_out_e; ++it_2, (void) ++it_out)
+            *it_out = *it_2;
+
+        return {it_1, it_2, it_out};
+    }
+} set_union_checker;
+
 #endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
 int
@@ -93,19 +146,6 @@ main()
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
-
-    auto set_union_checker = [](std::ranges::random_access_range auto&& r1,
-                                std::ranges::random_access_range auto&& r2,
-                                std::ranges::random_access_range auto&& r_out, auto&&... args)
-    {
-        auto res = std::ranges::set_union(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                          std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_union_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                       std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                       std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
-    };
 
     test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker);
     test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
