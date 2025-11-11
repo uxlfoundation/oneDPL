@@ -363,7 +363,7 @@ template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
-    static_assert(!__contains_host_pointer_on_any_layers<std::decay_t<_Rng>>::value,
+    static_assert(!__contains_host_pointer_on_any_layers<std::decay_t<_Range>>::value,
                   "oneDPL does not support std::ranges::ref_view in SYCL-kernel code");
 
     //getting an access for the all_view based range
