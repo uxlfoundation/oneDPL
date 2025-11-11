@@ -122,6 +122,59 @@ check_contains_host_pointer_in_zip_view()
     }
 }
 
+struct SimpleMapForPermutationView
+{
+    auto operator[](auto arg)
+    {
+        return arg;
+    }
+};
+
+struct SimpleFunctorForPermutationView
+{
+    auto operator()(auto arg)
+    {
+        return arg;
+    }
+};
+
+// oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::permutation_view_simple
+void
+check_contains_host_pointer_in_permutation_view_simple()
+{
+    {
+        IntVector vec;
+
+        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
+        auto all_view = std::ranges::views::all(mr);
+
+        static_assert(oneapi::dpl::__ranges::is_map_view<SimpleMapForPermutationView>::value);
+        auto permutation_view =
+            oneapi::dpl::__ranges::permutation_view_simple<decltype(all_view), SimpleMapForPermutationView>(
+                all_view, SimpleMapForPermutationView{});
+
+        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_v<decltype(permutation_view)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(permutation_view)> == true);
+    }
+
+    {
+        IntVector vec;
+
+        MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
+        auto all_view = std::ranges::views::all(mr);
+
+        static_assert(oneapi::dpl::__internal::__is_functor<SimpleFunctorForPermutationView>);
+        auto permutation_view =
+            oneapi::dpl::__ranges::permutation_view_simple<decltype(all_view), SimpleFunctorForPermutationView>(
+                all_view, SimpleFunctorForPermutationView{}, 0);
+
+        static_assert(contains_host_pointer_v<decltype(all_view)> == true);
+        static_assert(contains_host_pointer_v<decltype(permutation_view)> == false);
+        static_assert(contains_host_pointer_on_any_layers_v<decltype(permutation_view)> == true);
+    }
+}
+
 // oneapi::dpl::__ranges::__contains_host_pointer functional with std::ranges::take_view
 void
 check_contains_host_pointer_in_take_view()
@@ -160,6 +213,7 @@ main()
 
     check_contains_host_pointer();
     check_contains_host_pointer_in_zip_view();
+    check_contains_host_pointer_in_permutation_view_simple();
     check_contains_host_pointer_in_take_view();
     check_contains_host_pointer_in_drop_view();
 
