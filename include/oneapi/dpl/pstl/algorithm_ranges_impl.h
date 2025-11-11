@@ -556,6 +556,7 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     auto __sz_in = std::ranges::size(__in_r);
     auto __sz_out = std::ranges::size(__out_r);
 
+    // TODO: test if redirecting to "regular" copy_if for sufficient output performs better
     if (__sz_in > 0 && __sz_out > 0)
     {
         auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_copy_if(

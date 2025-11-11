@@ -1335,7 +1335,8 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
     // The loop above may not decrease __m or __n below 0
     if (__m >= n) // enough space left for the rest
     {
-        __result += __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
+        __m -= __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
+        __n = 0;
     }
     return {__in_len - __n, __out_len - __m};
 #else
