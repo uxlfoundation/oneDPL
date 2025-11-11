@@ -220,30 +220,34 @@ struct __serial_move_merge
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
-__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                      _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
+__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
+                      _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
+                      _OutputIterator __result1, _OutputIterator __result2,     // bounds for results
+                      _CopyConstructRange __cc_range,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    for (; __first1 != __last1; ++__result)
+    for (; __first1 != __last1 && __result1 != __result2; ++__result1)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+            return __cc_range(__first1, __last1, __result1);
+
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first2);
+            ::new (std::addressof(*__result1)) _Tp(*__first2);
             ++__first2;
         }
         else
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
+            ::new (std::addressof(*__result1)) _Tp(*__first1);
             if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
                 ++__first2;
             ++__first1;
         }
     }
-    return __cc_range(__first2, __last2, __result);
+
+    return __cc_range(__first2, __last2, __result1);
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
