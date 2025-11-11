@@ -1033,7 +1033,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
                 [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                   _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         __first1, __last1, __first2, __last2, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
@@ -1053,7 +1053,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
                 [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+                   _RandomAccessIterator2 __last2, _Tp* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         __first2, __last2, __first1, __last1, __result,
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
