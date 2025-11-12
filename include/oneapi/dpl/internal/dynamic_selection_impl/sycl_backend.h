@@ -275,8 +275,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
         return waiter;
     }
 
-    auto
-    get_submission_group_impl()
+    submission_group
+    get_submission_group_impl() const
     {
         return *sgroup_ptr_;
     }
