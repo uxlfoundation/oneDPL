@@ -1076,12 +1076,12 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
         return {__first1 + __n1, __first2, __result + __idx};
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
+    auto [it1, it2, it3] = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
         _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {it1, it2, it3};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
@@ -1102,12 +1102,12 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__n1 == 0 || __n2 == 0)
         return {__first1 + __n1, __first2 + __n2, __result};
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
+    auto [it1, it2, it3] = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {it1, it2, it3};
 }
 
 //Dummy names to avoid kernel problems
@@ -1143,13 +1143,13 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         return {__first1 + __n1, __result + __idx};
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
+    auto [it1, it2, it3] = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
         _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R2>(__r2)),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __result + __result_size};
+    return {it1, it2, it3};
 }
 
 //Dummy names to avoid kernel problems
@@ -1205,12 +1205,12 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         return {__first1 + __n1, __first2, __result + __idx};
     }
 
-    const std::size_t __result_size = __par_backend_hetero::__parallel_set_op<unseq_backend::_SymmetricDifferenceTag>(
+    auto [it1, it2, it3] = __par_backend_hetero::__parallel_set_op<unseq_backend::_SymmetricDifferenceTag>(
         _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    return {__first1 + __n1, __first2 + __n2, __result + __result_size};
+    return {it1, it2, it3};
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
