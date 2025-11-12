@@ -3458,7 +3458,7 @@ inline constexpr auto __set_algo_cut_off = 1000;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
-_OutputIterator
+std::tuple<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,  // bounds for data1
                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,  // bounds for data2
@@ -3493,26 +3493,34 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     __par_backend::__buffer<_T> __buf(__buf_size);
 
     return __internal::__except_handler([&__exec, __n1, __first1, __last1, __first2, __last2, __result1, __result2,
-                                         __size_func, __set_op, &__buf, __buf_size, __comp, __proj1, __proj2]() {
+                                         __size_func, __set_op, &__buf, __buf_size, __comp, __proj1, __proj2]() 
+    {
         auto __tmp_memory = __buf.get();
-        _DifferenceType1 __m{};
+
+        _DifferenceType1      __m1   {};
+        _DifferenceType2      __m2   {};
+        _DifferenceTypeOutput __m_out{};
         auto __scan = [__tmp_memory, __result = __result1](_DifferenceType1, _DifferenceType1,
                                                            const _SetRange& __s) { // Scan
             if (!__s.empty())
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory + __s.__buf_pos,
-                                                                  __tmp_memory + (__s.__buf_pos + __s.__len),
+            {
+                auto __tmp_memory_from = __tmp_memory + __s.__buf_pos;
+                auto __tmp_memory_to = __tmp_memory_from + __s.__len;
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to,
                                                                   __result + __s.__pos, _IsVector{});
+            }
         };
-        __par_backend::__parallel_strict_scan(
+
+        __par_backend::__parallel_strict_scan( // TODO <<<<<
             __backend_tag{},
             std::forward<_ExecutionPolicy>(__exec),
             __n1,                                                                                                       // _Index __n
             _SetRange{0, 0, 0},                                                                                         // _Tp __initial
-            [=](_DifferenceType1 __i, _DifferenceType1 __len)                                                           // _Rp __reduce
+            [=](_DifferenceType1 __i, _DifferenceType1 __len)                                                           // _Rp __reduce     step 1 : __reduce(0, __n)
             {
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i;
-                _RandomAccessIterator1 __e = __first1 + (__i + __len);
+                _RandomAccessIterator1 __e = __b + __len;
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
@@ -3555,29 +3563,30 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 return _SetRange{0, __res - __buffer_b, __buf_pos};
             },
-            [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine
+            [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine    step 2 : __combine(__initial, (1))
             {
                 if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
                     return _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
                 return _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
             },
-            __scan,                                                                                                     // _Sp __scan
-            [&__m, &__scan](const _SetRange& __total)                                                                   // _Ap __apex
+            __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
+            [&__m_out, &__scan](const _SetRange& __total)                                                               // _Ap __apex       step 3 : __apex((2))
             {
                 //final scan
                 __scan(0, 0, __total);
-                __m = __total.__pos + __total.__len;
+                __m_out = __total.__pos + __total.__len;
             });
 
         // TODO rewrite
-        return __result1 + __m;
+        //return __result1 + __m;
+        return {__first1 + __m1, __first2 + __m2, __result1 + __m_out};
     });
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
-_OutputIterator
+std::tuple<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,    // bounds for data1
                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,    // bounds for data2
@@ -3601,16 +3610,20 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     if (__n2 == 0)
     {
         const auto __n_copy_from_r1 = std::min(__n1, __n_out);
-        return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                 __first1 + __n_copy_from_r1, __result1, __copy_range);
+        _OutputIterator __result_finish =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                              __first1 + __n_copy_from_r1, __result1, __copy_range);
+        return {__first1 + __n_copy_from_r1, __first2, __result_finish};
     }
 
     // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
     {
         const auto __n_copy_from_r2 = std::min(__n2, __n_out);
-        return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                                 __first2 + __n_copy_from_r2, __result1, __copy_range);
+        _OutputIterator __result_finish =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                              __first2 + __n_copy_from_r2, __result1, __copy_range);
+        return {__first1, __first2 + __n_copy_from_r2, __result_finish};
     }
 
     // testing  whether the sequences are intersected
@@ -3635,7 +3648,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __result1 + __n_copy_from_r1, __copy_range);
             });
 
-        return __result1 + __n_copy_from_r1 + __n_copy_from_r2;
+        return {__first1 + __n_copy_from_r1, __first2 + __n_copy_from_r2, __result1 + __n_copy_from_r1 + __n_copy_from_r2};
     }
 
     // testing  whether the sequences are intersected
@@ -3659,8 +3672,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                 __internal::__pattern_walk2_brick(__tag, __exec, __first1, __first1 + __n_copy_from_r1,
                                                   __result1 + __n_copy_from_r2, __copy_range);
             });
-        return __result1 + __n_copy_from_r1 + __n_copy_from_r2;
+
+        return {__first1 + __n_copy_from_r1, __first2 + __n_copy_from_r2, __result1 + __n_copy_from_r1 + __n_copy_from_r2};
     }
+
+    std::tuple<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
@@ -3674,8 +3690,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec] {
                 __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
             },
-            [=, &__exec, &__result1] {
-                __result1 = __internal::__parallel_set_op(
+            [=, &__exec, &__finish]
+            {
+                __finish = __internal::__parallel_set_op(
                     __tag, __exec,
                     __left_bound_seq_1, __last1,            // bounds for data1
                     __first2, __last2,                      // bounds for data2
@@ -3683,7 +3700,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
                     __proj2);
             });
-        return __result1;
+
+        return __finish;
     }
 
     const auto __m2 = __left_bound_seq_2 - __first2;
@@ -3699,8 +3717,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec] {
                 __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
             },
-            [=, &__exec, &__result1] {
-                __result1 = __internal::__parallel_set_op(
+            [=, &__exec, &__finish]
+            {
+                __finish = __internal::__parallel_set_op(
                     __tag, __exec,
                     __first1, __last1,                      // bounds for data1
                     __left_bound_seq_2, __last2,            // bounds for data2
@@ -3708,7 +3727,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
                     __proj2);
             });
-        return __result1;
+        return __finish;
     }
 
     return __internal::__parallel_set_op(
@@ -3781,7 +3800,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
-    return __parallel_set_union_op(
+
+    auto [__finish1, __finish2, __finish_res] = __parallel_set_union_op(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,                                      // bounds for data1
         __first2, __last2,                                      // bounds for data2
@@ -3797,6 +3817,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+
+    return __finish_res;
 }
 
 //------------------------------------------------------------------------
@@ -3873,7 +3895,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op(
+            auto __finish = __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __left_bound_seq_1, __last1,            // bounds for data1
                 __first2, __last2,                      // bounds for data2
@@ -3891,6 +3913,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            return std::get<2>(__finish);
         });
     }
 
@@ -3899,7 +3922,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            __result = __internal::__parallel_set_op(
+            auto __finish = __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __first1, __last1,                                  // bounds for data1
                 __left_bound_seq_2, __last2,                        // bounds for data2
@@ -3917,7 +3940,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            return __result;
+            return std::get<2>(__finish);
         });
     }
 
@@ -3998,7 +4021,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                                                  __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
     if (__n1 + __n2 > __set_algo_cut_off)
-        return __parallel_set_op(
+    {
+        auto __finish = __parallel_set_op(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
@@ -4015,6 +4039,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        return std::get<2>(__finish);
+    }
 
     // use serial algorithm
     return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
@@ -4074,7 +4100,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
-        return __internal::__parallel_set_union_op(
+
+        auto [__finish1, __finish2, __finish_res] = __internal::__parallel_set_union_op(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
@@ -4090,6 +4117,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+
+        return __finish_res;
     });
 }
 
