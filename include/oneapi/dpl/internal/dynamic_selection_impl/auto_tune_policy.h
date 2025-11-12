@@ -27,7 +27,7 @@
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
-#if _DS_BACKEND_SYCL != 0
+#if _DS_BACKEND_SYCL
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
 
@@ -38,7 +38,7 @@ namespace dpl
 namespace experimental
 {
 
-#if _DS_BACKEND_SYCL != 0
+#if _DS_BACKEND_SYCL
 template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #else
@@ -46,12 +46,11 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
           typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
 class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>,
-                                            ResourceType, ResourceAdapter, Backend>
+                                            ResourceAdapter, Backend>
 {
 
   protected:
-    using base_t = policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceType,
-                               ResourceAdapter, Backend>;
+    using base_t = policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>;
 
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;

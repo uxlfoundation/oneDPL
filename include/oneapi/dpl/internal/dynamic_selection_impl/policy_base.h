@@ -27,7 +27,7 @@ namespace dpl
 namespace experimental
 {
 
-template <typename Policy, typename ResourceType, typename ResourceAdapter, typename Backend, typename... ReportReqs>
+template <typename Policy, typename ResourceAdapter, typename Backend, typename... ReportReqs>
 class policy_base
 {
   protected:

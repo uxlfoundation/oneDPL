@@ -15,7 +15,7 @@
 #include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
 
-#if _DS_BACKEND_SYCL != 0
+#if _DS_BACKEND_SYCL
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
 
@@ -26,19 +26,19 @@ namespace dpl
 namespace experimental
 {
 
-#if _DS_BACKEND_SYCL != 0
+#if _DS_BACKEND_SYCL
 template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #else
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType,
+class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>,
                                               ResourceAdapter, Backend>
 {
   protected:
     using base_t =
-        policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, ResourceAdapter, Backend>;
+        policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using typename base_t::selection_type;
 
