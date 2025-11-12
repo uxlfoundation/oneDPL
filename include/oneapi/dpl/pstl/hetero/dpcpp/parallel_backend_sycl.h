@@ -348,7 +348,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                 auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                 auto __res_ptr =
                     __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __n_groups + 1);
-                __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __n, __size_per_wg);
+                __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __m, __n, __size_per_wg);
             });
         });
 
@@ -817,7 +817,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _CreateOp =
             oneapi::dpl::__internal::__create_mask_unique_copy<oneapi::dpl::__internal::__not_pred<_BinaryPredicate>,
                                                                decltype(__n)>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, /*inclusive*/ std::true_type, 1>;
+        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
         return __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
@@ -940,8 +940,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _ReduceOp = std::plus<_Size>;
         using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign,
-                                                      /*inclusive*/ std::true_type, 1>;
+        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
         return __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
@@ -1082,8 +1081,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     _ReduceOp __reduce_op{};
     _Assigner __assign_op{};
     _DataAcc __get_data_op{};
-    unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, /*inclusive*/ std::true_type, 2>
-        __copy_by_mask_op{};
+    unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, 2> __copy_by_mask_op{};
     unseq_backend::__brick_set_op<_SetTag, _Size1, _Size2, _Compare, _Proj1, _Proj2> __create_mask_op{
         __n1, __n2, __comp, __proj1, __proj2};
 

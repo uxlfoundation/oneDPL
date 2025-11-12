@@ -697,7 +697,7 @@ struct first_match_pred;
 template <typename _Pred, typename _Tp>
 struct __create_mask;
 
-template <typename _BinaryOp, typename _Assigner, typename _Inclusive, std::size_t N>
+template <typename _BinaryOp, typename _Assigner, std::size_t N>
 struct __copy_by_mask;
 
 template <typename _BinaryOp, typename _Inclusive>
@@ -793,9 +793,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _BinaryOp, typename _Assigner, typename _Inclusive, std::size_t N>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _BinaryOp, _Assigner,
-                                                       _Inclusive, N)>
+template <typename _BinaryOp, typename _Assigner, std::size_t N>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _BinaryOp,
+                                                       _Assigner, N)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp, _Assigner>
 {
 };
