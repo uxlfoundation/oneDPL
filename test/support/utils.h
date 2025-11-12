@@ -1342,17 +1342,42 @@ struct NoDefaultCtorWrapper {
 
 #if _ENABLE_STD_RANGES_TESTING
 
-// A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
-// which are not required for a class to be considered a range.
+// A minimalistic range: it can't be applied directly to hetero range-based algorithms,
+// but can be used for internal checks
 // Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
 template <typename RandomIt>
-struct MinimalisticView : std::ranges::view_base
+struct MinimalisticRange
 {
     RandomIt it_begin;
     RandomIt it_end;
 
-    MinimalisticView(RandomIt it_begin, RandomIt it_end) 
+    MinimalisticRange(RandomIt it_begin, RandomIt it_end)
         : it_begin(it_begin), it_end(it_end)
+    {
+    }
+};
+
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticRange<RandomIt> range)
+{
+    return range.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(MinimalisticRange<RandomIt> range)
+{
+    return range.it_end;
+}
+
+// A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
+// which are not required for a class to be considered a range.
+template <typename RandomIt>
+struct MinimalisticView : MinimalisticRange<RandomIt>, std::ranges::view_base
+{
+    MinimalisticView(RandomIt it_begin, RandomIt it_end)
+        : MinimalisticRange<RandomIt>(it_begin, it_end)
     {
     }
 };

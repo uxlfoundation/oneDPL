@@ -304,6 +304,7 @@ template <typename Range, typename = void>
 struct pipeline_base_range
 {
     Range rng;
+    using next_layer_view_t = Range;
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr Range
@@ -318,6 +319,7 @@ template <typename Range>
 struct pipeline_base_range<Range, ::std::enable_if_t<is_pipeline_object<Range>::value>>
 {
     Range rng;
+    using next_layer_view_t = decltype(std::declval<Range>().base());
 
     pipeline_base_range(Range r) : rng(r) {}
     constexpr auto

@@ -309,6 +309,50 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__internal::tuple<_Ran
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
+template <typename T>
+struct __contains_host_pointer : std::false_type
+{
+};
+
+// for std::ranges::ref_view
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template <std::ranges::range Rng>
+struct __contains_host_pointer<std::ranges::ref_view<Rng>> : std::true_type
+{
+};
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+template <typename T>
+using __remove_cv_ref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+
+template <typename...>
+struct __contains_host_pointer_on_any_layers;
+
+// 1. Checking the top-level view
+// 2. Searching view with host pointer in internal views(layers)
+template <typename _View>
+struct __contains_host_pointer_on_any_layers<_View>
+    : std::disjunction<
+          __contains_host_pointer<__remove_cv_ref_t<_View>>,
+          std::conditional_t<oneapi::dpl::__ranges::is_pipeline_object<_View>::value,
+                             __contains_host_pointer_on_any_layers<
+                                 typename oneapi::dpl::__ranges::pipeline_base_range<_View>::next_layer_view_t>,
+                             std::false_type>>
+{
+};
+
+template <typename... _Ranges>
+struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::zip_view<_Ranges...>>
+    : std::disjunction<__contains_host_pointer_on_any_layers<_Ranges>...>
+{
+};
+
+template <typename _Source, typename _M>
+struct __contains_host_pointer_on_any_layers<oneapi::dpl::__ranges::permutation_view_simple<_Source, _M>>
+    : std::disjunction<__contains_host_pointer_on_any_layers<_Source>, __contains_host_pointer_on_any_layers<_M>>
+{
+};
+
 template <typename _BaseRange>
 void
 __require_access_range(sycl::handler&, _BaseRange&)
@@ -319,6 +363,9 @@ template <typename _Range, typename... _Ranges>
 void
 __require_access(sycl::handler& __cgh, _Range&& __rng, _Ranges&&... __rest)
 {
+    static_assert(!__contains_host_pointer_on_any_layers<std::decay_t<_Range>>::value,
+                  "oneDPL does not support std::ranges::ref_view in SYCL-kernel code");
+
     //getting an access for the all_view based range
     auto base_rng = oneapi::dpl::__ranges::pipeline_base_range<_Range>(::std::forward<_Range>(__rng)).base_range();
 
