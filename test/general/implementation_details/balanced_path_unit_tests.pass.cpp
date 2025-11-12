@@ -279,7 +279,7 @@ find_merge_path_intersection(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_idx,
     {
         if (idx1 < __rng1.size() && idx2 < __rng2.size())
         {
-            if (std::invoke(__comp, __rng2[idx2], __rng1[idx1]))
+            if (__comp(__rng2[idx2], __rng1[idx1]))
                 ++idx2;
             else
                 ++idx1;
@@ -311,12 +311,12 @@ find_balanced_path_intersection(_Rng1 __rng1, _Rng2 __rng2, std::size_t __diag_i
     {
         if (idx1 < __rng1.size() && idx2 < __rng2.size())
         {
-            if (std::invoke(__comp, __rng2[idx2], __rng1[idx1]))
+            if (__comp(__rng2[idx2], __rng1[idx1]))
             {
                 next_matched_ele_from_rng1 = true;
                 ++idx2;
             }
-            else if (std::invoke(__comp, __rng1[idx1], __rng2[idx2]))
+            else if (__comp(__rng1[idx1], __rng2[idx2]))
             {
                 next_matched_ele_from_rng1 = true;
                 ++idx1;
