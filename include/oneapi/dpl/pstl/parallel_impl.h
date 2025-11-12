@@ -17,7 +17,8 @@
 #define _ONEDPL_PARALLEL_IMPL_H
 
 #include <atomic>
-#include <functional>
+#include <functional> // for std::invoke
+
 // This header defines the minimum set of parallel routines required to support Parallel STL,
 // implemented on top of Intel(R) Threading Building Blocks (Intel(R) TBB) library
 
