@@ -295,7 +295,8 @@ DEFINE_TEST(test_nth_element)
 
         bool is_correct =
             std::find_first_of(host_first1, host_first1 + n / 2, host_first1 + n / 2, host_first1 + n,
-                               [comp](T1& x, T2& y) { return std::invoke(comp, y, x); }) == host_first1 + n / 2;
+                               [comp](T1& x, T2& y) { return comp(y, x); }) ==
+                     host_first1 + n / 2;
         EXPECT_TRUE(is_correct, "wrong effect from nth_element");
     }
 };
