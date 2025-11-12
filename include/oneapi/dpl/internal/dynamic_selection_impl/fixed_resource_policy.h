@@ -33,12 +33,11 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class fixed_resource_policy : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>,
-                                                 ResourceAdapter, Backend>
+class fixed_resource_policy
+    : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter,
-                               Backend>;
+    using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using selection_type = typename base_t::selection_type;
 

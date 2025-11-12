@@ -132,16 +132,20 @@ struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
 
 // forward declare free functions for fallbacks
 template <typename Policy, typename Function, typename... Args>
-auto try_submit(Policy&& p, Function&& f, Args&&... args);
+auto
+try_submit(Policy&& p, Function&& f, Args&&... args);
 
 template <typename Policy, typename Function, typename... Args>
-auto submit(Policy&& p, Function&& f, Args&&... args);
+auto
+submit(Policy&& p, Function&& f, Args&&... args);
 
 template <typename Policy, typename Function, typename... Args>
-auto submit_and_wait(Policy&& p, Function&& f, Args&&... args);
+auto
+submit_and_wait(Policy&& p, Function&& f, Args&&... args);
 
 template <typename WaitObject>
-auto wait(WaitObject&& w);
+auto
+wait(WaitObject&& w);
 
 namespace internal
 {
@@ -160,13 +164,13 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
     return *result;
 }
 
-
 template <typename Policy, typename Function, typename... Args>
 void
 submit_and_wait_fallback(Policy&& p, Function&& f, Args&&... args)
 {
     // Fall back to submit + wait
-    auto result = oneapi::dpl::experimental::submit(std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
+    auto result = oneapi::dpl::experimental::submit(std::forward<Policy>(p), std::forward<Function>(f),
+                                                    std::forward<Args>(args)...);
     oneapi::dpl::experimental::wait(result);
 }
 
@@ -240,8 +244,8 @@ submit(Policy&& p, Function&& f, Args&&... args)
     }
     else if constexpr (internal::has_try_submit_v<Policy, Function, Args...>)
     {
-        return oneapi::dpl::experimental::internal::submit_fallback(
-            std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
+        return oneapi::dpl::experimental::internal::submit_fallback(std::forward<Policy>(p), std::forward<Function>(f),
+                                                                    std::forward<Args>(args)...);
     }
     else
     {
@@ -262,7 +266,7 @@ submit_and_wait(Policy&& p, Function&& f, Args&&... args)
                        internal::has_try_submit_v<Policy, Function, Args...>)
     {
         oneapi::dpl::experimental::internal::submit_and_wait_fallback(
-            std::forward<Policy>(p),  std::forward<Function>(f), std::forward<Args>(args)...);
+            std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
     }
     else
     {

@@ -33,12 +33,11 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
-class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>,
-                                              ResourceAdapter, Backend>
+class round_robin_policy
+    : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
 {
   protected:
-    using base_t =
-        policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
+    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using typename base_t::selection_type;
 
@@ -101,10 +100,14 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
 //CTAD deduction guides for initializer_list
 template <typename T>
-round_robin_policy(std::initializer_list<T>) -> round_robin_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
+round_robin_policy(std::initializer_list<T>) -> round_robin_policy<
+    T, oneapi::dpl::identity,
+    oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
 
 template <typename T, typename Adapter>
-round_robin_policy(std::initializer_list<T>, Adapter) -> round_robin_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports round_robin_policy p{ {t1, t2}, adapter }
+round_robin_policy(std::initializer_list<T>, Adapter) -> round_robin_policy<
+    T, Adapter,
+    oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports round_robin_policy p{ {t1, t2}, adapter }
 
 } // namespace experimental
 } // namespace dpl

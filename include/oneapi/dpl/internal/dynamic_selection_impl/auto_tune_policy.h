@@ -45,12 +45,13 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
-class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>,
-                                            ResourceAdapter, Backend>
+class auto_tune_policy
+    : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>
 {
 
   protected:
-    using base_t = policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>;
+    using base_t =
+        policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>;
 
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;

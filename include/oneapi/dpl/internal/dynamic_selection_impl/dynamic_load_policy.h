@@ -35,13 +35,12 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
 #endif
 class dynamic_load_policy
-    : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter,
-                         Backend, execution_info::task_submission_t, execution_info::task_completion_t>
+    : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
+                         execution_info::task_submission_t, execution_info::task_completion_t>
 {
   protected:
-    using base_t =
-        policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
-                    execution_info::task_submission_t, execution_info::task_completion_t>;
+    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
+                               execution_info::task_submission_t, execution_info::task_completion_t>;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -150,8 +149,8 @@ class dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
-            return std::make_shared<selection_type>(
-                dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
+            return std::make_shared<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this),
+                                                    least_loaded);
         }
         else
         {
