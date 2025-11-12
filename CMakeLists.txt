@@ -84,6 +84,7 @@ endforeach()
 
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
+include(CheckCXXSourceCompiles)
 include(CheckIncludeFileCXX)
 include(GNUInstallDirs)
 
@@ -153,9 +154,24 @@ string(TOLOWER ${ONEDPL_BACKEND} ONEDPL_BACKEND)
 if (ONEDPL_ENABLE_SIMD)
     if (NOT INTEL_LLVM_COMPILER OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
         foreach(_simd_flag -fopenmp-simd /Qopenmp-simd -qopenmp-simd -openmp-simd)
-            string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_DISPLAY_NAME)
-            check_cxx_compiler_flag(${_simd_flag} ${FLAG_DISPLAY_NAME}_option)
-            if (${FLAG_DISPLAY_NAME}_option)
+            string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_VAR_NAME) # make a string suitable for a cmake variable name
+
+            # Compile a trivial OpenMP program to check if the flag is supported
+            # Save and restore CMAKE_REQUIRED_FLAGS to avoid side effects
+            set(_saved_flags ${CMAKE_REQUIRED_FLAGS})
+            set(CMAKE_REQUIRED_FLAGS ${_simd_flag})
+            check_cxx_source_compiles(
+                "#include <omp.h>
+                 int main() {
+                     #pragma omp simd
+                     for (int i = 0; i < 4; ++i) {}
+                     return 0;
+                 }"
+                IS_${FLAG_VAR_NAME}_AVAILABLE
+            )
+            set(CMAKE_REQUIRED_FLAGS ${_saved_flags})
+
+            if (IS_${FLAG_VAR_NAME}_AVAILABLE)
                 target_compile_options(oneDPL INTERFACE ${_simd_flag})
                 set(_simd_enabled_flag ${_simd_flag})
                 break()
