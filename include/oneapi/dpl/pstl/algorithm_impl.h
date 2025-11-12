@@ -2396,7 +2396,7 @@ __pattern_partition_copy(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Fo
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _UnaryPredicate>
-::std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
+std::pair<_RandomAccessIterator2, _RandomAccessIterator3>
 __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
                          _RandomAccessIterator1 __last, _RandomAccessIterator2 __out_true,
                          _RandomAccessIterator3 __out_false, _UnaryPredicate __pred)
@@ -2436,7 +2436,7 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 {
                     __m = __total;
                 });
-            return ::std::make_pair(__out_true + __m.first, __out_false + __m.second);
+            return {__out_true + __m.first, __out_false + __m.second};
         });
     }
     // trivial sequence - use serial algorithm
