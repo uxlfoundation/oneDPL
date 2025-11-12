@@ -130,8 +130,7 @@ struct test_with_compare
         {
             EXPECT_TRUE(is_equal(*mid1, *mid2), "wrong result from nth_element with predicate");
         }
-        EXPECT_TRUE(std::find_first_of(first2, mid2, mid2, last2,
-                                         [comp](Type& x, Type& y) { return std::invoke(comp, y, x); }) == mid2,
+        EXPECT_TRUE(::std::find_first_of(first2, mid2, mid2, last2, [comp](Type& x, Type& y) { return comp(y, x); }) == mid2,
                     "wrong effect from nth_element with predicate");
     }
 
