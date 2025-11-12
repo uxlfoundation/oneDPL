@@ -147,17 +147,15 @@ namespace internal
 {
 
 template <typename Policy, typename Function, typename... Args>
-std::enable_if_t<
-    internal::has_try_submit_v<Policy, Function, Args...>,
-    decltype(*std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
+auto
 submit_fallback(Policy&& p, Function&& f, Args&&... args)
 {
     // Policy has a try_submit method
-    auto result = std::forward<Policy>(p).try_submit(f, args...);
+    auto result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     while (!result)
     {
         std::this_thread::yield();
-        result = std::forward<Policy>(p).try_submit(f, args...);
+        result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     }
     return *result;
 }
