@@ -126,7 +126,7 @@ test_device_copyable()
     //__copy_by_mask
     static_assert(
         sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__copy_by_mask<noop_device_copyable, noop_device_copyable, std::true_type, 10>>,
+            oneapi::dpl::unseq_backend::__copy_by_mask<noop_device_copyable, noop_device_copyable, 10>>,
         "__copy_by_mask is not device copyable with device copyable types");
     // __partition_by_mask
     static_assert(sycl::is_device_copyable_v<
@@ -466,7 +466,7 @@ test_non_device_copyable()
                   "__create_mask is device copyable with non device copyable types");
     //__copy_by_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<
-                      noop_device_copyable, noop_non_device_copyable, std::true_type, 10>>,
+                      noop_device_copyable, noop_non_device_copyable, 10>>,
                   "__copy_by_mask is device copyable with non device copyable types");
     //__partition_by_mask
     static_assert(!sycl::is_device_copyable_v<
