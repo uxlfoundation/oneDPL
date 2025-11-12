@@ -141,6 +141,50 @@ struct has_report_value : decltype(has_report_value_impl<S, Info, ValueType>(0))
 {
 };
 
+} // namespace internal
+
+// forward declare free functions for fallbacks
+template <typename Policy, typename Function, typename... Args>
+auto try_submit(Policy&& p, Function&& f, Args&&... args);
+
+template <typename Policy, typename Function, typename... Args>
+auto submit(Policy&& p, Function&& f, Args&&... args);
+
+template <typename Policy, typename Function, typename... Args>
+auto submit_and_wait(Policy&& p, Function&& f, Args&&... args);
+
+template <typename WaitObject>
+auto wait(WaitObject&& w);
+
+namespace internal
+{
+
+template <typename Policy, typename Function, typename... Args>
+std::enable_if_t<
+    internal::has_try_submit_v<Policy, Function, Args...>,
+    decltype(*std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
+submit_fallback(Policy&& p, Function&& f, Args&&... args)
+{
+    // Policy has a try_submit method
+    auto result = std::forward<Policy>(p).try_submit(f, args...);
+    while (!result)
+    {
+        std::this_thread::yield();
+        result = std::forward<Policy>(p).try_submit(f, args...);
+    }
+    return *result;
+}
+
+
+template <typename Policy, typename Function, typename... Args>
+void
+submit_and_wait_fallback(Policy&& p, Function&& f, Args&&... args)
+{
+    // Fall back to submit + wait
+    auto result = oneapi::dpl::experimental::submit(std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
+    oneapi::dpl::experimental::wait(result);
+}
+
 } //namespace internal
 
 struct deferred_initialization_t
@@ -189,37 +233,35 @@ unwrap(T&& v)
 template <typename Policy, typename Function, typename... Args>
 auto
 try_submit(Policy&& p, Function&& f, Args&&... args)
-    -> std::enable_if_t<internal::has_try_submit_v<Policy, Function, Args...>,
-                        decltype(std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
 {
-    return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);
+    if constexpr (internal::has_try_submit_v<Policy, Function, Args...>)
+    {
+        return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);
+    }
+    else
+    {
+        static_assert(false, "error: try_submit() called on policy which does not support try_submit");
+    }
 }
 
 template <typename Policy, typename Function, typename... Args>
 auto
 submit(Policy&& p, Function&& f, Args&&... args)
-    -> std::enable_if_t<internal::has_submit_v<Policy, Function, Args...>,
-                        decltype(std::declval<Policy>().submit(std::declval<Function>(), std::declval<Args>()...))>
 {
     // Policy has a direct submit method
-    return std::forward<Policy>(p).submit(std::forward<Function>(f), std::forward<Args>(args)...);
-}
-
-template <typename Policy, typename Function, typename... Args>
-auto
-submit(Policy&& p, Function&& f, Args&&... args)
-     -> std::enable_if_t<
-         !internal::has_submit_v<Policy, Function, Args...> && internal::has_try_submit_v<Policy, Function, Args...>,
-         decltype(*std::declval<Policy>().try_submit(std::declval<Function>(), std::declval<Args>()...))>
-{
-    // Policy has a try_submit method
-    auto result = std::forward<Policy>(p).try_submit(f, args...);
-    while (!result)
+    if constexpr (internal::has_submit_v<Policy, Function, Args...>)
     {
-        std::this_thread::yield();
-        result = std::forward<Policy>(p).try_submit(f, args...);
+        return std::forward<Policy>(p).submit(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    return *result;
+    else if constexpr (internal::has_try_submit_v<Policy, Function, Args...>)
+    {
+        return oneapi::dpl::experimental::internal::submit_fallback(
+            std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
+    }
+    else
+    {
+        static_assert(false, "error: submit() called on policy which does not support any submission method");
+    }
 }
 
 template <typename Policy, typename Function, typename... Args>
@@ -234,9 +276,8 @@ submit_and_wait(Policy&& p, Function&& f, Args&&... args)
     else if constexpr (internal::has_submit_v<Policy, Function, Args...> ||
                        internal::has_try_submit_v<Policy, Function, Args...>)
     {
-        // Fall back to submit + wait
-        auto result = submit(std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
-        wait(result);
+        oneapi::dpl::experimental::internal::submit_and_wait_fallback(
+            std::forward<Policy>(p),  std::forward<Function>(f), std::forward<Args>(args)...);
     }
     else
     {

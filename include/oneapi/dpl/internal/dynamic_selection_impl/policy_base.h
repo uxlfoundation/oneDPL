@@ -99,39 +99,25 @@ class policy_base
         static_cast<Policy*>(this)->initialize_impl(args...);
     }
 
-    template <typename... Args>
-    auto
-    select_impl(Args&&... args)
-    {
-        auto e = static_cast<Policy*>(this)->try_select_impl(args...);
-        while (!e)
-        {
-            e = static_cast<Policy*>(this)->try_select_impl(args...);
-            std::this_thread::yield();
-        }
-        return *e;
-    }
-
     template <typename Function, typename... Args>
     auto //std::shared_ptr of the "wait type"
     try_submit(Function&& f, Args&&... args)
-        -> std::shared_ptr<decltype(backend_->submit(
-            std::declval<decltype(*try_select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
-            std::forward<Function>(f), std::forward<Args>(args)...))>
     {
+        using ret_t = decltype(std::declval<Backend>().submit(
+            std::declval<decltype(*std::declval<Policy>().try_select_impl(std::declval<Function>(), std::declval<Args>()...))>(),
+            std::forward<Function>(f), std::forward<Args>(args)...)); 
         if (backend_)
         {
             auto e = static_cast<Policy*>(this)->try_select_impl(f, args...);
             if (!e)
             {
                 // return an empty shared_ptr
-                return {};
+                return std::shared_ptr<ret_t>{};
             }
             else
             {
-                return std::make_shared<decltype(backend_->submit(*e, std::forward<Function>(f),
-                                                                    std::forward<Args>(args)...))>(
-                    backend_->submit(e.get(), std::forward<Function>(f), std::forward<Args>(args)...));
+                return std::make_shared<ret_t>(
+                    backend_->submit(*e, std::forward<Function>(f), std::forward<Args>(args)...));
             }
         }
         throw std::logic_error("submit called before initialization");
@@ -141,20 +127,16 @@ class policy_base
     auto
     submit(Function&& f, Args&&... args)
     {
-        if (backend_)
-        {
-            auto e = static_cast<Policy*>(this)->select_impl(f, args...);
-            return backend_->submit(e, std::forward<Function>(f), std::forward<Args>(args)...);
-        }
-        throw std::logic_error("submit called before initialization");
+        return oneapi::dpl::experimental::internal::submit_fallback(
+            std::forward<Policy>(static_cast<Policy&>(*this)), std::forward<Function>(f), std::forward<Args>(args)...);
     }
 
     template <typename Function, typename... Args>
     void
     submit_and_wait(Function&& f, Args&&... args)
     {
-        oneapi::dpl::experimental::wait(
-            static_cast<Policy*>(this)->submit(std::forward<Function>(f), std::forward<Args>(args)...));
+        oneapi::dpl::experimental::internal::submit_and_wait_fallback(std::forward<Policy>(static_cast<Policy&>(*this)),
+                                                    std::forward<Function>(f), std::forward<Args>(args)...);
     }
 
     auto
