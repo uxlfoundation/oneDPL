@@ -484,10 +484,10 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 };
 
 template <typename _Size, typename _KernelName>
-struct __parallel_copy_if_static_single_group_submitter;
+struct __parallel_copy_if_single_group_submitter;
 
 template <typename _Size, typename... _ScanKernelName>
-struct __parallel_copy_if_static_single_group_submitter<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
+struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
     __future<sycl::event, __result_and_scratch_storage<_Size>>
@@ -905,16 +905,17 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     // The kernel stores n integers for the predicate and another n integers for the offsets
     const auto __req_slm_size = sizeof(std::uint16_t) * __n_uniform * 2;
 
-//    constexpr std::uint16_t __single_group_upper_limit = 2048;
     constexpr std::uint16_t __max_elem_per_item = 2;
 
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
+    // Note: earlier the data size for the single group kernel was capped by 2048
+    // The change might impact platforms with __max_wg_size > 1024
     if (__n <= __max_wg_size * __max_elem_per_item && __max_slm_size >= __req_slm_size)
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        return __par_backend_hetero::__parallel_copy_if_static_single_group_submitter<_Size, _KernelName>()(
+        return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
