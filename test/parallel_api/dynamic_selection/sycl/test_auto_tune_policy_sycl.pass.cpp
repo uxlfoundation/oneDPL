@@ -71,7 +71,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource)
 {
     using my_policy_t = Policy;
 
-    // they are cpus so this is ok
+    // they are cpus so this is ok //TODO: Will this affect gpu tests?
     TestUtils::usm_data_transfer<sycl::usm::alloc::shared, double> dt_helper_v(u[0], 1000000);
     TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> dt_helper_j(u[0], 1);
 
@@ -287,43 +287,43 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
 
     try
     {
-        auto device_cpu1 = sycl::device(sycl::cpu_selector_v);
-        sycl::queue cpu1_queue{device_cpu1, prop_list};
-        u.push_back(cpu1_queue);
+        auto device_gpu1 = sycl::device(sycl::gpu_selector_v);
+        sycl::queue gpu1_queue{device_gpu1, prop_list};
+        u.push_back(gpu1_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to run with gpu_selector\n";
     }
     try
     {
-        auto device_cpu2 = sycl::device(sycl::cpu_selector_v);
-        sycl::queue cpu2_queue{device_cpu2, prop_list};
-        u.push_back(cpu2_queue);
+        auto device_gpu2 = sycl::device(sycl::gpu_selector_v);
+        sycl::queue gpu2_queue{device_gpu2, prop_list};
+        u.push_back(gpu2_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to run with gpu_selector\n";
     }
     try
     {
-        auto device_cpu3 = sycl::device(sycl::cpu_selector_v);
-        sycl::queue cpu3_queue{device_cpu3, prop_list};
-        u.push_back(cpu3_queue);
+        auto device_gpu3 = sycl::device(sycl::gpu_selector_v);
+        sycl::queue gpu3_queue{device_gpu3, prop_list};
+        u.push_back(gpu3_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to run with gpu_selector\n";
     }
     try
     {
-        auto device_cpu4 = sycl::device(sycl::cpu_selector_v);
-        sycl::queue cpu4_queue{device_cpu4, prop_list};
-        u.push_back(cpu4_queue);
+        auto device_gpu4 = sycl::device(sycl::gpu_selector_v);
+        sycl::queue gpu4_queue{device_gpu4, prop_list};
+        u.push_back(gpu4_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to run with gpu_selector\n";
     }
 }
 
