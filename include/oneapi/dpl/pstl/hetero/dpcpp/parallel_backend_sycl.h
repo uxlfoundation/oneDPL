@@ -261,8 +261,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
         using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __scan_group_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
-        auto __n = oneapi::dpl::__ranges::__size(__rng1);
-        assert(__n > 0);
+        std::size_t __n = oneapi::dpl::__ranges::__size(__rng1); // input size
+        std::size_t __m = oneapi::dpl::__ranges::__size(__rng2); // output size
+        assert(__n > 0 && __m > 0);
 
         auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         // get the work group size adjusted to the local memory limit
@@ -306,8 +307,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
                 sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __temp_acc.__data();
-                    __local_scan(__item, __n, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg, __wgroup_size,
-                                 __iters_per_witem, __init);
+                    __local_scan(__item, __n, __m, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
+                                  __wgroup_size, __iters_per_witem, __init);
                 });
         });
         // 2. Scan for the entire group of values scanned from each workgroup (runs on a single workgroup)
@@ -328,7 +329,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                     // TODO: try to balance work between several workgroups instead of one
                     sycl::nd_range<1>(__wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
                         auto __temp_ptr = __temp_acc.__data();
-                        __group_scan(__item, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
+                        __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
                     });
             });
