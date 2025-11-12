@@ -100,14 +100,15 @@ class round_robin_policy
 
 //CTAD deduction guides for initializer_list
 template <typename T>
-round_robin_policy(std::initializer_list<T>) -> round_robin_policy<
-    T, oneapi::dpl::identity,
-    oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
+round_robin_policy(std::initializer_list<T>)
+    -> round_robin_policy<T, oneapi::dpl::identity,
+                          oneapi::dpl::experimental::default_backend<
+                              T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
 
-template <typename T, typename Adapter>
-round_robin_policy(std::initializer_list<T>, Adapter) -> round_robin_policy<
-    T, Adapter,
-    oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports round_robin_policy p{ {t1, t2}, adapter }
+round_robin_policy(std::initializer_list<T>, Adapter)
+    -> round_robin_policy<
+        T, Adapter,
+        oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports round_robin_policy p{ {t1, t2}, adapter }
 
 } // namespace experimental
 } // namespace dpl
