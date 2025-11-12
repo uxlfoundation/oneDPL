@@ -1339,19 +1339,25 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             bool* __mask = __mask_buf.get();
             _DifferenceType __m{};
             __par_backend::__parallel_strict_scan(
-                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-                [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
+                __backend_tag{},
+                std::forward<_ExecutionPolicy>(__exec),
+                __n,                                                                                                    // _Index __n
+                _DifferenceType(0),                                                                                     // _Tp __initial
+                [=](_DifferenceType __i, _DifferenceType __len)                                                         // _Rp __reduce
+                {
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
                                                                             __mask + __i, __pred, _IsVector{})
                         .first;
                 },
-                ::std::plus<_DifferenceType>(),                                              // Combine
-                [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+                ::std::plus<_DifferenceType>(),                                                                         // _Cp __combine
+                [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) {                            // _Sp __scan
                     __internal::__brick_copy_by_mask(
                         __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
                         [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
                 },
-                [&__m](_DifferenceType __total) { __m = __total; });
+                [&__m](_DifferenceType __total) {                                                                       // _Ap __apex
+                    __m = __total;
+                });
             return __result + __m;
         });
     }
@@ -1496,19 +1502,27 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         _DifferenceType __m{};
         // 2. Elements that doesn't satisfy pred are moved to result
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-            [__mask](_DifferenceType __i, _DifferenceType __len) {
+            __backend_tag{},
+            std::forward<_ExecutionPolicy>(__exec),
+            __n,                                                                                                        // _Index __n
+            _DifferenceType(0),                                                                                         // _Tp __initial
+            [__mask](_DifferenceType __i, _DifferenceType __len)                                                        // _Rp __reduce
+            {
                 return __internal::__brick_count(
                     __mask + __i, __mask + __i + __len, [](bool __val) { return __val; }, _IsVector{});
             },
-            ::std::plus<_DifferenceType>(),
-            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) {
+            ::std::plus<_DifferenceType>(),                                                                             // _Cp __combine
+            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial)                                  // _Sp __scan
+            {
                 __internal::__brick_copy_by_mask(
                     __first + __i, __first + __i + __len, __result + __initial, __mask + __i,
                     [](_RandomAccessIterator __x, _Tp* __z) { ::new (std::addressof(*__z)) _Tp(std::move(*__x)); },
                     _IsVector{});
             },
-            [&__m](_DifferenceType __total) { __m = __total; });
+            [&__m](_DifferenceType __total)                                                                             // _Ap __apex
+            {
+                __m = __total;
+            });
 
         // 3. Elements from result are moved to [first, last)
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
@@ -1620,8 +1634,12 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                 bool* __mask = __mask_buf.get();
                 _DifferenceType __m{};
                 __par_backend::__parallel_strict_scan(
-                    __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
-                    [=](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType { // Reduce
+                    __backend_tag{},
+                    std::forward<_ExecutionPolicy>(__exec),
+                    __n,                                                                                                // _Index __n
+                    _DifferenceType(0),                                                                                 // _Tp __initial
+                    [=](_DifferenceType __i, _DifferenceType __len) -> _DifferenceType                                  // _Rp __reduce
+                    {
                         _DifferenceType __extra = 0;
                         if (__i == 0)
                         {
@@ -1636,14 +1654,18 @@ __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                                                                                 __mask + __i, __pred, _IsVector{}) +
                                __extra;
                     },
-                    ::std::plus<_DifferenceType>(),                                              // Combine
-                    [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+                    ::std::plus<_DifferenceType>(),                                                                     // _Cp __combine
+                    [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial)                          // _Sp __scan
+                    {
                         // Phase 2 is same as for __pattern_copy_if
                         __internal::__brick_copy_by_mask(
                             __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
                             [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
                     },
-                    [&__m](_DifferenceType __total) { __m = __total; });
+                    [&__m](_DifferenceType __total)                                                                     // _Ap __apex
+                    {
+                        __m = __total;
+                    });
                 return __result + __m;
             });
         }
@@ -2391,21 +2413,29 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
             bool* __mask = __mask_buf.get();
             _ReturnType __m{};
             __par_backend::__parallel_strict_scan(
-                __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
-                std::make_pair(_DifferenceType(0), _DifferenceType(0)),
-                [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
+                __backend_tag{},
+                std::forward<_ExecutionPolicy>(__exec),
+                __n,                                                                                                    // _Index __n
+                std::make_pair(_DifferenceType(0), _DifferenceType(0)),                                                 // _Tp __initial
+                [=](_DifferenceType __i, _DifferenceType __len)                                                         // _Rp __reduce
+                {
                     return __internal::__brick_calc_mask_1<_DifferenceType>(__first + __i, __first + (__i + __len),
                                                                             __mask + __i, __pred, _IsVector{});
                 },
-                [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
+                [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType                                       // _Cp __combine
+                {
                     return ::std::make_pair(__x.first + __y.first, __x.second + __y.second);
-                },                                                                       // Combine
-                [=](_DifferenceType __i, _DifferenceType __len, _ReturnType __initial) { // Scan
+                },
+                [=](_DifferenceType __i, _DifferenceType __len, _ReturnType __initial)                                  // _Sp __scan
+                {
                     __internal::__brick_partition_by_mask(__first + __i, __first + (__i + __len),
                                                           __out_true + __initial.first, __out_false + __initial.second,
                                                           __mask + __i, _IsVector{});
                 },
-                [&__m](_ReturnType __total) { __m = __total; });
+                [&__m](_ReturnType __total)                                                                             // _Ap __apex
+                {
+                    __m = __total;
+                });
             return ::std::make_pair(__out_true + __m.first, __out_false + __m.second);
         });
     }
@@ -3347,8 +3377,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                                                   __result + __s.__pos, _IsVector{});
         };
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n1, _SetRange{0, 0, 0},
-            [=](_DifferenceType1 __i, _DifferenceType1 __len) { // Reduce
+            __backend_tag{},
+            std::forward<_ExecutionPolicy>(__exec),
+            __n1,                                                                                                       // _Index __n
+            _SetRange{0, 0, 0},                                                                                         // _Tp __initial
+            [=](_DifferenceType1 __i, _DifferenceType1 __len)                                                           // _Rp __reduce
+            {
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i;
                 _RandomAccessIterator1 __e = __first1 + (__i + __len);
@@ -3394,13 +3428,15 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 return _SetRange{0, __res - __buffer_b, __buf_pos};
             },
-            [](const _SetRange& __a, const _SetRange& __b) { // Combine
+            [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine
+            {
                 if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
                     return _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
                 return _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
             },
-            __scan,                                     // Scan
-            [&__m, &__scan](const _SetRange& __total) { // Apex
+            __scan,                                                                                                     // _Sp __scan
+            [&__m, &__scan](const _SetRange& __total)                                                                   // _Ap __apex
+            {
                 //final scan
                 __scan(0, 0, __total);
                 __m = __total.__pos + __total.__len;
