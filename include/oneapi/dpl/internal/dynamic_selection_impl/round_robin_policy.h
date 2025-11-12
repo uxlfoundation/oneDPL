@@ -57,7 +57,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
-    round_robin_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {})
+    round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
     {
         base_t::initialize(u, adapter);
     }
@@ -99,9 +99,12 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
     }
 };
 
-//CTAD deduction guide for initializer_list
+//CTAD deduction guides for initializer_list
 template <typename T>
-round_robin_policy(std::initializer_list<T>) -> round_robin_policy<T>; //supports round_robin_policy p{ {t1, t2} }
+round_robin_policy(std::initializer_list<T>) -> round_robin_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
+
+template <typename T, typename Adapter>
+round_robin_policy(std::initializer_list<T>, Adapter) -> round_robin_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports round_robin_policy p{ {t1, t2}, adapter }
 
 } // namespace experimental
 } // namespace dpl
