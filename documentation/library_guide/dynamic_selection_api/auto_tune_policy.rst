@@ -177,8 +177,8 @@ Constructors
 Deferred Initialization
 -----------------------
 
-A ``auto_tune_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+An ``auto_tune_policy`` that was constructed with deferred initialization must be
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
 .. list-table:: ``auto_tune_policy`` constructors

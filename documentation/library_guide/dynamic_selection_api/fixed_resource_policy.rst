@@ -170,7 +170,7 @@ Deferred Initialization
 -----------------------
 
 A ``fixed_resource_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
 .. list-table:: ``fixed_resource_policy`` constructors

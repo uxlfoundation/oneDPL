@@ -96,7 +96,7 @@ The key points in this example are:
 
 #. A ``round_robin_policy`` is constructed that rotates between the CPU and GPU queues.
 #. The total number of concurrent offloads, ``submission_group_size``, will be limited to the number of USM arrays or the number of queues, whichever is smaller. 
-#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offload concurrently.
+#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offloaded concurrently.
 #. The inner ``j``-loop iterates over ``submission_group_size`` submissions.
 #. ``submit`` is used to select a queue and pass it to the user's function, but does not block until the event returned by that function completes. This provides the opportunity for concurrency across the submissions.
 #. The queue is used in a function to perform an asynchronous offload. The SYCL event returned from the call to ``submit`` is returned. Returning an event is required for functions passed to ``submit`` and ``submit_and_wait``.
@@ -137,7 +137,7 @@ Constructors
   
   * - Signature
     - Description
-  * - ``round_round_policy(deferred_initialization_t);``
+  * - ``round_robin_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``round_robin_policy();``
     - Initialized to use the default set of resources.
@@ -148,7 +148,7 @@ Deferred Initialization
 -----------------------
 
 A ``round_robin_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
 .. list-table:: ``round_robin_policy`` constructors

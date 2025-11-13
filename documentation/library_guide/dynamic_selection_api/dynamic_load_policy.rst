@@ -109,8 +109,8 @@ Selection Algorithm
  
 The selection algorithm for ``dynamic_load_policy`` chooses the resource
 that has the fewest number of unfinished offloads. The number of unfinished
-offloads is the difference between the number of reported task submissions 
-and then number of reported task completions. This value is tracked for each 
+offloads is the difference between the number of reported task submissions
+and the number of reported task completions. This value is tracked for each
 available resource.
 
 Simplified, expository implementation of the selection algorithm:
