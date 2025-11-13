@@ -105,6 +105,7 @@ round_robin_policy(std::initializer_list<T>)
                           oneapi::dpl::experimental::default_backend<
                               T, oneapi::dpl::identity>>; //supports round_robin_policy p{ {t1, t2} }
 
+template <typename T, typename Adapter>
 round_robin_policy(std::initializer_list<T>, Adapter)
     -> round_robin_policy<
         T, Adapter,
