@@ -248,7 +248,8 @@ submit(Policy&& p, Function&& f, Args&&... args)
     }
     else
     {
-        static_assert(false, "error: submit() called on policy which does not support any submit() or try_submit() method");
+        static_assert(false,
+                      "error: submit() called on policy which does not support any submit() or try_submit() method");
     }
 }
 
