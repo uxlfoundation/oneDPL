@@ -740,17 +740,9 @@ template<std::ranges::random_access_range _R1,
 __set_union_return_t<_R1, _R2, _OutRange>
 __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __it1 = std::ranges::begin(__r1);
-    auto __in1_sz = std::ranges::size(__r1);
-    auto __end1 = __it1 + __in1_sz;
-
-    auto __it2 = std::ranges::begin(__r2);
-    auto __in2_sz = std::ranges::size(__r2);
-    auto __end2 = __it2 + __in2_sz;
-
-    auto __out_it = std::ranges::begin(__r_out);
-    auto __out_sz = std::ranges::size(__r_out);
-    auto __out_end = __out_it + __out_sz;
+    [[maybe_unused]] auto [__it1,       __end1, __in1_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    [[maybe_unused]] auto [__it2,       __end2, __in2_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    [[maybe_unused]] auto [__out_it, __out_end, __out_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
     auto __merge_loop = [&__it1, __end1, &__it2, __end2, &__out_it, __out_end,
                          __comp, __proj1, __proj2] (bool __check_output_bounds) {
