@@ -837,6 +837,7 @@ using __rng_set_operations_return_t =
         oneapi::dpl::__internal::__iterator_t<_Range2>,
         oneapi::dpl::__internal::__iterator_t<_Range3>>;
 
+// Returns begin, end and size of the range
 template <typename _Range>
 auto
 __get_range_bounds(_Range&& __rng)
