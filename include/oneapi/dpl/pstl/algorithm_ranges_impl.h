@@ -899,23 +899,16 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-    const auto __n_out = std::ranges::size(__out_r);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result1 = std::ranges::begin(__out_r);
-    auto __result2 = __result1 + __n_out;
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__first1, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
         return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2);
 
-    auto [__finish1, __finish2, __finish_res] = oneapi::dpl::__internal::__parallel_set_union_op(
+    return oneapi::dpl::__internal::__parallel_set_union_op(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,                                      // bounds for data1
         __first2, __last2,                                      // bounds for data2
@@ -931,9 +924,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
                 __comp, __proj1, __proj2);
         },
-        __comp, __proj1, __proj2);
-
-    return {__finish1, __finish2, __finish_res};
+        __comp, __proj1, __proj2)
+        .template positions_reached<__set_union_return_t<_R1, _R2, _OutRange>>();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1040,16 +1032,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-    const auto __n_out = std::ranges::size(__r2);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result1 = std::ranges::begin(__out_r);
-    auto __result2 = __result1 + __n_out;
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -1227,16 +1212,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-    const auto __n_out = std::ranges::size(__out_r);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result1 = std::ranges::begin(__out_r);
-    auto __result2 = __result1 + __n_out;
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
@@ -1413,16 +1391,9 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-    const auto __n_out = std::ranges::size(__out_r);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result1 = std::ranges::begin(__out_r);
-    auto __result2 = __result1 + __n_out;
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
