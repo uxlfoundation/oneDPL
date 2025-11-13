@@ -32,3 +32,102 @@ be used for most selection strategies.
 
 For detailed information about policy customization, see [Custom Policies](custom_policies.md).
 
+### High Level Class Diagram
+
+The following diagram shows the relationships of the helpers for customization, and the entry points for the user and for the customizer of policies and backends. This diagram shows `round_robin_policy` specifically, but the same relationship exists for other policies.
+
+```mermaid
+
+classDiagram
+    direction BT
+
+    %% Backend Layer
+    class backend_base~ResourceType, Backend~ {
+        <<CRTP Base>>
+        #resources_: vector~ResourceType~
+        +backend_base(ReportReqs...)
+        +backend_base(vector~ResourceType~, ReportReqs...)
+        +get_resources()
+        +get_submission_group()
+        +submit(SelectionHandle, f, args...)
+    }
+
+
+    %% Public API Layer
+    class FreeFunctions["Free Functions (dynamic_selection_traits.h)"] {
+        <<namespace>>
+        +try_submit(policy, f, args...)
+        +submit(policy, f, args...)
+        +submit_and_wait(policy, f, args...)
+        +wait(wait_object)
+        +get_resources(policy)
+        +unwrap(value)
+    }
+
+    class InternalFallbacks["internal namespace"] {
+        <<namespace>>
+        +submit_fallback(policy, f, args...)
+        +submit_and_wait_fallback(policy, f, args...)
+    }
+
+    %% Policy Layer
+    class policy_base~Policy, ResourceAdapter, Backend, ReportReqs~ {
+        <<CRTP Base>>
+        #backend_: shared_ptr~Backend~
+        +initialize()
+        +initialize(vector~resource_type~)
+        +initialize(vector~resource_type~, adapter)
+        +try_submit(f, args...) shared_ptr~WaitType~
+        +submit(f, args...)
+        +submit_and_wait(f, args...)
+        +get_resources()
+        +get_submission_group()
+    }
+
+    class round_robin_policy~ResourceType, ResourceAdapter, Backend~ {
+        #selector_: shared_ptr~selector_t~
+        +round_robin_policy()
+        +round_robin_policy(vector~ResourceType~)
+        +initialize_impl()
+        +try_select_impl(args...) shared_ptr~selection_type~
+    }
+
+    class default_backend_impl~BaseResourceType, ResourceType, ResourceAdapter~ {
+        -adapter: ResourceAdapter
+        +default_backend_impl(ReportReqs...)
+        +default_backend_impl(vector~ResourceType~, adapter, ReportReqs...)
+        +submit_impl(s, f, args...)
+    }
+
+    class default_backend~ResourceType, ResourceAdapter~ {
+        +default_backend(ReportReqs...)
+        +default_backend(vector~ResourceType~, adapter, ReportReqs...)
+    }
+
+    %% Relationships - Inheritance
+    round_robin_policy --|> policy_base : inherits (CRTP)
+    default_backend_impl --|> backend_base : inherits (CRTP)
+    default_backend --|> default_backend_impl : inherits
+
+    %% Relationships - Composition
+    policy_base *-- default_backend : backend_
+
+
+    %% Relationships - Dependencies
+    FreeFunctions ..> policy_base : calls methods
+    FreeFunctions ..> InternalFallbacks : delegates
+    InternalFallbacks ..> FreeFunctions : calls (recursive)
+    policy_base ..> InternalFallbacks : delegates submit/submit_and_wait
+    policy_base ..> default_backend : submit(selection, f, args)
+    round_robin_policy ..> default_backend : default template param
+
+
+
+    %% Notes
+    note for FreeFunctions "Entry points for users in the form of free functions for submission"
+    note for round_robin_policy "Entry points for users in the form of member functions for submission"
+    note for default_backend_impl "Customize by partially specializing for specific BaseResourceType inheriting from backend_base"
+    note for round_robin_policy "Customize at this level with minimal effort inheriting from policy_base"
+
+```
+
