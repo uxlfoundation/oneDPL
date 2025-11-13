@@ -31,11 +31,11 @@ With sensible defaults, this proposal aims to simplify backend writing to open u
 
 ## Proposed Design to Enable Easier Customization of Backends
 
-This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend_impl` template that can be used for most resource types. The design uses CRTP (Curiously Recurring Template Pattern) to allow customization while providing sensible defaults.
+This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend_impl` template that can be used for most resource types.
 
 ### Key Components
 
-1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements the core backend functionality using CRTP.
+1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements core backend functionality to inherit from.
 2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. A `ResourceAdapter` can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
 
 Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
@@ -47,7 +47,7 @@ Note: any partial specialization of `default_backend_impl` that targets a partic
 
 - **Resource Management**: Backends store resources in a vector and provide `get_resources()` to access them
 - **Submission System**: The `submit()` method invokes user functions with selected resources and returns submission objects
-- **Instrumentation**: The `submit_impl()` method can be optionally overridden to provide instrumentation of submissions for policies that require reporting.
+- **Instrumentation**: The `submit()` method can be optionally overridden to provide instrumentation of submissions for policies that require reporting.
 - **Group Operations**: `get_submission_group()` returns an object that can wait for all submissions to complete
 - **Trait Support**: Type traits for `resource_t<T>`, and lazy reporting detection
 - **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
@@ -155,8 +155,8 @@ resource type `BaseResourceType` with an already existing `default_backend_impl`
 
 The `backend_base` provides default implementations for the core backend methods:
 
-#### `submit_impl` Implementation
-The default `submit_impl` method calls then the user-provided function with the 
+#### `submit` Implementation
+The default `submit` method calls then the user-provided function with the 
 unwrapped resource, and returns a waitable submission type which wraps the return from the user-provided function.
 
 ```cpp
@@ -170,7 +170,7 @@ class default_submission
 
 template <typename SelectionHandle, typename Function, typename... Args>
 auto
-submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+submit(SelectionHandle s, Function&& f, Args&&... args)
 {
     return default_submission{std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...)};
 }
@@ -182,7 +182,7 @@ reuse a `sycl::queue` with `sycl::queue *` resources, the user's function is sti
 `sycl::queue *`.
 
 #### Instrumentation Support
-Where instrumentation is required, the customizer will need to override `submit_impl` with their own code which performs instrumentation
+Where instrumentation is required, the customizer will need to override `submit` with their own code which performs instrumentation
 for the `BaseResourceType`. The overload must call the user function as is done in the default, and return an object which wraps the return from the user function and supports `wait()` which blocks until the user's job has completed and `unwrap()` which returns the user's returned object.
 
 **Rationale**: It is not possible to define a general mechanism for instrumenting code execution for arbitrary custom resource types. Each resource type has different characteristics for timing, profiling, and performance measurement. Specialized backends (like the SYCL backend) can override these methods to provide resource-specific instrumentation.
@@ -283,7 +283,7 @@ ex::wait(rr.get_submission_group());
 ```
 
 If `ArenaAndGroup` will be used with policies that require instrumentation, then
-a custom backend that provides `submit_impl` with the appropriate instrumentation
+a custom backend that provides `submit` with the appropriate instrumentation
 will be needed. This can be done by partially specializing `default_backend_impl`.
 
 ## Adapter Support for Resource Transformation
