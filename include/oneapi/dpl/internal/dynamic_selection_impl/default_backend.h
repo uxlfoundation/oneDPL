@@ -130,8 +130,7 @@ class backend_base
 };
 
 template <typename BaseResourceType, typename ResourceType, typename ResourceAdapter>
-class default_backend_impl
-    : public backend_base<ResourceType>
+class default_backend_impl : public backend_base<ResourceType>
 {
   public:
     using resource_type = ResourceType;

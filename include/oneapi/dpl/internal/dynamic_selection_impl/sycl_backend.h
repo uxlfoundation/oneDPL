@@ -32,8 +32,7 @@ namespace experimental
 {
 
 template <typename ResourceType, typename ResourceAdapter>
-class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
-    : public backend_base<ResourceType>
+class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public backend_base<ResourceType>
 {
   private:
     // Base template for scratch storage - empty by default

@@ -163,9 +163,8 @@ class dynamic_load_policy
 template <typename T>
 dynamic_load_policy(std::initializer_list<T>)
     -> dynamic_load_policy<T, oneapi::dpl::identity,
-                          oneapi::dpl::experimental::default_backend<
-                              T, oneapi::dpl::identity>>; //supports dynamic_load_policy p{ {t1, t2} }
-
+                           oneapi::dpl::experimental::default_backend<
+                               T, oneapi::dpl::identity>>; //supports dynamic_load_policy p{ {t1, t2} }
 template <typename T, typename Adapter>
 dynamic_load_policy(std::initializer_list<T>, Adapter)
     -> dynamic_load_policy<
