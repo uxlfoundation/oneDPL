@@ -499,9 +499,7 @@ template <typename _T, sycl::access_mode _AccessMode>
 struct __usm_or_buffer_accessor
 {
   private:
-    using __accessor_t =
-        sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
-    __accessor_t __acc;
+    sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t> __acc;
     _T* __ptr = nullptr;
     size_t __offset = 0;
 
@@ -604,7 +602,7 @@ struct __result_storage : public __device_storage<_T>
 
     // Note: this member function assumes a kernel has completed and the result can be transferred to host
     void
-    __copy_data(_T* __dst, std::size_t __n)
+    __copy_result(_T* __dst, std::size_t __n)
     {
         if (__sz < __n)
             __n = __sz;
@@ -619,7 +617,7 @@ struct __result_storage : public __device_storage<_T>
         }
         else
         {
-            std::copy_n(this->__sycl_buf.get_host_access(sycl::read_only).get_pointer(), __n, __dst);
+            std::copy_n(this->__sycl_buf.get_host_access(sycl::read_only).begin(), __n, __dst);
         }
     }
 };
@@ -789,15 +787,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            // Avoid default constructor for _T. We know that _T is device copyable and therefore a copy construction
-            // is equivalent to a bitwise copy. We may treat __lazy_ctor_storage.__v as constructed after the memcpy.
-            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __lazy_ctor_storage;
-            __q.memcpy(&__lazy_ctor_storage.__v, __scratch_buf.get() + __scratch_n + _Idx, 1 * sizeof(_T)).wait();
-
-            // Setting up _T to be destroyed as this function exits. The __scoped_destroyer calls destroy when it
-            // leaves scope. _T being device copyable provides that it has a public non deleted destructor.
-            oneapi::dpl::__internal::__scoped_destroyer<_T> __destroy_when_leaving_scope{__lazy_ctor_storage};
-            return __lazy_ctor_storage.__v;
+            // Avoid default constructor for _T. Since _T is device copyable, copy construction
+            // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
+            // There is no need to destroy it afterwards, as the destructor must have no effect.
+            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+            __q.memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+            return __space.__v;
         }
         else
         {
