@@ -333,8 +333,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
 
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + oneapi::dpl::__ranges::__size(__r1);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
 
     auto __it = __first1 + __idx;
 
