@@ -1125,14 +1125,9 @@ template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typena
 std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
 __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto __it1 = std::ranges::begin(__r1);
-    auto __end1 = __it1 + std::ranges::size(__r1);
-
-    auto __it2 = std::ranges::begin(__r2);
-    auto __end2 = __it2 + std::ranges::size(__r2);
-
-    auto __out_it = std::ranges::begin(__out_r);
-    auto __out_end = __out_it + std::ranges::size(__out_r);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
     return __serial_set_difference<_R1, _R2, _OutRange>(__it1, __end1, __it2, __end2, __out_it, __out_end, __comp, __proj1, __proj2);
 }
