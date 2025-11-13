@@ -606,6 +606,32 @@ struct __result_storage
     }
 };
 
+template <typename _T>
+struct __scratch_storage
+{
+  private:
+    std::unique_ptr<_T, __internal::__sycl_usm_free> __scratch_buf = nullptr;
+    sycl::buffer<_T, 1> __sycl_buf;
+
+  public:
+    __scratch_storage(sycl::queue __q, std::size_t __n) : __sycl_buf{nullptr, sycl::range{0}}
+    {
+        assert(__n > 0);
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
+        if (__ptr)
+            __scratch_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+        else
+            __sycl_buf = sycl::buffer<_T, 1>(__n);
+    }
+
+    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    auto
+    __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+    {
+        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __prop_list);
+    }
+};
+
 // This base class is provided to allow same-typed shared pointer return values from kernels in
 // a `__future` for keeping alive temporary data, while allowing run-time branches to lead to
 // differently typed temporary storage for kernels. Virtual destructor is required to call
