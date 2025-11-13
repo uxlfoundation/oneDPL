@@ -995,7 +995,9 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 // balanced path
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
+__future<sycl::event,
+         __result_and_scratch_storage<
+            oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>>>
 __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1042,9 +1044,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,
                                        _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},
-                                       __comp,
-                                       __proj1,
-                                       __proj2};
+                                       __comp, __proj1, __proj2};
 
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
@@ -1118,7 +1118,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
 
 template <typename _CustomName>
@@ -1129,47 +1129,67 @@ struct __set_union_copy_wrapper;
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q, _Range1&& __rng1,
                       _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__rng1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__rng2);
+    auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__result);
 
     // temporary buffer to store intermediate result
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
-    auto __buf = __diff.get();
-    auto __keep_tmp1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
-    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
+    const auto __diff_buffer_size = std::min(__n2, __n_out);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_buffer(__diff_buffer_size);
+    auto __diff_buffer_begin = __diff_buffer.get();
+    
+    oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__diff_buffer_begin)> __keep_diff_buffer;
+    auto __diff_buffer_keeper = __keep_diff_buffer(__diff_buffer_begin, __diff_buffer_begin + __diff_buffer_size);
 
-    //1. Calc difference {2} \ {1}
-    const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, __proj2,
-        __proj1);
+    // 1. Calc difference {2} \ {1} (i.e. all items of {2} that are not in {1})
+    auto __set_op_impl_res = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
+        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __diff_buffer_keeper.all_view(), __comp, __proj2, __proj1);
 
-    //2. Merge {2} and the difference
-    if (__n_diff == 0)
+    const std::size_t __difference_size = __set_op_impl_res.__rng3_info.last - __set_op_impl_res.__rng3_info.first;
+
+    // 2. Merge {2} and the difference
+    if (__difference_size == 0)
     {
-        // merely copy if no elements are in diff
+        const auto __available_to_copy = std::min(__n1, __n_out);
+
+        // merely copy if no elements are in dif
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
-            __q, __n1, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
+            __q, __available_to_copy, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
+
+        return { { __first1,  __last1,   __first1  + __available_to_copy },
+                 { __first2,  __last2,   __last2                         }, // TODO is it correct to return last2 here as finish pointer? KSA: I think so.
+                 { __result1, __result2, __result1 + __available_to_copy } };
     }
     else
     {
+        const auto __available_to_merge = std::min(__difference_size, __n_out);
+
         // merge if elements are in diff
-        auto __keep_tmp2 =
-            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
-        auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __n_diff);
-        oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
-            __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp, __proj1,
-            __proj2)
-            .wait();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__diff_buffer_begin)> __keep_diff_buffer2;
+        auto __diff_buffer_keeper2 = __keep_diff_buffer2(__diff_buffer_begin, __diff_buffer_begin + __available_to_merge);
+
+        // __merge_result.first - merged from the first range
+        // __merge_result.second - merged from the second range
+        auto __merge_result =
+            oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
+                __q, std::forward<_Range1>(__rng1), __diff_buffer_keeper2.all_view(), std::forward<_Range3>(__result),
+                __comp, __proj1, __proj2)
+                .get();
+
+        // We can't merge more elements than the output can hold
+        assert(__merge_result.second + __merge_result.second <= __n_out);
+
+        return { { __first1, __last1,    __first1  + __merge_result.first                         },
+                 { __first2, __last2,    __first2  +                        __merge_result.second },
+                 { __result1, __result2, __result1 + __merge_result.first + __merge_result.second } };
     }
-    return __n_diff + __n1;
 }
 
 template <typename _CustomName>
@@ -1186,7 +1206,7 @@ struct __set_symmetric_difference_copy2_wrapper;
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
@@ -1263,7 +1283,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
@@ -1282,7 +1302,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
@@ -1347,7 +1367,7 @@ struct __check_use_write_a_alg
 // Selects the right implementation of set based on the size and platform
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::size_t
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1376,10 +1396,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
 
 template <typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-
-std::tuple<oneapi::dpl::__internal::__iterator_t<_Range1>,
-           oneapi::dpl::__internal::__iterator_t<_Range2>,
-           oneapi::dpl::__internal::__iterator_t<_Range3>>
+oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                   _Proj2 __proj2)
