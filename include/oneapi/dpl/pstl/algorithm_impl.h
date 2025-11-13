@@ -3475,14 +3475,20 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
+    // Describes a data window in the temporary buffer and corresponding positions in the output range
     struct _SetRange
     {
-        _DifferenceType __pos, __len, __buf_pos;
-        bool
-        empty() const
-        {
-            return __len == 0;
-        }
+        //                             [ -- len -- )
+        // Temporary buffer:    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        //                             ^           ^
+        //                             |           |
+        //                          buf_pos      __len
+
+        _DifferenceType __pos    {};        // offset in output range
+        _DifferenceType __len    {};        // Offset in temporary buffer
+        _DifferenceType __buf_pos{};        // Data length in temporary buffer
+
+        bool empty() const { return __len == 0; }
     };
 
     const _DifferenceType1 __n1 = __last1 - __first1;
@@ -3506,8 +3512,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             {
                 auto __tmp_memory_from = __tmp_memory + __s.__buf_pos;
                 auto __tmp_memory_to = __tmp_memory_from + __s.__len;
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to,
-                                                                  __result + __s.__pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to, __result + __s.__pos, _IsVector{});
             }
         };
 
@@ -3515,58 +3520,63 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __backend_tag{},
             std::forward<_ExecutionPolicy>(__exec),
             __n1,                                                                                                       // _Index __n
-            _SetRange{0, 0, 0},                                                                                         // _Tp __initial
-            [=](_DifferenceType1 __i, _DifferenceType1 __len)                                                           // _Rp __reduce     step 1 : __reduce(0, __n)
+            _SetRange{},                                                                                                // _Tp __initial
+            [=](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange                                              // _Rp __reduce     step 1 : __reduce(0, __n)
             {
                 //[__b; __e) - a subrange of the first sequence, to reduce
-                _RandomAccessIterator1 __b = __first1 + __i;
-                _RandomAccessIterator1 __e = __b + __len;
+                _RandomAccessIterator1 __b1 = __first1 + __i;
+                _RandomAccessIterator1 __e1 = __b1 + __len;
 
-                //try searching for the first element which not equal to *__b
-                if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+                // try searching for the first element in data1[__b1, __last1) which is great then *__b1
+                if (__b1 != __first1)
+                    __b1 += __internal::__pstl_upper_bound(__b1, _DifferenceType1{0}, __last1 - __b1, __b1, __comp, __proj1, __proj1);
 
-                //try searching for the first element which not equal to *__e
-                if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+                // try searching for the first element in data1[__e1, __last1) which is great then *__e1
+                if (__e1 != __last1)
+                    __e1 += __internal::__pstl_upper_bound(__e1, _DifferenceType1{0}, __last1 - __e1, __e1, __comp, __proj1, __proj1);
 
-                //check is [__b; __e) empty
-                if (__e - __b < 1)
+                //check is [__b1; __e1) empty i.e. __b1 == __e1
+                if (__e1 == __b1)
                 {
-                    _RandomAccessIterator2 __bb = __last2;
-                    if (__b != __last1)
-                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                      __b, __comp, __proj2, __proj1);
+                    _RandomAccessIterator2 __b2 = __last2;
 
-                    const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
+                    // try searching for the first element in data2[__first2, __last2) which is not great then *__b1
+                    if (__b1 != __last1)
+                        __b2 = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b1, __comp, __proj2, __proj1);
+
+                    const _DifferenceType __buf_pos = __size_func((__b1 - __first1), (__b2 - __first2));
                     return _SetRange{0, 0, __buf_pos};
                 }
 
-                //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
-                _RandomAccessIterator2 __bb = __first2;
-                if (__b != __first1)
-                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                     __b, __comp, __proj2, __proj1);
+                // Try searching for "corresponding" subrange [__b2; __e2) in the second sequence:
+                _RandomAccessIterator2 __b2 = __first2;
+                _RandomAccessIterator2 __e2 = __last2;
 
-                _RandomAccessIterator2 __ee = __last2;
-                if (__e != __last1)
-                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
-                                                                 __proj2, __proj1);
+                // - try searching for the first element in data2[__first2, __last2) which is not great then *__b1
+                if (__b1 != __first1)
+                    __b2 = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b1, __comp, __proj2, __proj1);
 
-                const _DifferenceType __buf_pos = __size_func((__b - __first1), (__bb - __first2));
+                // - try searching for the first element in data2[__b2, __last2) which is not great then *__e1
+                if (__e1 != __last1)
+                    __e2 = __b2 + __internal::__pstl_lower_bound(__b2, _DifferenceType2{0}, __last2 - __b2, __e1, __comp, __proj2, __proj1);
+
+                const _DifferenceType __buf_pos = __size_func((__b1 - __first1), (__b2 - __first2));
                 //auto __buffer_b = __tmp_memory + __buf_pos;
                 auto __buffer_b = __advance_it(__tmp_memory, __buf_pos, __tmp_memory + __buf_size);
-                auto __res = __set_op(__b, __e,                                         // bounds for data1
-                                      __bb, __ee,                                       // bounds for data2
+                auto __res = __set_op(__b1, __e1,                                       // bounds for data1
+                                      __b2, __e2,                                       // bounds for data2
                                       __buffer_b, __tmp_memory + __buf_size,            // bounds for results
                                       __comp, __proj1, __proj2);
 
-                return _SetRange{0, __res - __buffer_b, __buf_pos};
+                return _SetRange{ 0,                    // offset in output range
+                                 __res - __buffer_b,    // Offset in temporary buffer
+                                 __buf_pos};            // Data length in temporary buffer
             },
             [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine    step 2 : __combine(__initial, (1))
             {
                 if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
                     return _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
+
                 return _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
             },
             __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
