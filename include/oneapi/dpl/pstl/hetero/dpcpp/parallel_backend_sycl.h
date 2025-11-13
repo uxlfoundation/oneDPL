@@ -1679,7 +1679,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         }).wait_and_throw();
 
         __FoundStateType __found;
-        __result.__copy_data(&__found, 1);
+        __result.__copy_result(&__found, 1);
         return __found;
     }
 };
