@@ -43,7 +43,6 @@ classDiagram
 
     %% Backend Layer
     class backend_base~ResourceType, Backend~ {
-        <<CRTP Base>>
         #resources_: vector~ResourceType~
         +backend_base(ReportReqs...)
         +backend_base(vector~ResourceType~, ReportReqs...)
@@ -96,7 +95,7 @@ classDiagram
         -adapter: ResourceAdapter
         +default_backend_impl(ReportReqs...)
         +default_backend_impl(vector~ResourceType~, adapter, ReportReqs...)
-        +submit_impl(s, f, args...)
+        +submit(s, f, args...) //to override default
     }
 
     class default_backend~ResourceType, ResourceAdapter~ {
@@ -106,7 +105,7 @@ classDiagram
 
     %% Relationships - Inheritance
     round_robin_policy --|> policy_base : inherits (CRTP)
-    default_backend_impl --|> backend_base : inherits (CRTP)
+    default_backend_impl --|> backend_base : inherits
     default_backend --|> default_backend_impl : inherits
 
     %% Relationships - Composition
