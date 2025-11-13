@@ -418,6 +418,33 @@ struct __enumerable_thread_local_storage_base
     const std::tuple<_Args...> __args;
 };
 
+// struct __set_operations_return_t - describes the return type of set operations:
+// - the information about the data ranges involved in the set operation
+//     - begin, end and first unprocessed element iterators for each range
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3>
+struct __set_operations_return_t
+{
+    template <typename _RandomAccessIterator>
+    struct __data_result_t
+    {
+        _RandomAccessIterator first;    // Iterator to the start of data
+        _RandomAccessIterator last;     // Iterator to the end of data
+        _RandomAccessIterator reached;  // Iterator to the first unprocessed element
+    };
+
+    __data_result_t<_RandomAccessIterator1> __rng1_info;
+    __data_result_t<_RandomAccessIterator2> __rng2_info;
+    __data_result_t<_RandomAccessIterator3> __rng3_info;
+
+    // Get the positions reached in each of the each data range
+    template <typename TResult>
+    TResult
+    positions_reached() const
+    {
+        return {__rng1_info.reached, __rng2_info.reached, __rng3_info.reached};
+    }
+};
+
 } // namespace __utils
 } // namespace dpl
 } // namespace oneapi
