@@ -105,7 +105,7 @@ class dynamic_load_policy
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
-    dynamic_load_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {})
+    dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
     {
         base_t::initialize(u, adapter);
     }
@@ -158,9 +158,18 @@ class dynamic_load_policy
     }
 };
 
-//CTAD deduction guide for initializer_list
+//CTAD deduction guides for initializer_list
 template <typename T>
-dynamic_load_policy(std::initializer_list<T>) -> dynamic_load_policy<T>; //supports dynamic_load_policy p{ {t1, t2} }
+dynamic_load_policy(std::initializer_list<T>)
+    -> dynamic_load_policy<T, oneapi::dpl::identity,
+                          oneapi::dpl::experimental::default_backend<
+                              T, oneapi::dpl::identity>>; //supports dynamic_load_policy p{ {t1, t2} }
+
+template <typename T, typename Adapter>
+dynamic_load_policy(std::initializer_list<T>, Adapter)
+    -> dynamic_load_policy<
+        T, Adapter,
+        oneapi::dpl::experimental::default_backend<T, Adapter>>; //supports dynamic_load_policy p{ {t1, t2}, adapter }
 
 } // namespace experimental
 } // namespace dpl

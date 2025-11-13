@@ -118,6 +118,16 @@ main()
                 (run_dynamic_load_policy_tests<queue_ptr_load, policy_pointer_t>(u_ptrs, f_ptrs, f2_ptrs, deref_op)),
                 "");
 
+	    //CTAD tests (testing policy construction without template arguments)
+	    //Template arguments types are deduced with CTAD
+            sycl::queue q1(sycl::cpu_selector_v);
+            sycl::queue q2(sycl::cpu_selector_v); //using all cpus for wider coverage
+            oneapi::dpl::experimental::dynamic_load_policy p1{ {q1, q2} };;
+            oneapi::dpl::experimental::dynamic_load_policy p2( {q1, q2} );
+
+            oneapi::dpl::experimental::dynamic_load_policy p3( {&q1, &q2}, deref_op );
+            oneapi::dpl::experimental::dynamic_load_policy p4{ {&q1, &q2}, deref_op };
+
             bProcessed = true;
         }
 #endif // Devices available are CPU and GPU
