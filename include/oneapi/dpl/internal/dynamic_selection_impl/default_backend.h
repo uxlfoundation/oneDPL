@@ -30,7 +30,7 @@ namespace dpl
 namespace experimental
 {
 
-template <typename ResourceType, typename Backend>
+template <typename ResourceType>
 class backend_base
 {
 
@@ -64,44 +64,25 @@ class backend_base
     auto
     get_submission_group()
     {
-        return static_cast<Backend*>(this)->get_submission_group_impl();
+        return default_submission_group{resources_};
     }
 
     auto
     get_resources()
     {
-        return static_cast<Backend*>(this)->get_resources_impl();
+        return resources_;
     }
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
-        return static_cast<Backend*>(this)->submit_impl(s, f, args...);
+        auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+        return default_submission{w};
     }
 
   protected:
     resource_container_t resources_;
-
-    resource_container_t
-    get_resources_impl() const noexcept
-    {
-        return resources_;
-    }
-
-    auto
-    get_submission_group_impl()
-    {
-        return default_submission_group{resources_};
-    }
-
-    template <typename SelectionHandle, typename Function, typename... Args>
-    auto
-    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
-    {
-        auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-        return default_submission{w};
-    }
 
     template <typename WaitType>
     class default_submission
@@ -150,11 +131,11 @@ class backend_base
 
 template <typename BaseResourceType, typename ResourceType, typename ResourceAdapter>
 class default_backend_impl
-    : public backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>
+    : public backend_base<ResourceType>
 {
   public:
     using resource_type = ResourceType;
-    using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
+    using my_base = backend_base<ResourceType>;
 
     template <typename... ReportReqs>
     default_backend_impl(ReportReqs... reqs) : my_base(reqs...)

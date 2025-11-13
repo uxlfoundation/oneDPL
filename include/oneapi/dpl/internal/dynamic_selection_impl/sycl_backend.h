@@ -33,7 +33,7 @@ namespace experimental
 
 template <typename ResourceType, typename ResourceAdapter>
 class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
-    : public backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>
+    : public backend_base<ResourceType>
 {
   private:
     // Base template for scratch storage - empty by default
@@ -66,7 +66,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     using base_resource_t = sycl::queue;
 
   private:
-    using base_t = backend_base<ResourceType, default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>>;
+    using base_t = backend_base<ResourceType>;
     static inline bool is_lazy_reporting_enabled = false;
     using report_clock_type = std::chrono::steady_clock;
     using report_duration = std::chrono::milliseconds;
@@ -235,7 +235,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
 
     template <typename SelectionHandle, typename Function, typename... Args>
     auto
-    submit_impl(SelectionHandle s, Function&& f, Args&&... args)
+    submit(SelectionHandle s, Function&& f, Args&&... args)
     {
         constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
@@ -276,7 +276,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter>
     }
 
     submission_group
-    get_submission_group_impl() const
+    get_submission_group() const
     {
         return *sgroup_ptr_;
     }
