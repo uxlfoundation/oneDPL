@@ -1645,7 +1645,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
-                __result.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+                __result.template __get_accessor<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
@@ -1674,7 +1674,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 
                     // Set local found state value to global state
                     if (__local_idx == 0)
-                        __result_acc.__get_pointer()[0] = __found_local;
+                        __result_acc.__data()[0] = __found_local;
                 });
         }).wait_and_throw();
 
@@ -1709,7 +1709,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
-        __scratch_storage<_GroupCounterType> __group_counter_storage{__q, __scratch_storage_size};
+        __device_storage<_GroupCounterType> __group_counter_storage{__q, __scratch_storage_size};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
@@ -1719,7 +1719,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc_w =
                 __result_storage.template __get_scratch_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-            auto __group_counter_acc_w = __group_counter_storage.template __get_scratch_acc<sycl::access_mode::write>(
+            auto __group_counter_acc_w = __group_counter_storage.template __get_accessor<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
 
             __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value, __group_counter_acc_w]() {
@@ -1729,7 +1729,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 *__scratch_ptr = __init_value;
 
                 // Initialize the scratch storage for group counter with zero value
-                _GroupCounterType* __group_counter_ptr = __group_counter_acc_w.__get_pointer();
+                _GroupCounterType* __group_counter_ptr = __group_counter_acc_w.__data();
                 *__group_counter_ptr = 0;
             });
         });
@@ -1744,7 +1744,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             auto __group_counter_acc_rw =
-                __group_counter_storage.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
+                __group_counter_storage.template __get_accessor<sycl::access_mode::read_write>(__cgh);
 
             __cgh.depends_on(__event_init);
 
@@ -1789,7 +1789,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
 
-                        _GroupCounterType* __group_counter_ptr = __group_counter_acc_rw.__get_pointer();
+                        _GroupCounterType* __group_counter_ptr = __group_counter_acc_rw.__data();
                         __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
 
                         // Copy data back from scratch part to result part when we are in the last work-group

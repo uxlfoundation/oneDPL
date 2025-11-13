@@ -538,50 +538,68 @@ struct __usm_or_buffer_accessor
     }
 
     auto
-    __get_pointer() const // should be cached within a kernel
+    __data() const // should be cached within a kernel
     {
+        // The return type is possibly const _T*, with constness defined by access mode of __acc
         return __ptr ? __ptr + __offset : &__acc[__offset];
     }
 };
 
 template <typename _T>
-struct __result_storage
+struct __device_storage
 {
-    static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
+    std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
+    sycl::buffer<_T, 1> __sycl_buf = {nullptr, sycl::range{0}};
 
-  private:
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
-    sycl::buffer<_T, 1> __sycl_buf;
-    std::size_t __sz = 0;
-    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
+    __device_storage() {}
 
-  public:
-    __result_storage(sycl::queue __q, std::size_t __n) : __sycl_buf(nullptr, sycl::range(0)), __sz(__n)
+    __device_storage(sycl::queue __q, std::size_t __n)
     {
-        assert(__sz > 0);
-        __kind = sycl::usm::alloc::host;
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __sz);
-        if (!__ptr)
-        {
-            __kind = sycl::usm::alloc::device;
-            __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __sz);
-        }
+        initialize(__q, __n);
+    }
+
+    void initialize(sycl::queue __q, std::size_t __n)
+    {
+        assert(__n > 0);
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
-        {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-        }
+            __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
         else
-        {
-            __kind = sycl::usm::alloc::unknown;
-            __sycl_buf = sycl::buffer<_T, 1>(__sz);
-        }
+            __sycl_buf = sycl::buffer<_T, 1>(__n);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
-    __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+    __get_accessor(sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
     {
-        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __result_buf.get(), __prop_list);
+        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __usm_buf.get(), __prop_list);
+    }
+};
+
+template <typename _T>
+struct __result_storage : public __device_storage<_T>
+{
+    static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
+
+    std::size_t __sz = 0;
+    sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
+    
+    using __device_storage<_T>::__get_accessor;
+
+    __result_storage(sycl::queue __q, std::size_t __n) : __sz(__n)
+    {
+        assert(__sz > 0);
+        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __sz);
+        if (__ptr)
+        {
+            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __kind = sycl::usm::alloc::host;
+        }
+        else
+        {
+            this->initialize(__q, __n);
+            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
+        }
     }
 
     // Note: this member function assumes a kernel has completed and the result can be transferred to host
@@ -592,43 +610,17 @@ struct __result_storage
             __n = __sz;
         if (__kind == sycl::usm::alloc::host)
         {
-            std::copy_n(__result_buf.get(), __n, __dst);
+            std::copy_n(this->__usm_buf.get(), __n, __dst);
         }
         else if (__kind == sycl::usm::alloc::device)
         {
-            sycl::queue& __q = __result_buf.get_deleter().__q;
-            __q.memcpy(__dst, __result_buf.get(), __n * sizeof(_T)).wait();
+            sycl::queue& __q = this->__usm_buf.get_deleter().__q;
+            __q.memcpy(__dst, this->__usm_buf.get(), __n * sizeof(_T)).wait();
         }
         else
         {
-            std::copy_n(__sycl_buf.get_host_access(sycl::read_only).get_pointer(), __n, __dst);
+            std::copy_n(this->__sycl_buf.get_host_access(sycl::read_only).get_pointer(), __n, __dst);
         }
-    }
-};
-
-template <typename _T>
-struct __scratch_storage
-{
-  private:
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __scratch_buf = nullptr;
-    sycl::buffer<_T, 1> __sycl_buf;
-
-  public:
-    __scratch_storage(sycl::queue __q, std::size_t __n) : __sycl_buf{nullptr, sycl::range{0}}
-    {
-        assert(__n > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
-        if (__ptr)
-            __scratch_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-        else
-            __sycl_buf = sycl::buffer<_T, 1>(__n);
-    }
-
-    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
-    auto
-    __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
-    {
-        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __prop_list);
     }
 };
 
@@ -738,7 +730,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        return __acc.__get_pointer();
+        return __acc.__data();
 #else
         return &__acc[__scratch_n];
 #endif
