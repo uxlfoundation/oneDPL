@@ -52,11 +52,11 @@ Note: any partial specialization of `default_backend_impl` that targets a partic
 - **Trait Support**: Type traits for `resource_t<T>`, and lazy reporting detection
 - **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
 
-### Reporting requirements and scratch space contract
+### Reporting Requirements and Scratch Space Contract
 
 Backends must now explicitly accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
 
-#### Requirements for backend implementors
+#### Requirements for Backend Implementrrs
 
 - Constructor contract: backend constructors (both the default and the one accepting a universe of resources) must accept an trailing variadic pack of reporting requirement types. For example:
 
