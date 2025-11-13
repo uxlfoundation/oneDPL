@@ -1636,17 +1636,16 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __wgroup_size,
                const __FoundStateType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<__FoundStateType>;
-        __result_and_scratch_storage_t __result_storage{__q, 0};
+        __result_storage<__FoundStateType> __result{__q, 1};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item = oneapi::dpl::__internal::__dpl_ceiling_div(__rng_n, __wgroup_size);
 
         // main parallel_for
-        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
+        __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc =
-                __result_storage.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+                __result.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
@@ -1675,15 +1674,13 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 
                     // Set local found state value to global state
                     if (__local_idx == 0)
-                    {
-                        __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc)[0] =
-                            __found_local;
-                    }
+                        __result_acc.__get_pointer()[0] = __found_local;
                 });
-        });
+        }).wait_and_throw();
 
-        // Wait and return result
-        return __result_storage.__wait_and_get_value(__event);
+        __FoundStateType __found;
+        __result.__copy_data(&__found, 1);
+        return __found;
     }
 };
 
@@ -1712,8 +1709,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_AtomicType, 1>;
         __result_and_scratch_storage_t __result_storage{__q, __scratch_storage_size};
 
-        using __result_and_scratch_storage_group_counter_t = __result_and_scratch_storage<_GroupCounterType, 0>;
-        __result_and_scratch_storage_group_counter_t __group_counter_storage{__q, __scratch_storage_size};
+        __scratch_storage<_GroupCounterType> __group_counter_storage{__q, __scratch_storage_size};
 
         // Calculate the number of elements to be processed by each work-item.
         const auto __iters_per_work_item =
@@ -1733,9 +1729,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                 *__scratch_ptr = __init_value;
 
                 // Initialize the scratch storage for group counter with zero value
-                _GroupCounterType* __group_counter_ptr =
-                    __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
-                        __group_counter_acc_w);
+                _GroupCounterType* __group_counter_ptr = __group_counter_acc_w.__get_pointer();
                 *__group_counter_ptr = 0;
             });
         });
@@ -1795,9 +1789,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                             _BrickTag::__save_state_to_atomic(__found, __found_local);
                         }
 
-                        _GroupCounterType* __group_counter_ptr =
-                            __result_and_scratch_storage_group_counter_t::__get_usm_or_buffer_accessor_ptr(
-                                __group_counter_acc_rw);
+                        _GroupCounterType* __group_counter_ptr = __group_counter_acc_rw.__get_pointer();
                         __atomic_ref_t<_GroupCounterType> __group_counter(*__group_counter_ptr);
 
                         // Copy data back from scratch part to result part when we are in the last work-group
