@@ -118,7 +118,7 @@ Simplified, expository implementation of the selection algorithm:
 .. code:: cpp
 
   template<typename... Args>
-  selection_type dynamic_load_policy::__select_impl(Args&& ...) {
+  auto dynamic_load_policy::__select_impl(Args&& ...) {
     if (initialized_) {
       auto least_loaded_resource = find_least_loaded(resources_);
       return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};

@@ -112,7 +112,7 @@ implementation of the selection algorithm follows:
 .. code:: cpp
 
   template<typename ...Args>
-  selection_type round_robin_policy::__select_impl(Args&&...) {
+  auto round_robin_policy::__select_impl(Args&&...) {
     if (initialized_) {
       auto& r = resources_[next_context_++ % num_resources_];
       return selection_type{*this, r};

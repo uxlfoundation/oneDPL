@@ -134,7 +134,7 @@ Simplified, expository implementation of the selection algorithm:
 .. code:: cpp
 
   template<typename... Args>
-  selection_type fixed_resource_policy::__select_impl(Args&& ...) {
+  auto fixed_resource_policy::__select_impl(Args&& ...) {
     if (initialized_) {
       return selection_type{*this, resources_[fixed_offset_]};
     } else {

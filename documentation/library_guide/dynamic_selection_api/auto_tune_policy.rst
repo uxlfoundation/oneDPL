@@ -123,7 +123,7 @@ implementation of the selection algorithm follows:
 .. code:: cpp
 
   template<typename Function, typename ...Args>
-  selection_type auto_tune_policy::__select_impl(Function&& f, Args&&...args) {
+  auto auto_tune_policy::__select_impl(Function&& f, Args&&...args) {
     if (initialized_) {
       auto k = make_task_key(f, args...);
       auto tuner = get_tuner(k);
