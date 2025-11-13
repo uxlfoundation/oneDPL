@@ -10,7 +10,6 @@
 #ifndef _ONEDPL_FIXED_RESOURCE_POLICY_H
 #define _ONEDPL_FIXED_RESOURCE_POLICY_H
 
-#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"

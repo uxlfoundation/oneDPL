@@ -14,7 +14,6 @@
 #include <vector>
 #include <stdexcept>
 #include <utility>
-#include <optional>
 #include <thread>
 #include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"

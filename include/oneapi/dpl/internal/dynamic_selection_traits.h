@@ -14,7 +14,6 @@
 #include <cstdint>
 #include <type_traits>
 #include <thread>
-#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_traits.h"
 
 namespace oneapi
