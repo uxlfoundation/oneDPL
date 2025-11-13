@@ -837,6 +837,18 @@ using __rng_set_operations_return_t =
         oneapi::dpl::__internal::__iterator_t<_Range2>,
         oneapi::dpl::__internal::__iterator_t<_Range3>>;
 
+// Returns begin, end and size of the range
+template <typename _Range>
+auto
+__get_range_bounds(_Range&& __rng)
+{
+    const auto __size = oneapi::dpl::__ranges::__size(__rng);
+
+    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
+
+    return std::make_tuple(__begin, __begin + __size, __size);
+}
+
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
