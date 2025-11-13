@@ -37,6 +37,7 @@ class round_robin_policy
 {
   protected:
     using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
+    friend base_t;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using typename base_t::selection_type;
 
@@ -49,16 +50,6 @@ class round_robin_policy
 
     std::shared_ptr<selector_t> selector_;
 
-  public:
-    using resource_type = typename base_t::resource_type;
-    using typename base_t::backend_t;
-
-    round_robin_policy() { base_t::initialize(); }
-    round_robin_policy(deferred_initialization_t) {}
-    round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
-    {
-        base_t::initialize(u, adapter);
-    }
 
     void
     initialize_impl()
@@ -94,6 +85,17 @@ class round_robin_policy
         {
             throw std::logic_error("select called before initialization");
         }
+    }
+
+  public:
+    using resource_type = typename base_t::resource_type;
+    using typename base_t::backend_t;
+
+    round_robin_policy() { base_t::initialize(); }
+    round_robin_policy(deferred_initialization_t) {}
+    round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
+    {
+        base_t::initialize(u, adapter);
     }
 };
 

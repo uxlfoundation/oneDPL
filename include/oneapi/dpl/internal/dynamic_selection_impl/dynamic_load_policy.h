@@ -40,6 +40,7 @@ class dynamic_load_policy
   protected:
     using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
                                execution_info::task_submission_t, execution_info::task_completion_t>;
+    friend base_t;
     using resource_container_size_t = typename base_t::resource_container_size_t;
 
     using execution_resource_t = typename base_t::execution_resource_t;
@@ -99,17 +100,6 @@ class dynamic_load_policy
 
     std::shared_ptr<selector_t> selector_;
 
-  public:
-    using resource_type = typename base_t::resource_type;
-    using typename base_t::backend_t;
-
-    dynamic_load_policy() { base_t::initialize(); }
-    dynamic_load_policy(deferred_initialization_t) {}
-    dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
-    {
-        base_t::initialize(u, adapter);
-    }
-
     void
     initialize_impl()
     {
@@ -155,6 +145,17 @@ class dynamic_load_policy
         {
             throw std::logic_error("select called before initialization");
         }
+    }
+
+  public:
+    using resource_type = typename base_t::resource_type;
+    using typename base_t::backend_t;
+
+    dynamic_load_policy() { base_t::initialize(); }
+    dynamic_load_policy(deferred_initialization_t) {}
+    dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
+    {
+        base_t::initialize(u, adapter);
     }
 };
 

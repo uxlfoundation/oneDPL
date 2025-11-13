@@ -47,11 +47,10 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
 class auto_tune_policy
     : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>
 {
-
   protected:
     using base_t =
         policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend>;
-
+    friend base_t;
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;
     using wrapped_resource_t = execution_resource_t;
@@ -197,19 +196,6 @@ class auto_tune_policy
     };
     using selection_type = auto_tune_selection_type;
 
-  public:
-    // Needed by Policy Traits
-    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-
-    auto_tune_policy(deferred_initialization_t) {}
-
-    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
-    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {},
-                     timing_t resample_time = never_resample)
-    {
-        base_t::initialize(u, adapter, resample_time);
-    }
-
     template <typename Function, typename... Args>
     std::shared_ptr<selection_type>
     try_select_impl(Function&& f, Args&&... args)
@@ -256,18 +242,25 @@ class auto_tune_policy
         }
     }
 
-  private:
-    //
-    // types
-    //
+  public:
+    // Needed by Policy Traits
+    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
 
+    auto_tune_policy(deferred_initialization_t) {}
+
+    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
+    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {},
+                     timing_t resample_time = never_resample)
+    {
+        base_t::initialize(u, adapter, resample_time);
+    }
+
+  private:
+    // types
     using task_key_t = std::tuple<void*, KeyArgs...>;
     using tuner_by_key_t = std::map<task_key_t, std::shared_ptr<tuner_t>>;
 
-    //
     // member variables
-    //
-
     timing_t resample_time_ = 0;
 
     struct state_t
@@ -279,9 +272,7 @@ class auto_tune_policy
 
     std::shared_ptr<state_t> state_;
 
-    //
     // private member functions
-    //
     template <typename Function, typename... Args>
     task_key_t
     make_task_key(Function&& f, Args&&... args)

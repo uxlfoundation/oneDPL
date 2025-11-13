@@ -37,6 +37,7 @@ class fixed_resource_policy
 {
   protected:
     using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
+    friend base_t;
     using resource_container_size_t = typename base_t::resource_container_size_t;
     using selection_type = typename base_t::selection_type;
 
@@ -47,23 +48,6 @@ class fixed_resource_policy
     };
 
     std::shared_ptr<selector_t> selector_;
-
-  public:
-    using resource_type = typename base_t::resource_type;
-    using typename base_t::backend_t;
-
-    fixed_resource_policy(std::size_t index = 0) { base_t::initialize(index); }
-    fixed_resource_policy(deferred_initialization_t) {}
-
-    fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
-    {
-        base_t::initialize(u, oneapi::dpl::identity(), index);
-    }
-
-    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0)
-    {
-        base_t::initialize(u, adapter, index);
-    }
 
     void
     initialize_impl(std::size_t index = 0)
@@ -89,6 +73,23 @@ class fixed_resource_policy
         {
             throw std::logic_error("select called before initialization");
         }
+    }
+
+  public:
+    using resource_type = typename base_t::resource_type;
+    using typename base_t::backend_t;
+
+    fixed_resource_policy(std::size_t index = 0) { base_t::initialize(index); }
+    fixed_resource_policy(deferred_initialization_t) {}
+
+    fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0)
+    {
+        base_t::initialize(u, oneapi::dpl::identity(), index);
+    }
+
+    fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0)
+    {
+        base_t::initialize(u, adapter, index);
     }
 };
 
