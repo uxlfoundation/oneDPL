@@ -555,6 +555,18 @@ struct __usm_or_buffer_accessor
     }
 };
 
+// The type to exchange information between storage types.
+// Useful for the interoperability during the transition period
+template <typename _T>
+struct __copyable_storage_state
+{
+    std::shared_ptr<_T> __result_buf;
+    std::shared_ptr<_T> __scratch_buf;
+    sycl::buffer<_T, 1> __sycl_buf;
+    std::size_t         __scratch_sz;
+    sycl::usm::alloc    __kind;
+};
+
 // This base class is provided to allow same-typed shared pointer return values from kernels in
 // a `__future` for keeping alive temporary data, while allowing run-time branches to lead to
 // differently typed temporary storage for kernels. Virtual destructor is required to call
@@ -655,6 +667,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
     }
 
+    __result_and_scratch_storage(__copyable_storage_state<_T>&& __transfer)
+        : __scratch_buf(std::move(__transfer.__scratch_buf)), __result_buf(std::move(__transfer.__result_buf)),
+          __sycl_buf(std::make_shared<__sycl_buffer_t>(std::move(__transfer.__sycl_buf))),
+          __scratch_n(__transfer.__scratch_sz), __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
+          __supports_USM_device(__transfer.__kind != sycl::usm::alloc::unknown)
+        {}
+
     template <typename _Acc>
     static auto
     __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
@@ -719,7 +738,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            auto __q_proxy = std::get_deleter< __internal::__sycl_usm_free>(__scratch_buf);
+            auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
             assert(__q_proxy != nullptr);
             // Avoid default constructor for _T. Since _T is device copyable, copy construction
             // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
@@ -888,7 +907,7 @@ struct __combined_storage : public __device_storage<_T>
             return __combi_accessor<_T, _AccessMode>(__cgh, this->__sycl_buf, __result_buf.get(), __prop_list);
         else
             return __combi_accessor<_T, _AccessMode>(__cgh, this->__sycl_buf, this->__usm_buf.get(), /*offset*/ __sz,
-                                                    __result_sz, __prop_list);
+                                                     __result_sz, __prop_list);
     }
 
     // Note: this member function assumes a kernel has completed and the result can be transferred to host
@@ -910,6 +929,14 @@ struct __combined_storage : public __device_storage<_T>
         {
             std::copy_n(this->__sycl_buf.get_host_access(sycl::read_only).begin() + __sz, __n, __dst);
         }
+    }
+
+    template <typename _Forwarding>
+    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
+    friend __transfer_state_from(_Forwarding&& __src)
+    {
+        return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
+                __src.__sz, __src.__kind};
     }
 };
 
