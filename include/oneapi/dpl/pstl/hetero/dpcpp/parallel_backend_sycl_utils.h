@@ -515,46 +515,6 @@ struct __combi_accessor
     }
 };
 
-template <typename _T, sycl::access_mode _AccessMode>
-struct __usm_or_buffer_accessor
-{
-  private:
-    sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t> __acc;
-    _T* __ptr = nullptr;
-    size_t __offset = 0;
-
-  public:
-    // Buffer accessor
-    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf,
-                             const sycl::property_list& __prop_list)
-        : __acc(*__sycl_buf, __cgh, __prop_list)
-    {
-    }
-    __usm_or_buffer_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>* __sycl_buf, size_t __acc_offset,
-                             const sycl::property_list& __prop_list)
-        : __acc(*__sycl_buf, __cgh, __prop_list), __offset(__acc_offset)
-    {
-    }
-
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-    // USM pointer
-    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, const sycl::property_list&)
-        : __ptr(__usm_buf)
-    {
-    }
-    __usm_or_buffer_accessor(sycl::handler&, _T* __usm_buf, size_t __ptr_offset, const sycl::property_list&)
-        : __ptr(__usm_buf), __offset(__ptr_offset)
-    {
-    }
-#endif
-
-    auto // [const] _T*, with constness depending on _AccessMode
-    __data() const // the result should be cached within a kernel
-    {
-        return __ptr ? __ptr + __offset : &__acc[__offset];
-    }
-};
-
 // The type to exchange information between storage types.
 // Useful for the interoperability during the transition period
 template <typename _T>
@@ -593,7 +553,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
-    std::shared_ptr<__sycl_buffer_t> __sycl_buf;
+    mutable __sycl_buffer_t __sycl_buf;
 
     std::size_t __scratch_n;
     bool __use_USM_host;
@@ -603,7 +563,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     bool
     __use_USM_host_allocations([[maybe_unused]] const sycl::queue& __q) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
+#if _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
         if (!__device.is_gpu())
             return false;
@@ -620,17 +580,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     bool
     __use_USM_allocations([[maybe_unused]] const sycl::queue& __q) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __q.get_device().has(sycl::aspect::usm_device_allocations);
-#else
-        return false;
-#endif
     }
 
   public:
     __result_and_scratch_storage(sycl::queue __q, std::size_t __scratch_n)
-        : __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__q)},
-          __supports_USM_device{__use_USM_allocations(__q)}
+        : __sycl_buf{nullptr, sycl::range{0}}, __scratch_n{__scratch_n},
+          __use_USM_host{__use_USM_host_allocations(__q)}, __supports_USM_device{__use_USM_allocations(__q)}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
         // Skip in case this is a dummy container
@@ -662,15 +618,15 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             else
             {
                 // If we don't have USM support allocate memory here
-                __sycl_buf = std::make_shared<__sycl_buffer_t>(__sycl_buffer_t(__total_n));
+                __sycl_buf = __sycl_buffer_t(__total_n);
             }
         }
     }
 
     __result_and_scratch_storage(__copyable_storage_state<_T>&& __transfer)
         : __scratch_buf(std::move(__transfer.__scratch_buf)), __result_buf(std::move(__transfer.__result_buf)),
-          __sycl_buf(std::make_shared<__sycl_buffer_t>(std::move(__transfer.__sycl_buf))),
-          __scratch_n(__transfer.__scratch_sz), __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
+          __sycl_buf(std::move(__transfer.__sycl_buf)), __scratch_n(__transfer.__scratch_sz),
+          __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
           __supports_USM_device(__transfer.__kind != sycl::usm::alloc::unknown)
         {}
 
@@ -678,39 +634,23 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     static auto
     __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __acc.__data();
-#else
-        return &__acc[__scratch_n];
-#endif
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_result_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         if (__use_USM_host && __supports_USM_device)
-            return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __result_buf.get(), __prop_list);
-        else if (__supports_USM_device)
-            return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __scratch_buf.get(), __scratch_n, __prop_list);
-        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf.get(), __scratch_n, __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+            return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __result_buf.get(), __prop_list);
+        return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __scratch_n, _NResults, __prop_list);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
     auto
     __get_scratch_acc(sycl::handler& __cgh, const sycl::property_list& __prop_list = {}) const
     {
-#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
-        if (__use_USM_host || __supports_USM_device)
-            return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __scratch_buf.get(), __prop_list);
-        return __usm_or_buffer_accessor<_T, _AccessMode>(__cgh, __sycl_buf.get(), __prop_list);
-#else
-        return __accessor_t<_AccessMode>(*__sycl_buf.get(), __cgh, __prop_list);
-#endif
+        return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __prop_list);
     }
 
     _T
@@ -749,7 +689,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else
         {
-            return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
+            return __sycl_buf.get_host_access(sycl::read_only)[__scratch_n + _Idx];
         }
     }
 
