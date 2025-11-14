@@ -409,24 +409,18 @@ struct __sycl_usm_free
 };
 
 template <typename _T, sycl::usm::alloc __alloc_t>
-struct __sycl_usm_alloc
+_T*
+__sycl_usm_alloc(const sycl::queue& __q, std::size_t __elements)
 {
-    sycl::queue __q;
+    if (_T* __buf = sycl::malloc<_T>(__elements, __q, __alloc_t))
+        return __buf;
 
-    _T*
-    operator()(::std::size_t __elements) const
-    {
-        if (auto __buf =
-                static_cast<_T*>(sycl::malloc(sizeof(_T) * __elements, __q.get_device(), __q.get_context(), __alloc_t)))
-            return __buf;
-
-        throw std::bad_alloc();
-    }
-};
+    throw std::bad_alloc();
+}
 
 template <typename _T, sycl::usm::alloc __alloc_t>
 _T*
-__allocate_usm(sycl::queue __q, std::size_t __elements)
+__allocate_usm(const sycl::queue& __q, std::size_t __elements)
 {
     static_assert(__alloc_t == sycl::usm::alloc::host || __alloc_t == sycl::usm::alloc::device);
     _T* __result = nullptr;
@@ -585,7 +579,6 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     using __accessor_t =
         sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
 
-    mutable sycl::queue __q;
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<__sycl_buffer_t> __sycl_buf;
@@ -596,7 +589,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     // Only use USM host allocations on L0 GPUs. Other devices show significant slowdowns and will use a device allocation instead.
     bool
-    __use_USM_host_allocations() const
+    __use_USM_host_allocations([[maybe_unused]] const sycl::queue& __q) const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT && _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
@@ -613,7 +606,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     bool
-    __use_USM_allocations() const
+    __use_USM_allocations([[maybe_unused]] const sycl::queue& __q) const
     {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT
         return __q.get_device().has(sycl::aspect::usm_device_allocations);
@@ -623,9 +616,9 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
   public:
-    __result_and_scratch_storage(sycl::queue __q_, std::size_t __scratch_n)
-        : __q{__q_}, __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations()},
-          __supports_USM_device{__use_USM_allocations()}
+    __result_and_scratch_storage(sycl::queue __q, std::size_t __scratch_n)
+        : __scratch_n{__scratch_n}, __use_USM_host{__use_USM_host_allocations(__q)},
+          __supports_USM_device{__use_USM_allocations(__q)}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
         // Skip in case this is a dummy container
@@ -637,13 +630,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 if (__scratch_n > 0)
                 {
                     __scratch_buf = std::shared_ptr<_T>(
-                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__scratch_n),
+                        __internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>(__q, __scratch_n),
                         __internal::__sycl_usm_free{__q});
                 }
                 if constexpr (_NResults > 0)
                 {
                     __result_buf =
-                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>{__q}(_NResults),
+                        std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::host>(__q, _NResults),
                                             __internal::__sycl_usm_free{__q});
                 }
             }
@@ -651,7 +644,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             {
                 // If we don't use host memory, malloc only a single unified device allocation
                 __scratch_buf =
-                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>{__q}(__total_n),
+                    std::shared_ptr<_T>(__internal::__sycl_usm_alloc<_T, sycl::usm::alloc::device>(__q, __total_n),
                                         __internal::__sycl_usm_free{__q});
             }
             else
@@ -726,11 +719,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
+            auto __q_proxy = std::get_deleter< __internal::__sycl_usm_free>(__scratch_buf);
+            assert(__q_proxy != nullptr);
             // Avoid default constructor for _T. Since _T is device copyable, copy construction
             // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
             // There is no need to destroy it afterwards, as the destructor must have no effect.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q.memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+            __q_proxy->__q.memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
             return __space.__v;
         }
         else
@@ -786,10 +781,10 @@ struct __device_storage
 
     __device_storage() {}
 
-    __device_storage(sycl::queue __q, std::size_t __n) { initialize(__q, __n); }
+    __device_storage(const sycl::queue& __q, std::size_t __n) { initialize(__q, __n); }
 
     void
-    initialize(sycl::queue __q, std::size_t __n)
+    initialize(const sycl::queue& __q, std::size_t __n)
     {
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
@@ -817,7 +812,7 @@ struct __result_storage : public __device_storage<_T>
 
     using __device_storage<_T>::__get_accessor;
 
-    __result_storage(sycl::queue __q, std::size_t __n) : __sz(__n)
+    __result_storage(const sycl::queue& __q, std::size_t __n) : __sz(__n)
     {
         assert(__sz > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __sz);
@@ -867,7 +862,7 @@ struct __combined_storage : public __device_storage<_T>
 
     using __device_storage<_T>::__get_accessor;
 
-    __combined_storage(sycl::queue __q, std::size_t __scratch_n, std::size_t __result_n)
+    __combined_storage(const sycl::queue& __q, std::size_t __scratch_n, std::size_t __result_n)
         : __sz(__scratch_n), __result_sz(__result_n)
     {
         assert(__sz > 0 && __result_sz > 0);
