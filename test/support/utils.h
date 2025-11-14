@@ -1340,23 +1340,61 @@ struct NoDefaultCtorWrapper {
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// A minimalistic range that only provides begin() and end() methods.
-template <typename ForwardIterator>
-struct MinimalisticRange
-{
-    ForwardIterator it_begin;
-    ForwardIterator it_end;
-
-    ForwardIterator begin() const { return it_begin; }
-    ForwardIterator end()   const { return it_end;   }
-};
-
 #if _ENABLE_STD_RANGES_TESTING
 
-static_assert(std::ranges::range<MinimalisticRange<std::vector<int>::iterator>>);
-// All oneDPL algorithms require at least a random access range
-static_assert(std::ranges::random_access_range<MinimalisticRange<std::vector<int>::iterator>>);
+// A minimalistic range: it can't be applied directly to hetero range-based algorithms,
+// but can be used for internal checks
+// Note, begin() and end() functions are still required, but they can be provided as ADL-discoverable free functions.
+template <typename RandomIt>
+struct MinimalisticRange
+{
+    RandomIt it_begin;
+    RandomIt it_end;
+
+    MinimalisticRange(RandomIt it_begin, RandomIt it_end)
+        : it_begin(it_begin), it_end(it_end)
+    {
+    }
+};
+
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticRange<RandomIt> range)
+{
+    return range.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(MinimalisticRange<RandomIt> range)
+{
+    return range.it_end;
+}
+
+// A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
+// which are not required for a class to be considered a range.
+template <typename RandomIt>
+struct MinimalisticView : MinimalisticRange<RandomIt>, std::ranges::view_base
+{
+    MinimalisticView(RandomIt it_begin, RandomIt it_end)
+        : MinimalisticRange<RandomIt>(it_begin, it_end)
+    {
+    }
+};
+
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticView<RandomIt> view)
+{
+    return view.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(MinimalisticView<RandomIt> view)
+{
+    return view.it_end;
+}
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
