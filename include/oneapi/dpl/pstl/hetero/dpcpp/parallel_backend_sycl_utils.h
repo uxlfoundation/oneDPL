@@ -842,52 +842,6 @@ class __future : private std::tuple<_Args...>
     }
 };
 
-// Invoke a callable and pass a compile-time integer based on a provided run-time integer.
-// The compile-time integer that will be provided to the callable is defined as the smallest
-// value in the integer_sequence not less than the run-time integer. For example:
-//
-//   __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, 2, 4, 8, 16>::__dispatch(f, 3);
-//
-// will call f<4>(), since 4 is the smallest value in the sequence not less than 3.
-//
-// If there are no values in the sequence less than the run-time integer, the last value in
-// the sequence will be used.
-//
-// Note that the integers provided in the integer_sequence must be monotonically increasing
-template <typename>
-class __static_monotonic_dispatcher;
-
-template <::std::uint16_t _X, ::std::uint16_t... _Xs>
-class __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _X, _Xs...>>
-{
-    template <::std::uint16_t... _Vals>
-    using _Head = typename ::std::conditional_t<
-        sizeof...(_Vals) != 0,
-        ::std::tuple_element<0, ::std::tuple<::std::integral_constant<::std::uint32_t, _Vals>...>>,
-        ::std::integral_constant<::std::uint32_t, ::std::numeric_limits<::std::uint32_t>::max()>>::type;
-
-    static_assert(_X < _Head<_Xs...>::value, "Sequence must be monotonically increasing");
-
-  public:
-    template <typename _F, typename... _Args>
-    static auto
-    __dispatch(_F&& __f, ::std::uint16_t __x, _Args&&... args)
-    {
-        if constexpr (sizeof...(_Xs) == 0)
-        {
-            return ::std::forward<_F>(__f).template operator()<_X>(::std::forward<_Args>(args)...);
-        }
-        else
-        {
-            if (__x <= _X)
-                return ::std::forward<_F>(__f).template operator()<_X>(::std::forward<_Args>(args)...);
-            else
-                return __static_monotonic_dispatcher<::std::integer_sequence<::std::uint16_t, _Xs...>>::__dispatch(
-                    ::std::forward<_F>(__f), __x, ::std::forward<_Args>(args)...);
-        }
-    }
-};
-
 struct __scalar_load_op
 {
     oneapi::dpl::__internal::__pstl_assign __assigner;
