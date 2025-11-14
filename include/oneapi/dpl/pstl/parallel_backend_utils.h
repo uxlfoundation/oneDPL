@@ -443,6 +443,12 @@ struct __set_operations_return_t
     {
         return {__rng1_info.reached, __rng2_info.reached, __rng3_info.reached};
     }
+
+    _RandomAccessIterator3
+    output_position_reached() const
+    {
+        return __rng3_info.first;
+    }
 };
 
 // Move it1 forward by n, but not beyond it2
