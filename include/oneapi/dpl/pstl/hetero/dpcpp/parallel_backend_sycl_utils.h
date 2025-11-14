@@ -504,7 +504,8 @@ struct __combi_accessor
 
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf, std::size_t __offset,
                      std::size_t __sz, const sycl::property_list& __prop_list)
-        : __acc(__sycl_buf, __cgh, sycl::range{__sz}, sycl::id{__offset}, __prop_list), __ptr(__usm_buf)
+        : __acc(__sycl_buf, __cgh, sycl::range{__usm_buf ? 0 : __sz}, sycl::id{__usm_buf ? 0 :__offset}, __prop_list),
+          __ptr(__usm_buf ? __usm_buf + __offset : nullptr)
         {}
 
     auto // [const] _T*, with constness depending on _AccessMode
