@@ -28,6 +28,74 @@ Currently, these functions must be implemented in each policy, along with proper
 backend integration, and selection logic. This proposal aims to simplify policy writing by providing
 a base class that handles the common functionality.
 
+## Proposed Changes to Policy Contract
+
+### Removal of select routine
+We propose to remove the following functions and traits from the public contract for a policy:
+
+| *Must* be well-formed | Description |
+| `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
+| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
+
+| *Optional* | Description |
+| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
+
+- `p` an arbitrary identifier of type `T`
+- `args` an arbitrary parameter pack of types `typename… Args`
+- `s` a selection of a type `selection_t<T>` , which satisfies [Selection](#selection_req_id), and was made by `p`.
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+
+| Policy Traits* | Description |
+| `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
+
+We also propose that one of the following three functions must be well-formed, rather than optional:
+
+| at least one *Must* be well-formed | Description |
+| `p.try_submit(f, args…)` | Returns `std::shared_ptr<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns null shared_ptr if no resource is available for selection |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
+
+This results in a greatly simplified contract for policies:
+
+A Policy is an object with a valid dynamic selection heuristic.
+
+The type `T` satisfies *Policy* if given,
+
+- `p` an arbitrary identifier of type `T`
+- `args` an arbitrary parameter pack of types `typename… Args`
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+
+| *Must* be well-formed | Description |
+| `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
+
+| One of the following *must* be well-formed | Description |
+| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
+
+| Policy Traits* | Description |
+| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
+| `policy_traits<T>::has_async_submit` | Boolean that defines if a policy has an asynchronous submission function. |
+| `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
+
+The default implementation of these traits depends on types defined in the Policy:
+
+```cpp
+  template <typename Policy>
+  struct policy_traits
+  {
+      using resource_type = typename std::decay_t<Policy>::resource_type;
+  };
+```
+
+With this contract, if `p.submit(f, args…)` is well-formed, a generic implementation of `submit_and_wait` that uses `submit` is available and waits on the result unless overridden. If `p.try_submit(f,args...)` is well-formed, then generic a generic implementation of `submit` which uses `try_submit` is available unless overridden.  Therefore, providing `try_submit` is enough to have implementations for all three submit variants automatically.
+
+This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
+
+Beyond simplifying the public interface and requirements, these changes may provide inherent benefits for existing policies by enforcing a specific usage pattern. With the removal of select interfaces, implicit selections and submissions must be paired 1-to-1, and implicit selection will occur very close to submission time. For Dynamic Load Policy and Autotune Policy, which dynamically use statistics about resource load and job performance, this means the implicit selection will be more accurate and up-to-date for the submission.
+
+### Removal of Wait Type
+For further simplifcation of the contract, we also propose to remove the wait_type trait. It is not necessary and can always be obtained with `decltype`, and `submit` with a valid user function. Of course, policies can provide a `wait_type` if they so choose, but it is not required. Requiring policies to provide this wait type increases complexity of customization and we have not seen a use for the public trait in use cases thus far.
+
 ## Proposed Design to Enable Easier Customization of Policies
 
 This proposal presents a flexible policy system based on a `policy_base` template class that can be used 
@@ -119,6 +187,8 @@ std::shared_ptr<selection_type> try_select_impl(Args&&... args) {
     // Return std::make_shared<selection_type>(selection_type{*this, selected_resource})
 }
 ```
+Providing `try_select_impl()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
+via generic implementations depending only on the selection logic.
 
 #### Task Reporting Requirements
 
