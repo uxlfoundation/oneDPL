@@ -120,12 +120,12 @@ void
 __parallel_strict_scan(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __n, _Tp __initial,
                        _Rp __reduce, _Cp __combine, _Sp __scan, _Ap __apex)
 {
-    _Tp __sum = __initial;
-    if (__n)
-        __sum = __combine(__sum, __reduce(_Index(0), __n));
-    __apex(__sum);
-    if (__n)
-        __scan(_Index(0), __n, __initial);
+    _Tp __sum = __initial;                                      // 
+    if (__n)                                                    // 
+        __sum = __combine(__sum, __reduce(_Index(0), __n));     // ST.1 (__reduce), ST.2 (__combine)
+    __apex(__sum);                                              // ST.3 (__apex)
+    if (__n)                                                    // 
+        __scan(_Index(0), __n, __initial);                      // ST.4 (__scan)
 }
 
 template <class _ExecutionPolicy, class _Index, class _UnaryOp, class _Tp, class _BinaryOp, class _Reduce, class _Scan>
