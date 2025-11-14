@@ -399,6 +399,7 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
+        std::string sizes = std::to_string(n_in) + " elements, " + std::to_string(n_out) + " space;";
 
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
@@ -422,18 +423,20 @@ private:
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
+                  (std::string("wrong return value from algo with input range: ") + sizes + typeid(Algo).name()).c_str());
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+                  (std::string("wrong return value from algo with output range: ") + sizes + typeid(Algo).name()).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
+                    (std::string("wrong effect algo with ranges: ") + sizes + typeid(Algo).name()).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
-        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
+                    (std::string("wrong effect algo with ranges: ") + sizes + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
