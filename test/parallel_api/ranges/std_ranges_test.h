@@ -81,6 +81,7 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
+auto select_many = [](int val) { return (val % 29) > 1; };
 
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
@@ -463,6 +464,12 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test cases with only one element
+        process_data_in_out(max_n, r_size, 1, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 1, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
