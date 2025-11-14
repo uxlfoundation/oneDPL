@@ -28,7 +28,7 @@ We propose to remove the following functions and traits from the public contract
 We also propose that one of the following three functions must be well-formed, rather than optional:
 
 | at least one *Must* be well-formed | Description |
-| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty optional if no resource is available for selection |
+| `p.try_submit(f, args…)` | Returns `std::shared_ptr<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns null shared_ptr if no resource is available for selection |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 | `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
 

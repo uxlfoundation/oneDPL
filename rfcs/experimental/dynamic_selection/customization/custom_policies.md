@@ -16,9 +16,9 @@ type `T` satisfies the *Policy* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `p.try_select_impl(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
+| `p.try_select_impl(args…)` | Returns selection within `std::shared_ptr` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns null `std::shared_ptr`. |
 | `p.select_impl(args...)` | Loops calling `try_select_impl(args...)` until a selection is returned. |
-| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::optional` holding the submission object. Returns empty optional if no resource is available for selection. |
+| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::shared_ptr` holding the submission object. Returns null shared_ptr if no resource is available for selection. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. Delegates to backend. |
@@ -114,9 +114,9 @@ Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
-std::optional<selection_type> try_select_impl(Args&&... args) {
+std::shared_ptr<selection_type> try_select_impl(Args&&... args) {
     // Implement selection logic here
-    // Return std::optional{selection_type{*this, selected_resource}}
+    // Return std::make_shared<selection_type>(selection_type{*this, selected_resource})
 }
 ```
 
@@ -176,7 +176,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     // Round-robin selection strategy
     template <typename... Args>
-    std::optional<selection_type> try_select_impl(Args&&...) {
+    std::shared_ptr<selection_type> try_select_impl(Args&&...) {
         if (selector_) {
             resource_container_size_t current;
             // Atomic round-robin selection
@@ -186,7 +186,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
                 if (selector_->next_context_.compare_exchange_strong(current, next)) 
                     break;
             }
-            return std::make_optional<selection_type>{*this, selector_->resources_[current]};
+            return std::make_shared<selection_type>(*this, selector_->resources_[current]);
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -254,14 +254,14 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Load-based selection strategy
     template <typename... Args>
-    std::optional<selection_type> try_select_impl(Args&&...) {
+    std::shared_ptr<selection_type> try_select_impl(Args&&...) {
         if (!resources_.empty()) {
             // Find resource with minimum load
             auto min_resource = std::min_element(resources_.begin(), resources_.end(),
                 [](const auto& a, const auto& b) {
                     return a->load_.load() < b->load_.load();
                 });
-            return std::make_optional<selection_type>{*this, *min_resource};
+            return std::make_shared<selection_type>(*this, *min_resource);
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -318,11 +318,11 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     }
 
     template <typename... Args>
-    std::optional<selection_type> select_impl(Args&&...) {
+    std::shared_ptr<selection_type> select_impl(Args&&...) {
         if (!resources_.empty()) {
             std::uniform_int_distribution<> dis(0, resources_.size() - 1);
             auto index = dis(gen_);
-            return std::make_optional<selection_type>{*this, resources_[index]};
+            return std::make_shared<selection_type>(*this, resources_[index]);
         } else {
             throw std::logic_error("select called before initialization");
         }
