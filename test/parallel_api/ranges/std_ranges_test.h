@@ -399,7 +399,7 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
-        std::string sizes = std::to_string(n_in) + " elements, " + std::to_string(n_out) + " space;";
+        std::string sizes = std::to_string(n_in) + " elements, " + std::to_string(n_out) + " space; ";
 
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
@@ -459,11 +459,6 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-
-        //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -473,6 +468,12 @@ public:
         //test cases with only one element
         process_data_in_out(max_n, r_size, 1, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_out(max_n, 1, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test case size of input range is less than size of output and vice-versa
+        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
