@@ -157,6 +157,7 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
     auto result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     while (!result)
     {
+        //TODO: evaluate backoff strategy
         std::this_thread::yield();
         result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     }
