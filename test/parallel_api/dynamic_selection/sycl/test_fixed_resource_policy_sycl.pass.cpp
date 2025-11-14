@@ -10,8 +10,28 @@
 #include "support/test_config.h"
 
 #include "oneapi/dpl/dynamic_selection"
+#include "oneapi/dpl/functional"
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
+
+template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter, typename... Args>
+int
+run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter, Args&&... args)
+{
+    int result = 0;
+
+    result +=
+        test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+
+    return result;
+}
 
 int
 main()
@@ -21,24 +41,35 @@ main()
     try
     {
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
-        using policy_t = oneapi::dpl::experimental::fixed_resource_policy<oneapi::dpl::experimental::sycl_backend>;
         std::vector<sycl::queue> u;
         build_universe(u);
         if (!u.empty())
         {
+            // Test with direct sycl::queue resources
+            using policy_t = oneapi::dpl::experimental::fixed_resource_policy<
+                sycl::queue, oneapi::dpl::identity,
+                oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::identity>>;
             auto f = [u](int, int offset = 0) { return u[offset]; };
 
-            constexpr bool just_call_submit = false;
-            constexpr bool call_select_before_submit = true;
+            std::cout << "\nRunning tests for sycl::queue ...\n";
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f, oneapi::dpl::identity{})), "");
 
-            EXPECT_EQ(0, (test_initialization<policy_t, sycl::queue>(u)), "");
-            EXPECT_EQ(0, (test_select<policy_t, decltype(u), decltype(f)&, false>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_event<just_call_submit, policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_event<call_select_before_submit, policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait<just_call_submit, policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait<call_select_before_submit, policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_group<just_call_submit, policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_group<call_select_before_submit, policy_t>(u, f)), "");
+            // Test with sycl::queue* resources and dereference adapter
+            auto deref_op = [](auto pointer) { return *pointer; };
+            using policy_pointer_t = oneapi::dpl::experimental::fixed_resource_policy<
+                sycl::queue*, decltype(deref_op),
+                oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
+
+            std::vector<sycl::queue*> u_ptrs;
+            u_ptrs.reserve(u.size());
+            for (auto& e : u)
+            {
+                u_ptrs.push_back(&e);
+            }
+            auto f_ptrs = [u_ptrs](int, int offset = 0) { return u_ptrs[offset]; };
+
+            std::cout << "\nRunning tests for sycl::queue* ...\n";
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
 
             bProcessed = true;
         }

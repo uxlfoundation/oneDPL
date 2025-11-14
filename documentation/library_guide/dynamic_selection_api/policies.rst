@@ -18,19 +18,12 @@ Traits can be used to determine useful type information about policies.
   
     template<typename Policy>
     struct policy_traits {
-      using selection_type = typename std::decay_t<Policy>::selection_type;  
       using resource_type = typename std::decay_t<Policy>::resource_type;
-      using wait_type = typename std::decay_t<Policy>::wait_type;   
     };
   
-    template<typename Policy>
-    using selection_t = typename policy_traits<Policy>::selection_type;
   
     template<typename Policy>
     using resource_t = typename policy_traits<Policy>::resource_type;
-  
-    template<typename Policy>
-    using wait_t = typename policy_traits<Policy>::wait_type;
   
   }
 
