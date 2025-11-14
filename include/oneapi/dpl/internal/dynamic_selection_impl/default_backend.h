@@ -68,7 +68,7 @@ class backend_base
     }
 
     auto
-    get_resources()
+    get_resources() const
     {
         return resources_;
     }
@@ -78,7 +78,7 @@ class backend_base
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-        return default_submission{w};
+        return default_submission{std::move(w)};
     }
 
   protected:
@@ -100,7 +100,7 @@ class backend_base
         }
 
         WaitType
-        unwrap()
+        unwrap() const
         {
             return w_;
         }
@@ -123,7 +123,7 @@ class backend_base
             }
             else
             {
-                throw std::logic_error("wait called on unsupported submission_group.");
+                static_assert(false, "error: wait() called on unsupported submission_group.");
             }
         }
     };

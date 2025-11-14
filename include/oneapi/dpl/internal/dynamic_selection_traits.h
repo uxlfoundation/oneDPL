@@ -170,7 +170,7 @@ submit_and_wait_fallback(Policy&& p, Function&& f, Args&&... args)
     // Fall back to submit + wait
     auto result = oneapi::dpl::experimental::submit(std::forward<Policy>(p), std::forward<Function>(f),
                                                     std::forward<Args>(args)...);
-    oneapi::dpl::experimental::wait(result);
+    oneapi::dpl::experimental::wait(std::move(result));
 }
 
 } //namespace internal
@@ -237,11 +237,11 @@ auto
 submit(Policy&& p, Function&& f, Args&&... args)
 {
     // Policy has a direct submit method
-    if constexpr (internal::has_submit_v<Policy, Function, Args...>)
+    if constexpr (internal::has_submit_v<std::decay_t<Policy>, Function, Args...>)
     {
         return std::forward<Policy>(p).submit(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    else if constexpr (internal::has_try_submit_v<Policy, Function, Args...>)
+    else if constexpr (internal::has_try_submit_v<std::decay_t<Policy>, Function, Args...>)
     {
         return oneapi::dpl::experimental::internal::submit_fallback(std::forward<Policy>(p), std::forward<Function>(f),
                                                                     std::forward<Args>(args)...);
@@ -257,13 +257,13 @@ template <typename Policy, typename Function, typename... Args>
 auto
 submit_and_wait(Policy&& p, Function&& f, Args&&... args)
 {
-    if constexpr (internal::has_submit_and_wait_v<Policy, Function, Args...>)
+    if constexpr (internal::has_submit_and_wait_v<std::decay_t<Policy>, Function, Args...>)
     {
         // Policy has a direct submit_and_wait method
         return std::forward<Policy>(p).submit_and_wait(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    else if constexpr (internal::has_submit_v<Policy, Function, Args...> ||
-                       internal::has_try_submit_v<Policy, Function, Args...>)
+    else if constexpr (internal::has_submit_v<std::decay_t<Policy>, Function, Args...> ||
+                       internal::has_try_submit_v<std::decay_t<Policy>, Function, Args...>)
     {
         oneapi::dpl::experimental::internal::submit_and_wait_fallback(
             std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
