@@ -634,7 +634,8 @@ struct __mask_assigner
 {
     template <typename _Acc, typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
     void
-    operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _OutIdx __acc_sz, _OutIdx, const _InAcc& __in_acc, const _InIdx __in_idx) const
+    operator()(_Acc& __acc, _OutAcc&, const _OutIdx __out_idx, const _OutIdx __acc_sz, _OutIdx, const _InAcc& __in_acc,
+               const _InIdx __in_idx) const
     {
         using ::std::get;
         if (__out_idx < __acc_sz)
@@ -661,7 +662,8 @@ struct __scan_assigner
 
     template <typename _Acc, typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
     void
-    operator()(_Acc&, _OutAcc& __out_acc, const _OutIdx __out_idx, _OutIdx, const _OutIdx __out_sz, const _InAcc& __in_acc, _InIdx __in_idx) const
+    operator()(_Acc&, _OutAcc& __out_acc, const _OutIdx __out_idx, _OutIdx, const _OutIdx __out_sz,
+               const _InAcc& __in_acc, _InIdx __in_idx) const
     {
         if (__out_idx < __out_sz)
             __out_acc[__out_idx] = __in_acc[__in_idx];
@@ -746,11 +748,6 @@ struct __copy_by_mask
                 if (__out_idx == __m)
                     __ret_ptr[1] = __item_idx;
             }
-        }
-        if (__item_idx == 0)
-        {
-            //copy final result to output
-            __ret_ptr[0] = __wg_sums_ptr[(__n - 1) / __size_per_wg];
         }
     }
 };
