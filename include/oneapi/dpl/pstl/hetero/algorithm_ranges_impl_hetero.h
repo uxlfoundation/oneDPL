@@ -669,23 +669,23 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
 std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_copy_if_ranges(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r,
-                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
+__pattern_copy_if_ranges(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
+                         _Pred __pred, _Proj __proj)
 {
-    oneapi::dpl::__internal::__difference_t<_OutRange> __n = oneapi::dpl::__ranges::__size(__in_r),
-                                                       __m = oneapi::dpl::__ranges::__size(__out_r);
+    using _Size = oneapi::dpl::__internal::__difference_t<_OutRange>;
+    _Size __n = oneapi::dpl::__ranges::__size(__in_r), __m = oneapi::dpl::__ranges::__size(__out_r);
     if (__n == 0 || __m == 0)
         return {std::ranges::begin(__in_r), std::ranges::begin(__out_r)};
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    auto [__stop_out, __stop_in] = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),
         __n, __m, __pred_1, oneapi::dpl::__internal::__pstl_assign());
 
-    return {std::ranges::begin(__in_r) + __stop_in, std::ranges::begin(__out_r) + __stop_out};
+    return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_r) + __stops[0]};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
