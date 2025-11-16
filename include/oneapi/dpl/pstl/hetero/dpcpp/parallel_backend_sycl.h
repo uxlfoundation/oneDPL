@@ -251,10 +251,10 @@ template <typename _CustomName, typename... _PropagateScanName>
 struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
     template <typename _Range1, typename _Range2, typename _InitType, typename _LocalScan, typename _GroupScan,
-              typename _GlobalScan>
+              typename _GlobalScan, typename _Apex>
     std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
-               _GroupScan __group_scan, _GlobalScan __global_scan) const
+               _GroupScan __group_scan, _GlobalScan __global_scan, _Apex __apex) const
     {
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -314,16 +314,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                     if (__item.get_global_id(0) == 0 && __n_groups == 1)
                     {
                         auto __res_ptr = __res_acc.__data();
-                        if (__temp_ptr[0] > __m) // not enough space in the output
-                        {
-                            __res_ptr[0] = __m;
-                            // The stop position in the input is determined by final scan
-                        }
-                        else
-                        {
-                            __res_ptr[0] = __temp_ptr[0];
-                            __res_ptr[1] = __n;
-                        }
+                        __apex(__res_ptr, __temp_ptr[0], __m, __n);
                     }
                 });
         });
@@ -352,16 +343,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                         if (__item.get_local_id(0) == 0 && __item.get_group(0) == __n_groups - 1)
                         {
                             auto __res_ptr = __res_acc.__data();
-                            if (__temp_ptr[__n_groups - 1] > __m) // not enough space in the output
-                            {
-                                __res_ptr[0] = __m;
-                                // The stop position in the input is determined by final scan
-                            }
-                            else
-                            {
-                                __res_ptr[0] = __temp_ptr[__n_groups - 1];
-                                __res_ptr[1] = __n;
-                            }
+                            __apex(__res_ptr, __temp_ptr[__n_groups - 1], __m, __n);
                         }
                     });
             });
@@ -637,17 +619,17 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
 }
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
-          typename _GroupScan, typename _GlobalScan>
+          typename _GroupScan, typename _GlobalScan, typename _Apex>
 std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
-                               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan)
+                               _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan,
+                               _Apex __apex)
 {
     using _PropagateKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
 
     return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(__q, std::forward<_Range1>(__in_rng),
-                                                                      std::forward<_Range2>(__out_rng), __init,
-                                                                      __local_scan, __group_scan, __global_scan);
+        std::forward<_Range2>(__out_rng), __init, __local_scan, __group_scan, __global_scan, __apex);
 }
 
 template <typename _Type>
@@ -725,12 +707,12 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     //else use multi pass scan implementation
     using _Assigner = unseq_backend::__scan_assigner;
-    using _NoAssign = unseq_backend::__scan_no_assign;
+    using _NoAssign = unseq_backend::__scan_ignore;
     using _UnaryFunctor = unseq_backend::walk_n<_UnaryOperation>;
     using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
 
     _Assigner __assign_op;
-    _NoAssign __no_assign_op;
+    _NoAssign __ignore_op;
     _NoOpFunctor __get_data_op;
 
     auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
@@ -742,9 +724,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         // scan between groups
         unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _NoOpFunctor, _NoAssign, _Assigner,
                               _NoOpFunctor, unseq_backend::__no_init_value<_Type>>{
-            __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
+            __binary_op, _NoOpFunctor{}, __ignore_op, __assign_op, __get_data_op},
         // global scan
-        unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init});
+        unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
+        /*apex*/ __ignore_op);
     return __future(__event, __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
 }
 
@@ -775,7 +758,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
 {
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
-    using _NoAssign = unseq_backend::__scan_no_assign;
+    using _NoAssign = unseq_backend::__scan_ignore;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
     using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
     using _InitType = unseq_backend::__no_init_value<_Size>;
@@ -801,8 +784,8 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         // scan between groups
         unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
                               _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
-        // global scan
-        __copy_by_mask_op);
+        // global scan and apex
+        __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
@@ -904,7 +887,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     {
         using _ReduceOp = std::plus<decltype(__n)>;
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
-        using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
+        using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp>;
 
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
                                                  std::forward<_Range2>(__result), __n, _CreateOp{__pred},
@@ -1100,7 +1083,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     //Algo is based on the recommended approach of set_intersection algo for GPU: binary search + scan (copying by mask).
     using _ReduceOp = std::plus<_Size1>;
     using _Assigner = unseq_backend::__scan_assigner;
-    using _NoAssign = unseq_backend::__scan_no_assign;
+    using _NoAssign = unseq_backend::__scan_ignore;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
     using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
@@ -1129,8 +1112,8 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         // scan between groups
         unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
                               _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
-        // global scan
-        __copy_by_mask_op);
+        // global scan and apex
+        __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
     return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
 }
 

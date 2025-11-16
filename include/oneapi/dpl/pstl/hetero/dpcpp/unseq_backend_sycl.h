@@ -670,11 +670,11 @@ struct __scan_assigner
     }
 };
 
-struct __scan_no_assign
+struct __scan_ignore
 {
-    template <typename _OutAcc, typename _OutIdx, typename _InAcc, typename _InIdx>
+    template <typename... _Params>
     void
-    operator()(_OutAcc&, const _OutIdx, const _InAcc&, const _InIdx) const
+    operator()(_Params&&...) const
     {
     }
 };
@@ -752,7 +752,27 @@ struct __copy_by_mask
     }
 };
 
-template <typename _BinaryOp, typename _Inclusive>
+struct __copy_by_mask_stops
+{
+    // "Apex" function that complements __copy_by_mask by detecting some stop positions before the global scan phase
+    template <typename _ValueType, typename _Size>
+    void
+    operator()(_ValueType* __res_ptr, const _ValueType& __needed_sz, _Size __out_sz, _Size __in_sz) const
+    {
+        if (__needed_sz > __out_sz) // not enough space in the output
+        {
+            __res_ptr[0] = __out_sz;
+            // The stop position in the input is determined by final scan
+        }
+        else
+        {
+            __res_ptr[0] = __needed_sz;
+            __res_ptr[1] = __in_sz;
+        }
+    }
+};
+
+template <typename _BinaryOp>
 struct __partition_by_mask
 {
     _BinaryOp __binary_op;
@@ -791,11 +811,6 @@ struct __partition_by_mask
                     __out_idx -= __wg_sums_ptr[__wg_sums_idx - 1];
                 get<1>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
             }
-        }
-        if (__item_idx == 0)
-        {
-            //copy final result to output
-            *__ret_ptr = __wg_sums_ptr[(__n - 1) / __size_per_wg];
         }
     }
 };
