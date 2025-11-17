@@ -381,7 +381,7 @@ class one_with_intermittent_failure
 {
     friend class oneapi::dpl::experimental::policy_base<one_with_intermittent_failure, oneapi::dpl::identity,
                                                         oneapi::dpl::experimental::default_backend<int>>;
-    
+
     struct state_t
     {
         std::atomic<int> attempt_count_{0};
@@ -398,7 +398,7 @@ class one_with_intermittent_failure
     try_select_impl(Args&&...)
     {
         int count = state_->attempt_count_.fetch_add(1);
-        
+
         // Fail on even attempts (0, 2, 4, ...), succeed on odd attempts (1, 3, 5, ...)
         if (count % 2 == 0)
         {
@@ -419,13 +419,11 @@ class one_with_intermittent_failure
   public:
     using resource_type = int;
 
-    one_with_intermittent_failure() : base_t()
-    {
-        base_t::initialize();
-    }
+    one_with_intermittent_failure() : base_t() { base_t::initialize(); }
 
     // Reset attempt counter for testing
-    void reset_attempt_count()
+    void
+    reset_attempt_count()
     {
         if (state_)
         {
@@ -433,7 +431,8 @@ class one_with_intermittent_failure
         }
     }
 
-    int get_attempt_count() const
+    int
+    get_attempt_count() const
     {
         return state_ ? state_->attempt_count_.load() : 0;
     }
