@@ -155,10 +155,22 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
 {
     // Policy has a try_submit method
     auto result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
+    std::size_t retry_count = 0;
     while (!result)
     {
-        //TODO: evaluate backoff strategy
-        std::this_thread::yield();
+        if (retry_count < std::size_t{10})
+        {
+            std::this_thread::yield();
+        }
+        else if (retry_count < std::size_t{100})
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+        }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        ++retry_count;
         result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     }
     return *result;
