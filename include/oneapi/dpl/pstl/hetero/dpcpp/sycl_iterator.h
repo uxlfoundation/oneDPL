@@ -209,7 +209,8 @@ template <typename T, typename Allocator>
 __internal::sycl_iterator<sycl::access_mode::read_write, T, Allocator>
 end(sycl::buffer<T, /*dim=*/1, Allocator> buf)
 {
-    return __internal::sycl_iterator<sycl::access_mode::read_write, T, Allocator>{buf, __dpl_sycl::__get_buffer_size(buf)};
+    return __internal::sycl_iterator<sycl::access_mode::read_write, T, Allocator>{
+        buf, __dpl_sycl::__get_buffer_size(buf)};
 }
 
 // begin
