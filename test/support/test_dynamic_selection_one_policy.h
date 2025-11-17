@@ -375,4 +375,68 @@ class one_with_only_submit_and_wait
     }
 };
 
+class one_with_intermittent_failure
+    : public oneapi::dpl::experimental::policy_base<one_with_intermittent_failure, oneapi::dpl::identity,
+                                                    oneapi::dpl::experimental::default_backend<int>>
+{
+    friend class oneapi::dpl::experimental::policy_base<one_with_intermittent_failure, oneapi::dpl::identity,
+                                                        oneapi::dpl::experimental::default_backend<int>>;
+    
+    struct state_t
+    {
+        std::atomic<int> attempt_count_{0};
+    };
+    std::shared_ptr<state_t> state_;
+
+  protected:
+    using base_t = oneapi::dpl::experimental::policy_base<one_with_intermittent_failure, oneapi::dpl::identity,
+                                                          oneapi::dpl::experimental::default_backend<int>>;
+
+    // Fails every other selection attempt
+    template <typename... Args>
+    std::shared_ptr<selection_type>
+    try_select_impl(Args&&...)
+    {
+        int count = state_->attempt_count_.fetch_add(1);
+        
+        // Fail on even attempts (0, 2, 4, ...), succeed on odd attempts (1, 3, 5, ...)
+        if (count % 2 == 0)
+        {
+            return std::shared_ptr<selection_type>{};
+        }
+        return std::make_shared<selection_type>(*this);
+    }
+
+    void
+    initialize_impl()
+    {
+        if (!state_)
+        {
+            state_ = std::make_shared<state_t>();
+        }
+    }
+
+  public:
+    using resource_type = int;
+
+    one_with_intermittent_failure() : base_t()
+    {
+        base_t::initialize();
+    }
+
+    // Reset attempt counter for testing
+    void reset_attempt_count()
+    {
+        if (state_)
+        {
+            state_->attempt_count_ = 0;
+        }
+    }
+
+    int get_attempt_count() const
+    {
+        return state_ ? state_->attempt_count_.load() : 0;
+    }
+};
+
 #endif /* _ONEDPL_DYNAMIC_SELECTION_ONE_POLICY_H */
