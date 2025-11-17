@@ -620,6 +620,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 // If we don't have USM support allocate memory here
                 __sycl_buf = __sycl_buffer_t(__total_n);
             }
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+            // A fake buffer to work around problems with accessor construction
+            if (__supports_USM_device)
+                __sycl_buf = sycl::buffer<_T, 1>(sycl::range{1});
+#endif
         }
     }
 
@@ -748,9 +753,17 @@ struct __device_storage
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
+        {
             __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+            // A fake buffer to work around problems with accessor construction
+            __sycl_buf = sycl::buffer<_T, 1>(sycl::range{1});
+#endif
+        }
         else
+        {
             __sycl_buf = sycl::buffer<_T, 1>(__n);
+        }
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>

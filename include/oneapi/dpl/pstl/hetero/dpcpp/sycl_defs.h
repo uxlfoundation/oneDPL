@@ -105,6 +105,9 @@
 #endif
 
 #define _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70100))
+// There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
+#define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
+    (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)
 
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
 // SYCL kernels for determining SPIR-V compilation. Using this macro on the host may lead to incorrect behavior.
