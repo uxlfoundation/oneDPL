@@ -493,19 +493,38 @@ template <typename _T, sycl::access_mode _AccessMode>
 struct __combi_accessor
 {
   private:
-    sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t> __acc;
+    using __acc_t = sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
     _T* __ptr = nullptr;
+    __acc_t __acc;
+
+    template <bool __with_offset = false>
+    __acc_t __init_acc(bool __fake, sycl::buffer<_T, 1>& __sycl_buf, sycl::handler& __cgh,
+                       const sycl::property_list& __prop_list, std::size_t __sz = 0, std::size_t __offset = 0)
+    {
+        if (__fake)
+        {
+            return __acc_t(
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+                __sycl_buf, __cgh, __prop_list
+#endif
+            );
+        }
+        if constexpr (__with_offset)
+            return __acc_t(__sycl_buf, __cgh, sycl::range{__sz}, sycl::id{__offset}, __prop_list);
+        else
+            return __acc_t(__sycl_buf, __cgh, __prop_list);
+    }
 
   public:
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf,
                      const sycl::property_list& __prop_list)
-        : __acc(__sycl_buf, __cgh, __prop_list), __ptr(__usm_buf)
+        : __ptr(__usm_buf), __acc(__init_acc((bool)__ptr, __sycl_buf, __cgh, __prop_list))
         {}
 
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf, std::size_t __offset,
                      std::size_t __sz, const sycl::property_list& __prop_list)
-        : __acc(__sycl_buf, __cgh, sycl::range{__usm_buf ? 0 : __sz}, sycl::id{__usm_buf ? 0 :__offset}, __prop_list),
-          __ptr(__usm_buf ? __usm_buf + __offset : nullptr)
+        : __ptr(__usm_buf ? __usm_buf + __offset : nullptr),
+          __acc(__init_acc<true>((bool)__ptr, __sycl_buf, __cgh, __prop_list, __sz, __offset))
         {}
 
     auto // [const] _T*, with constness depending on _AccessMode
@@ -621,6 +640,11 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
                 __sycl_buf = __sycl_buffer_t(__total_n);
             }
         }
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+        // A fake buffer to work around problems with accessor construction
+        if (__supports_USM_device)
+            __sycl_buf = __sycl_buffer_t(sycl::range{1});
+#endif
     }
 
     __result_and_scratch_storage(__copyable_storage_state<_T>&& __transfer)
@@ -736,7 +760,12 @@ template <typename _T>
 struct __device_storage
 {
     std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
-    sycl::buffer<_T, 1> __sycl_buf = {nullptr, sycl::range{0}};
+    sycl::buffer<_T, 1> __sycl_buf = 
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+                                    {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
+#else
+                                    {nullptr, sycl::range{0}};
+#endif
 
     __device_storage() {}
 
@@ -748,9 +777,13 @@ struct __device_storage
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
+        {
             __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+        }
         else
+        {
             __sycl_buf = sycl::buffer<_T, 1>(__n);
+        }
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
