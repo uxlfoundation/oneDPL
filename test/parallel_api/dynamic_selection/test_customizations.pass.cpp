@@ -31,8 +31,9 @@ test_no_customizations()
 
     std::cout << "  Testing submit...\n";
     trace = 0;
-    oneapi::dpl::experimental::submit(p, [](int i) { return i; });
+    auto sub = oneapi::dpl::experimental::submit(p, [](int i) { return i; });
     EXPECT_EQ((int)(t_select), trace, "ERROR: unexpected trace of submit function");
+    sub.wait();
 
     std::cout << "  Testing submit_and_wait...\n";
     trace = 0;
@@ -58,9 +59,10 @@ test_all_customizations()
 
     std::cout << "  Testing submit...\n";
     trace = 0;
-    oneapi::dpl::experimental::submit(p, [](int i) { return i; });
+    auto sub = oneapi::dpl::experimental::submit(p, [](int i) { return i; });
     EXPECT_EQ((int)(t_select | t_try_submit_function | t_submit_function), trace,
               "ERROR: unexpected trace of submit function");
+    sub.wait();
 
     std::cout << "  Testing submit_and_wait...\n";
     trace = 0;
@@ -92,6 +94,7 @@ test_only_try_submit()
     auto sub = oneapi::dpl::experimental::submit(p, [](int i) { return i; });
     EXPECT_EQ((int)(t_try_submit_function), trace,
               "ERROR: submit should use generic submit (which loops on try_submit)");
+    sub.wait();
 
     std::cout << "  Testing submit_and_wait (should use generic based on try_submit)...\n";
     // Test submit_and_wait - should use generic implementation based on try_submit
@@ -118,6 +121,7 @@ test_only_submit()
     trace = 0;
     auto sub = oneapi::dpl::experimental::submit(p, [](int i) { return i; });
     EXPECT_EQ((int)(t_submit_function), trace, "ERROR: submit should use custom submit");
+    sub.wait();
 
     std::cout << "  Testing submit_and_wait...\n";
     // Test submit_and_wait - should use custom submit + wait
