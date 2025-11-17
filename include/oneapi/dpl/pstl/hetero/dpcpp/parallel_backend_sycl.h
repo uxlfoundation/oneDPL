@@ -294,8 +294,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // 1. Local scan on each workgroup
         auto __submit_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc =
-                __get_accessor<sycl::access_mode::write>(__result_and_scratch, __cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::write_only, __result_and_scratch, __cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
@@ -316,7 +315,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
-                auto __temp_acc = __get_accessor<sycl::access_mode::read_write>(__result_and_scratch, __cgh);
+                auto __temp_acc = __get_accessor(sycl::read_write, __result_and_scratch, __cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
@@ -338,9 +337,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __final_event = __q.submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc = __get_accessor<sycl::access_mode::read>(__result_and_scratch, __cgh);
-            auto __res_acc = __get_result_accessor<sycl::access_mode::write>(__result_and_scratch, __cgh,
-                                                                             __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::read_only, __result_and_scratch, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
+                                                   __dpl_sycl::__no_init{});
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();
@@ -1643,7 +1642,7 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
         // main parallel_for
         __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
-            auto __result_acc = __get_accessor<sycl::access_mode::write>(__result, __cgh, __dpl_sycl::__no_init{});
+            auto __result_acc = __get_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<KernelName...>(
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
@@ -1711,7 +1710,7 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         // Initialization of the result storage
         sycl::event __event_init = __q.submit([&](sycl::handler& __cgh) {
             auto __scratch_acc_w =
-                __get_accessor<sycl::access_mode::write>(__scratch_atomic_storage, __cgh, __dpl_sycl::__no_init{});
+                __get_accessor(sycl::write_only, __scratch_atomic_storage, __cgh, __dpl_sycl::__no_init{});
 
             __cgh.single_task<KernelNameInit...>([__scratch_acc_w, __init_value]() {
                 // Initialize the scratch storage with the initial value
@@ -1726,8 +1725,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
         __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
 
-            auto __res_acc_w = __get_accessor<sycl::access_mode::write>(__result, __cgh, __dpl_sycl::__no_init{});
-            auto __scratch_acc_rw = __get_accessor<sycl::access_mode::read_write>(__scratch_atomic_storage, __cgh);
+            auto __res_acc_w = __get_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
+            auto __scratch_acc_rw = __get_accessor(sycl::read_write, __scratch_atomic_storage, __cgh);
 
             __cgh.depends_on(__event_init);
 

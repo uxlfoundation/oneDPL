@@ -761,11 +761,13 @@ struct __device_storage
     }
 };
 
-template <sycl::access_mode _AccessMode = sycl::access_mode::read_write, typename _T>
+using oneapi::dpl::__internal::__access_mode_resolver_v;
+
+template <typename _ModeTagT, typename _T>
 auto
-__get_accessor(__device_storage<_T>& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+__get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
 {
-    return __st.template __get_accessor<_AccessMode>(__cgh, __prop_list);
+    return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
 template <typename _T>
@@ -863,15 +865,21 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    template <typename _ModeTagT>
     friend auto
-    __get_result_accessor(__combined_storage& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+    __get_result_accessor(_ModeTagT, __combined_storage& __st, sycl::handler& __cgh,
+                          const sycl::property_list& __prop_list = {})
     {
         if (__st.__kind == sycl::usm::alloc::host)
-            return __combi_accessor<_T, _AccessMode>(__cgh, __st.__sycl_buf, __st.__result_buf.get(), __prop_list);
+        {
+            return __combi_accessor<_T, __access_mode_resolver_v<_ModeTagT>>(
+                __cgh, __st.__sycl_buf, __st.__result_buf.get(), __prop_list);
+        }
         else
-            return __combi_accessor<_T, _AccessMode>(__cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz,
-                                                     __st.__result_sz, __prop_list);
+        {
+            return __combi_accessor<_T, __access_mode_resolver_v<_ModeTagT>>(
+                __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
+        }
     }
 
     template <typename _Forwarding>
