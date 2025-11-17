@@ -36,18 +36,20 @@ struct CombineResultAndScratch
         return result.__copy_result(dst, sz);
     }
 
-    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    template <typename DeductionTag>
     friend auto
-    __get_accessor(CombineResultAndScratch& rs, sycl::handler& cgh, const sycl::property_list& prop_list = {})
+    __get_accessor(DeductionTag tag, CombineResultAndScratch& rs, sycl::handler& cgh,
+                   const sycl::property_list& prop_list = {})
     {
-        return __get_accessor<_AccessMode>(rs.scratch, cgh, prop_list);
+        return __get_accessor(tag, rs.scratch, cgh, prop_list);
     }
 
-    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    template <typename DeductionTag>
     friend auto
-    __get_result_accessor(CombineResultAndScratch& rs, sycl::handler& cgh, const sycl::property_list& prop_list = {})
+    __get_result_accessor(DeductionTag tag, CombineResultAndScratch& rs, sycl::handler& cgh,
+                          const sycl::property_list& prop_list = {})
     {
-        return __get_result_accessor<_AccessMode>(rs.result, cgh, prop_list);
+        return __get_accessor(tag, rs.result, cgh, prop_list);
     }
 };
 
@@ -68,9 +70,9 @@ struct Test
 
         q.submit([&](sycl::handler& cgh) {
             auto scratch_acc =
-                __get_accessor<sycl::access_mode::read_write>(result_and_scratch, cgh, sycl::property::no_init{});
+                __get_accessor(sycl::read_write, result_and_scratch, cgh, sycl::property::no_init{});
             auto result_acc =
-                __get_result_accessor<sycl::access_mode::write>(result_and_scratch, cgh, sycl::property::no_init{});
+                __get_result_accessor(sycl::write_only, result_and_scratch, cgh, sycl::property::no_init{});
             cgh.parallel_for<SingleKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi){
                 std::size_t idx = wi.get_linear_id();
                 ValueType* scratch = scratch_acc.__data();
