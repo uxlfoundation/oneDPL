@@ -53,7 +53,6 @@ check_contains_host_pointer()
     {
         IntVector vec;
         MinimalisticRangeForIntVec mr(vec.begin(), vec.end());
-        static_assert(std::ranges::viewable_range<decltype(mr)>);
         auto all_view = std::ranges::views::all(mr);
         static_assert(contains_host_pointer_v<decltype(all_view)> == true);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
@@ -61,7 +60,6 @@ check_contains_host_pointer()
 
     {
         IntVector vec;
-        static_assert(std::ranges::viewable_range<decltype(MinimalisticRangeForIntVec(vec.begin(), vec.end()))>);
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
@@ -70,7 +68,6 @@ check_contains_host_pointer()
     {
         IntVector vec;
         MinimalisticViewWithSubscription mr_view(vec.begin(), vec.end());
-        static_assert(std::ranges::viewable_range<decltype(mr_view)>);
         auto all_view = std::ranges::views::all(mr_view);
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
