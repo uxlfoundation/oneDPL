@@ -98,13 +98,15 @@ class fixed_resource_policy
 //supports fixed_resource_policy p{ {t1, t2} }
 template <typename T>
 fixed_resource_policy(std::initializer_list<T>)
-    -> fixed_resource_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+    -> fixed_resource_policy<T, oneapi::dpl::identity,
+                             oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
 //supports fixed_resource_policy p{ {t1, t2}, offset }
 template <typename T, typename I,
           typename = std::enable_if_t<std::is_convertible_v<I, std::size_t>>>
 fixed_resource_policy(std::initializer_list<T>, I)
-    -> fixed_resource_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+    -> fixed_resource_policy<T, oneapi::dpl::identity, 
+                             oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
 //supports fixed_resource_policy p{ {t1, t2}, adapter }
 //assumes Adapter is not convertible to size_t (to prevent ambiguity)
@@ -114,8 +116,7 @@ fixed_resource_policy(std::initializer_list<T>, Adapter)
     -> fixed_resource_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 
 //supports fixed_resource_policy p{ {t1, t2}, adapter, offset }
-template <typename T, typename Adapter, typename I,
-          typename = std::enable_if_t<std::is_convertible_v<I, std::size_t>>>
+template <typename T, typename Adapter, typename I, typename = std::enable_if_t<std::is_convertible_v<I, std::size_t>>>
 fixed_resource_policy(std::initializer_list<T>, Adapter, I)
     -> fixed_resource_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 
