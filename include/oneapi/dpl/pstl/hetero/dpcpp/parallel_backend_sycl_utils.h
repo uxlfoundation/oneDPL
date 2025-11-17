@@ -761,6 +761,13 @@ struct __device_storage
     }
 };
 
+template <sycl::access_mode _AccessMode = sycl::access_mode::read_write, typename _T>
+auto
+__get_accessor(__device_storage<_T>& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+{
+    return __st.template __get_accessor<_AccessMode>(__cgh, __prop_list);
+}
+
 template <typename _T>
 struct __result_storage : public __device_storage<_T>
 {
@@ -768,8 +775,6 @@ struct __result_storage : public __device_storage<_T>
 
     std::size_t __sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
-
-    using __device_storage<_T>::__get_accessor;
 
     __result_storage(const sycl::queue& __q, std::size_t __n) : __sz(__n)
     {
@@ -819,8 +824,6 @@ struct __combined_storage : public __device_storage<_T>
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
 
-    using __device_storage<_T>::__get_accessor;
-
     __combined_storage(const sycl::queue& __q, std::size_t __scratch_n, std::size_t __result_n)
         : __sz(__scratch_n), __result_sz(__result_n)
     {
@@ -837,17 +840,6 @@ struct __combined_storage : public __device_storage<_T>
             this->initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
             __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
         }
-    }
-
-    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
-    auto
-    __get_result_accessor(sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
-    {
-        if (__kind == sycl::usm::alloc::host)
-            return __combi_accessor<_T, _AccessMode>(__cgh, this->__sycl_buf, __result_buf.get(), __prop_list);
-        else
-            return __combi_accessor<_T, _AccessMode>(__cgh, this->__sycl_buf, this->__usm_buf.get(), /*offset*/ __sz,
-                                                     __result_sz, __prop_list);
     }
 
     // Note: this member function assumes a kernel has completed and the result can be transferred to host
@@ -871,9 +863,21 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
+    template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
+    friend auto
+    __get_result_accessor(__combined_storage& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+    {
+        if (__st.__kind == sycl::usm::alloc::host)
+            return __combi_accessor<_T, _AccessMode>(__cgh, __st.__sycl_buf, __st.__result_buf.get(), __prop_list);
+        else
+            return __combi_accessor<_T, _AccessMode>(__cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz,
+                                                     __st.__result_sz, __prop_list);
+    }
+
     template <typename _Forwarding>
+    friend
     std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
-    friend __transfer_state_from(_Forwarding&& __src)
+    __transfer_state_from(_Forwarding&& __src)
     {
         return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
                 __src.__sz, __src.__kind};

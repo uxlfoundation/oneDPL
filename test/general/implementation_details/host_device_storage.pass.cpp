@@ -29,9 +29,9 @@ struct Test
 
         q.submit([&](sycl::handler& cgh) {
             auto scratch_acc =
-                get_accessor<sycl::access_mode::read_write>(result_and_scratch, cgh, sycl::property::no_init{});
+                __get_accessor<sycl::access_mode::read_write>(result_and_scratch, cgh, sycl::property::no_init{});
             auto result_acc =
-                get_result_accessor<sycl::access_mode::write>(result_and_scratch, cgh, sycl::property::no_init{});
+                __get_result_accessor<sycl::access_mode::write>(result_and_scratch, cgh, sycl::property::no_init{});
             cgh.parallel_for<SingleKernel>(sycl::range<1>{n_scratch}, [=](sycl::item<1> wi){
                 std::size_t idx = wi.get_linear_id();
                 ValueType* scratch = scratch_acc.__data();
