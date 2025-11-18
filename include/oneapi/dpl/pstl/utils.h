@@ -432,11 +432,11 @@ __cmp_iterators_by_values(_ForwardIterator __a, _ForwardIterator __b, _Compare _
 {
     if (__comp_it(__a, __b))
     { // we should return closer iterator
-        return __comp(*__b, *__a) ? __b : __a;
+        return std::invoke(__comp, *__b, *__a) ? __b : __a;
     }
     else
     {
-        return __comp(*__a, *__b) ? __a : __b;
+        return std::invoke(__comp, *__a, *__b) ? __a : __b;
     }
 }
 
@@ -624,7 +624,7 @@ __pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
         __cur = __n / 2;
         __idx += __cur;
 
-        if (__comp(__idx))
+        if (std::invoke(__comp, __idx))
         {
             __n -= __cur + 1;
             __first = ++__idx;
@@ -837,14 +837,14 @@ __shars_lower_bound(_Acc __acc, _Size __first, _Size __last, const _Value& __val
     const _Size __midpoint = __n / 2;
     // Check the middle element to determine if we should search the first or last
     // 2^(bit_floor(__n)) - 1 elements.
-    const _Size __shifted_first = __comp(__acc[__midpoint], __value) ? __n + 1 - __cur_pow2 : __first;
+    const _Size __shifted_first = std::invoke(__comp, __acc[__midpoint], __value) ? __n + 1 - __cur_pow2 : __first;
     // Check descending powers of two. If __comp(__acc[__search_idx], __pow) holds for a __cur_pow2, then its
     // bit must be set in the result.
     _Size __search_offset{0};
     for (__cur_pow2 >>= 1; __cur_pow2 > 0; __cur_pow2 >>= 1)
     {
         const _Size __search_idx = __shifted_first + (__search_offset | __cur_pow2) - 1;
-        if (__comp(__acc[__search_idx], __value))
+        if (std::invoke(__comp, __acc[__search_idx], __value))
             __search_offset |= __cur_pow2;
     }
     return __shifted_first + __search_offset;

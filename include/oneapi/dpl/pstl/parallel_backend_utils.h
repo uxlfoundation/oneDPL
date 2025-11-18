@@ -26,7 +26,7 @@
 #include <cassert>
 #include "utils.h"
 #include "memory_fwd.h"
-#include "functional_impl.h" // for oneapi::dpl::identity
+#include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
 
 namespace oneapi
 {
@@ -110,7 +110,7 @@ struct __serial_move_merge
             {
                 for (;;)
                 {
-                    if (__comp(*__ys, *__xs))
+                    if (std::invoke(__comp, *__ys, *__xs))
                     {
                         const auto __i = __zs - __zs_beg;
                         if (__i < __nx)

@@ -130,7 +130,7 @@ struct comp_select_first
     bool
     operator()(_T1&& t1, _T2&& t2) const
     {
-        return comp(std::get<0>(std::forward<_T1>(t1)), std::get<0>(std::forward<_T2>(t2)));
+        return std::invoke(comp, std::get<0>(std::forward<_T1>(t1)), std::get<0>(std::forward<_T2>(t2)));
     }
 };
 

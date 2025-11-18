@@ -48,7 +48,7 @@ struct __subgroup_bubble_sorter
             {
                 auto& __first_item = __storage_acc[j - 1];
                 auto& __second_item = __storage_acc[j];
-                if (__comp(__second_item, __first_item))
+                if (std::invoke(__comp, __second_item, __first_item))
                 {
                     using std::swap;
                     swap(__first_item, __second_item);
