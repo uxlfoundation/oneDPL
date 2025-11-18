@@ -685,6 +685,9 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),
         __n, __m, __pred_1, oneapi::dpl::__internal::__pstl_assign());
+    assert(__stops[0] >= 0 && __m >= __stops[0]);
+    assert(__stops[1] > 0 && __n >= __stops[1]);
+    assert(__stops[0] == __m || __stops[1] == __n);
 
     return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_r) + __stops[0]};
 }
