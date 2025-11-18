@@ -42,7 +42,7 @@ namespace TestUtils
 {
 #if _ONEDPL_BACKEND_SYCL
 template <sycl::usm::alloc alloc_type>
-constexpr std::size_t
+inline constexpr std::size_t
 uniq_kernel_index()
 {
     return static_cast<std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
