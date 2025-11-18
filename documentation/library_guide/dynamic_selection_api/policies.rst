@@ -111,7 +111,7 @@ The output of this example is::
 Available Policies
 ------------------
 
-More detailed information about the API is provided in the following sections:
+More detailed information about the built-in policies is provided in the following sections:
 
 .. toctree::
    :maxdepth: 2
@@ -121,4 +121,29 @@ More detailed information about the API is provided in the following sections:
    round_robin_policy
    dynamic_load_policy
    auto_tune_policy
-   
+
+Backends
+--------
+
+Policies work with backends that manage resources and handle work submission.
+For more information about backends:
+
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+
+   backends
+
+Customization
+-------------
+
+The dynamic selection API supports creating custom policies and backends
+to extend the system with new selection strategies or resource types:
+
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+
+   custom_policies
+   custom_backends
+

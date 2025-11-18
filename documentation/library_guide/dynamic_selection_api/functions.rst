@@ -6,6 +6,65 @@ The dynamic selection API is an experimental feature in the |onedpl_long|
 *selection policy*. There are several functions provided as part 
 of the API.
 
+Try Submit
+----------
+
+.. code:: cpp
+
+  namespace oneapi::dpl::experimental {
+    template<typename Policy, typename F, typename... Args>
+    auto try_submit(Policy&& p, F&& f, Args&&... args);
+  }
+
+Attempts to choose a resource using the policy ``p`` and, if successful,
+calls the user function ``f``, passing the unwrapped selection and ``args...``
+as the arguments. Returns a ``std::shared_ptr`` to a submission object if
+a resource was available, or a null ``std::shared_ptr`` if no resource could
+be selected.
+
+This function is useful when you want to handle the case where no resources
+are immediately available without blocking.
+
+.. code:: cpp
+
+  #include <oneapi/dpl/dynamic_selection>
+  #include <sycl/sycl.hpp>
+  #include <iostream>
+
+  namespace ex = oneapi::dpl::experimental;
+
+  int main() {
+    ex::round_robin_policy p{ { sycl::queue{ sycl::cpu_selector_v },
+                                sycl::queue{ sycl::gpu_selector_v } } };
+
+    for (int i = 0; i < 4; ++i) {
+      auto maybe_done = ex::try_submit(p,
+                                       [](sycl::queue q, int j) {
+                                         std::cout << "(j == " << j << "): submit to "
+                                                   << ((q.get_device().is_gpu()) ? "gpu\n" : "cpu\n");
+                                         return q.single_task([]() { /* work */ });
+                                       },
+                                       i);
+
+      if (maybe_done) {
+        std::cout << "(i == " << i << "): submission succeeded\n";
+        ex::wait(*maybe_done);
+      } else {
+        std::cout << "(i == " << i << "): no resource available, trying alternative work\n";
+        // Could retry, do other work, or handle the failure differently
+      }
+    }
+  }
+
+**Note:** For most policies like ``round_robin_policy``, resources are always
+available for a well formed policy with existing resources.
+``try_submit`` is most useful with policies that may temporarily have no
+available resources, such as a custom policy which has hard capacity limits
+on specific devices.
+
+The standard ``submit`` function uses ``try_submit`` internally and retries
+with backoff when no resource is available.
+
 Submit
 ------
 
