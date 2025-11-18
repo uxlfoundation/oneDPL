@@ -417,14 +417,6 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                     {
                         __out_rng[__idx] = __lacc[__idx];
                     }
-
-                    const ::std::uint16_t __residual = __n % __wg_size;
-                    const ::std::uint16_t __residual_start = __n - __residual;
-                    if (__residual > 0 && __item_id < __residual)
-                    {
-                        auto __idx = __residual_start + __item_id;
-                        __out_rng[__idx] = __lacc[__idx];
-                    }
                 });
         });
     }
@@ -468,14 +460,6 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
                     {
-                        __out_rng[__idx] = __lacc[__idx];
-                    }
-
-                    const std::uint16_t __residual = __n % _WGSize;
-                    const std::uint16_t __residual_start = __n - __residual;
-                    if (__item_id < __residual)
-                    {
-                        auto __idx = __residual_start + __item_id;
                         __out_rng[__idx] = __lacc[__idx];
                     }
                 });
