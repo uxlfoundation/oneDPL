@@ -39,7 +39,7 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     assert(__n > 0);
 
     auto __keep =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _ForwardIterator>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
     auto __future_obj = oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -59,10 +59,10 @@ __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     auto __n = __last1 - __first1;
     assert(__n > 0);
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _ForwardIterator1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1>();
     auto __buf1 = __keep1(__first1, __last1);
 
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _ForwardIterator2>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -83,13 +83,13 @@ __pattern_walk3_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     assert(__n > 0);
 
     auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
     auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator2>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
     auto __keep3 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator3>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf3 = __keep3(__first3, __first3 + __n);
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -130,10 +130,10 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
 
     auto __n = __last1 - __first1;
     auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _RandomAccessIterator1>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
     auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _RandomAccessIterator2>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
@@ -159,7 +159,7 @@ __pattern_transform_reduce_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& _
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
@@ -195,9 +195,9 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     assert(__first < __last);
 
     auto __n = __last - __first;
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
