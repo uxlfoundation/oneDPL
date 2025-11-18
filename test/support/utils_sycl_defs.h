@@ -18,10 +18,12 @@
 #ifndef _UTILS_SYCL_DEFS_H
 #define _UTILS_SYCL_DEFS_H
 
-#if __has_include(<sycl/sycl.hpp>)
-#    include <sycl/sycl.hpp>
-#else
-#    include <CL/sycl.hpp>
+#if _ONEDPL_BACKEND_SYCL
+#    if __has_include(<sycl/sycl.hpp>)
+#        include <sycl/sycl.hpp>
+#    else
+#        include <CL/sycl.hpp>
+#    endif
 #endif
 
 #if ONEDPL_FPGA_DEVICE
@@ -38,13 +40,14 @@
 
 namespace TestUtils
 {
-
+#if _ONEDPL_BACKEND_SYCL
 template <sycl::usm::alloc alloc_type>
 constexpr std::size_t
 uniq_kernel_index()
 {
     return static_cast<std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
 }
+#endif
 
 template <typename Op, std::size_t CallNumber>
 struct unique_kernel_name;
