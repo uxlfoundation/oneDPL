@@ -205,7 +205,7 @@ struct is_sycl_iterator : ::std::false_type
 {
 };
 
-template <oneapi::dpl::access_mode Mode, typename... Types>
+template <sycl::access_mode Mode, typename... Types>
 struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> : ::std::true_type
 {
 };
