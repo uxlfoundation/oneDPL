@@ -308,9 +308,9 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
             if (this->resources_.empty())
             {
                 throw std::runtime_error(
-                    "Either the sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
-                    "or the devices do not have the sycl::aspect ext_oneapi_queue_profiling_tag, "
-                    "both of these are required to time kernels.");
+                    "No SYCL queues available that support task_time_t reporting requirement. "
+                    "Devices must have sycl::aspect::ext_oneapi_queue_profiling_tag and queues must be "
+                    "created with sycl::property::queue::enable_profiling().");
             }
 #else
             static_assert(
