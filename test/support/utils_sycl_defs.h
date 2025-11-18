@@ -74,8 +74,8 @@ struct new_kernel_name_impl<Policy, CallNumber, std::enable_if_t<has_kernel_name
     using type = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, CallNumber>;
 };
 
-template <typename Policy, std::size_t idx>
-using new_kernel_name = typename new_kernel_name_impl<Policy, idx>::type;
+template <typename Policy, std::size_t CallNumber>
+using new_kernel_name = typename new_kernel_name_impl<Policy, CallNumber>::type;
 
 } /* namespace TestUtils */
 
