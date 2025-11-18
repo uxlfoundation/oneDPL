@@ -177,7 +177,6 @@ The following concrete policies are provided in the experimental implementation.
 | [`round_robin_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/round-robin-policy.html) |
 | [`dynamic_load_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-load-policy.html) |
 | [`auto_tune_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/auto-tune-policy.html) |
-| `token_policy`, documentation pending |
 
 
 <a id="backend_req_id"></a>
@@ -215,13 +214,23 @@ The type `T` satisfies the *Backend* contract if given,
 | --------- | ----------- |
 | `vector<typename policy_traits<P>::resource_type> get_resources(P&& p);` | Returns the resources associated with the Policy `p`. |
 | `template<Policy P, typename F, typename... Args> auto try_submit(P&& p, F&& f, Args&&... args);` | Attempts to select a resource. If successful, invokes `f` with the unwrapped resource selected by `p.try_select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. Returns a `std::shared_ptr` of the submission type if successful, or a null `std::shared_ptr` if unable to select a resource. |
-| `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. |
+| `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. If the policy provides `try_submit()` but not `submit()`, this function will retry with backoff until a resource becomes available. |
 | `template<Policy P, typename F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args` and then waits on object returned by the `f`. |
 | `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
 | `template<typename W> void unwrap(W&& w) noexcept;` | Returns `w.unwrap()` if available, otherwise returns `w`. |
 | `template<typename W> void wait(W&& w);` | Calls `w.wait()`. |
 | `template <typename S, typename Info> void report(S&& s, const Info& i);` | `S` is a *Selection*. Reports that event `i` has occurred if `s.report(i)` is available. |
 | `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | `S` is a *Selection*. Reports a new value `v` for event `i` if `s.report(i, v)` is available. |
+
+### Policy Member Functions vs Free Functions
+
+Policies may provide submission operations either as member functions or rely on the free function implementations:
+- **Free functions** (`oneapi::dpl::experimental::submit`, `try_submit`, `submit_and_wait`) are the primary user-facing API
+- **Policy member functions** of the same name are optional customization points that policies can implement
+- When using `policy_base`, the base class provides member function implementations that delegate to fallback mechanisms
+- Custom policies that don't inherit from `policy_base` can implement member functions directly to override default behavior
+
+Both APIs are valid - use free functions when working with policies, and implement member functions when creating custom policy behavior.
 
 ### Deferred Initialization
 
@@ -274,17 +283,22 @@ For example, below is code a function the receives a *Selection* and uses traits
     }
 ```
 
-### Lazy Reporting 
+### Lazy Reporting
 
-A backend may choose not to actively report events and instead lazily report them on demand by defining the
-optional `lazy_report` member function. A backend trait is provided to determine if calls to `lazy_report`
-are required.
+Some execution information (like `task_completion` or `task_time`) cannot be reported immediately when a task is submitted, as the task may still be executing asynchronously. Backends may choose to defer reporting of such events until they are needed by the policy.
+
+A backend that uses lazy reporting should:
+1. Store submission handles/events internally when `submit()` is called
+2. Define a `lazy_report()` member function that checks for completed tasks and reports their execution information
+3. The backend trait `backend_traits::lazy_report_v<Backend>` will be `true` for such backends
+
+Policies that use backends with lazy reporting should call `backend.lazy_report()` before making selection decisions to ensure they have the most recent execution information.
 
 | Backend Traits* | Description |
 | ------- | ----------- |
-| `lazy_report`<B>::value`, `report_report_v<B>` | `true` if a *Backend* requires that a *Policy* calls to `lazy_report` before making a selection. |
+| `lazy_report_v<B>` | `true` if a *Backend* requires that a *Policy* calls `lazy_report()` before making a selection. |
 
-The example below shows how a `select` function might check this trait and call the function before it 
+The example below shows how a policy's selection function might check this trait and call `lazy_report()` before it
 applies its selection logic.
 
 ```cpp

@@ -37,7 +37,7 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 
 ### Key Components
 
-1. **`backend_base<ResourceType, Backend>`**: A proposed base class template that implements core backend functionality to inherit from.
+1. **`backend_base<ResourceType>`**: A proposed base class template that implements core backend functionality to inherit from.
 2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. A `ResourceAdapter` can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
 
 Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
@@ -91,7 +91,7 @@ Policy selection handles must declare a member `scratch_space` of the appropriat
 The `backend_base` class provides core functionality that can be customized by derived classes:
 
 ```cpp
-template<typename ResourceType, typename Backend>
+template<typename ResourceType>
 class backend_base
 {
   public:
@@ -116,17 +116,19 @@ The `default_backend_impl` class extends `backend_base` with adapter support but
 
 ```cpp
 template< typename BaseResourceType, typename ResourceType, typename ResourceAdapter >
-class default_backend_impl : 
-  public backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>> {
+class default_backend_impl : public backend_base<ResourceType> {
 public:
     using resource_type = ResourceType;
-    using my_base = backend_base<ResourceType, default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>>;
+    using my_base = backend_base<ResourceType>;
 
-    template <typename ReportingReqs...>
-    default_backend_impl(ReportingReqs reqs...) : my_base() {}
-    template <typename ReportingReqs...>
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportingReqs reqs...)
-       : my_base(u), adapter(adapter_) {}
+    template <typename... ReportingReqs>
+    default_backend_impl(ReportingReqs... reqs) : my_base(reqs...) {}
+    template <typename... ReportingReqs>
+    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportingReqs... reqs)
+       : my_base(u, reqs...), adapter(adapter_) {}
+
+  private:
+    ResourceAdapter adapter;
 };
 ```
 
@@ -135,19 +137,19 @@ returned by `Adapter`.
 
 ```cpp
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
-class default_backend : 
-  public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>())>,
+class default_backend :
+  public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
          ResourceType, ResourceAdapter>
 {
   public:
     using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
 
-    template <typename ReportingReqs...>
-    default_backend(ReportingReqs reqs...) : default_backend_impl(reqs...)
+    template <typename... ReportingReqs>
+    default_backend(ReportingReqs... reqs) : base_t(reqs...)
     {
     }
-    template <typename ReportingReqs...>
-    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}, ReportingReqs reqs...) : base_t(r, adapt, reqs...)
+    template <typename... ReportingReqs>
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}, ReportingReqs... reqs) : base_t(r, adapt, reqs...)
     {
     }
 };
@@ -157,6 +159,17 @@ to be reused by providing an adapter to transform a custom resource type `Resour
 resource type `BaseResourceType` with an already existing `default_backend_impl`. 
 
 ### Default Implementation Details
+
+The `backend_base` provides **minimal** default implementations for the core backend methods. Importantly:
+- `backend_base` does **not** support any reporting requirements by default
+- The default `scratch_t` template is empty (provides `no_scratch_t`)
+- Resource-specific features (timing, profiling, etc.) require specializing `default_backend_impl` for your `BaseResourceType`
+
+To create a backend with reporting support, you must create a partial specialization of `default_backend_impl` for your specific `BaseResourceType` (e.g., `sycl::queue`). The specialization should:
+1. Accept reporting requirements in the constructor
+2. Implement `scratch_t<ReportingReqs...>` with appropriate storage
+3. Override `submit()` to perform instrumentation
+4. Filter resources based on reporting capabilities
 
 The `backend_base` provides default implementations for the core backend methods:
 
