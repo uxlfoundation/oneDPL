@@ -406,7 +406,7 @@ struct __range_holder
     }
 };
 
-template <sycl::access::mode AccMode, typename _Iterator = void> //TODO: _Iterator is not used and should be removed
+template <sycl::access::mode AccMode, bool _NoInit = false>
 struct __get_sycl_range
 {
     __get_sycl_range()
@@ -418,9 +418,10 @@ struct __get_sycl_range
     // We have to keep sycl buffer(s) instance here by sync reasons;
     std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
 
-    template <sycl::access::mode _LocalAccMode>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit>
     static constexpr bool __is_copy_direct_v =
-        _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::read;
+        !_LocalNoInit && (_LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::read ||
+                          _LocalAccMode == sycl::access::mode::write);
     template <sycl::access::mode _LocalAccMode>
     static constexpr bool __is_copy_back_v =
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
@@ -504,8 +505,9 @@ struct __get_sycl_range
     auto
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
-        //For permutation iterator, the Map iterator is always read (only)
-        auto view_map = __process_input_iter<sycl::access_mode::read>(__m, __m + __s).all_view();
+        //For permutation iterator, the Map iterator is always read (only), so use a __get_sycl_range with read mode and no_init=false
+        __get_sycl_range<sycl::access_mode::read, false> __map_range;
+        auto view_map = __map_range(__m, __m + __s).all_view();
         return oneapi::dpl::__ranges::permutation_view_simple<_R, decltype(view_map)>{__r, view_map};
     }
 
@@ -643,7 +645,7 @@ struct __get_sycl_range
         using _T = val_t<_Iter>;
 
         return __process_host_iter_impl<_LocalAccMode>(__first, __last, [&]() {
-            if constexpr (__is_copy_direct_v<_LocalAccMode>)
+            if constexpr (__is_copy_direct_v<_LocalAccMode, _NoInit>)
             {
                 //wait and copy on a buffer destructor; an exclusive access buffer, good performance
                 return sycl::buffer<_T, 1>{::std::addressof(*__first), __last - __first};
@@ -672,7 +674,7 @@ struct __get_sycl_range
         using _T = val_t<_Iter>;
 
         return __process_host_iter_impl<_LocalAccMode>(__first, __last, [&]() {
-            if constexpr (__is_copy_direct_v<_LocalAccMode>)
+            if constexpr (__is_copy_direct_v<_LocalAccMode, _NoInit>)
             {
                 //This constructor requires an extra host-side copy as compared to the host pointer + size constructors
                 sycl::buffer<_T, 1> __buf(__first, __last); //SYCL API for non-contiguous iterators
@@ -720,7 +722,7 @@ struct __get_sycl_range
     auto
     operator()(_ArgTypes... __args)
     {
-        //when called using operator(), use access mode provided by the struct template parameter
+        //when called using operator(), use access mode and no_init flag provided by the struct template parameters
         return __process_input_iter<AccMode>(::std::forward<_ArgTypes>(__args)...);
     }
 };
