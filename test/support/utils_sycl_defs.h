@@ -49,8 +49,30 @@ uniq_kernel_index()
 template <typename Op, std::size_t CallNumber>
 struct unique_kernel_name;
 
+template <typename T, typename = std::void_t<>>
+struct has_kernel_name : std::false_type
+{
+};
+
+template <typename T>
+struct has_kernel_name<T, std::void_t<typename T::kernel_name>> : std::true_type
+{
+};
+
+template <typename Policy, std::size_t CallNumber, typename = void>
+struct new_kernel_name_impl
+{
+    using type = unique_kernel_name<std::decay_t<Policy>, CallNumber>;
+};
+
+template <typename Policy, std::size_t CallNumber>
+struct new_kernel_name_impl<Policy, CallNumber, std::enable_if_t<has_kernel_name<std::decay_t<Policy>>::value>>
+{
+    using type = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, CallNumber>;
+};
+
 template <typename Policy, std::size_t idx>
-using new_kernel_name = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, idx>;
+using new_kernel_name = typename new_kernel_name_impl<Policy, idx>::type;
 
 } /* namespace TestUtils */
 
