@@ -248,9 +248,27 @@ class auto_tune_policy
 
     auto_tune_policy(deferred_initialization_t) {}
 
-    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
-    auto_tune_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {},
-                     timing_t resample_time = never_resample)
+    auto_tune_policy(timing_t resample_time = never_resample)
+    {
+        base_t::initialize(resample_time);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u)
+    {
+        base_t::initialize(u, oneapi::dpl::identity(), never_resample);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u, timing_t resample_time)
+    {
+        base_t::initialize(u, oneapi::dpl::identity(), resample_time);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter)
+    {
+        base_t::initialize(u, adapter, never_resample);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter, timing_t resample_time)
     {
         base_t::initialize(u, adapter, resample_time);
     }
@@ -287,6 +305,30 @@ class auto_tune_policy
         return k;
     }
 };
+
+//supports auto_tune_policy p{ {t1, t2} }
+template <typename T>
+auto_tune_policy(std::initializer_list<T>)
+    -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+
+//supports auto_tune_policy p{ {t1, t2}, offset }
+template <typename T, typename I,
+          typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+auto_tune_policy(std::initializer_list<T>, I)
+    -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+
+//supports auto_tune_policy p{ {t1, t2}, adapter }
+//assumes Adapter is not convertible to size_t (to prevent ambiguity)
+template <typename T, typename Adapter,
+          typename = std::enable_if_t<std::negation_v<std::is_convertible<Adapter, uint64_t>>>>
+auto_tune_policy(std::initializer_list<T>, Adapter)
+    -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
+
+//supports auto_tune_policy p{ {t1, t2}, adapter, offset }
+template <typename T, typename Adapter, typename I,
+          typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+auto_tune_policy(std::initializer_list<T>, Adapter, I)
+    -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 
 } // namespace experimental
 } // namespace dpl

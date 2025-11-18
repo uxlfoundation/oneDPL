@@ -429,6 +429,26 @@ main()
             EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel58>(u2_ptrs, 1, deref_op)), "");
             EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel59>(u2_ptrs, 2, deref_op)), "");
             EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel60>(u2_ptrs, 3, deref_op)), "");
+
+            //CTAD tests (testing policy construction without template arguments)
+            //Template arguments types are deduced with CTAD
+            sycl::queue q1(sycl::cpu_selector_v);
+            sycl::queue q2(sycl::cpu_selector_v); //using all cpus for wider coverage
+
+            //without resample time
+            oneapi::dpl::experimental::auto_tune_policy p1{ {q1, q2} };
+            oneapi::dpl::experimental::auto_tune_policy p2( {q1, q2} );
+
+            oneapi::dpl::experimental::auto_tune_policy p3( {&q1, &q2}, deref_op );
+            oneapi::dpl::experimental::auto_tune_policy p4{ {&q1, &q2}, deref_op };
+
+            //with resample time
+            oneapi::dpl::experimental::auto_tune_policy p5{ {q1, q2}, 1 };
+            oneapi::dpl::experimental::auto_tune_policy p6( {q1, q2}, 1 );
+
+            oneapi::dpl::experimental::auto_tune_policy p7( {&q1, &q2}, deref_op, 1 );
+            oneapi::dpl::experimental::auto_tune_policy p8{ {&q1, &q2}, deref_op, 1 };
+
             bProcessed = true;
         }
 #endif // Devices available are CPU and GPU
