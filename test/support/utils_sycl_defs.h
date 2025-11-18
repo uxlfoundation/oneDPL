@@ -18,10 +18,12 @@
 #ifndef _UTILS_SYCL_DEFS_H
 #define _UTILS_SYCL_DEFS_H
 
-#if __has_include(<sycl/sycl.hpp>)
-#    include <sycl/sycl.hpp>
-#else
-#    include <CL/sycl.hpp>
+#if _ONEDPL_BACKEND_SYCL
+#    if __has_include(<sycl/sycl.hpp>)
+#        include <sycl/sycl.hpp>
+#    else
+#        include <CL/sycl.hpp>
+#    endif
 #endif
 
 #if ONEDPL_FPGA_DEVICE
@@ -35,5 +37,46 @@
 #else
 #    define TEST_LIBSYCL_VERSION 0
 #endif
+
+namespace TestUtils
+{
+#if _ONEDPL_BACKEND_SYCL
+template <sycl::usm::alloc alloc_type>
+inline constexpr std::size_t
+uniq_kernel_index()
+{
+    return static_cast<std::underlying_type_t<sycl::usm::alloc>>(alloc_type);
+}
+#endif
+
+template <typename Op, std::size_t CallNumber>
+struct unique_kernel_name;
+
+template <typename T, typename = std::void_t<>>
+struct has_kernel_name : std::false_type
+{
+};
+
+template <typename T>
+struct has_kernel_name<T, std::void_t<typename T::kernel_name>> : std::true_type
+{
+};
+
+template <typename Policy, std::size_t CallNumber, typename = void>
+struct new_kernel_name_impl
+{
+    using type = unique_kernel_name<std::decay_t<Policy>, CallNumber>;
+};
+
+template <typename Policy, std::size_t CallNumber>
+struct new_kernel_name_impl<Policy, CallNumber, std::enable_if_t<has_kernel_name<std::decay_t<Policy>>::value>>
+{
+    using type = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, CallNumber>;
+};
+
+template <typename Policy, std::size_t CallNumber>
+using new_kernel_name = typename new_kernel_name_impl<Policy, CallNumber>::type;
+
+} /* namespace TestUtils */
 
 #endif //  _UTILS_SYCL_DEFS_H
