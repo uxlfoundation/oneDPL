@@ -18,6 +18,8 @@
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
+#include <functional> // for std::invoke
+
 //The file is an internal file and the code of that file is included by a major file into the following namespaces:
 //namespace oneapi
 //{
@@ -214,9 +216,13 @@ struct __subgroup_radix_sort
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
                                     const uint16_t __idx = __wi * __block_size + __i;
-                                    const uint16_t __bin = __idx < __n ? __get_bucket</*mask*/ __bin_count - 1>(
-                                        __order_preserving_cast<__is_asc>(__proj(__values.__v[__i])), __begin_bit)
-                                        : __bin_count - 1/*default bin for out of range elements (when idx >= n)*/;
+                                    const uint16_t __bin =
+                                        __idx < __n
+                                            ? __get_bucket</*mask*/ __bin_count - 1>(
+                                                  __order_preserving_cast<__is_asc>(
+                                                      std::invoke(__proj, __values.__v[__i])),
+                                                  __begin_bit)
+                                            : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;
 
                                     //"counting" and local offset calculation
                                     __counters[__i] = &__pcounter[__bin * __wg_size];
