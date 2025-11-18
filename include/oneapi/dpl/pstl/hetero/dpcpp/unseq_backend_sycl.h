@@ -743,12 +743,14 @@ struct __copy_by_mask
             {
                 if (__out_idx < __m)
                     __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+                if (__out_idx == __m)
+                    __ret_ptr[1] = __item_idx;
             }
         }
         if (__item_idx == 0)
         {
             //copy final result to output
-            *__ret_ptr = __wg_sums_ptr[(__n - 1) / __size_per_wg];
+            __ret_ptr[0] = __wg_sums_ptr[(__n - 1) / __size_per_wg];
         }
     }
 };

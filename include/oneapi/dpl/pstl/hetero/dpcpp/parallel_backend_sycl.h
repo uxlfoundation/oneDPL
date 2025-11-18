@@ -252,7 +252,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 {
     template <typename _Range1, typename _Range2, typename _InitType, typename _LocalScan, typename _GroupScan,
               typename _GlobalScan>
-    __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
                _GroupScan __group_scan, _GlobalScan __global_scan) const
     {
@@ -289,7 +289,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
 
-        __combined_storage<_Type> __result_and_scratch{__q, __n_groups + 1, 1};
+        __combined_storage<_Type> __result_and_scratch{__q, __n_groups + 1, /*result size*/ 2};
 
         _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
 
@@ -349,8 +349,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             });
         });
 
-        return __future{std::move(__final_event),
-                        __result_and_scratch_storage<_Type>(__move_state_from(__result_and_scratch))};
+        return {std::move(__final_event), std::move(__result_and_scratch)};
     }
 };
 
@@ -601,7 +600,7 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
           typename _GroupScan, typename _GlobalScan>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
                                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan)
 {
@@ -696,7 +695,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     _NoAssign __no_assign_op;
     _NoOpFunctor __get_data_op;
 
-    return __parallel_transform_scan_base<_CustomName>(
+    auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
         __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
@@ -708,6 +707,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             __binary_op, _NoOpFunctor{}, __no_assign_op, __assign_op, __get_data_op},
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init});
+    return __future(__event, __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
 }
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
@@ -731,7 +731,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
           typename _CopyByMaskOp>
-__future<sycl::event, __result_and_scratch_storage<_Size>>
+std::tuple<sycl::event, __combined_storage<_Size>>
 __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
                      _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
 {
@@ -773,10 +773,10 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
                        _Range2&& __result, _BinaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = oneapi::dpl::__ranges::__size(__rng);
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
 
+    _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
     // We expect at least two elements to perform unique_copy.  With fewer we
     // can simply copy the input range to the output.
     assert(__n > 1);
@@ -801,9 +801,10 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
                                                                decltype(__n)>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
-        return __parallel_scan_copy<_CustomName>(
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}}, _CopyOp{_ReduceOp{}, _Assign{}});
+        return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
 
@@ -845,10 +846,11 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
                           _Range2&& __result, _UnaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
 
     sycl::queue __q_local = __exec.queue();
 
-    oneapi::dpl::__internal::__difference_t<_Range1> __n = oneapi::dpl::__ranges::__size(__rng);
+    _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
@@ -866,9 +868,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp, /*inclusive*/ std::true_type>;
 
-        return __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
                                                  std::forward<_Range2>(__result), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}});
+        return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
 
@@ -924,9 +927,14 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
-        return __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
-                                                 _CopyOp{_ReduceOp{}, __assign}).get();
+                                                 _CopyOp{_ReduceOp{}, __assign});
+        __event.wait_and_throw();
+        
+        std::array<_Size, 2> __ret;
+        __payload.__copy_result(__ret.data(), __ret.size());
+        return __ret[0];
     }
 }
 
@@ -1070,7 +1078,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
-    return __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
+    auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
         __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1086,6 +1094,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
                               _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan
         __copy_by_mask_op);
+    return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
 }
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
