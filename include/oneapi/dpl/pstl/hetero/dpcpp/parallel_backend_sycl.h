@@ -297,6 +297,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __submit_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __get_accessor(sycl::write_only, __result_and_scratch, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
+                                                  __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
@@ -308,7 +310,21 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                 sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __temp_acc.__data();
                     __local_scan(__item, __n, __m, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
-                                  __wgroup_size, __iters_per_witem, __init);
+                                 __wgroup_size, __iters_per_witem, __init);
+                    if (__item.get_global_id(0) == 0 && __n_groups == 1)
+                    {
+                        auto __res_ptr = __res_acc.__data();
+                        if (__temp_ptr[0] > __m) // not enough space in the output
+                        {
+                            __res_ptr[0] = __m;
+                            // The stop position in the input is determined by final scan
+                        }
+                        else
+                        {
+                            __res_ptr[0] = __temp_ptr[0];
+                            __res_ptr[1] = __n;
+                        }
+                    }
                 });
         });
         // 2. Scan for the entire group of values scanned from each workgroup (runs on a single workgroup)
@@ -318,6 +334,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __get_accessor(sycl::read_write, __result_and_scratch, __cgh);
+                auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
+                                                       __dpl_sycl::__no_init{});
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
@@ -331,6 +349,20 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                         auto __temp_ptr = __temp_acc.__data();
                         __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
+                        if (__item.get_local_id(0) == 0 && __item.get_group(0) == __n_groups - 1)
+                        {
+                            auto __res_ptr = __res_acc.__data();
+                            if (__temp_ptr[__n_groups - 1] > __m) // not enough space in the output
+                            {
+                                __res_ptr[0] = __m;
+                                // The stop position in the input is determined by final scan
+                            }
+                            else
+                            {
+                                __res_ptr[0] = __temp_ptr[__n_groups - 1];
+                                __res_ptr[1] = __n;
+                            }
+                        }
                     });
             });
         }
@@ -340,8 +372,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __get_accessor(sycl::read_only, __result_and_scratch, __cgh);
-            auto __res_acc =
-                __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh);
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();
@@ -491,9 +522,8 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
             // Local memory is split into two parts. The first half stores the result of applying the
             // predicate on each element of the input range. The second half stores the index of the output
             // range to copy elements of the input range.
-            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(std::size_t(__n_uniform) * 2), __hdl);
-            auto __res_acc =
-                __result.template __get_result_acc<sycl::access_mode::write>(__hdl, __dpl_sycl::__no_init{});
+            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(std::size_t(__n_uniform) * 2 + 1), __hdl);
+            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -506,6 +536,11 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
                     {
                         __lacc[__idx] = __unary_op(__in_rng[__idx]);
                     }
+                    if (__item_id == 0)
+                    {
+                        // Store the input size as the expected stop position
+                        __lacc[2 * __n_uniform] = __n;
+                    }
 
                     __scan_work_group<_ValueType, /* _Inclusive */ false>(
                         __group, __lacc_ptr, __lacc_ptr + __n, __lacc_ptr + __n_uniform, sycl::plus<_ValueType>{});
@@ -517,14 +552,17 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
                             if (__out_idx < __m)
                                 __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
                             if (__out_idx == __m)
-                                __res_ptr[1] = __idx; // the stop position in the input
+                                __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
                     }
+                    sycl::group_barrier(__group);
 
                     if (__item_id == 0)
                     {
+                        _ValueType __stop_in = __lacc[2 * __n_uniform];
+                        __res_ptr[1] = __stop_in;
                         // Add predicate of last element to account for the scan's exclusivity
-                        __res_ptr[0] = __lacc[__n_uniform + __n - 1] + __lacc[__n - 1];
+                        __res_ptr[0] = (__stop_in == __n) ? __lacc[__n_uniform + __n - 1] + __lacc[__n - 1] : __m;
                     }
                 });
         }).wait_and_throw();
@@ -910,6 +948,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
     else if (__m >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
@@ -929,7 +968,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}, __assign});
         __event.wait_and_throw();
-        
+
         std::array<_Size, 2> __ret;
         __payload.__copy_result(__ret.data(), __ret.size());
         return __ret;
@@ -1529,11 +1568,14 @@ struct __early_exit_find_or
 
                 // This break is mandatory from the performance point of view.
                 // This break is safe for all our cases:
-                // 1) __parallel_find_forward_tag : when we search for the first matching data entry, we process data from start to end (forward direction).
+                // 1) __parallel_find_forward_tag : when we search for the first matching data entry,
+                //    we process data from start to end (forward direction).
                 //    This means that after first found entry there is no reason to process data anymore.
-                // 2) __parallel_find_backward_tag : when we search for the last matching data entry, we process data from end to start (backward direction).
+                // 2) __parallel_find_backward_tag : when we search for the last matching data entry,
+                //    we process data from end to start (backward direction).
                 //    This means that after the first found entry there is no reason to process data anymore too.
-                // 3) __parallel_or_tag : when we search for any matching data entry, we process data from start to end (forward direction).
+                // 3) __parallel_or_tag : when we search for any matching data entry,
+                //    we process data from start to end (forward direction).
                 //    This means that after the first found entry there is no reason to process data anymore too.
                 // But break statement here shows poor perf in some cases.
                 // So we use bool variable state check in the for-loop header.
@@ -1651,7 +1693,8 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
                     // 2. Find any element that satisfies pred
                     //  - after this call __found_local may still have initial value:
                     //    1) if no element satisfies pred;
-                    //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                    //    2) early exit from sub-group occurred: in this case the state of __found_local
+                    //       will updated in the next group operation (3)
                     __pred(__item, __rng_n, __iters_per_work_item, __wgroup_size, __found_local, __brick_tag,
                            __rngs...);
 
@@ -1739,7 +1782,8 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
                     // 2. Find any element that satisfies pred
                     //  - after this call __found_local may still have initial value:
                     //    1) if no element satisfies pred;
-                    //    2) early exit from sub-group occurred: in this case the state of __found_local will updated in the next group operation (3)
+                    //    2) early exit from sub-group occurred: in this case the state of __found_local
+                    //       will updated in the next group operation (3)
                     __pred(__item, __rng_n, __iters_per_work_item, __n_groups * __wgroup_size, __found_local,
                            __brick_tag, __rngs...);
 
