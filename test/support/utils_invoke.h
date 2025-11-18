@@ -22,9 +22,9 @@
 #include <mutex>            // for std::once_flag
 #include <stdexcept>        // for std::logic_error
 
-#include "utils_sycl_defs.h"
 #include "iterator_utils.h"
 #include "compile_only_checks.h"
+#include "utils_sycl_defs.h"
 
 #ifdef ONEDPL_USE_PREDEFINED_POLICIES
 #  define TEST_USE_PREDEFINED_POLICIES ONEDPL_USE_PREDEFINED_POLICIES
