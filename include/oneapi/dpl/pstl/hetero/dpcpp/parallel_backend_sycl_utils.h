@@ -496,8 +496,9 @@ struct __combi_accessor
     __acc_t __acc;
 
     template <bool __with_offset = false>
-    __acc_t __init_acc(bool __fake, sycl::buffer<_T, 1>& __sycl_buf, sycl::handler& __cgh,
-                       const sycl::property_list& __prop_list, std::size_t __sz = 0, std::size_t __offset = 0)
+    __acc_t
+    __init_acc(bool __fake, sycl::buffer<_T, 1>& __sycl_buf, sycl::handler& __cgh,
+               const sycl::property_list& __prop_list, std::size_t __sz = 0, std::size_t __offset = 0)
     {
         if (__fake)
         {
@@ -665,7 +666,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     {
         if (__use_USM_host && __supports_USM_device)
             return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __result_buf.get(), __prop_list);
-        return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __scratch_n, _NResults, __prop_list);
+        return __combi_accessor<_T, _AccessMode>(__cgh, __sycl_buf, __scratch_buf.get(), __scratch_n, _NResults,
+                                                 __prop_list);
     }
 
     template <sycl::access_mode _AccessMode = sycl::access_mode::read_write>
@@ -758,11 +760,11 @@ template <typename _T>
 struct __device_storage
 {
     std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
-    sycl::buffer<_T, 1> __sycl_buf = 
+    sycl::buffer<_T, 1> __sycl_buf =
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
-                                    {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
+        {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
 #else
-                                    {nullptr, sycl::range{0}};
+        {nullptr, sycl::range{0}};
 #endif
 
     __device_storage() {}
@@ -783,17 +785,14 @@ struct __device_storage
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
-        {
             __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-        }
         else
-        {
             __sycl_buf = sycl::buffer<_T, 1>(__n);
-        }
     }
 
     void
-    __copy_n(_T* __dst, _T* __src, std::size_t __n, std::size_t __offset) {
+    __copy_n(_T* __dst, _T* __src, std::size_t __n, std::size_t __offset)
+    {
         // Derived classes are responsible for bound checking
         if (__src)
         {

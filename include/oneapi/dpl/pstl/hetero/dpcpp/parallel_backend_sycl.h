@@ -338,8 +338,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __get_accessor(sycl::read_only, __result_and_scratch, __cgh);
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
-                                                   __dpl_sycl::__no_init{});
+            auto __res_acc =
+                __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();

@@ -55,7 +55,7 @@ struct CombineResultAndScratch
 };
 
 template<std::size_t, typename...>
-struct KernelName; // kernel name
+struct KernelName;
 
 struct Test
 {
@@ -70,9 +70,8 @@ struct Test
         EXPECT_EQ(1 + n_scratch, single_val, "Incorrect first value copied");
         
         std::vector<ValueType> expected{n_result};
-        ValueType i = 0;
-        for (ValueType& v: expected)
-            v = ++i + n_scratch;
+        for (ValueType i = 0; i < expected.size(); ++i)
+            expected[i] = i + n_scratch + 1;
 
         std::vector<ValueType> result_host{n_result};
         storage.__copy_result(result_host.data(), result_host.size());
@@ -91,7 +90,8 @@ struct Test
                 __get_accessor(sycl::read_write, result_and_scratch, cgh, sycl::property::no_init{});
             auto result_acc =
                 __get_result_accessor(sycl::write_only, result_and_scratch, cgh, sycl::property::no_init{});
-            cgh.parallel_for<SingleKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi){
+            cgh.parallel_for<SingleKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi)
+            {
                 std::size_t idx = wi.get_linear_id();
                 ValueType* scratch = scratch_acc.__data();
                 ValueType* result = result_acc.__data();
@@ -118,7 +118,8 @@ struct Test
                 __get_accessor(sycl::write_only, result_and_scratch, cgh, sycl::property::no_init{});
             auto result_acc =
                 __get_result_accessor(sycl::write_only, result_and_scratch, cgh, sycl::property::no_init{});
-            cgh.parallel_for<FirstKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi){
+            cgh.parallel_for<FirstKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi)
+            {
                 std::size_t idx = wi.get_linear_id();
                 ValueType* scratch = scratch_acc.__data();
                 ValueType* result = result_acc.__data();
@@ -137,7 +138,8 @@ struct Test
                 __get_accessor(sycl::read_only, result_and_scratch, cgh);
             auto result_acc =
                 __get_result_accessor(sycl::write_only, result_and_scratch, cgh);
-            cgh.parallel_for<SecondKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi){
+            cgh.parallel_for<SecondKernel>(sycl::range<1>(n_scratch), [=](sycl::item<1> wi)
+            {
                 std::size_t idx = wi.get_linear_id();
                 std::size_t r_idx = n_scratch - idx - 1;
                 const ValueType* scratch = scratch_acc.__data();
@@ -161,7 +163,6 @@ struct Test
                 run_two_kernels<Storage>(n_scratch, n_result);
             }
     }
-
 };
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
