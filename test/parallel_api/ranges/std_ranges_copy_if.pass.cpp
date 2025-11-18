@@ -31,20 +31,25 @@ main()
         auto in = std::ranges::begin(r_in);
         auto out = std::ranges::begin(r_out);
         std::size_t i = 0, j = 0;
-        for(; i < std::ranges::size(r_in) && j < std::ranges::size(r_out); ++i)
+        for(; i < std::ranges::size(r_in); ++i)
         {
              if (std::invoke(pred, std::invoke(proj, in[i])))
              {
-                 out[j++] = in[i];
+                 if (j < std::ranges::size(r_out))
+                     out[j++] = in[i];
+                 else
+                     break;
              }
         }
         return ret_type{in + i, out + j};
     };
 
-    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
-    test_range_algo<1, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
-    test_range_algo<2, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
-    test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
+    test_range_algo<0, int, data_in_out_lim>{217}(dpl_ranges::copy_if, copy_if_checker, pred);
+    test_range_algo<1, int, data_in_out_lim>{1234}(dpl_ranges::copy_if, copy_if_checker, select_many);
+    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
+    test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
+    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
+    test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
