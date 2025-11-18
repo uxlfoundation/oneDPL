@@ -420,8 +420,8 @@ struct __get_sycl_range
 
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit>
     static constexpr bool __is_copy_direct_v =
-        !_LocalNoInit && (_LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::read ||
-                          _LocalAccMode == sycl::access::mode::write);
+        !_LocalNoInit && (_LocalAccMode == sycl::access::mode::read_write ||
+                          _LocalAccMode == sycl::access::mode::read || _LocalAccMode == sycl::access::mode::write);
     template <sycl::access::mode _LocalAccMode>
     static constexpr bool __is_copy_back_v =
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;

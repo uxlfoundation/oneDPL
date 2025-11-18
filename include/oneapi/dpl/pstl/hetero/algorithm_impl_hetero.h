@@ -52,8 +52,7 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return;
 
-    auto __keep =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -143,12 +142,10 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
     if (__n == 0)
         return __first2;
 
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf1 = __keep1(__first1, __last1);
 
-    auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
     using _Function = oneapi::dpl::__internal::__swap_fn;
@@ -306,7 +303,7 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
                              _Function __func)
 {
     // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
-    // the predicate is false. This preserves non-transformed elements in the output. 
+    // the predicate is false. This preserves non-transformed elements in the output.
     return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read,
                            __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::write>(
         __tag,
@@ -921,7 +918,8 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+    auto __keep2 =
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
@@ -993,7 +991,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+    auto __keep2 =
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     auto __result = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
@@ -1222,7 +1221,8 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
         auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
         auto __buf2 = __keep2(__first2, __last2);
 
-        auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+        auto __keep3 =
+            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
         __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
@@ -1660,8 +1660,7 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bi
     if (__n <= 0)
         return __result;
 
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
     auto __keep2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
@@ -1740,8 +1739,7 @@ __pattern_rotate_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Bid
     if (__n <= 0)
         return __result;
 
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
     auto __keep2 =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
@@ -1782,14 +1780,13 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
         __output_size = __n1 + __n2;
     }
 
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
-    auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __last2);
 
-    auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+    auto __keep3 =
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
     _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
@@ -2064,8 +2061,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     auto __keys = __keep_keys(__keys_first, __keys_last);
     auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __values = __keep_values(__values_first, __values_first + __n);
-    auto __keep_key_outputs =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __keep_key_outputs = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __out_keys = __keep_key_outputs(__out_keys_first, __out_keys_first + __n);
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
@@ -2095,8 +2091,7 @@ __pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _I
     auto __key_buf = __keep_keys(__first1, __last1);
     auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
     auto __value_buf = __keep_values(__first2, __first2 + __n);
-    auto __keep_value_outputs =
-        oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
+    auto __keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
 
     __bknd::__parallel_scan_by_segment<_Inclusive::value>(
