@@ -20,6 +20,7 @@
 #if TEST_DPCPP_BACKEND_PRESENT
 #include "support/utils_sycl.h"
 #include <vector>
+#include <string>
 
 template <typename T>
 struct CombineResultAndScratch
@@ -58,12 +59,29 @@ struct KernelName; // kernel name
 
 struct Test
 {
+    using ValueType = int;
     sycl::queue q;
+
+    template <typename Storage>
+    void validate(Storage& storage, int n_scratch, int n_result, std::string message)
+    {
+        ValueType single_val;
+        storage.__copy_result(&single_val, 1);
+        EXPECT_EQ(1 + n_scratch, single_val, "Incorrect first value copied");
+        
+        std::vector<ValueType> expected{n_result};
+        ValueType i = 0;
+        for (ValueType& v: expected)
+            v = ++i + n_scratch;
+
+        std::vector<ValueType> result_host{n_result};
+        storage.__copy_result(result_host.data(), result_host.size());
+        EXPECT_EQ_RANGES(expected, result_host, (message + ": incorrect data copied").c_str());
+    }
 
     template <template <typename> typename Storage>
     void run_single_kernel(int n_scratch, int n_result)
     {
-        using ValueType = int;
         using SingleKernel = KernelName<0, Storage<ValueType>>;
 
         Storage<ValueType> result_and_scratch(q, n_scratch, n_result);
@@ -84,24 +102,12 @@ struct Test
             });
         }).wait();
 
-        ValueType single_val;
-        result_and_scratch.__copy_result(&single_val, 1);
-        EXPECT_EQ(1 + n_scratch, single_val, "Incorrect first value copied");
-        
-        std::vector<ValueType> expected{n_result};
-        ValueType i = 0;
-        for (ValueType& v: expected)
-            v = ++i + n_scratch;
-
-        std::vector<ValueType> result_host{n_result};
-        result_and_scratch.__copy_result(result_host.data(), result_host.size());
-        EXPECT_EQ_RANGES(expected, result_host, "Incorrect data copied");
+        validate(result_and_scratch, n_scratch, n_result, "Testing in a single kernel");
     }
 
     template <template <typename> typename Storage>
     void run_two_kernels(int n_scratch, int n_result)
     {
-        using ValueType = int;
         using FirstKernel = KernelName<1, Storage<ValueType>>;
         using SecondKernel = KernelName<2, Storage<ValueType>>;
 
@@ -142,18 +148,7 @@ struct Test
             });
         }).wait();
 
-        ValueType single_val;
-        result_and_scratch.__copy_result(&single_val, 1);
-        EXPECT_EQ(1 + n_scratch, single_val, "Incorrect first value copied");
-        
-        std::vector<ValueType> expected{n_result};
-        ValueType i = 0;
-        for (ValueType& v: expected)
-            v = ++i + n_scratch;
-
-        std::vector<ValueType> result_host{n_result};
-        result_and_scratch.__copy_result(result_host.data(), result_host.size());
-        EXPECT_EQ_RANGES(expected, result_host, "Incorrect data copied");
+        validate(result_and_scratch, n_scratch, n_result, "Testing in two kernels");
     }
 
     template <template <typename> typename Storage>
