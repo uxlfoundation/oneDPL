@@ -462,12 +462,12 @@ __brick_copy_by_mask(_RandomAccessIterator, _RandomAccessIterator, _OutputIterat
                      /*vector=*/::std::true_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-std::pair<_Bound, _Bound>
+_Bound
 __brick_bounded_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
                              /*vector=*/std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-std::pair<_Bound, _Bound>
+_Bound
 __brick_bounded_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
                              /*vector=*/std::true_type) noexcept;
 
