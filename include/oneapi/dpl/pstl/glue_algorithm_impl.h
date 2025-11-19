@@ -1015,13 +1015,19 @@ includes(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator,
           class _Compare>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator>
-set_union(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-          _ForwardIterator2 __last2, _ForwardIterator __result, _Compare __comp)
+set_union(_ExecutionPolicy&& __exec,
+          _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+          _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+          _ForwardIterator __result,
+          _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
     return oneapi::dpl::__internal::__pattern_set_union(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                        __first1, __last1, __first2, __last2, __result, __comp);
+                                                        __first1, __last1,
+                                                        __first2, __last2,
+                                                        __result,
+                                                        __comp);
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator>
@@ -1044,7 +1050,10 @@ set_intersection(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Forward
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
     return oneapi::dpl::__internal::__pattern_set_intersection(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                               __first1, __last1, __first2, __last2, __result, __comp);
+                                                               __first1, __last1,
+                                                               __first2, __last2,
+                                                               __result,
+                                                               __comp);
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator>
@@ -1067,7 +1076,10 @@ set_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIt
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
     return oneapi::dpl::__internal::__pattern_set_difference(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-                                                             __first1, __last1, __first2, __last2, __result, __comp);
+                                                             __first1, __last1,
+                                                             __first2, __last2,
+                                                             __result,
+                                                             __comp);
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _ForwardIterator>
@@ -1091,7 +1103,10 @@ set_symmetric_difference(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
     return oneapi::dpl::__internal::__pattern_set_symmetric_difference(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1,
+        __first2, __last2,
+        __result,
         __comp);
 }
 

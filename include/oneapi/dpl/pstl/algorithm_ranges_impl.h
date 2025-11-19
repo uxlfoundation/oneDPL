@@ -184,7 +184,9 @@ __pattern_find_end(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
         return {__last1, __last1};
 
     auto __it = oneapi::dpl::__internal::__pattern_find_end(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+        __tag, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1,
+        __first2, __last2,
         oneapi::dpl::__internal::__binary_op<_Pred, _Proj1, _Proj2>{__pred, __proj1, __proj2});
 
     return {__it, __it + (__it == __last1 ? 0 : __n2)};
@@ -774,7 +776,8 @@ template<std::ranges::random_access_range _R1,
          std::ranges::random_access_range _OutRange,
          typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     [[maybe_unused]] auto [__it1,       __end1, __in1_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     [[maybe_unused]] auto [__it2,       __end2, __in2_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
@@ -856,13 +859,15 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                    _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec,
+                    _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp,
-                             __proj1, __proj2, typename _Tag::__is_vector{});
+    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                             __comp, __proj1, __proj2,
+                             typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
@@ -962,7 +967,8 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::false_type) noexcept
 {
     return __serial_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
@@ -971,7 +977,8 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                          /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -982,7 +989,8 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec,
+                           _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
@@ -994,8 +1002,9 @@ __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                           _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                           _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
@@ -1043,8 +1052,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return std::min(__n, __m);
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,    // _SetOP __set_op
-                   _RandomAccessIterator2 __last2, _Tp* __result,
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _Tp* __result,
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
@@ -1148,7 +1158,8 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                       _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
 {
     return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
@@ -1157,7 +1168,8 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                       _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -1168,20 +1180,23 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec,
+                         _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-                                  __comp, __proj1, __proj2, typename _Tag::__is_vector{});
+                                  __comp, __proj1, __proj2,
+                                  typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                         _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                         _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
@@ -1281,9 +1296,8 @@ template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typena
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
                                   std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
-                                  std::ranges::iterator_t<_OutRange> __out_it,
-                                  std::ranges::iterator_t<_OutRange> __out_end, _Comp __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
+                                  std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
+                                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__it1 != __end1 && __it2 != __end2 /*&& __out_it != __out_end*/)     // TODO commented till other implementations will be improved to check limited output range size
     {
@@ -1328,8 +1342,8 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                 _Proj2 __proj2,
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                 _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                                  /*__is_vector=*/std::false_type) noexcept
 {
     return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
@@ -1338,8 +1352,8 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                 _Proj2 __proj2,
+__brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                 _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                                  /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -1350,21 +1364,23 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec,
+                                   _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __brick_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
-                                            std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2,
+    return __brick_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                            __comp, __proj1, __proj2,
                                             typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                                   _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
