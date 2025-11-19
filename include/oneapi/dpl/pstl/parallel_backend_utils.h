@@ -329,7 +329,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                                      _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
@@ -341,7 +341,10 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     while (__first1 != __last1 && __result1 != __result2)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result1, __result2);
+        {
+            auto __cc_range_res = __cc_range(__first1, __last1, __result1, __result2);
+            return {__cc_range_res.first, __first2, __cc_range_res.second};
+        }
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
@@ -362,7 +365,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
     }
 
-    return __cc_range(__first2, __last2, __result1, __result2);
+    auto __cc_range_res = __cc_range(__first2, __last2, __result1, __result2);
+    return {__first1, __cc_range_res.first, __cc_range_res.second};
 }
 
 template <template <typename, typename...> typename _Concrete, typename _ValueType, typename... _Args>
