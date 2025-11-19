@@ -75,10 +75,10 @@ main()
             std::cout << "\nRunning round robin tests for sycl::queue* ...\n";
             EXPECT_EQ(0, (run_round_robin_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
 
-	    //CTAD tests (testing policy construction without template arguments)
-	    //Template arguments types are deduced with CTAD
-            sycl::queue q1(sycl::cpu_selector_v);
-            sycl::queue q2(sycl::cpu_selector_v); //using all cps for wider coverage
+            //CTAD tests (testing policy construction without template arguments)
+            //Template arguments types are deduced with CTAD
+            sycl::queue q1(sycl::default_selector_v);
+            sycl::queue q2(sycl::default_selector_v);
             oneapi::dpl::experimental::round_robin_policy p1{ {q1, q2} };;
             oneapi::dpl::experimental::round_robin_policy p2( {q1, q2} );
 

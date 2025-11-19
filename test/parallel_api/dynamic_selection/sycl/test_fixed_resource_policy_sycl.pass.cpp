@@ -73,8 +73,8 @@ main()
 
             //CTAD tests (testing policy construction without template arguments)
             //Template arguments types are deduced with CTAD
-            sycl::queue q1(sycl::cpu_selector_v);
-            sycl::queue q2(sycl::cpu_selector_v); //using all cpus for wider coverage
+            sycl::queue q1(sycl::default_selector_v);
+            sycl::queue q2(sycl::default_selector_v);
 
             //without offset
             oneapi::dpl::experimental::fixed_resource_policy p1{ {q1, q2} };
