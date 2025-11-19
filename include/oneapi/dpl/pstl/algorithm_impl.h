@@ -1236,6 +1236,11 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
         __result = __brick_copy_if(__first, __first + __n, __result, __pred, std::true_type{});
         __first += __n;
     }
+    else
+    { // m == 0
+        __first = __unseq_backend::__simd_first(__first, decltype(__n)(0), __n,
+            [__pred](_RandomAccessIterator1 __it, auto __i) { return __pred(__it[__i]); });
+    }
     return {__first, __result};
 }
 
@@ -1304,13 +1309,17 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
                              _Bound __out_len, bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
 {
     _Bound __i = 0, __j = 0;
-    for (; __i < __in_len && __j < __out_len; ++__i, (void)++__first)
+    for (; __i < __in_len; ++__i, (void)++__first)
     {
         if (__mask[__i])
         {
-            __assigner(__first, __result);
-            ++__j;
-            ++__result;
+            if (__j < __out_len)
+            {
+                __assigner(__first, __result++);
+                ++__j;
+            }
+            else
+                break;
         }
     }
     return {__i, __j};
@@ -1329,6 +1338,7 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
         _Bound __copied = __unseq_backend::__simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
         __n -= __m;
         __first += __m;
+        __mask += __m;
         __m -= __copied;
         __result += __copied;
     }
@@ -1337,6 +1347,12 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
     {
         __m -= __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
         __n = 0;
+    }
+    else
+    { // m == 0
+        bool* __stop = __unseq_backend::__simd_first(__mask, _Bound(0), __n,
+            [](bool* __mask_, _Bound __i) { return __mask_[__i]; });
+        __n -= __stop - __mask;
     }
     return {__in_len - __n, __out_len - __m};
 #else
