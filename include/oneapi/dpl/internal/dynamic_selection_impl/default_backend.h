@@ -105,7 +105,7 @@ class backend_base
         }
 
       public:
-        explicit default_submission(WaitType w) : w_(w) {}
+        default_submission(WaitType w) : w_(w) {}
 
         void
         wait()
