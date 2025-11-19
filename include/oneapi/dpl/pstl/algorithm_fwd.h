@@ -983,106 +983,150 @@ __pattern_includes(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessI
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_union(_ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _ForwardIterator2,
-                                  _OutputIterator, _Compare,
-                                  /*__is_vector=*/::std::false_type) noexcept;
+_OutputIterator
+__brick_set_union(_ForwardIterator1, _ForwardIterator1,
+                  _ForwardIterator2, _ForwardIterator2,
+                  _OutputIterator, _Compare,
+                  /*__is_vector=*/::std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_union(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
-                                  _RandomAccessIterator2, _OutputIterator, _Compare,
-                                  /*__is_vector=*/::std::true_type) noexcept;
+_OutputIterator
+__brick_set_union(_RandomAccessIterator1, _RandomAccessIterator1,
+                  _RandomAccessIterator2, _RandomAccessIterator2,
+                  _OutputIterator, _Compare,
+                  /*__is_vector=*/::std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                    _ForwardIterator2, _OutputIterator, _Compare) noexcept;
+__pattern_set_union(_Tag, _ExecutionPolicy&&,
+                    _ForwardIterator1, _ForwardIterator1,
+                    _ForwardIterator2, _ForwardIterator2,
+                    _OutputIterator,
+                    _Compare) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _Compare>
 _OutputIterator
-__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
-                    _RandomAccessIterator2, _RandomAccessIterator2, _OutputIterator, _Compare);
+__pattern_set_union(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
+                    _RandomAccessIterator1, _RandomAccessIterator1,
+                    _RandomAccessIterator2, _RandomAccessIterator2,
+                    _OutputIterator,
+                    _Compare);
 
 //------------------------------------------------------------------------
 // set_intersection
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_intersection(_ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _ForwardIterator2,
-                                         _OutputIterator, _Compare,
-                                         /*__is_vector=*/::std::false_type) noexcept;
+_OutputIterator
+__brick_set_intersection(_ForwardIterator1, _ForwardIterator1,
+                         _ForwardIterator2, _ForwardIterator2,
+                         _OutputIterator,
+                         _Compare,
+                         /*__is_vector=*/::std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_intersection(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
-                                         _RandomAccessIterator2, _OutputIterator, _Compare,
-                                         /*__is_vector=*/::std::true_type) noexcept;
+_OutputIterator
+__brick_set_intersection(_RandomAccessIterator1, _RandomAccessIterator1,
+                         _RandomAccessIterator2, _RandomAccessIterator2,
+                         _OutputIterator,
+                         _Compare,
+                         /*__is_vector=*/::std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_intersection(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                           _ForwardIterator2, _OutputIterator, _Compare) noexcept;
+__pattern_set_intersection(_Tag, _ExecutionPolicy&&,
+                           _ForwardIterator1, _ForwardIterator1,
+                           _ForwardIterator2, _ForwardIterator2,
+                           _OutputIterator,
+                           _Compare) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_intersection(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1,
-                           _RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator2,
-                           _RandomAccessIterator3, _Compare);
+__pattern_set_intersection(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
+                           _RandomAccessIterator1, _RandomAccessIterator1,
+                           _RandomAccessIterator2, _RandomAccessIterator2,
+                           _RandomAccessIterator3,
+                           _Compare);
 
 //------------------------------------------------------------------------
 // set_difference
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_difference(_ForwardIterator1, _ForwardIterator1, _ForwardIterator2, _ForwardIterator2,
-                                       _OutputIterator, _Compare,
-                                       /*__is_vector=*/::std::false_type) noexcept;
+_OutputIterator
+__brick_set_difference(_ForwardIterator1, _ForwardIterator1,
+                       _ForwardIterator2, _ForwardIterator2,
+                       _OutputIterator,
+                       _Compare,
+                       /*__is_vector=*/::std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_difference(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
-                                       _RandomAccessIterator2, _OutputIterator, _Compare,
-                                       /*__is_vector=*/::std::true_type) noexcept;
+_OutputIterator
+__brick_set_difference(_RandomAccessIterator1, _RandomAccessIterator1,
+                       _RandomAccessIterator2, _RandomAccessIterator2,
+                       _OutputIterator,
+                       _Compare,
+                       /*__is_vector=*/::std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                         _ForwardIterator2, _OutputIterator, _Compare) noexcept;
+__pattern_set_difference(_Tag, _ExecutionPolicy&&,
+                         _ForwardIterator1, _ForwardIterator1,
+                         _ForwardIterator2, _ForwardIterator2,
+                         _OutputIterator,
+                         _Compare) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
-                         _RandomAccessIterator2, _RandomAccessIterator2, _RandomAccessIterator3, _Compare);
+__pattern_set_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
+                         _RandomAccessIterator1, _RandomAccessIterator1,
+                         _RandomAccessIterator2, _RandomAccessIterator2,
+                         _RandomAccessIterator3,
+                         _Compare);
 
 //------------------------------------------------------------------------
 // set_symmetric_difference
 //------------------------------------------------------------------------
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_symmetric_difference(_ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                                                 _ForwardIterator2, _OutputIterator, _Compare,
-                                                 /*__is_vector=*/::std::false_type) noexcept;
+_OutputIterator
+__brick_set_symmetric_difference(_ForwardIterator1, _ForwardIterator1,
+                                 _ForwardIterator2, _ForwardIterator2,
+                                 _OutputIterator,
+                                 _Compare,
+                                 /*__is_vector=*/::std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
-_OutputIterator __brick_set_symmetric_difference(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
-                                                 _RandomAccessIterator2, _OutputIterator, _Compare,
-                                                 /*__is_vector=*/::std::true_type) noexcept;
+_OutputIterator
+__brick_set_symmetric_difference(_RandomAccessIterator1, _RandomAccessIterator1,
+                                 _RandomAccessIterator2, _RandomAccessIterator2,
+                                 _OutputIterator,
+                                 _Compare,
+                                 /*__is_vector=*/::std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1, _ForwardIterator1, _ForwardIterator2,
-                                   _ForwardIterator2, _OutputIterator, _Compare) noexcept;
+__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&,
+                                   _ForwardIterator1, _ForwardIterator1,
+                                   _ForwardIterator2, _ForwardIterator2,
+                                   _OutputIterator,
+                                   _Compare) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_symmetric_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1,
-                                   _RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator2,
-                                   _RandomAccessIterator3, _Compare);
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
+                                   _RandomAccessIterator1, _RandomAccessIterator1,
+                                   _RandomAccessIterator2, _RandomAccessIterator2,
+                                   _RandomAccessIterator3,
+                                   _Compare);
 
 //------------------------------------------------------------------------
 // is_heap_until
