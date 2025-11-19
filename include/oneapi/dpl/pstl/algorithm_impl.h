@@ -1309,17 +1309,13 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
                              _Bound __out_len, bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
 {
     _Bound __i = 0, __j = 0;
-    for (; __i < __in_len; ++__i, (void)++__first)
+    for (; __i < __in_len && __j < __out_len; ++__i, (void)++__first)
     {
         if (__mask[__i])
         {
-            if (__j < __out_len)
-            {
-                __assigner(__first, __result++);
-                ++__j;
-            }
-            else
-                break;
+            __assigner(__first, __result);
+            ++__j;
+            ++__result;
         }
     }
     return {__i, __j};
@@ -1347,12 +1343,6 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
     {
         __m -= __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
         __n = 0;
-    }
-    else
-    { // m == 0
-        bool* __stop = __unseq_backend::__simd_first(__mask, _Bound(0), __n,
-            [](bool* __mask_, _Bound __i) { return __mask_[__i]; });
-        __n -= __stop - __mask;
     }
     return {__in_len - __n, __out_len - __m};
 #else
@@ -1465,14 +1455,22 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
             },
             std::plus<_DifferenceType>(), // Combine
             [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
+                if (__initial > __n_out)  // The chunk has neither elements to write nor the stop position
+                    return;
+                bool* __mask_start = __mask + __i;
+                bool* __mask_end = __mask + (__i + __len);
                 if (__initial < __n_out)
                 {
                     auto __res = __internal::__brick_bounded_copy_by_mask(
-                        __first + __i, __len, __result + __initial, __n_out - __initial, __mask + __i,
+                        __first + __i, __len, __result + __initial, __n_out - __initial, __mask_start,
                         [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
-                    if (__res.second + __initial == __n_out) // Reached the end of the output
-                        __res_in = __i + __res.first;
+                    if (__res.first == __len)
+                        return;
+                    __mask_start += __res.first;
                 }
+                bool* __stop = __brick_find_if(__mask_start, __mask_end, oneapi::dpl::identity{}, _IsVector{});
+                if (__stop != __mask_end) // Found the position of the first element that cannot be copied
+                    __res_in = __stop - __mask;
             },
             [&__res_out](auto __total_out) { // Apex
                 if (__total_out < __res_out) // Output size is bigger than needed
