@@ -1040,8 +1040,9 @@ using __pattern_set_union_return_t =
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 __pattern_set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                    _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
@@ -1086,7 +1087,8 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
                _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
                oneapi::dpl::__ranges::__get_subscription_view(__r1),
                oneapi::dpl::__ranges::__get_subscription_view(__r2),
-               oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2)
+               oneapi::dpl::__ranges::__get_subscription_view(__out_r),
+               __comp, __proj1, __proj2)
         .template positions_reached<__pattern_set_union_return_t<_R1, _R2, _OutRange>>();
 }
 
@@ -1098,8 +1100,9 @@ using __pattern_set_intersection_return_t =
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 __pattern_set_intersection_return_t<_R1, _R2, _OutRange>
-__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                           _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                           _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
@@ -1129,8 +1132,9 @@ using __pattern_set_difference_return_t =
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 __pattern_set_difference_return_t<_R1, _OutRange>
-__pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                         _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                         _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
@@ -1180,8 +1184,9 @@ using __pattern_set_symmetric_difference_return_t =
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange,
           typename _Comp, typename _Proj1, typename _Proj2>
 __pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
-                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                                   _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
