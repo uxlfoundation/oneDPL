@@ -161,7 +161,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource, Adapter a
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 100;
+            *j = 1000;
         }
         else
         {
@@ -230,7 +230,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 500;
+            *j = 1000;
         }
         else
         {
