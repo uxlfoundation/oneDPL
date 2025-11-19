@@ -422,11 +422,11 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo with input range: ") + sizes + typeid(Algo).name()).c_str());
-
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong return value from algo with output range: ") + sizes + typeid(Algo).name()).c_str());
+
+        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                  (std::string("wrong return value from algo with input range: ") + sizes + typeid(Algo).name()).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
@@ -834,9 +834,9 @@ template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typenam
 struct test_range_algo
 {
     const int n_serial = small_size;
-    const int n_parallel = small_size;
+    const int n_parallel = medium_size/8; // 16K
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int n_device = small_size;
+    const int n_device = medium_size;
 #endif
 
     test_range_algo() = default;
