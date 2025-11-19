@@ -90,8 +90,7 @@ class backend_base
         WaitType w_;
 
       public:
-        default_submission(const WaitType& w) : w_{w} {}
-        default_submission(WaitType&& w) : w_{std::move(w)} {}
+        explicit default_submission(WaitType&& w) : w_{std::move(w)} {}
 
         void
         wait()
