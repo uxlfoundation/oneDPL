@@ -52,7 +52,7 @@ test_auto_initialization(const std::vector<sycl::queue>& u)
 
 template <typename KernelName, typename ResourceType, typename Adapter>
 auto
-launch_kernel(ResourceType& q, Adapter adapter, int* j, volatile double* v)
+launch_kernel(ResourceType& q, Adapter adapter, int* j, volatile float* v)
 {
     return adapter(q).submit([=](sycl::handler& h) {
         h.parallel_for<KernelName>(
@@ -71,11 +71,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource, Adapter a
 {
     using my_policy_t = Policy;
 
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, double> dt_helper_v(adapter(u[0]), 1000000);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, float> dt_helper_v(adapter(u[0]), 1000000);
     TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> dt_helper_j(adapter(u[0]), 1);
 
     //Making v volatile so the release build does not optimize it in the for loop below
-    volatile double* v = dt_helper_v.get_data();
+    volatile float* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
 
 
@@ -142,11 +142,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource, Adapter a
 {
     using my_policy_t = Policy;
 
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, double> dt_helper_v(adapter(u[0]), 1000000);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, float> dt_helper_v(adapter(u[0]), 1000000);
     TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> dt_helper_j(adapter(u[0]), 1);
 
     //Making v volatile so the release build does not optimize it in the for loop below
-    volatile double* v = dt_helper_v.get_data();
+    volatile float* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
 
 
@@ -212,11 +212,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
     using my_policy_t = Policy;
 
     // they are cpus so this is ok
-    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, double> dt_helper_v(adapter(u[0]), 1000000);
+    TestUtils::usm_data_transfer<sycl::usm::alloc::shared, float> dt_helper_v(adapter(u[0]), 1000000);
     TestUtils::usm_data_transfer<sycl::usm::alloc::shared, int> dt_helper_j(adapter(u[0]), 1);
 
     //Making v volatile so the release build does not optimize it in the for loop below
-    volatile double* v = dt_helper_v.get_data();
+    volatile float* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
 
     my_policy_t p{u, adapter};
