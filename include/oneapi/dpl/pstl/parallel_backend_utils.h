@@ -442,11 +442,28 @@ struct __set_operations_return_t
     __data_result_t<_RandomAccessIterator3> __rng3_info;
 
     // Get the positions reached in each of the each data range
-    template <typename TResult>
+    template <typename TResult, bool IncludeR1 = true, bool IncludeR2 = true, bool IncludeR3 = true>
     TResult
     positions_reached() const
     {
-        return {__rng1_info.reached, __rng2_info.reached, __rng3_info.reached};
+        TResult __res;
+
+        if constexpr (IncludeR1)
+            std::get<0>(__res) = __rng1_info.reached;
+
+        if constexpr (IncludeR2)
+        {
+            constexpr std::size_t index = sum_flags<IncludeR1>();
+            std::get<index>(__res) = __rng2_info.reached;
+        }
+
+        if constexpr (IncludeR3)
+        {
+            constexpr std::size_t index = sum_flags<IncludeR1, IncludeR2>();
+            std::get<index>(__res) = __rng3_info.reached;
+        }
+
+        return __res;
     }
 
     _RandomAccessIterator3
@@ -454,6 +471,14 @@ struct __set_operations_return_t
     {
         return __rng3_info.first;
     }
+
+    protected:
+
+        template <bool... Flags>
+        static constexpr std::size_t sum_flags()
+        {
+            return (0 + ... + (Flags ? std::size_t{1} : std::size_t{0}));
+        }
 };
 
 // Move it1 forward by n, but not beyond it2
