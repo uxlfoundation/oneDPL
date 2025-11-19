@@ -118,8 +118,11 @@ Optional Members
 Reporting Requirements
 ----------------------
 
-Backends declare what execution information they can provide:
+Backends can support various execution information reporting requirements.
+When a policy requests reporting, the backend must confirm that it can
+satisfy those requirements, and filter out resources that cannot satisfy them.
 
+The following execution info types are defined:
 .. list-table:: Available Execution Info
   :widths: 30 30 40
   :header-rows: 1
