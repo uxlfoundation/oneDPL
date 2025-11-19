@@ -1141,10 +1141,9 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
         }
     }
 
-    if (__out_it != __out_end)
-        return std::ranges::copy(__it1, __end1, __out_it);
-
-    return {__it1, __out_it};
+    auto __remaining_capacity = __out_end - __out_it;
+    auto __copy_n = __end1 - __it1;
+    return std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
