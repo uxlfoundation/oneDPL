@@ -18,6 +18,7 @@
 
 #include <iterator>
 #include <type_traits>
+#include <tuple>
 
 #include "memory_fwd.h"
 #include "unseq_backend_simd.h"
@@ -89,7 +90,7 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
 //------------------------------------------------------------------------
 
 template <typename _ForwardIterator, typename _OutputIterator>
-_OutputIterator
+std::tuple<_ForwardIterator, _OutputIterator>
 __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last,       // bounds for data1
                            _OutputIterator __result1, _OutputIterator __result2,    // bounds for results
                            /*vector=*/::std::false_type) noexcept
@@ -100,11 +101,11 @@ __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last,   
         ::new (std::addressof(*__result1)) _ValueType(*__first);
     }
 
-    return __result1;
+    return {__first, __result1};
 }
 
 template <typename _RandomAccessIterator, typename _OutputIterator>
-_OutputIterator
+std::tuple<_RandomAccessIterator, _OutputIterator>
 __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator __last, // bounds for data1
                            _OutputIterator __result1, _OutputIterator __result2,        // bounds for results
                            /*vector=*/::std::true_type) noexcept
@@ -114,9 +115,12 @@ __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator 
     using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
 
     const auto __n = std::min(__last - __first, __result2 - __result1);
-    return __unseq_backend::__simd_walk_n(
+
+    _OutputIterator __it_out = __unseq_backend::__simd_walk_n(
         __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { new (std::addressof(__y)) __ValueType(__x); }, __first,
         __result1);
+
+    return {__first + __n, __it_out};
 }
 
 template <typename _ExecutionPolicy>
