@@ -78,7 +78,7 @@ class backend_base
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
-        return default_submission{std::move(w)};
+        return default_submission{w};
     }
 
   protected:
@@ -90,7 +90,7 @@ class backend_base
         WaitType w_;
 
       public:
-        explicit default_submission(WaitType&& w) : w_{std::move(w)} {}
+        explicit default_submission(WaitType w) : w_(w) {}
 
         void
         wait()
