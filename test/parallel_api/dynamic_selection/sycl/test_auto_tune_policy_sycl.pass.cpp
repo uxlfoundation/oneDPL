@@ -79,7 +79,7 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource, Adapter a
     int* j = dt_helper_j.get_data();
 
 
-    my_policy_t p{u};
+    my_policy_t p{u, adapter};
     auto n_samples = u.size();
 
     const int N = 10;
@@ -150,7 +150,7 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource, Adapter a
     int* j = dt_helper_j.get_data();
 
 
-    my_policy_t p{u};
+    my_policy_t p{u, adapter};
     auto n_samples = u.size();
 
     const int N = 10;
@@ -219,7 +219,7 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
     volatile double* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
 
-    my_policy_t p{u};
+    my_policy_t p{u, adapter};
     auto n_samples = u.size();
 
     const int N = 10;
