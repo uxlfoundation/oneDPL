@@ -81,6 +81,7 @@ auto f = [](auto&& val) { return val * val; };
 auto binary_f = [](auto&& val1, auto&& val2) { return val1 * val2; };
 auto proj = [](auto&& val){ return val * 2; };
 auto pred = [](auto&& val) { return val == 5; };
+auto select_many = [](int val) { return (val % 29) > 1; };
 
 auto binary_pred = [](auto&& val1, auto&& val2) { return val1 == val2; };
 auto binary_pred_const = [](const auto& val1, const auto& val2) { return val1 == val2; };
@@ -398,6 +399,7 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
+        std::string sizes = std::to_string(n_in) + " elements, " + std::to_string(n_out) + " space;";
 
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
@@ -420,19 +422,21 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
-
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+                  (std::string("wrong return value from algo with output range: ") + sizes + typeid(Algo).name()).c_str());
+
+        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                  (std::string("wrong return value from algo with input range: ") + sizes + typeid(Algo).name()).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
+                    (std::string("wrong effect algo with ranges: ") + sizes + typeid(Algo).name()).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
-        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
+                    (std::string("wrong effect algo with ranges: ") + sizes + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -463,6 +467,12 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test cases with only one element
+        process_data_in_out(max_n, r_size, 1, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 1, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
@@ -824,9 +834,9 @@ template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typenam
 struct test_range_algo
 {
     const int n_serial = small_size;
-    const int n_parallel = small_size;
+    const int n_parallel = medium_size/8; // 16K
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int n_device = small_size;
+    const int n_device = medium_size;
 #endif
 
     test_range_algo() = default;
