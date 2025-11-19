@@ -220,7 +220,7 @@ struct __serial_move_merge
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
                       _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
                       _OutputIterator __result1, _OutputIterator __result2,     // bounds for results
@@ -232,7 +232,10 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     for (; __first1 != __last1 && __result1 != __result2; ++__result1)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result1, __result2);
+        {
+            auto __cc_range_res = __cc_range(__first1, __last1, __result1, __result2);
+            return {__cc_range_res.first, __first2, __cc_range_res.second};
+        }
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
@@ -248,7 +251,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
         }
     }
 
-    return __cc_range(__first2, __last2, __result1, __result2);
+    auto __cc_range_res = __cc_range(__first2, __last2, __result1, __result2);
+    return {__first1, __cc_range_res.first, __cc_range_res.second};
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
