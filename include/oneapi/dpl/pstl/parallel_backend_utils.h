@@ -257,11 +257,12 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
           typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                              _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                              _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
-                             _CopyFunc _copy, _CopyFromFirstSet,
+                             _CopyFunc _copy, 
+                             _CopyFromFirstSet,
                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__first1 != __last1 && __first2 != __last2 && __result1 != __result2)
@@ -287,7 +288,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
     }
 
-    return __result1;
+    return { __first1, __first2, __result1 };
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
