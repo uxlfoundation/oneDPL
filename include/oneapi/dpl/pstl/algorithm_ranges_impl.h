@@ -747,58 +747,38 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     [[maybe_unused]] auto [__it2,       __end2, __in2_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     [[maybe_unused]] auto [__out_it, __out_end, __out_sz] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
-    auto __merge_loop = [&__it1, __end1, &__it2, __end2, &__out_it, __out_end,
-                         __comp, __proj1, __proj2] (bool __check_output_bounds) {
-        // TODO: check if (!__check_output_bounds || __out_it != __out_end) is optimized out
-        // when __check_output_bounds is false otherwise make it compile-time constant
-        while (__it1 != __end1 && __it2 != __end2 && (!__check_output_bounds || __out_it != __out_end))
+    // 1. Main set_union operation
+    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
-            {
-                *__out_it = *__it1;
-                ++__it1;
-            }
-            else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
-            {
-                *__out_it = *__it2;
-                ++__it2;
-            }
-            else
-            {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__it2;
-            }
-            ++__out_it;
+            *__out_it = *__it1;
+            ++__it1;
         }
-    };
-
-    if (__out_sz >= __in1_sz + __in2_sz)
-    {
-        // 1. Main set_union operation
-        __merge_loop(/*__check_output_bounds=*/false);
-
-        // 2. Copying the residual elements if one of the input sequences is exhausted
-        auto __copy1 = std::ranges::copy(__it1, __end1, __out_it);
-        auto __copy2 = std::ranges::copy(__it2, __end2, __copy1.out);
-        return {__copy1.in, __copy2.in, __copy2.out};
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+        }
+        else
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__it2;
+        }
+        ++__out_it;
     }
-    else
-    {
-        // 1. Main set_union operation
-        __merge_loop(/*__check_output_bounds=*/true);
 
-        // 2. Copying the residual elements if one of the input sequences is exhausted
-        using _SizeCommon1 = std::common_type_t<std::ranges::range_size_t<_R1>, std::ranges::range_size_t<_OutRange>>;
-        using _SizeCommon2 = std::common_type_t<std::ranges::range_size_t<_R2>, std::ranges::range_size_t<_OutRange>>;
-        const _SizeCommon1 __copy_n1 = std::min<_SizeCommon1>(std::ranges::distance(__it1, __end1),
-                                                              std::ranges::distance(__out_it, __out_end));
-        auto __copy1 = std::ranges::copy_n(__it1, __copy_n1, __out_it);
-        const _SizeCommon2 __copy_n2 = std::min<_SizeCommon2>(std::ranges::distance(__it2, __end2),
-                                                              std::ranges::distance(__copy1.out, __out_end));
-        auto __copy2 = std::ranges::copy_n(__it2, __copy_n2, __copy1.out);
-        return {__copy1.in, __copy2.in, __copy2.out};
-    }
+    // 2. Copying the residual elements if one of the input sequences is exhausted
+    auto __remaining_capacity1 = __out_end - __out_it;
+    auto __copy_n1 = __end1 - __it1;
+    auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
+
+    auto __remaining_capacity2 = __out_end - __copy1.out;
+    auto __copy_n2 = __end2 - __it2;
+    auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
+
+    return {__copy1.in, __copy2.in, __copy2.out};
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
