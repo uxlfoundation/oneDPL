@@ -311,10 +311,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                     auto __temp_ptr = __temp_acc.__data();
                     __local_scan(__item, __n, __m, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
                                  __wgroup_size, __iters_per_witem, __init);
-                    if (__item.get_global_id(0) == 0 && __n_groups == 1)
+                    if (__n_groups == 1)
                     {
-                        auto __res_ptr = __res_acc.__data();
-                        __apex(__res_ptr, __temp_ptr[0], __m, __n);
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[0], __m, __n);
                     }
                 });
         });
@@ -340,11 +341,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                         auto __temp_ptr = __temp_acc.__data();
                         __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
-                        if (__item.get_local_id(0) == 0 && __item.get_group(0) == __n_groups - 1)
-                        {
-                            auto __res_ptr = __res_acc.__data();
-                            __apex(__res_ptr, __temp_ptr[__n_groups - 1], __m, __n);
-                        }
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __m, __n);
                     });
             });
         }
@@ -354,16 +353,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
             auto __temp_acc = __get_accessor(sycl::read_only, __result_and_scratch, __cgh);
-            auto __res_acc = __get_result_accessor(sycl::read_write, __result_and_scratch, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh);
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();
-                _Type __v0 = __res_ptr[0], __v1 = __res_ptr[1];
                 __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __m, __n, __size_per_wg);
-
-                // For debugging
-                __res_ptr[0] = __v0;
-                __res_ptr[1] = __v1;
             });
         });
 
@@ -980,10 +974,10 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());
         assert(__m >= __ret[0]);
-        assert(__ret[0] >= 0);
         assert(__n >= __ret[1]);
+        assert(__ret[0] == __m || __ret[1] == __n);
+        assert(__ret[0] >= 0);
         assert(__ret[1] > 0);
-//        assert(__ret[0] == __m || __ret[1] == __n);
     }
 
     return __ret;
