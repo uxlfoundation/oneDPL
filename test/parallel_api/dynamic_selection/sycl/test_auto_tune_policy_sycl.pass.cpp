@@ -274,14 +274,10 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
 }
 
 
-template<bool use_event_profiling=false>
 static inline void
 build_auto_tune_universe(std::vector<sycl::queue>& u)
 {
-    auto prop_list = sycl::property_list{};
-    if(use_event_profiling){
-        prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
-    }
+    auto prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
 
     try
     {
@@ -335,105 +331,65 @@ main()
     try
     {
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
+#if SYCL_EXT_ONEAPI_PROFILING_TAG
 #if !ONEDPL_FPGA_DEVICE || !ONEDPL_FPGA_EMULATOR
         using policy_t =
             oneapi::dpl::experimental::auto_tune_policy<sycl::queue, oneapi::dpl::identity,
                                                         oneapi::dpl::experimental::default_backend<sycl::queue>>;
-        std::vector<sycl::queue> u1;
-        std::vector<sycl::queue> u2;
-        constexpr bool use_event_profiling = true;
-        build_auto_tune_universe(u1);
-        build_auto_tune_universe<use_event_profiling>(u2);
+        std::vector<sycl::queue> u;
+        build_auto_tune_universe(u);
 
-        if (u1.size() != 0 || u2.size() !=0 )
+        if (u.size() > 1)
         {
-            auto f = [u1](int i) {
-                if (i <= 8)
-                    return u1[(i - 1) % 4];
-                else
-                    return u1[0];
-            };
 
             std::cout << "\nRunning auto_tune tests for sycl::queue ...\n";
-            EXPECT_EQ(0, (test_auto_initialization(u1)), "");
+            EXPECT_EQ(0, (test_auto_initialization(u)), "");
             EXPECT_EQ(0, (test_default_universe_initialization<policy_t>(oneapi::dpl::identity{})), "");
 
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel1>(u1, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel2>(u1, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel3>(u1, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel4>(u1, 3, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel5>(u1, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel6>(u1, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel7>(u1, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel8>(u1, 3, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel9>(u1, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel10>(u1, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel11>(u1, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel12>(u1, 3, oneapi::dpl::identity{})), "");
-            // Use event profiling
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel25>(u2, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel26>(u2, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel27>(u2, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel28>(u2, 3, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel29>(u2, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel30>(u2, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel31>(u2, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel32>(u2, 3, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel33>(u2, 0, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel34>(u2, 1, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel35>(u2, 2, oneapi::dpl::identity{})), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel36>(u2, 3, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel1>(u, 0, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel2>(u, 1, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel3>(u, 2, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel4>(u, 3, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel5>(u, 0, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel6>(u, 1, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel7>(u, 2, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_t, class Kernel8>(u, 3, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel9>(u, 0, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel10>(u, 1, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel11>(u, 2, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_t, class Kernel12>(u, 3, oneapi::dpl::identity{})), "");
+
             // Test with sycl::queue* resources and dereference adapter
             auto deref_op = [](auto pointer) { return *pointer; };
             using policy_pointer_t = oneapi::dpl::experimental::auto_tune_policy<
                 sycl::queue*, decltype(deref_op),
                 oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>;
 
-            std::vector<sycl::queue*> u1_ptrs;
-            u1_ptrs.reserve(u1.size());
-            for (auto& e : u1)
+            std::vector<sycl::queue*> u_ptrs;
+            u_ptrs.reserve(u.size());
+            for (auto& e : u)
             {
-                u1_ptrs.push_back(&e);
-            }
-
-            std::vector<sycl::queue*> u2_ptrs;
-            u2_ptrs.reserve(u2.size());
-            for (auto& e : u2)
-            {
-                u2_ptrs.push_back(&e);
+                u_ptrs.push_back(&e);
             }
 
             std::cout << "\nRunning auto_tune tests for sycl::queue* ...\n";
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel37>(u1_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel38>(u1_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel39>(u1_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel40>(u1_ptrs, 3, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel41>(u1_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel42>(u1_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel43>(u1_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel44>(u1_ptrs, 3, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel45>(u1_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel46>(u1_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel47>(u1_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel48>(u1_ptrs, 3, deref_op)), "");
-            // Use event profiling with pointers
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel49>(u2_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel50>(u2_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel51>(u2_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel52>(u2_ptrs, 3, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel53>(u2_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel54>(u2_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel55>(u2_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel56>(u2_ptrs, 3, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel57>(u2_ptrs, 0, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel58>(u2_ptrs, 1, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel59>(u2_ptrs, 2, deref_op)), "");
-            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel60>(u2_ptrs, 3, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel37>(u_ptrs, 0, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel38>(u_ptrs, 1, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel39>(u_ptrs, 2, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_pointer_t, class Kernel40>(u_ptrs, 3, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel41>(u_ptrs, 0, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel42>(u_ptrs, 1, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel43>(u_ptrs, 2, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_wait_on_group<policy_pointer_t, class Kernel44>(u_ptrs, 3, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel45>(u_ptrs, 0, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel46>(u_ptrs, 1, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel47>(u_ptrs, 2, deref_op)), "");
+            EXPECT_EQ(0, (test_auto_submit_and_wait<policy_pointer_t, class Kernel48>(u_ptrs, 3, deref_op)), "");
 
             //CTAD tests (testing policy construction without template arguments)
             //Template arguments types are deduced with CTAD
-            sycl::queue q1(sycl::cpu_selector_v);
-            sycl::queue q2(sycl::cpu_selector_v); //using all cpus for wider coverage
+            sycl::queue q1(sycl::default_selector_v);
+            sycl::queue q2(sycl::default_selector_v);
 
             //without resample time
             oneapi::dpl::experimental::auto_tune_policy p1{ {q1, q2} };
@@ -451,7 +407,12 @@ main()
 
             bProcessed = true;
         }
+        else
+        {
+            std::cout << "SKIPPED: Not enough valid devices to run auto_tune_policy tests\n";
+        }
 #endif // Devices available are CPU and GPU
+#endif // SYCL_EXT_ONEAPI_PROFILING_TAG
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
     }
     catch (const std::exception& exc)
