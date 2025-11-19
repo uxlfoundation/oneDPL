@@ -161,10 +161,10 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng), ::std::move(__vals_rng)};
 
     auto __keys_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
-    auto __keys_out_rng = __keys_keep(__keys_out_first, __keys_out_first + __n).all_view();
+    auto __keys_out_rng = __keys_out_keep(__keys_out_first, __keys_out_first + __n).all_view();
 
     auto __vals_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
-    auto __vals_out_rng = __vals_keep(__vals_out_first, __vals_out_first + __n).all_view();
+    auto __vals_out_rng = __vals_out_keep(__vals_out_first, __vals_out_first + __n).all_view();
     auto __pack_out = __impl::__rng_pack{::std::move(__keys_out_rng), ::std::move(__vals_out_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__q, ::std::move(__pack),
                                                                                     ::std::move(__pack_out), __param);
