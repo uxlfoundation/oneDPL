@@ -1304,7 +1304,7 @@ __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __la
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-std::pair<_Bound, _Bound>
+_Bound
 __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result,
                              _Bound __out_len, bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
 {
@@ -1314,15 +1314,15 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
         if (__mask[__i])
         {
             __assigner(__first, __result);
-            ++__j;
             ++__result;
+            ++__j;
         }
     }
-    return {__i, __j};
+    return __i;
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
-std::pair<_Bound, _Bound>
+_Bound
 __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result,
                              _Bound __out_len, bool* __restrict __mask, _Assigner __assigner,
                              /*vector=*/std::true_type) noexcept
@@ -1341,10 +1341,10 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
     // The loop above may not decrease __m or __n below 0
     if (__m >= n) // enough space left for the rest
     {
-        __m -= __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
+        __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
         __n = 0;
     }
-    return {__in_len - __n, __out_len - __m};
+    return __in_len - __n;
 #else
     return __internal::__brick_bounded_copy_by_mask(__first, __in_len, __result, __out_len, __mask, __assigner,
                                                     std::false_type());
@@ -1461,12 +1461,12 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                 bool* __mask_end = __mask + (__i + __len);
                 if (__initial < __n_out)
                 {
-                    auto __res = __internal::__brick_bounded_copy_by_mask(
+                    _DifferenceType __checked = __internal::__brick_bounded_copy_by_mask(
                         __first + __i, __len, __result + __initial, __n_out - __initial, __mask_start,
                         [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
-                    if (__res.first == __len)
+                    if (__checked == __len)
                         return;
-                    __mask_start += __res.first;
+                    __mask_start += __checked;
                 }
                 bool* __stop = __brick_find_if(__mask_start, __mask_end, oneapi::dpl::identity{}, _IsVector{});
                 if (__stop != __mask_end) // Found the position of the first element that cannot be copied
