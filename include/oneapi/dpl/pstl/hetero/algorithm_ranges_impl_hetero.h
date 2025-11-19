@@ -670,13 +670,21 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
           typename _Proj>
 std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ranges::borrowed_iterator_t<_OutRange>>
-__pattern_copy_if_ranges(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r,
-                         _Pred __pred, _Proj __proj)
+__pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
+                         _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
     using _Size = oneapi::dpl::__internal::__difference_t<_OutRange>;
-    _Size __n = oneapi::dpl::__ranges::__size(__in_r), __m = oneapi::dpl::__ranges::__size(__out_r);
-    if (__n == 0 || __m == 0)
+    _Size __n = oneapi::dpl::__ranges::__size(__in_r);
+    if (__n == 0)
         return {std::ranges::begin(__in_r), std::ranges::begin(__out_r)};
+
+    _Size __m = oneapi::dpl::__ranges::__size(__out_r);
+    if (__m == 0)
+    {
+        auto __found_it = __pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                            std::forward<_InRange>(__in_r), __pred, __proj);
+        return {__found_it, std::ranges::begin(__out_r)};
+    }
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
