@@ -1415,8 +1415,8 @@ struct __pattern_lexicographical_compare_transform_fn
         auto const& __s1_val = __acc1[__gidx];
         auto const& __s2_val = __acc2[__gidx];
 
-        ::std::int32_t __is_s1_val_less = __comp(__s1_val, __s2_val);
-        ::std::int32_t __is_s1_val_greater = __comp(__s2_val, __s1_val);
+        std::int32_t __is_s1_val_less = std::invoke(__comp, __s1_val, __s2_val);
+        std::int32_t __is_s1_val_greater = std::invoke(__comp, __s2_val, __s1_val);
 
         // 1 if __s1_val <  __s2_val, -1 if __s1_val <  __s2_val, 0 if __s1_val == __s2_val
         return _ReduceValueType{1 * __is_s1_val_less - 1 * __is_s1_val_greater};

@@ -18,6 +18,7 @@
 #include "support/utils_dynamic_selection.h"
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
+#include "utils_sycl_defs.h"
 
 static inline void
 build_universe(std::vector<sycl::queue>& u)

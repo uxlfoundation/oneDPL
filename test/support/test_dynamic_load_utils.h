@@ -22,8 +22,10 @@
 #include "support/utils_invoke.h"
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
+#include "support/utils_sycl_defs.h" // for TestUtils::unique_kernel_name and etc.
 
 template <typename Policy, typename UniverseContainer, typename... Args>
+
 int
 test_dl_initialization(const UniverseContainer& u, Args&&... args)
 {
