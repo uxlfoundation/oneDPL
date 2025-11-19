@@ -3844,8 +3844,10 @@ __brick_set_union(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                    _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+__pattern_set_union(_Tag, _ExecutionPolicy&&,
+                    _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                    _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                    _OutputIterator __result,
                     _Compare __comp) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
@@ -3857,9 +3859,11 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forwa
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _Compare>
 _OutputIterator
-__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                    _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                    _OutputIterator __result, _Compare __comp)
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _OutputIterator __result,
+                    _Compare __comp)
 {
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -3897,8 +3901,10 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
-__brick_set_intersection(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                         _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+__brick_set_intersection(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                         _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                         _OutputIterator __result,
+                         _Compare __comp,
                          /*__is_vector=*/::std::false_type) noexcept
 {
     return std::set_intersection(__first1, __last1, __first2, __last2, __result, __comp);
@@ -3918,22 +3924,27 @@ __brick_set_intersection(_RandomAccessIterator1 __first1, _RandomAccessIterator1
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_intersection(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                           _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+__pattern_set_intersection(_Tag, _ExecutionPolicy&&,
+                           _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                           _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                           _OutputIterator __result,
                            _Compare __comp) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_set_intersection(__first1, __last1, __first2, __last2, __result, __comp,
+    return __internal::__brick_set_intersection(__first1, __last1,
+                                                __first2, __last2,
+                                                __result,
+                                                __comp,
                                                 typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                           _RandomAccessIterator2 __last2,
+__pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                           _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                            _RandomAccessIterator3 __result,
                            _Compare __comp)
 {
@@ -4008,8 +4019,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return std::min(__n, __m);
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,        // _SetOP __set_op
-                   _RandomAccessIterator2 __last2, _T* __result,
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetOP __set_op
+                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _T* __result,
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
@@ -4035,8 +4047,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
-__brick_set_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                       _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+__brick_set_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                       _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                       _OutputIterator __result,
+                       _Compare __comp,
                        /*__is_vector=*/::std::false_type) noexcept
 {
     return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
@@ -4044,8 +4058,10 @@ __brick_set_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__brick_set_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                       _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp,
+__brick_set_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                       _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                       _RandomAccessIterator3 __result,
+                       _Compare __comp,
                        /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -4055,22 +4071,29 @@ __brick_set_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 _
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                         _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+__pattern_set_difference(_Tag, _ExecutionPolicy&&,
+                         _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                         _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                         _OutputIterator __result,
                          _Compare __comp) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_set_difference(__first1, __last1, __first2, __last2, __result, __comp,
+    return __internal::__brick_set_difference(__first1, __last1,
+                                              __first2, __last2,
+                                              __result,
+                                              __comp,
                                               typename _Tag::__is_vector{});
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                         _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                         _RandomAccessIterator3 __result,
+                         _Compare __comp)
 {
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
@@ -4109,9 +4132,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             __first2, __last2,                              // bounds for data2
             __result, __result + __n1 + __n2,               // bounds for results w/o limitation
             [](_DifferenceType __n, _DifferenceType) { return __n; },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-               oneapi::dpl::identity) {
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+               _T* __result,
+               _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
+            {
                 return oneapi::dpl::__utils::__set_difference_construct(
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
@@ -4133,8 +4158,10 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
-__brick_set_symmetric_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                 _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+__brick_set_symmetric_difference(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                                 _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                                 _OutputIterator __result,
+                                 _Compare __comp,
                                  /*__is_vector=*/::std::false_type) noexcept
 {
     return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
@@ -4144,7 +4171,8 @@ template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Ran
 _RandomAccessIterator3
 __brick_set_symmetric_difference(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                                  _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                                 _RandomAccessIterator3 __result, _Compare __comp,
+                                 _RandomAccessIterator3 __result,
+                                 _Compare __comp,
                                  /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -4154,13 +4182,18 @@ __brick_set_symmetric_difference(_RandomAccessIterator1 __first1, _RandomAccessI
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator,
           class _Compare>
 _OutputIterator
-__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&,
+                                   _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                                   _OutputIterator __result,
                                    _Compare __comp) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __internal::__brick_set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp,
+    return __internal::__brick_set_symmetric_difference(__first1, __last1,
+                                                        __first2, __last2,
+                                                        __result,
+                                                        __comp,
                                                         typename _Tag::__is_vector{});
 }
 
@@ -4170,7 +4203,8 @@ _RandomAccessIterator3
 __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                                   _RandomAccessIterator3 __result, _Compare __comp)
+                                   _RandomAccessIterator3 __result,
+                                   _Compare __comp)
 {
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
