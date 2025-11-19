@@ -235,34 +235,29 @@ template <typename Policy, typename Function, typename... Args>
 auto
 try_submit(Policy&& p, Function&& f, Args&&... args)
 {
-    if constexpr (internal::has_try_submit_v<Policy, Function, Args...>)
-    {
-        return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);
-    }
-    else
-    {
-        static_assert(false, "error: try_submit() called on policy which does not support try_submit");
-    }
+    static_assert(internal::has_try_submit_v<Policy, Function, Args...>, 
+                  "error: try_submit() called on policy which does not support try_submit");
+
+    return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);
 }
 
 template <typename Policy, typename Function, typename... Args>
 auto
 submit(Policy&& p, Function&& f, Args&&... args)
 {
+    static_assert(internal::has_submit_v<Policy, Function, Args...> ||
+                      internal::has_try_submit_v<Policy, Function, Args...>,
+                  "error: submit() called on policy which does not support any submission method");
+
     // Policy has a direct submit method
     if constexpr (internal::has_submit_v<std::decay_t<Policy>, Function, Args...>)
     {
         return std::forward<Policy>(p).submit(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    else if constexpr (internal::has_try_submit_v<std::decay_t<Policy>, Function, Args...>)
+    else // has try_submit
     {
         return oneapi::dpl::experimental::internal::submit_fallback(std::forward<Policy>(p), std::forward<Function>(f),
                                                                     std::forward<Args>(args)...);
-    }
-    else
-    {
-        static_assert(false,
-                      "error: submit() called on policy which does not support any submit() or try_submit() method");
     }
 }
 
@@ -270,20 +265,19 @@ template <typename Policy, typename Function, typename... Args>
 auto
 submit_and_wait(Policy&& p, Function&& f, Args&&... args)
 {
+    static_assert(internal::has_submit_and_wait_v<Policy, Function, Args...> ||
+                      internal::has_submit_v<Policy, Function, Args...> ||
+                      internal::has_try_submit_v<Policy, Function, Args...>,
+                  "error: submit_and_wait() called on policy which does not support any submission method");
     if constexpr (internal::has_submit_and_wait_v<std::decay_t<Policy>, Function, Args...>)
     {
         // Policy has a direct submit_and_wait method
         return std::forward<Policy>(p).submit_and_wait(std::forward<Function>(f), std::forward<Args>(args)...);
     }
-    else if constexpr (internal::has_submit_v<std::decay_t<Policy>, Function, Args...> ||
-                       internal::has_try_submit_v<std::decay_t<Policy>, Function, Args...>)
+    else // has submit or try_submit
     {
         oneapi::dpl::experimental::internal::submit_and_wait_fallback(
             std::forward<Policy>(p), std::forward<Function>(f), std::forward<Args>(args)...);
-    }
-    else
-    {
-        static_assert(false, "error: submit_and_wait() called on policy which does not support any submission method");
     }
 }
 

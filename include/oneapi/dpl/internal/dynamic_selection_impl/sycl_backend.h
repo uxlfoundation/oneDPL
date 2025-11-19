@@ -238,6 +238,10 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     {
         constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
+#if !SYCL_EXT_ONEAPI_PROFILING_TAG
+        static_assert(!report_task_time, "The sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
+                                         "and profiling is required for this policy submission.");
+#endif
 
         auto resource = unwrap(s);
         auto q = adapter(resource);
@@ -250,9 +254,6 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
             s.scratch_space.my_start_event = sycl::ext::oneapi::experimental::submit_profiling_tag(q); //starting tag
-#else
-            static_assert(false, "The sycl version does not support the macro SYCL_EXT_ONEAPI_PROFILING_TAG "
-                                 "and profiling is required for this policy submission.");
 #endif
         }
         [[maybe_unused]] sycl::event workflow_return = f(resource, std::forward<Args>(args)...);

@@ -121,15 +121,10 @@ class backend_base
         void
         wait()
         {
-            if constexpr (internal::has_wait<ResourceType>::value)
-            {
-                for (auto& r : r_)
-                    r.wait();
-            }
-            else
-            {
-                static_assert(false, "error: wait() called on unsupported submission_group.");
-            }
+            static_assert(internal::has_wait<ResourceType>::value, 
+                          "error: wait() called on unsupported submission_group.");
+            for (auto& r : r_)
+                r.wait();
         }
     };
 };
