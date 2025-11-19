@@ -90,7 +90,8 @@ class backend_base
         WaitType w_;
 
       public:
-        default_submission(WaitType w) : w_{w} {}
+        template <typename T>
+        default_submission(T&& w) : w_{std::forward<T>(w)} {}
 
         void
         wait()
@@ -105,6 +106,10 @@ class backend_base
             return w_;
         }
     };
+    
+    // Deduction guide for perfect forwarding constructor
+    template <typename T>
+    default_submission(T&&) -> default_submission<std::decay_t<T>>;
 
     class default_submission_group
     {
