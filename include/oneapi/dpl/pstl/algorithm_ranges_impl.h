@@ -856,8 +856,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         __result1, __result2,                                                   // bounds for results
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-            _Tp* __result1, _Tp* __result2,
-            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+           _Tp* __result1, _Tp* __result2,
+           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
        {
             return oneapi::dpl::__utils::__set_union_construct(
                 __first1, __last1,                                              // bounds for data1

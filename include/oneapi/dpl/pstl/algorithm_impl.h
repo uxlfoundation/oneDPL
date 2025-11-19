@@ -3851,7 +3851,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                   _T* __result,
+                   _T* __result1, _T* __result2,
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
