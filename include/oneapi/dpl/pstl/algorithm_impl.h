@@ -3851,7 +3851,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            auto __finish = __internal::__parallel_set_op(
+            return __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __left_bound_seq_1, __last1,            // bounds for data1
                 __first2, __last2,                      // bounds for data2
@@ -3873,8 +3873,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::true_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            return std::get<2>(__finish);
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                .output_position_reached();
         });
     }
 
@@ -3883,7 +3883,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            auto __finish = __internal::__parallel_set_op(
+            return __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __first1, __last1,                                  // bounds for data1
                 __left_bound_seq_2, __last2,                        // bounds for data2
@@ -3905,8 +3905,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::false_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            return std::get<2>(__finish);
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                .output_position_reached();
         });
     }
 
@@ -3999,7 +3999,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (__n1 + __n2 > __set_algo_cut_off)
     {
-        auto __finish = __parallel_set_op(
+        return __parallel_set_op(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
@@ -4017,8 +4017,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-        return std::get<2>(__finish);
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+            .output_position_reached();
     }
 
     // use serial algorithm
