@@ -3694,7 +3694,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
 }
 
 template <typename _IsVector>
-struct __BrickCopyConstruct
+struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyConstructRange __cc_range
 {
     template <typename _ForwardIterator, typename _OutputIterator>
     _OutputIterator
@@ -3761,7 +3761,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
                 __result1, __result2,                           // bounds for results
-                __BrickCopyConstruct<_IsVector>(),
+                __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
@@ -3866,12 +3866,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1,                  // bounds for data1
-                        __first2, __last2,                  // bounds for data2
-                        __result, __result + __n1 + __n2,   // bounds for results w/o limitation
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
-                        oneapi::dpl::identity{});
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
+                        __result, __result + __n1 + __n2,                                       // bounds for results w/o limitation
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        /*CopyFromFirstSet = */ std::true_type{},
+                        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             return std::get<2>(__finish);
@@ -3898,10 +3898,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2,                          // bounds for data1
-                        __first1, __last1,                          // bounds for data2
-                        __result, __result + __n1 + __n2,           // bounds for results w/o limitation
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
+                        __first2, __last2,                                                      // bounds for data1
+                        __first1, __last1,                                                      // bounds for data2
+                        __result, __result + __n1 + __n2,                                       // bounds for results w/o limitation
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         /*CopyFromFirstSet = */ std::false_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
@@ -4011,10 +4011,10 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_difference_construct(
-                    __first1, __last1,                      // bounds for data1
-                    __first2, __last2,                      // bounds for data2
-                    __result, __result + __n1 + __n2,       // bounds for results
-                    __BrickCopyConstruct<_IsVector>(),
+                    __first1, __last1,                                              // bounds for data1
+                    __first2, __last2,                                              // bounds for data2
+                    __result, __result + __n1 + __n2,                               // bounds for results
+                    __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -4100,10 +4100,10 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    __first1, __last1,                      // bounds for data1
-                    __first2, __last2,                      // bounds for data2
-                    __result1, __result2,                   // bounds for results
-                    __BrickCopyConstruct<_IsVector>(),
+                    __first1, __last1,                                              // bounds for data1
+                    __first2, __last2,                                              // bounds for data2
+                    __result1, __result2,                                           // bounds for results
+                    __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})

@@ -868,7 +868,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 __first1, __last1,                                              // bounds for data1
                 __first2, __last2,                                              // bounds for data2
                 __result1, __result2,                                           // bounds for results
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),     // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },
         __comp, __proj1, __proj2)
@@ -1022,11 +1022,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1,                      // bounds for data1
-                        __first2, __last2,                      // bounds for data2
-                        __result1, __result2,                   // bounds for results
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
+                        __result1, __result2,                                                   // bounds for results
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        /*CopyFromFirstSet = */ std::true_type{},
+                        __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2)
                 .template positions_reached<__set_intersection_return_t<_R1, _R2, _OutRange>>();
@@ -1053,11 +1054,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2,                      // bounds for data1
-                        __first1, __last1,                      // bounds for data2
-                        __result1, __result2,                   // bounds for results
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
+                        __first2, __last2,                                                      // bounds for data1
+                        __first1, __last1,                                                      // bounds for data2
+                        __result1, __result2,                                                   // bounds for results
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        /*CopyFromFirstSet = */ std::false_type{},
+                        __comp, __proj2, __proj1);
                 },
                 __comp, __proj1, __proj2)
                 .template positions_reached<__set_intersection_return_t<_R1, _R2, _OutRange>>();
@@ -1234,7 +1236,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result1, __result2,                   // bounds for results
-                    __BrickCopyConstruct<_IsVector>(), 
+                    __BrickCopyConstruct<_IsVector>(),      // _CopyConstructRange __cc_range
                     __comp, __proj1, __proj2);
             },
             __comp, __proj1, __proj2)
@@ -1370,10 +1372,10 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
         {
             return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                __first1, __last1,                  // bounds for data1                   
-                __first2, __last2,                  // bounds for data2
-                __result1, __result2,               // bounds for results
-                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),
+                __first1, __last1,                                                  // bounds for data1                   
+                __first2, __last2,                                                  // bounds for data2
+                __result1, __result2,                                               // bounds for results
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),         // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },
         __comp, __proj1, __proj2)
