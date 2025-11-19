@@ -998,7 +998,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                     _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                    _Tp* __result,
+                    _Tp* __result1, _Tp* __result2,
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
@@ -1030,7 +1030,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                    _Tp* __result,
+                    _Tp* __result1, _Tp* __result2,
                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
@@ -1209,8 +1209,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             __first2, __last2,                              // bounds for data2
             __result1, __result2,                           // bounds for results
             [](_DifferenceType __n, _DifferenceType) { return __n; },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+               _T* __result1, _T* __result2,
+               _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+            {
                 return oneapi::dpl::__utils::__set_difference_construct(
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
