@@ -565,6 +565,11 @@ __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
         return {__res.first, __res.second};
     }
+    else if (__sz_in > 0)
+    {
+        __first_in = __pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
+                                       __pred, __proj);
+    }
     return {__first_in, __first_out};
 }
 
