@@ -89,14 +89,28 @@ class backend_base
     {
         WaitType w_;
 
+      private:
+        template <typename T = WaitType>
+        std::enable_if_t<internal::has_wait<T>::value>
+        wait_impl()
+        {
+            w_.wait();
+        }
+
+        template <typename T = WaitType>
+        std::enable_if_t<!internal::has_wait<T>::value>
+        wait_impl()
+        {
+            // No-op for types without wait()
+        }
+
       public:
         explicit default_submission(WaitType w) : w_(w) {}
 
         void
         wait()
         {
-            if constexpr (internal::has_wait<WaitType>::value)
-                w_.wait();
+            wait_impl();
         }
 
         WaitType
