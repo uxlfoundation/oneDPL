@@ -40,7 +40,9 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 1. **`backend_base<ResourceType>`**: A proposed base class template that implements core backend functionality to inherit from.
 2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that backend developers partially specialize to implement a backend for a specific `BaseResourceType`. The implementation provides instrumentation and resource management for that base resource type. A `ResourceAdapter` can be used to transform a `ResourceType` into a `BaseResourceType`, allowing reuse of an existing `default_backend_impl` specialization.
 
-Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
+   The `BaseResourceType` is the fundamental resource type that a backend knows how to instrument and submit work to. For example, `sycl::queue` is the base resource type for the SYCL backend. When using adapters, the `ResourceType` may differ from the `BaseResourceType` (e.g., storing `sycl::queue*` while the backend operates on `sycl::queue`).
+
+   Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
 
 3. **`default_backend<ResourceType, ResourceAdapter>`**: A wrapper template that **users instantiate** when creating policies. It automatically determines the `BaseResourceType` by applying the `ResourceAdapter` to the `ResourceType`, then inherits from the appropriate `default_backend_impl` specialization.
 4. **A SYCL specialization of default_backend_impl**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
