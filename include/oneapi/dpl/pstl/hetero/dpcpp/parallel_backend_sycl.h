@@ -28,6 +28,7 @@
 #include <cmath>
 #include <limits>
 #include <cstdint>
+#include <array>
 
 #include "../../iterator_impl.h"
 #include "../../execution_impl.h"
@@ -472,22 +473,19 @@ template <typename _Size, typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
-    __future<sycl::event, __result_and_scratch_storage<_Size>>
+    std::array<_Size, 2>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, std::size_t __m,
                _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
     {
         using _ValueType = std::uint16_t;
-
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
-        using __tuple_type =
-            typename ::oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__in_rng[0])>,
-                                                                 std::decay_t<decltype(__out_rng[0])>>::__type;
+        using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
+            std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Size>;
-        __result_and_scratch_storage_t __result{__q, 0};
+        __result_storage<_Size> __result{__q, 2};
 
-        auto __event = __q.submit([&](sycl::handler& __hdl) {
+        __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             // Local memory is split into two parts. The first half stores the result of applying the
@@ -497,13 +495,13 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
             auto __res_acc =
                 __result.template __get_result_acc<sycl::access_mode::write>(__hdl, __dpl_sycl::__no_init{});
 
-            __hdl.parallel_for<_ScanKernelName...>(
-                sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
-                    auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc);
+            __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
+                [=](sycl::nd_item<1> __self_item) {
+                    _Size* __res_ptr = __res_acc.__data();
                     const auto& __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
                     const std::uint16_t __item_id = __self_item.get_local_linear_id();
-                    auto __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
+                    _ValueType* __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
                         __lacc[__idx] = __unary_op(__in_rng[__idx]);
@@ -518,18 +516,22 @@ struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_k
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
                             if (__out_idx < __m)
                                 __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
+                            if (__out_idx == __m)
+                                __res_ptr[0] = __idx; // the stop position in the input
                         }
                     }
 
                     if (__item_id == 0)
                     {
                         // Add predicate of last element to account for the scan's exclusivity
-                        *__res_ptr = __lacc[__n_uniform + __n - 1] + __lacc[__n - 1];
+                        __res_ptr[1] = __lacc[__n_uniform + __n - 1] + __lacc[__n - 1];
                     }
                 });
-        });
+        }).wait_and_throw();
 
-        return __future{std::move(__event), std::move(__result)};
+        std::array<_Size, 2> __ret;
+        __result.__copy_result(__ret.data(), __ret.size());
+        return __ret;
     }
 };
 
@@ -903,7 +905,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)))
-            .get();
+            .back();
     }
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
