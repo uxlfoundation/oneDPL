@@ -127,8 +127,7 @@ test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&...
         bool executed = false;
         oneapi::dpl::experimental::submit_and_wait(p, [&executed](auto e) {
             executed = true;
-            if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
-                                            int>)
+            if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
                 return e;
             else
                 return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};

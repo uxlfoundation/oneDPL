@@ -12,7 +12,6 @@
 
 #include <type_traits>
 
-
 namespace TestUtils
 {
 
@@ -29,7 +28,6 @@ struct get_wait_type<T, std::void_t<typename T::wait_type>>
     using type = typename T::wait_type;
 };
 } // namespace TestUtils
-
 
 //resource providing a wait functionality
 struct DummyResource
@@ -54,6 +52,5 @@ struct DummyResource
     {
     }
 };
-
 
 #endif /* _ONEDPL_UTILS_DYNAMIC_SELECTION_H */

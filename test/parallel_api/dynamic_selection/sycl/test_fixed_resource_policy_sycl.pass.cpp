@@ -14,14 +14,16 @@
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 
-template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter, typename... Args>
+template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
+          typename... Args>
 int
-run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter, Args&&... args)
+run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter,
+                                Args&&... args)
 {
     int result = 0;
 
-    result +=
-        test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter, std::forward<Args>(args)...);
+    result += test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter,
+                                                                                  std::forward<Args>(args)...);
     result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
     result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
@@ -77,18 +79,18 @@ main()
             sycl::queue q2(sycl::default_selector_v);
 
             //without offset
-            oneapi::dpl::experimental::fixed_resource_policy p1{ {q1, q2} };
-            oneapi::dpl::experimental::fixed_resource_policy p2( {q1, q2} );
+            oneapi::dpl::experimental::fixed_resource_policy p1{{q1, q2}};
+            oneapi::dpl::experimental::fixed_resource_policy p2({q1, q2});
 
-            oneapi::dpl::experimental::fixed_resource_policy p3( {&q1, &q2}, deref_op );
-            oneapi::dpl::experimental::fixed_resource_policy p4{ {&q1, &q2}, deref_op };
+            oneapi::dpl::experimental::fixed_resource_policy p3({&q1, &q2}, deref_op);
+            oneapi::dpl::experimental::fixed_resource_policy p4{{&q1, &q2}, deref_op};
 
             //with offset
-            oneapi::dpl::experimental::fixed_resource_policy p5{ {q1, q2}, 1 };
-            oneapi::dpl::experimental::fixed_resource_policy p6( {q1, q2}, 1 );
+            oneapi::dpl::experimental::fixed_resource_policy p5{{q1, q2}, 1};
+            oneapi::dpl::experimental::fixed_resource_policy p6({q1, q2}, 1);
 
-            oneapi::dpl::experimental::fixed_resource_policy p7( {&q1, &q2}, deref_op, 1 );
-            oneapi::dpl::experimental::fixed_resource_policy p8{ {&q1, &q2}, deref_op, 1 };
+            oneapi::dpl::experimental::fixed_resource_policy p7({&q1, &q2}, deref_op, 1);
+            oneapi::dpl::experimental::fixed_resource_policy p8{{&q1, &q2}, deref_op, 1};
 
             bProcessed = true;
         }

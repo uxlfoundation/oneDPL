@@ -102,10 +102,9 @@ fixed_resource_policy(std::initializer_list<T>)
                              oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
 //supports fixed_resource_policy p{ {t1, t2}, offset }
-template <typename T, typename I,
-          typename = std::enable_if_t<std::is_convertible_v<I, std::size_t>>>
+template <typename T, typename I, typename = std::enable_if_t<std::is_convertible_v<I, std::size_t>>>
 fixed_resource_policy(std::initializer_list<T>, I)
-    -> fixed_resource_policy<T, oneapi::dpl::identity, 
+    -> fixed_resource_policy<T, oneapi::dpl::identity,
                              oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
 //supports fixed_resource_policy p{ {t1, t2}, adapter }

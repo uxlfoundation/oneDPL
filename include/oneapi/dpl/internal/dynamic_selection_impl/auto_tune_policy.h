@@ -248,10 +248,7 @@ class auto_tune_policy
 
     auto_tune_policy(deferred_initialization_t) {}
 
-    auto_tune_policy(timing_t resample_time = never_resample)
-    {
-        base_t::initialize(resample_time);
-    }
+    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
 
     auto_tune_policy(const std::vector<ResourceType>& u)
     {
@@ -312,8 +309,7 @@ auto_tune_policy(std::initializer_list<T>)
     -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
 //supports auto_tune_policy p{ {t1, t2}, offset }
-template <typename T, typename I,
-          typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+template <typename T, typename I, typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
 auto_tune_policy(std::initializer_list<T>, I)
     -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
 
@@ -325,8 +321,7 @@ auto_tune_policy(std::initializer_list<T>, Adapter)
     -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 
 //supports auto_tune_policy p{ {t1, t2}, adapter, offset }
-template <typename T, typename Adapter, typename I,
-          typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+template <typename T, typename Adapter, typename I, typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
 auto_tune_policy(std::initializer_list<T>, Adapter, I)
     -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 

@@ -316,7 +316,7 @@ main(int argc, char* argv[])
             std::cout << "Unable to create CPU queue\n";
         }
         invokeDS<ex::fixed_resource_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
-                                                              output_buffers);
+                                                         output_buffers);
         break;
     case 2:
         try
@@ -329,7 +329,7 @@ main(int argc, char* argv[])
             std::cout << "Unable to create GPU queue\n";
         }
         invokeDS<ex::fixed_resource_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
-                                                              output_buffers);
+                                                         output_buffers);
         break;
     case 3:
         try
@@ -343,7 +343,7 @@ main(int argc, char* argv[])
             std::cout << "Unable to create queues\n";
         }
         invokeDS<ex::round_robin_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
-                                                           output_buffers);
+                                                      output_buffers);
         break;
     case 4:
         try
@@ -356,7 +356,7 @@ main(int argc, char* argv[])
             std::cout << "Unable to create queues\n";
         }
         invokeDS<ex::dynamic_load_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
-                                                            output_buffers);
+                                                       output_buffers);
         break;
     case 5:
         try
@@ -369,8 +369,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create queues\n";
         }
-        invokeDS<ex::auto_tune_policy<sycl::queue, oneapi::dpl::identity, ex::sycl_backend, std::size_t>>(num_offloads, resources, num_pixels,
-                                                                      input_buffers, output_buffers);
+        invokeDS<ex::auto_tune_policy<sycl::queue, oneapi::dpl::identity, ex::sycl_backend, std::size_t>>(
+            num_offloads, resources, num_pixels, input_buffers, output_buffers);
         break;
     default:
         std::cout << "Invalid policy." << std::endl;

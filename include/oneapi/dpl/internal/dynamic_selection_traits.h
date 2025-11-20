@@ -235,7 +235,7 @@ template <typename Policy, typename Function, typename... Args>
 auto
 try_submit(Policy&& p, Function&& f, Args&&... args)
 {
-    static_assert(internal::has_try_submit_v<Policy, Function, Args...>, 
+    static_assert(internal::has_try_submit_v<Policy, Function, Args...>,
                   "error: try_submit() called on policy which does not support try_submit");
 
     return std::forward<Policy>(p).try_submit(std::forward<Function>(f), std::forward<Args>(args)...);

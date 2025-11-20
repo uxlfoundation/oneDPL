@@ -17,8 +17,8 @@
 #include "support/utils.h"
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
-template <typename CustomName, typename Policy, typename ResourceContainer, typename ResourceAdapter, typename FunctionType,
-          typename FunctionType2, typename... Args>
+template <typename CustomName, typename Policy, typename ResourceContainer, typename ResourceAdapter,
+          typename FunctionType, typename FunctionType2, typename... Args>
 int
 run_dynamic_load_policy_tests(const ResourceContainer& resources, const FunctionType& f, const FunctionType2& f2,
                               ResourceAdapter adapter, Args&&... args)
@@ -122,11 +122,11 @@ main()
             //Template arguments types are deduced with CTAD
             sycl::queue q1(sycl::default_selector_v);
             sycl::queue q2(sycl::default_selector_v);
-            oneapi::dpl::experimental::dynamic_load_policy p1{ {q1, q2} };;
-            oneapi::dpl::experimental::dynamic_load_policy p2( {q1, q2} );
+            oneapi::dpl::experimental::dynamic_load_policy p1{{q1, q2}};
+            oneapi::dpl::experimental::dynamic_load_policy p2({q1, q2});
 
-            oneapi::dpl::experimental::dynamic_load_policy p3( {&q1, &q2}, deref_op );
-            oneapi::dpl::experimental::dynamic_load_policy p4{ {&q1, &q2}, deref_op };
+            oneapi::dpl::experimental::dynamic_load_policy p3({&q1, &q2}, deref_op);
+            oneapi::dpl::experimental::dynamic_load_policy p4{{&q1, &q2}, deref_op};
 
             bProcessed = true;
         }

@@ -78,7 +78,6 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource, Adapter a
     volatile float* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
 
-
     my_policy_t p{u, adapter};
     auto n_samples = u.size();
 
@@ -148,7 +147,6 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource, Adapter a
     //Making v volatile so the release build does not optimize it in the for loop below
     volatile float* v = dt_helper_v.get_data();
     int* j = dt_helper_j.get_data();
-
 
     my_policy_t p{u, adapter};
     auto n_samples = u.size();
@@ -392,18 +390,18 @@ main()
             sycl::queue q2(sycl::default_selector_v);
 
             //without resample time
-            oneapi::dpl::experimental::auto_tune_policy p1{ {q1, q2} };
-            oneapi::dpl::experimental::auto_tune_policy p2( {q1, q2} );
+            oneapi::dpl::experimental::auto_tune_policy p1{{q1, q2}};
+            oneapi::dpl::experimental::auto_tune_policy p2({q1, q2});
 
-            oneapi::dpl::experimental::auto_tune_policy p3( {&q1, &q2}, deref_op );
-            oneapi::dpl::experimental::auto_tune_policy p4{ {&q1, &q2}, deref_op };
+            oneapi::dpl::experimental::auto_tune_policy p3({&q1, &q2}, deref_op);
+            oneapi::dpl::experimental::auto_tune_policy p4{{&q1, &q2}, deref_op};
 
             //with resample time
-            oneapi::dpl::experimental::auto_tune_policy p5{ {q1, q2}, 1 };
-            oneapi::dpl::experimental::auto_tune_policy p6( {q1, q2}, 1 );
+            oneapi::dpl::experimental::auto_tune_policy p5{{q1, q2}, 1};
+            oneapi::dpl::experimental::auto_tune_policy p6({q1, q2}, 1);
 
-            oneapi::dpl::experimental::auto_tune_policy p7( {&q1, &q2}, deref_op, 1 );
-            oneapi::dpl::experimental::auto_tune_policy p8{ {&q1, &q2}, deref_op, 1 };
+            oneapi::dpl::experimental::auto_tune_policy p7({&q1, &q2}, deref_op, 1);
+            oneapi::dpl::experimental::auto_tune_policy p8{{&q1, &q2}, deref_op, 1};
 
             bProcessed = true;
         }
