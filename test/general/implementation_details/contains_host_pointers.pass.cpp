@@ -40,6 +40,20 @@ struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
     }
 };
 
+template <typename RandomIt>
+RandomIt
+begin(MinimalisticViewWithSubscription<RandomIt> view)
+{
+    return view.it_begin;
+}
+
+template <typename RandomIt>
+RandomIt
+end(MinimalisticViewWithSubscription<RandomIt> view)
+{
+    return view.it_end;
+}
+
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
 

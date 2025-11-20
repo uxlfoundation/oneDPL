@@ -21,6 +21,7 @@
 #include <utility>
 #include <cstdint>
 #include <algorithm>
+#include <functional> // for std::invoke
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -219,7 +220,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                      __val_idx += __wg_size)
                 {
                     // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
-                    auto __val = __order_preserving_cast<__is_ascending>(__proj(__val_rng[__val_idx]));
+                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_rng[__val_idx]));
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                     // increment counter for this bit bucket
                     ++__count_arr[__bucket];
@@ -597,7 +598,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     _ValueT __in_val = std::move(__input_rng[__val_idx]);
                     // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-                        __order_preserving_cast<__is_ascending>(__proj(__in_val)), __radix_offset);
+                        __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
 
                     const auto __new_offset_idx = __peer_prefix_hlp.__peer_contribution(__bucket, __offset_arr);
                     __output_rng[__new_offset_idx] = std::move(__in_val);
@@ -614,7 +615,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                         new (&__in_val.__v) _ValueT(std::move(__input_rng[__seg_end + __self_lidx]));
 
                         __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-                            __order_preserving_cast<__is_ascending>(__proj(__in_val.__v)), __radix_offset);
+                            __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val.__v)), __radix_offset);
                     }
                     const auto __new_offset_idx = __peer_prefix_hlp.__peer_contribution(__bucket, __offset_arr);
                     if (__self_lidx < __residual)

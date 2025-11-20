@@ -110,7 +110,7 @@ __simd_first(_Index __first, _DifferenceType __begin, _DifferenceType __end, _Co
     _ONEDPL_PRAGMA_VECTOR_UNALIGNED // Do not generate peel loop part
         _ONEDPL_PRAGMA_SIMD_EARLYEXIT for (; __i < __end; ++__i)
     {
-        if (__comp(__first, __i))
+        if (std::invoke(__comp, __first, __i))
         {
             break;
         }
@@ -128,7 +128,7 @@ __simd_first(_Index __first, _DifferenceType __begin, _DifferenceType __end, _Co
                                           : __found) for (_DifferenceType __i = __begin; __i < __begin + __block_size;
                                                           ++__i)
         {
-            const _DifferenceType __t = __comp(__first, __i);
+            const _DifferenceType __t = std::invoke(__comp, __first, __i);
             __lane[__i - __begin] = __t;
             __found |= __t;
         }
@@ -151,7 +151,7 @@ __simd_first(_Index __first, _DifferenceType __begin, _DifferenceType __end, _Co
     //Keep remainder scalar
     while (__begin != __end)
     {
-        if (__comp(__first, __begin))
+        if (std::invoke(__comp, __first, __begin))
         {
             return __first + __begin;
         }
@@ -672,7 +672,7 @@ __simd_min_element(_ForwardIterator __first, _Size __n, _Compare __comp) noexcep
     {
         const _ValueType __min_val = __init.__min_val;
         const _ValueType __current = __first[__i];
-        if (__comp(__current, __min_val))
+        if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
@@ -716,24 +716,24 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         operator()(const _ComplexType& __obj)
         {
             // min
-            if ((*__minmax_comp)(__obj.__min_val, __min_val))
+            if (std::invoke(*__minmax_comp, __obj.__min_val, __min_val))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = __obj.__min_ind;
             }
-            else if (!(*__minmax_comp)(__min_val, __obj.__min_val))
+            else if (!std::invoke(*__minmax_comp, __min_val, __obj.__min_val))
             {
                 __min_val = __obj.__min_val;
                 __min_ind = (__min_ind - __obj.__min_ind < 0) ? __min_ind : __obj.__min_ind;
             }
 
             // max
-            if ((*__minmax_comp)(__max_val, __obj.__max_val))
+            if (std::invoke(*__minmax_comp, __max_val, __obj.__max_val))
             {
                 __max_val = __obj.__max_val;
                 __max_ind = __obj.__max_ind;
             }
-            else if (!(*__minmax_comp)(__obj.__max_val, __max_val))
+            else if (!std::invoke(*__minmax_comp, __obj.__max_val, __max_val))
             {
                 __max_val = __obj.__max_val;
                 __max_ind = (__max_ind - __obj.__max_ind < 0) ? __obj.__max_ind : __max_ind;
@@ -751,12 +751,12 @@ __simd_minmax_element(_ForwardIterator __first, _Size __n, _Compare __comp) noex
         auto __min_val = __init.__min_val;
         auto __max_val = __init.__max_val;
         auto __current = __first[__i];
-        if (__comp(__current, __min_val))
+        if (std::invoke(__comp, __current, __min_val))
         {
             __init.__min_val = __current;
             __init.__min_ind = __i;
         }
-        else if (!__comp(__current, __max_val))
+        else if (!std::invoke(__comp, __current, __max_val))
         {
             __init.__max_val = __current;
             __init.__max_ind = __i;

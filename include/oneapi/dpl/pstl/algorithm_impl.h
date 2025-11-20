@@ -33,7 +33,7 @@
 #include "parallel_backend.h"
 #include "parallel_impl.h"
 #include "iterator_impl.h"
-#include "functional_impl.h" // for oneapi::dpl::identity
+#include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h" // for __pattern_fill_n, __pattern_generate_n
@@ -2569,7 +2569,9 @@ __pattern_sort_by_key(_Tag, _ExecutionPolicy&&, _RandomAccessIterator1 __keys_fi
 
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) {
+        return std::invoke(__comp, std::get<0>(__a), std::get<0>(__b));
+    };
 
     __leaf_sort(__beg, __end, __cmp_f);
 }
@@ -2583,7 +2585,9 @@ __pattern_sort_by_key(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
 {
     auto __beg = oneapi::dpl::make_zip_iterator(__keys_first, __values_first);
     auto __end = __beg + (__keys_last - __keys_first);
-    auto __cmp_f = [__comp](const auto& __a, const auto& __b) { return __comp(std::get<0>(__a), std::get<0>(__b)); };
+    auto __cmp_f = [__comp](const auto& __a, const auto& __b) {
+        return std::invoke(__comp, std::get<0>(__a), std::get<0>(__b));
+    };
 
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -2826,8 +2830,9 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     _RandomAccessIterator __x;
     do
     {
-        __x = __internal::__pattern_partition(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first + 1, __last,
-                                              [&__comp, __first](const _Tp& __x) { return __comp(__x, *__first); });
+        __x = __internal::__pattern_partition(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first + 1, __last,
+            [&__comp, __first](const _Tp& __x) { return std::invoke(__comp, __x, *__first); });
         --__x;
         if (__x != __first)
         {
@@ -2842,7 +2847,7 @@ __pattern_nth_element(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
         else if (__x - __nth < 0)
         {
             // if *x == *nth then we start the new partition at the next index where *x != *nth
-            while (!__comp(*__nth, *__x) && !__comp(*__x, *__nth) && __x - __nth < 0)
+            while (!std::invoke(__comp, *__nth, *__x) && !std::invoke(__comp, *__x, *__nth) && __x - __nth < 0)
             {
                 ++__x;
             }
@@ -3347,7 +3352,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     if (__first1 == __last1 || __last2 - __first2 > __last1 - __first1 ||
         // {1}:     [**********]     or   [**********]
         // {2}: [***********]                   [***********]
-        __comp(*__first2, *__first1) || __comp(*(__last1 - 1), *(__last2 - 1)))
+        std::invoke(__comp, *__first2, *__first1) || std::invoke(__comp, *(__last1 - 1), *(__last2 - 1)))
         return false;
 
     __first1 = ::std::lower_bound(__first1, __last1, *__first2, __comp);
@@ -3355,7 +3360,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
         return false;
 
     if (__last2 - __first2 == 1)
-        return !__comp(*__first1, *__first2) && !__comp(*__first2, *__first1);
+        return !std::invoke(__comp, *__first1, *__first2) && !std::invoke(__comp, *__first2, *__first1);
 
     return __internal::__except_handler([&]() {
         return !__internal::__parallel_or(
@@ -3367,7 +3372,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 //1. moving boundaries to "consume" subsequence of equal elements
                 auto __is_equal_sorted = [&__comp](_RandomAccessIterator2 __a, _RandomAccessIterator2 __b) -> bool {
                     //enough one call of __comp due to compared couple belongs to one sorted sequence
-                    return !__comp(*__a, *__b);
+                    return !std::invoke(__comp, *__a, *__b);
                 };
 
                 //1.1 left bound, case "aaa[aaaxyz...]" - searching "x"
@@ -3387,8 +3392,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
                 //2. testing is __a subsequence of the second range included into the first range
                 auto __b = ::std::lower_bound(__first1, __last1, *__i, __comp);
 
-                assert(!__comp(*(__last1 - 1), *__b));
-                assert(!__comp(*(__j - 1), *__i));
+                assert(!std::invoke(__comp, *(__last1 - 1), *__b));
+                assert(!std::invoke(__comp, *(__j - 1), *__i));
                 return !::std::includes(__b, __last1, __i, __j, __comp);
             });
     });
@@ -3973,9 +3978,10 @@ __brick_is_heap_until(_RandomAccessIterator __first, _RandomAccessIterator __las
                       /* __is_vector = */ ::std::true_type) noexcept
 {
     using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
-    return __unseq_backend::__simd_first(
-        __first, _SizeType(0), __last - __first,
-        [&__comp](_RandomAccessIterator __it, _SizeType __i) { return __comp(__it[(__i - 1) / 2], __it[__i]); });
+    return __unseq_backend::__simd_first(__first, _SizeType(0), __last - __first,
+                                         [&__comp](_RandomAccessIterator __it, _SizeType __i) {
+                                             return std::invoke(__comp, __it[(__i - 1) / 2], __it[__i]);
+                                         });
 }
 
 template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -3995,7 +4001,7 @@ __is_heap_until_local(_RandomAccessIterator __first, _DifferenceType __begin, _D
 {
     _DifferenceType __i = __begin;
     for (; __i < __end; ++__i)
-        if (__comp(__first[(__i - 1) / 2], __first[__i]))
+        if (std::invoke(__comp, __first[(__i - 1) / 2], __first[__i]))
             break;
     return __first + __i;
 }
@@ -4005,9 +4011,10 @@ _RandomAccessIterator
 __is_heap_until_local(_RandomAccessIterator __first, _DifferenceType __begin, _DifferenceType __end, _Compare __comp,
                       /* __is_vector = */ ::std::true_type) noexcept
 {
-    return __unseq_backend::__simd_first(
-        __first, __begin, __end,
-        [&__comp](_RandomAccessIterator __it, _DifferenceType __i) { return __comp(__it[(__i - 1) / 2], __it[__i]); });
+    return __unseq_backend::__simd_first(__first, __begin, __end,
+                                         [&__comp](_RandomAccessIterator __it, _DifferenceType __i) {
+                                             return std::invoke(__comp, __it[(__i - 1) / 2], __it[__i]);
+                                         });
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -4043,7 +4050,7 @@ __brick_is_heap(_RandomAccessIterator __first, _RandomAccessIterator __last, _Co
                 /* __is_vector = */ ::std::true_type) noexcept
 {
     return !__unseq_backend::__simd_or_iter(__first, __last - __first, [__first, &__comp](_RandomAccessIterator __it) {
-        return __comp(*(__first + (__it - __first - 1) / 2), *__it);
+        return std::invoke(__comp, *(__first + (__it - __first - 1) / 2), *__it);
     });
 }
 
@@ -4060,10 +4067,10 @@ bool
 __is_heap_local(_RandomAccessIterator __first, _DifferenceType __begin, _DifferenceType __end, _Compare __comp,
                 /* __is_vector = */ ::std::true_type) noexcept
 {
-    return !__unseq_backend::__simd_or_iter(__first + __begin, __end - __begin,
-                                            [__first, &__comp](_RandomAccessIterator __it) {
-                                                return __comp(*(__first + (__it - __first - 1) / 2), *__it);
-                                            });
+    return !__unseq_backend::__simd_or_iter(
+        __first + __begin, __end - __begin, [__first, &__comp](_RandomAccessIterator __it) {
+            return std::invoke(__comp, *(__first + (__it - __first - 1) / 2), *__it);
+        });
 }
 
 template <class _Tag, class _ExecutionPolicy, class _RandomAccessIterator, class _Compare>
@@ -4332,16 +4339,16 @@ __brick_lexicographical_compare(_RandomAccessIterator1 __first1, _RandomAccessIt
         auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
         ::std::pair<_RandomAccessIterator1, _RandomAccessIterator2> __result = __unseq_backend::__simd_first(
             __first1, __n, __first2, [__comp](const ref_type1 __x, const ref_type2 __y) mutable {
-                return __comp(__x, __y) || __comp(__y, __x);
+                return std::invoke(__comp, __x, __y) || std::invoke(__comp, __y, __x);
             });
 
         if (__result.first == __last1 && __result.second != __last2)
         { // if first sequence shorter than second
-            return !__comp(*__result.second, *__result.first);
+            return !std::invoke(__comp, *__result.second, *__result.first);
         }
         else
         { // if second sequence shorter than first or both have the same number of elements
-            return __comp(*__result.first, *__result.second);
+            return std::invoke(__comp, *__result.first, *__result.second);
         }
     }
 }
@@ -4388,7 +4395,7 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector> __tag, _ExecutionPol
                     return __internal::__brick_mismatch(
                                __i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
                                [&__comp](const _RefType1 __x, const _RefType2 __y) {
-                                   return !__comp(__x, __y) && !__comp(__y, __x);
+                                   return !std::invoke(__comp, __x, __y) && !std::invoke(__comp, __y, __x);
                                },
                                _IsVector{})
                         .first;
@@ -4397,11 +4404,11 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector> __tag, _ExecutionPol
 
             if (__result == __last1 && __first2 + (__result - __first1) != __last2)
             { // if first sequence shorter than second
-                return !__comp(*(__first2 + (__result - __first1)), *__result);
+                return !std::invoke(__comp, *(__first2 + (__result - __first1)), *__result);
             }
             else
             { // if second sequence shorter than first or both have the same number of elements
-                return __comp(*__result, *(__first2 + (__result - __first1)));
+                return std::invoke(__comp, *__result, *(__first2 + (__result - __first1)));
             }
         });
     }
