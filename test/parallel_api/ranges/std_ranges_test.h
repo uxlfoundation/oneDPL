@@ -831,9 +831,9 @@ template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typenam
 struct test_range_algo
 {
     const int n_serial = small_size;
-    const int n_parallel = small_size;
+    const int n_parallel = medium_size/8; // 16K
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int n_device = small_size;
+    const int n_device = medium_size;
 #endif
 
     test_range_algo() = default;
