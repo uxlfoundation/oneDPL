@@ -30,8 +30,10 @@ a base class that handles the common functionality.
 
 ## Proposed Changes to Policy Contract
 
-### Removal of select routine
-We propose to remove the following functions and traits from the public contract for a policy:
+### Removal of Public Selection API
+We propose to remove the public selection API from policies. In the previous design, users could call `select()` to get a selection handle, then separately call `submit()` with that handle. This API has been removed in favor of a simplified model where **selection is always implicit within submission**.
+
+The following functions and traits are removed from the public policy contract:
 
 | *Must* be well-formed | Description |
 | `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
@@ -48,7 +50,15 @@ We propose to remove the following functions and traits from the public contract
 | Policy Traits* | Description |
 | `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
 
-We also propose that one of the following three functions must be well-formed, rather than optional:
+#### New Public API Contract
+
+Instead of exposing `select()` publicly, policies now provide **only submission methods**. Users interact exclusively through the following free functions (which delegate to policy member functions):
+
+- `ex::submit(policy, function, args...)` - Submit work with implicit selection
+- `ex::submit_and_wait(policy, function, args...)` - Submit and wait with implicit selection
+- `ex::try_submit(policy, function, args...)` - Attempt submission, returns null if no resource available
+
+Policies must implement at least one of the following member functions to support these APIs:
 
 | at least one *Must* be well-formed | Description |
 | `p.try_submit(f, args…)` | Returns `std::shared_ptr<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns null shared_ptr if no resource is available for selection |
@@ -87,7 +97,18 @@ The default implementation of these traits depends on types defined in the Polic
   };
 ```
 
-With this contract, if `p.submit(f, args…)` is well-formed, a generic implementation of `submit_and_wait` that uses `submit` is available and waits on the result unless overridden. If `p.try_submit(f,args...)` is well-formed, then generic a generic implementation of `submit` which uses `try_submit` is available unless overridden.  Therefore, providing `try_submit` is enough to have implementations for all three submit variants automatically.
+With this contract, if `p.submit(f, args…)` is well-formed, a generic implementation of `submit_and_wait` that uses `submit` is available and waits on the result unless overridden. If `p.try_submit(f,args...)` is well-formed, then a generic implementation of `submit` which uses `try_submit` is available unless overridden. Therefore, providing `try_submit` is enough to have implementations for all three submit variants automatically.
+
+#### Internal Selection Primitive for Policy Authors
+
+While the **public API** no longer exposes `select()`, policy authors still need a way to implement selection logic. The `policy_base` class provides generic implementations of the submission methods, but delegates the actual selection decision to a protected method that derived policies must implement:
+
+**`try_select_impl(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::shared_ptr<selection_type>` containing the selected resource, or an empty `std::shared_ptr` (null shared_ptr) if no resource is available.
+
+This separation means:
+- **Users** only call `ex::submit()`, `ex::submit_and_wait()`, or `ex::try_submit()` (never `select()`)
+- **Policy authors** implement `try_select_impl()` as the internal primitive
+- **`policy_base`** provides generic submission methods that call `try_select_impl()` internally and forward to the backend
 
 This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
 
@@ -174,14 +195,17 @@ void initialize_impl() {
 }
 ```
 
-#### `try_select_impl()` Implementation  
+#### `try_select_impl()` Implementation
 Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
 std::shared_ptr<selection_type> try_select_impl(Args&&... args) {
     // Implement selection logic here
-    // Return std::make_shared<selection_type>(selection_type{*this, selected_resource})
+    // If a resource is available:
+    //   return std::make_shared<selection_type>(selection_type{*this, selected_resource});
+    // If no resource is available:
+    //   return std::shared_ptr<selection_type>{}; // empty/null shared_ptr
 }
 ```
 Providing `try_select_impl()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
