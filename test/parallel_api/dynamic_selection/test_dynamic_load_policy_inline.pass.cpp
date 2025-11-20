@@ -30,8 +30,8 @@ main()
         auto f = [u](int) { return u[0]; };
 
         EXPECT_EQ(0, (test_initialization<policy_t, int>(u)), "");
-        EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t>(u, f)), "");
-        EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t, TestUtils::int_inline_backend_t<>>(u, f)), "");
+        EXPECT_EQ(0, (test_submit_and_wait<policy_t, TestUtils::int_inline_backend_t<>>(u, f)), "");
     }
     catch (const std::exception& exc)
     {

@@ -98,7 +98,7 @@ test_initialization(const std::vector<T>& u, Args... args)
     return 0;
 }
 
-template <typename Policy, typename ResourceAdapter, typename... Args>
+template <typename Policy, typename Backend, typename ResourceAdapter, typename... Args>
 int
 test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&... args)
 {
@@ -130,7 +130,7 @@ test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&...
             if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
                 return e;
             else
-                return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                return typename TestUtils::get_wait_type<Backend>::type{};
         });
 
         if (!executed)
@@ -144,7 +144,7 @@ test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&...
     }
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
 test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
@@ -169,7 +169,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args...
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
     }
     oneapi::dpl::experimental::wait(p.get_submission_group());
@@ -182,7 +182,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args...
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
 test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
@@ -209,7 +209,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args...
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
         oneapi::dpl::experimental::wait(w);
         int count = ecount.load();
@@ -228,7 +228,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args...
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, typename... Args>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
 test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
@@ -254,7 +254,7 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
         int count = ecount.load();
         if (count != i * (i + 1) / 2)

@@ -27,8 +27,8 @@ main()
             auto f = [u](int i) { return u[(i - 1) % 4]; };
 
             EXPECT_EQ(0, (test_initialization<policy_t, int>(u)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t, TestUtils::int_inline_backend_t<>>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait<policy_t, TestUtils::int_inline_backend_t<>>(u, f)), "");
         }
         {
             using policy_t =
@@ -38,8 +38,8 @@ main()
             auto f = [u](int i) { return u[(i - 1) % 4]; };
 
             EXPECT_EQ(0, (test_initialization<policy_t, int>(u)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t>(u, f)), "");
-            EXPECT_EQ(0, (test_submit_and_wait<policy_t>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy_t, oneapi::dpl::experimental::default_backend<int>>(u, f)), "");
+            EXPECT_EQ(0, (test_submit_and_wait<policy_t, oneapi::dpl::experimental::default_backend<int>>(u, f)), "");
         }
         {
             //tests using minimal backend that only provides a wait functionality through the resource
@@ -52,9 +52,9 @@ main()
             }
             auto f1 = [u1](int i) { return u1[(i - 1) % 4]; };
             EXPECT_EQ(0, (test_initialization<policy1_t, DummyResource>(u1)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy1_t>(u1, f1)), "");
-            EXPECT_EQ(0, (test_submit_and_wait<policy1_t>(u1, f1)), "");
-            EXPECT_EQ(0, (test_submit_and_wait_on_group<policy1_t>(u1, f1)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_event<policy1_t, oneapi::dpl::experimental::default_backend<DummyResource>>(u1, f1)), "");
+            EXPECT_EQ(0, (test_submit_and_wait<policy1_t, oneapi::dpl::experimental::default_backend<DummyResource>>(u1, f1)), "");
+            EXPECT_EQ(0, (test_submit_and_wait_on_group<policy1_t, oneapi::dpl::experimental::default_backend<DummyResource>>(u1, f1)), "");
         }
     }
     catch (const std::exception& exc)

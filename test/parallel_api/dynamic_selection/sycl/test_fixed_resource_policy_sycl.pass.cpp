@@ -14,7 +14,7 @@
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 
-template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
+template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
           typename... Args>
 int
 run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter,
@@ -24,13 +24,13 @@ run_fixed_resource_policy_tests(const ResourceContainer& resources, const Functi
 
     result += test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter,
                                                                                   std::forward<Args>(args)...);
-    result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy, Backend>(adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
 
     return result;
 }
@@ -54,7 +54,7 @@ main()
             auto f = [u](int, int offset = 0) { return u[offset]; };
 
             std::cout << "\nRunning tests for sycl::queue ...\n";
-            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t>(u, f, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_t, oneapi::dpl::experimental::default_backend<sycl::queue, oneapi::dpl::identity>>(u, f, oneapi::dpl::identity{})), "");
 
             // Test with sycl::queue* resources and dereference adapter
             auto deref_op = [](auto pointer) { return *pointer; };
@@ -71,7 +71,7 @@ main()
             auto f_ptrs = [u_ptrs](int, int offset = 0) { return u_ptrs[offset]; };
 
             std::cout << "\nRunning tests for sycl::queue* ...\n";
-            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
+            EXPECT_EQ(0, (run_fixed_resource_policy_tests<policy_pointer_t, oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>(u_ptrs, f_ptrs, deref_op)), "");
 
             //CTAD tests (testing policy construction without template arguments)
             //Template arguments types are deduced with CTAD

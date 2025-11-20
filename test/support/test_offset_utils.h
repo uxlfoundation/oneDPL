@@ -58,7 +58,7 @@ test_initialization(const std::vector<T>& u)
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction>
 int
 test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
 {
@@ -83,7 +83,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t 
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
     }
     oneapi::dpl::experimental::wait(p.get_submission_group());
@@ -97,7 +97,7 @@ test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, size_t 
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction>
 int
 test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
 {
@@ -124,7 +124,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, size_t 
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
         oneapi::dpl::experimental::wait(w);
         int count = ecount.load();
@@ -143,7 +143,7 @@ test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, size_t 
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction>
 int
 test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, size_t offset = 0)
 {
@@ -169,7 +169,7 @@ test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, size_t offset = 
                                              int>)
                     return e;
                 else
-                    return typename TestUtils::get_wait_type<typename Policy::backend_t>::type{};
+                    return typename TestUtils::get_wait_type<Backend>::type{};
             });
         int count = ecount.load();
         if (count != i * (i + 1) / 2)

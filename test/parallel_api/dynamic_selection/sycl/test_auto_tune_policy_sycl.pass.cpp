@@ -344,7 +344,7 @@ main()
 
             std::cout << "\nRunning auto_tune tests for sycl::queue ...\n";
             EXPECT_EQ(0, (test_auto_initialization(u)), "");
-            EXPECT_EQ(0, (test_default_universe_initialization<policy_t>(oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (test_default_universe_initialization<policy_t, oneapi::dpl::experimental::default_backend<sycl::queue>>(oneapi::dpl::identity{})), "");
 
             EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel1>(u, 0, oneapi::dpl::identity{})), "");
             EXPECT_EQ(0, (test_auto_submit_wait_on_event<policy_t, class Kernel2>(u, 1, oneapi::dpl::identity{})), "");

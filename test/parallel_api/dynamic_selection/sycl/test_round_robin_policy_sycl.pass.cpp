@@ -15,7 +15,7 @@
 #include "oneapi/dpl/functional"
 #include "support/test_dynamic_selection_utils.h"
 
-template <typename Policy, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
+template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
           typename... Args>
 int
 run_round_robin_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter,
@@ -25,13 +25,13 @@ run_round_robin_policy_tests(const ResourceContainer& resources, const FunctionT
 
     result += test_initialization<Policy, typename ResourceContainer::value_type>(resources, adapter,
                                                                                   std::forward<Args>(args)...);
-    result += test_default_universe_initialization<Policy>(adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_event<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
-    result += test_submit_and_wait_on_group<Policy>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_default_universe_initialization<Policy, Backend>(adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_event<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
+    result += test_submit_and_wait_on_group<Policy, Backend>(resources, f, adapter, std::forward<Args>(args)...);
 
     return result;
 }
@@ -58,7 +58,7 @@ main()
             auto f = [u, n](int i) { return u[(i - 1) % n]; };
 
             std::cout << "\nRunning round robin tests for sycl::queue ...\n";
-            EXPECT_EQ(0, (run_round_robin_policy_tests<policy_t>(u, f, oneapi::dpl::identity{})), "");
+            EXPECT_EQ(0, (run_round_robin_policy_tests<policy_t, oneapi::dpl::experimental::default_backend<sycl::queue>>(u, f, oneapi::dpl::identity{})), "");
 
             // Test with sycl::queue* resources and dereference adapter
             auto deref_op = [](auto pointer) { return *pointer; };
@@ -75,7 +75,7 @@ main()
             auto f_ptrs = [u_ptrs, n](int i) { return u_ptrs[(i - 1) % n]; };
 
             std::cout << "\nRunning round robin tests for sycl::queue* ...\n";
-            EXPECT_EQ(0, (run_round_robin_policy_tests<policy_pointer_t>(u_ptrs, f_ptrs, deref_op)), "");
+            EXPECT_EQ(0, (run_round_robin_policy_tests<policy_pointer_t, oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>>(u_ptrs, f_ptrs, deref_op)), "");
 
             //CTAD tests (testing policy construction without template arguments)
             //Template arguments types are deduced with CTAD
