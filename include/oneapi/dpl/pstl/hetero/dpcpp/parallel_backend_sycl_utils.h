@@ -541,8 +541,8 @@ struct __copyable_storage_state
     std::shared_ptr<_T> __result_buf;
     std::shared_ptr<_T> __scratch_buf;
     sycl::buffer<_T, 1> __sycl_buf;
-    std::size_t         __scratch_sz;
-    sycl::usm::alloc    __kind;
+    std::size_t         __scratch_sz = 0;
+    sycl::usm::alloc    __kind = sycl::usm::alloc::unknown;
 };
 
 // This base class is provided to allow same-typed shared pointer return values from kernels in
@@ -581,18 +581,13 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     bool
     __use_USM_host_allocations([[maybe_unused]] const sycl::queue& __q) const
     {
+        bool __result = false;
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
-        if (!__device.is_gpu())
-            return false;
-        if (!__device.has(sycl::aspect::usm_host_allocations))
-            return false;
-        if (__device.get_backend() != __dpl_sycl::__level_zero_backend)
-            return false;
-        return true;
-#else
-        return false;
+        __result = __device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
+                   __device.get_backend() == __dpl_sycl::__level_zero_backend;
 #endif
+        return __result;
     }
 
     bool
