@@ -44,18 +44,12 @@ main()
         return ret_type{in + i, out + j};
     };
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out;
-#else
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out_lim;
-#endif
-
-    test_range_algo<0, int, test_mode>{217}(dpl_ranges::copy_if, copy_if_checker, pred);
-    test_range_algo<1, int, test_mode>{1234}(dpl_ranges::copy_if, copy_if_checker, select_many);
-    test_range_algo<2, int, test_mode>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
-    test_range_algo<3, P2, test_mode>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
-    test_range_algo<4, P2, test_mode>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
-    test_range_algo<5, int, test_mode>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
+    test_range_algo<0, int, data_in_out_lim>{217}(dpl_ranges::copy_if, copy_if_checker, pred);
+    test_range_algo<1, int, data_in_out_lim>{1234}(dpl_ranges::copy_if, copy_if_checker, select_many);
+    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
+    test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
+    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
+    test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
