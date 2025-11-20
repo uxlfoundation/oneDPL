@@ -1445,8 +1445,9 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
 
     __par_backend::__buffer<bool> __mask_buf(__n);
     bool* __mask = __mask_buf.get();
-    auto __it_pred =
-        [=](_RandomAccessIterator1 __it, _DifferenceType __idx) { return std::invoke(__pred, __it[__idx]); };
+    auto __it_pred = [=](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+        return std::invoke(__pred, __it[__idx]);
+    };
     return __internal::__except_handler([&__exec, __n, __first, __result, __it_pred, __mask, __n_out]() {
         _DifferenceType __res_in{__n}, __res_out{__n_out};
         __par_backend::__parallel_strict_scan(
@@ -1715,11 +1716,10 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     {
         *__result++ = *__first++; // Always copy the first element
         --__n;
-        return __parallel_selective_copy(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
-            [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
-                return !__pred(__it[__idx], __it[__idx - 1]);
-            });
+        return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,
+                                         [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+                                             return !__pred(__it[__idx], __it[__idx - 1]);
+                                         });
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
