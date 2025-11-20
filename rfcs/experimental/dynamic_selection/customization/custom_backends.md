@@ -38,11 +38,11 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 ### Key Components
 
 1. **`backend_base<ResourceType>`**: A proposed base class template that implements core backend functionality to inherit from.
-2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that provides a complete backend implementation for any resource type, with optional adapter support. A developer creates a partial specialization of `default_backend_impl` to create a specific backend for the `BaseResourceType`. A `ResourceAdapter` can be used with `default_backend` to reuse `default_backend_impl` for a `ResourceType` that is adapted to a `BaseResourceType`.
+2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that backend developers partially specialize to implement a backend for a specific `BaseResourceType`. The implementation provides instrumentation and resource management for that base resource type. A `ResourceAdapter` can be used to transform a `ResourceType` into a `BaseResourceType`, allowing reuse of an existing `default_backend_impl` specialization.
 
 Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
 
-3. **`default_backend<ResourceType, ResourceAdapter>`**: A proposed template that determines the `BaseResourceType` from the `ResourceType` and `ResourceAdapter`.
+3. **`default_backend<ResourceType, ResourceAdapter>`**: A wrapper template that **users instantiate** when creating policies. It automatically determines the `BaseResourceType` by applying the `ResourceAdapter` to the `ResourceType`, then inherits from the appropriate `default_backend_impl` specialization.
 4. **A SYCL specialization of default_backend_impl**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
 ### Core Features
@@ -351,10 +351,10 @@ Adapters enable several useful patterns:
 
 ## Testing
 Testing for these changes should include:
- * Test of SYCL backend using a ``sycl::queue*`` as the execution resource with a dereferencing resource adapter function.
+ * Test of SYCL backend using a `sycl::queue*` as the execution resource with a dereferencing resource adapter function.
  * Test of automatic backend selection by providing a universe of resources to construction which are used to deduce the backend.
- * Test of backend using default backend for a simple resource type.
- * Test of backend using backend with minimally overridden `submit()` for a simple resource type.
+ * Test of a policy using `default_backend` (which uses the default `backend_base` implementation) for a simple resource type.
+ * Test of a custom backend created by partially specializing `default_backend_impl` with minimally overridden `submit()` for a simple resource type.
 
 ## Explored Alternatives
 
