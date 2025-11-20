@@ -903,6 +903,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                    _OutRng&& __out_rng, _Size __n, _Size __m, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    std::array<_Size, 2> __ret = {__m, __n};
 
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
@@ -926,7 +927,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        return __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
+        __ret = __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
@@ -939,7 +940,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                   std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred, {}},
                                                   _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{}).get();
-        return {__stop_out, __n};
+        __ret = {__stop_out, __n};
     }
     else
     {
@@ -951,11 +952,13 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
                                                  std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
                                                  _CopyOp{_ReduceOp{}, __assign});
         __event.wait_and_throw();
-
-        std::array<_Size, 2> __ret;
         __payload.__copy_result(__ret.data(), __ret.size());
-        return __ret;
     }
+
+    assert(__ret[0] >= 0 && __m >= __ret[0]);
+    assert(__ret[1] > 0 && __n >= __ret[1]);
+    assert(__ret[0] == __m || __ret[1] == __n);
+    return __ret;
 }
 
 // This function is currently unused, but may be utilized for small sizes sets at some point in the future.
