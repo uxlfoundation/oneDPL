@@ -430,6 +430,14 @@ Testing for these changes should include:
    implementations of provided policies. They should take advantage of the ``policy_base`` and only implement what is
    necessary.
 
+## Open Questions
+ * The generic `submit` and `submit_and_wait` design has an infinite loop in its generic implementation if a resource is
+   never available from the policy's `try_select_impl`. If a resource is never available, this is generally an issue with
+   the backend or the environment. However, there is some question as to whether there should be some external programmatic
+   way to break out of this loop if it is taking too long; currently there is none. This is possible future work to
+   investigate and possibly add a way to abort submission. TBB's `concurrent_queue` has a possible system we could use
+   as a model within its `pop` implementation.
+
 ## Conclusion
 
 This proposal presents a simplified approach to policy customization for Dynamic Selection. Key benefits include:
@@ -442,3 +450,4 @@ This proposal presents a simplified approach to policy customization for Dynamic
 6. **Extensibility**: Easy to add new selection strategies with minimal code
 
 This design opens Dynamic Selection policy development to broader use cases while maintaining performance and providing a consistent developer experience.
+
