@@ -1217,7 +1217,7 @@ __brick_copy_if(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _UnaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_bounded_copy_if(_RandomAccessIterator1 __first,
-                        typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n,
+                        typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
                         _RandomAccessIterator2 __result,
                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type __m,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
@@ -1339,7 +1339,7 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
         __result += __copied;
     }
     // The loop above may not decrease __m or __n below 0
-    if (__m >= n) // enough space left for the rest
+    if (__m >= __n) // enough space left for the rest
     {
         __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
         __n = 0;
@@ -1468,7 +1468,8 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                         return;
                     __mask_start += __checked;
                 }
-                bool* __stop = __brick_find_if(__mask_start, __mask_end, oneapi::dpl::identity{}, _IsVector{});
+                bool* __stop =
+                    __internal::__brick_find_if(__mask_start, __mask_end, oneapi::dpl::identity{}, _IsVector{});
                 if (__stop != __mask_end) // Found the position of the first element that cannot be copied
                     __res_in = __stop - __mask;
             },

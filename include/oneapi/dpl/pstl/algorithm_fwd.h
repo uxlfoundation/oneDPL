@@ -438,7 +438,7 @@ _OutputIterator __brick_copy_if(_RandomAccessIterator, _RandomAccessIterator, _O
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _UnaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
-__brick_bounded_copy_if(_RandomAccessIterator1, typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
+__brick_bounded_copy_if(_RandomAccessIterator1, typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
                         _RandomAccessIterator2, typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
                         _UnaryPredicate, /*vector=*/std::true_type) noexcept;
 
