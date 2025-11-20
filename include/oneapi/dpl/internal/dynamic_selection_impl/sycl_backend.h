@@ -346,17 +346,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
 
         for (auto& x : devices)
         {
-            if constexpr (execution_info::contains_reporting_req_v<execution_info::task_time_t, ReportReqs...>)
-            {
-                if (adapter(x).template has_property<sycl::property::queue::enable_profiling>())
-                {
-                    v.push_back(sycl::queue(x, prop_list));
-                }
-            }
-            else
-            {
-                v.push_back(sycl::queue(x, prop_list));
-            }
+            v.push_back(sycl::queue(x, prop_list));
         }
         filter_add_resources(v, report_reqs...);
     }
