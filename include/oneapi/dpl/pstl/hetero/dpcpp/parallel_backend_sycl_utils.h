@@ -424,11 +424,11 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
 {
     static_assert(__alloc_t == sycl::usm::alloc::host || __alloc_t == sycl::usm::alloc::device);
     _T* __result = nullptr;
-    sycl::device __device = __q.get_device();
     if constexpr (__alloc_t == sycl::usm::alloc::host)
     {
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         // Only use host USM on L0 GPUs. Other devices should use device USM instead to avoid notable slowdown.
+        sycl::device __device = __q.get_device();
         if (__device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
             __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
@@ -438,7 +438,7 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
     }
     else
     {
-        if (__device.has(sycl::aspect::usm_device_allocations))
+        if (__q.get_device().has(sycl::aspect::usm_device_allocations))
             __result = sycl::malloc<_T>(__elements, __q, __alloc_t);
     }
     return __result;
@@ -495,10 +495,10 @@ struct __combi_accessor
     _T* __ptr = nullptr;
     __acc_t __acc;
 
-    template <bool __with_offset = false>
+    template <bool __with_offset>
     __acc_t
-    __init_acc(bool __fake, sycl::buffer<_T, 1>& __sycl_buf, sycl::handler& __cgh,
-               const sycl::property_list& __prop_list, std::size_t __sz = 0, std::size_t __offset = 0)
+    __make_accessor(bool __fake, sycl::buffer<_T, 1>& __sycl_buf, sycl::handler& __cgh,
+                    const sycl::property_list& __prop_list, std::size_t __sz = 0, std::size_t __offset = 0)
     {
         if (__fake)
         {
@@ -517,13 +517,13 @@ struct __combi_accessor
   public:
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf,
                      const sycl::property_list& __prop_list)
-        : __ptr(__usm_buf), __acc(__init_acc((bool)__ptr, __sycl_buf, __cgh, __prop_list))
+        : __ptr(__usm_buf), __acc(__make_accessor<false>(__usm_buf != nullptr, __sycl_buf, __cgh, __prop_list))
         {}
 
     __combi_accessor(sycl::handler& __cgh, sycl::buffer<_T, 1>& __sycl_buf, _T* __usm_buf, std::size_t __offset,
                      std::size_t __sz, const sycl::property_list& __prop_list)
         : __ptr(__usm_buf ? __usm_buf + __offset : nullptr),
-          __acc(__init_acc<true>((bool)__ptr, __sycl_buf, __cgh, __prop_list, __sz, __offset))
+          __acc(__make_accessor<true>(__usm_buf != nullptr, __sycl_buf, __cgh, __prop_list, __sz, __offset))
         {}
 
     auto // [const] _T*, with constness depending on _AccessMode
@@ -596,7 +596,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
     }
 
     bool
-    __use_USM_allocations([[maybe_unused]] const sycl::queue& __q) const
+    __use_USM_allocations(const sycl::queue& __q) const
     {
         return __q.get_device().has(sycl::aspect::usm_device_allocations);
     }
@@ -655,7 +655,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     template <typename _Acc>
     static auto
-    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, [[maybe_unused]] std::size_t __scratch_n = 0)
+    __get_usm_or_buffer_accessor_ptr(const _Acc& __acc, std::size_t = 0)
     {
         return __acc.__data();
     }
@@ -767,7 +767,7 @@ struct __device_storage
         {nullptr, sycl::range{0}};
 #endif
 
-    __device_storage() {}
+    __device_storage() = default;
 
     __device_storage(const sycl::queue& __q, std::size_t __n) { __initialize(__q, __n); }
 
