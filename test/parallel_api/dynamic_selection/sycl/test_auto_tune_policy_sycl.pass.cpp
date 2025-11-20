@@ -60,6 +60,8 @@ launch_kernel(ResourceType& q, Adapter adapter, int* j, volatile float* v)
                 for (int j0 = 0; j0 < *j; ++j0)
                 {
                     v[idx] += idx;
+                    v[idx] *= 1.0001f;
+                    v[idx] += j0 * 0.1f;
                 }
             });
     });
@@ -89,11 +91,11 @@ test_auto_submit_wait_on_event(UniverseContainer u, int best_resource, Adapter a
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 100;
+            *j = 2000;
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
@@ -159,11 +161,11 @@ test_auto_submit_wait_on_group(UniverseContainer u, int best_resource, Adapter a
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 1000;
+            *j = 2000;
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
@@ -228,11 +230,11 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
     {
         if (i <= 2 * n_samples && (i - 1) % n_samples != best_resource)
         {
-            *j = 1000;
+            *j = 2000;
         }
         else
         {
-            *j = 0;
+            *j = 1;
         }
         // we can capture all by reference
         // the inline_scheduler reports timings in submit
