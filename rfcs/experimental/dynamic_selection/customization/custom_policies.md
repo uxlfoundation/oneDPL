@@ -104,7 +104,7 @@ customization while providing sensible defaults for resource management and back
 
 ### Key Components
 
-1. **`policy_base<Policy, ResourceType, Backend>`**: A proposed base class template that implements the core policy functionality using CRTP.
+1. **`policy_base<Policy, ResourceAdapter, Backend, ReportReqs...>`**: A proposed base class template that implements the core policy functionality using CRTP. Note that `ResourceType` is not a template parameter; instead, it is deduced from the backend as `resource_type = decltype(unwrap(typename Backend::execution_resource_t))`.
 2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select_impl()` and `initialize_impl()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
@@ -122,8 +122,8 @@ customization while providing sensible defaults for resource management and back
 The proposed `policy_base` class provides core functionality that derived policies can customize:
 
 ```cpp
-template <typename Policy, typename ResourceType, typename Backend, typename ReportingReqs reqs...>
-class policy_base 
+template <typename Policy, typename ResourceAdapter, typename Backend, typename... ReportReqs>
+class policy_base
 {
   protected:
     using backend_t = Backend;
@@ -136,14 +136,11 @@ class policy_base
 
   protected:
     std::shared_ptr<backend_t> backend_;
-    std::tuple<ReportingReqs> reporting_reqs;
 
   public:
-    policy_base(ReportingReqs reqs...);
-
     // Resource management
     auto get_resources() const;
-    
+
     // Initialization support
     void initialize();
     template <typename... Args>
@@ -210,10 +207,10 @@ The `round_robin_policy` demonstrates a simple stateful selection strategy:
 
 ```cpp
 template <typename ResourceType, typename ResourceAdapter, typename Backend>
-class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend> 
+class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     
     struct selector_t {
         typename base_t::resource_container_t resources_;
@@ -270,10 +267,12 @@ The `dynamic_load_policy` demonstrates a more complex selection strategy with lo
 
 ```cpp
 template <typename ResourceType, typename ResourceAdapter, typename Backend>
-class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>
+class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
+                                               execution_info::task_submission_t, execution_info::task_completion_t>
 {
   protected:
-    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
+                               execution_info::task_submission_t, execution_info::task_completion_t>;
     using load_t = int;
 
     // Resource wrapper with load tracking
@@ -367,10 +366,10 @@ Here's a minimal example of a custom policy that selects resources randomly:
 
 ```cpp
 template <typename ResourceType, typename ResourceAdapter, typename Backend>
-class random_policy : public policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend> 
+class random_policy : public policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceType, Backend>;
+    using base_t = policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     typename base_t::resource_container_t resources_;
     std::random_device rd_;
     std::mt19937 gen_;
