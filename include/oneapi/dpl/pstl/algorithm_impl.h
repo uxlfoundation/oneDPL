@@ -1445,13 +1445,15 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
 
     __par_backend::__buffer<bool> __mask_buf(__n);
     bool* __mask = __mask_buf.get();
-    return __internal::__except_handler([&__exec, __n, __first, __result, __pred, __mask, __n_out]() {
+    auto __it_pred =
+        [=](_RandomAccessIterator1 __it, _DifferenceType __idx) { return std::invoke(__pred, __it[__idx]); };
+    return __internal::__except_handler([&__exec, __n, __first, __result, __it_pred, __mask, __n_out]() {
         _DifferenceType __res_in{__n}, __res_out{__n_out};
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
             [=](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                return __internal::__brick_calc_mask_1<_DifferenceType>(
-                    __first + __i, __first + (__i + __len), __mask + __i, __pred, _IsVector{}).first;
+                return __internal::__brick_compute_mask(__first + __i, __len, __it_pred, __mask + __i, _IsVector{})
+                       .first;
             },
             std::plus<_DifferenceType>(), // Combine
             [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
