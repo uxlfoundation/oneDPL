@@ -319,6 +319,16 @@ An adapter is a callable object that transforms a resource from the stored type 
 expected by the backend functions. The default adapter is `oneapi::dpl::identity`, which performs
 no transformation.
 
+**Adapter Requirements**:
+- Must be callable with `ResourceType` and return `BaseResourceType`
+- Is stored in the backend and applied during submission operations
+- The user function still receives the **unadapted** `ResourceType` (not the `BaseResourceType`)
+
+For example, with an adapter that dereferences pointers (`[](auto* p) { return *p; }`):
+- Resources are stored as `sycl::queue*` (the `ResourceType`)
+- Backend internally works with `sycl::queue` (the `BaseResourceType`)
+- User-provided functions receive `sycl::queue*` as their argument
+
 Custom backends must support a resource and resource adapter as the first two arguments of a constructor, respectively.
 This is built in if using `default_backend_impl`, but custom backends must provide their own custom support for resource
 adapters.
