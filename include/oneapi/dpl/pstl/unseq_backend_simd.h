@@ -264,7 +264,7 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _UnaryPredicate>
-_OutputIterator
+_DifferenceType
 __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _UnaryPredicate __pred) noexcept
 {
     _DifferenceType __cnt = 0;
@@ -279,41 +279,26 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
             ++__cnt;
         }
     }
-    return __result + __cnt;
+    return __cnt;
 }
 
-template <class _InputIterator, class _DifferenceType, class _BinaryPredicate>
+template <typename _Iterator, typename _DifferenceType, typename _IterPredicate>
 _DifferenceType
-__simd_calc_mask_2(_InputIterator __first, _DifferenceType __n, bool* __mask, _BinaryPredicate __pred) noexcept
+__simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pred, bool* __mask) noexcept
 {
     _DifferenceType __count = 0;
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __mask[__i] = !__pred(__first[__i], __first[__i - 1]);
-        __count += __mask[__i];
-    }
-    return __count;
-}
-
-template <class _InputIterator, class _DifferenceType, class _UnaryPredicate>
-_DifferenceType
-__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _UnaryPredicate __pred) noexcept
-{
-    _DifferenceType __count = 0;
-
-    _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-    {
-        __mask[__i] = __pred(__first[__i]);
+        __mask[__i] = __pred(__first, __i);
         __count += __mask[__i];
     }
     return __count;
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
-void
+_DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
                     _Assigner __assigner) noexcept
 {
@@ -330,6 +315,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
             }
         }
     }
+    return __cnt;
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
