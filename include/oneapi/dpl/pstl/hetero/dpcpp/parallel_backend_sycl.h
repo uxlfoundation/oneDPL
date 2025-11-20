@@ -311,10 +311,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                     auto __temp_ptr = __temp_acc.__data();
                     __local_scan(__item, __n, __m, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
                                  __wgroup_size, __iters_per_witem, __init);
-                    if (__item.get_global_id(0) == 0 && __n_groups == 1)
+                    if (__n_groups == 1)
                     {
-                        auto __res_ptr = __res_acc.__data();
-                        __apex(__res_ptr, __temp_ptr[0], __m, __n);
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[0], __m, __n);
                     }
                 });
         });
@@ -340,11 +341,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                         auto __temp_ptr = __temp_acc.__data();
                         __group_scan(__item, __n_groups, __n_groups, __local_acc, __temp_ptr, __temp_ptr,
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
-                        if (__item.get_local_id(0) == 0 && __item.get_group(0) == __n_groups - 1)
-                        {
-                            auto __res_ptr = __res_acc.__data();
-                            __apex(__res_ptr, __temp_ptr[__n_groups - 1], __m, __n);
-                        }
+                        __dpl_sycl::__group_barrier(__item);
+                        if (__item.get_local_id(0) == 0)
+                            __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __m, __n);
                     });
             });
         }
