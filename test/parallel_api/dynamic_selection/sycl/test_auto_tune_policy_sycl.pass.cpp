@@ -343,6 +343,7 @@ main()
 
         if (u.size() > 1)
         {
+            bProcessed = true;
 
             std::cout << "\nRunning auto_tune tests for sycl::queue ...\n";
             EXPECT_EQ(0, (test_auto_initialization(u)), "");
@@ -408,15 +409,13 @@ main()
             oneapi::dpl::experimental::auto_tune_policy p8{{&q1, &q2}, deref_op, 1};
 
             //Ambiguity tests
-	    policy_t p9;
-	    policy_t p10(1);
-	    policy_t p11(u);
-	    policy_t p12(u, 1);
-	    policy_t p13(u, oneapi::dpl::identity());
-	    policy_t p14(u, oneapi::dpl::identity(), 1);
+            policy_t p9;
+            policy_t p10(1);
+            policy_t p11(u);
+            policy_t p12(u, 1);
+            policy_t p13(u, oneapi::dpl::identity());
+            policy_t p14(u, oneapi::dpl::identity(), 1);
 
-
-            bProcessed = true;
         }
         else
         {

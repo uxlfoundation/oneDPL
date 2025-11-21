@@ -48,6 +48,8 @@ main()
         build_universe(u);
         if (!u.empty())
         {
+            bProcessed = true;
+
             auto n = u.size();
             std::cout << "UNIVERSE SIZE " << n << std::endl;
 
@@ -87,7 +89,10 @@ main()
             oneapi::dpl::experimental::round_robin_policy p3({&q1, &q2}, deref_op);
             oneapi::dpl::experimental::round_robin_policy p4{{&q1, &q2}, deref_op};
 
-            bProcessed = true;
+        }
+        else
+        {
+            std::cout << "SKIPPED: No devices available to build universe (CPU or GPU required)\n";
         }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
     }

@@ -47,6 +47,7 @@ main()
         build_universe(u);
         if (!u.empty())
         {
+            bProcessed = true;
             // Test with direct sycl::queue resources
             using policy_t = oneapi::dpl::experimental::fixed_resource_policy<
                 sycl::queue, oneapi::dpl::identity,
@@ -93,14 +94,17 @@ main()
             oneapi::dpl::experimental::fixed_resource_policy p8{{&q1, &q2}, deref_op, 1};
 
             //Ambiguity tests
-	    policy_t p9;
-	    policy_t p10(1);
-	    policy_t p11(u);
-	    policy_t p12(u, 1);
-	    policy_t p13(u, oneapi::dpl::identity());
-	    policy_t p14(u, oneapi::dpl::identity(), 1);
+            policy_t p9;
+            policy_t p10(1);
+            policy_t p11(u);
+            policy_t p12(u, 1);
+            policy_t p13(u, oneapi::dpl::identity());
+            policy_t p14(u, oneapi::dpl::identity(), 1);
 
-            bProcessed = true;
+        }
+        else
+        {
+            std::cout << "SKIPPED: No devices available to build universe (CPU or GPU required)\n";
         }
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
     }

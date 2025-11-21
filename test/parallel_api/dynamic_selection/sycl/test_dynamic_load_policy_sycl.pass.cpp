@@ -85,6 +85,8 @@ main()
         //If building the universe is not a success, return
         if (n != 0)
         {
+            bProcessed = true;
+
             // Test with direct sycl::queue resources
             using policy_t =
                 oneapi::dpl::experimental::dynamic_load_policy<sycl::queue, oneapi::dpl::identity,
@@ -128,7 +130,10 @@ main()
             oneapi::dpl::experimental::dynamic_load_policy p3({&q1, &q2}, deref_op);
             oneapi::dpl::experimental::dynamic_load_policy p4{{&q1, &q2}, deref_op};
 
-            bProcessed = true;
+        }
+        else 
+        {
+            std::cout << "SKIPPED: No devices available to build universe (CPU or GPU required)\n";
         }
 #endif // Devices available are CPU and GPU
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
