@@ -830,13 +830,6 @@ __get_subscription_view(_View&& __view)
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
-template <typename _Range1, typename _Range2, typename _Range3>
-using __rng_set_operations_return_t = 
-    oneapi::dpl::__utils::__set_operations_return_t<
-        oneapi::dpl::__internal::__iterator_t<_Range1>,
-        oneapi::dpl::__internal::__iterator_t<_Range2>,
-        oneapi::dpl::__internal::__iterator_t<_Range3>>;
-
 // Returns begin, end and size of the range
 template <typename T>
 auto
