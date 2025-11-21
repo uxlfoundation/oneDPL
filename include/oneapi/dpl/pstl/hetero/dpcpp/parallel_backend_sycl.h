@@ -973,7 +973,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 //__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
                                             _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1016,14 +1016,14 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
         /*_Inclusive=*/std::true_type{},
         /*__is_unique_pattern=*/std::false_type{});
 #else
-    return oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
+    return oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
 #endif
 }
 
 // balanced path
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
                             _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1095,7 +1095,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 #else
-    return oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
+    return oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
 #endif
 }
 
@@ -1103,7 +1103,7 @@ template <typename _CustomName, typename _SetTag,
           typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 //oneapi::dpl::__internal::__difference_t<_Range1>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __parallel_set_scan(_SetTag, sycl::queue& __q,
                     _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                     _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1153,13 +1153,13 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
     return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
 #else
-    return oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
+    return oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>{};
 #endif
 }
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
 
 template <typename _CustomName>
@@ -1170,7 +1170,7 @@ struct __set_union_copy_wrapper;
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1248,7 +1248,7 @@ struct __set_symmetric_difference_copy2_wrapper;
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1325,7 +1325,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1360,7 +1360,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
 
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1426,7 +1426,7 @@ struct __check_use_write_a_alg
 template <typename _CustomName, typename _SetTag,
           typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q,
               _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -1458,7 +1458,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q,
 
 template <typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-oneapi::dpl::__ranges::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
+oneapi::dpl::__utils::__rng_set_operations_return_t<_Range1, _Range2, _Range3>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
