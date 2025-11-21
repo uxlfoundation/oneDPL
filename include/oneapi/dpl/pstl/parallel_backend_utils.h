@@ -493,11 +493,6 @@ struct __set_operations_return_t
         }
 };
 
-template <typename _Range1, typename _Range2, typename _Range3>
-using __rng_set_operations_return_t = __set_operations_return_t<oneapi::dpl::__internal::__iterator_t<_Range1>,
-                                                                oneapi::dpl::__internal::__iterator_t<_Range2>,
-                                                                oneapi::dpl::__internal::__iterator_t<_Range3>>;
-
 // Move it1 forward by n, but not beyond it2
 template <typename _RandomAccessIterator, typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
 _RandomAccessIterator
