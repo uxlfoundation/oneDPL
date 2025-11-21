@@ -348,7 +348,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         });
 
         return __future{std::move(__final_event),
-                        __result_and_scratch_storage<_Type>(__transfer_state_from(__result_and_scratch))};
+                        __result_and_scratch_storage<_Type>(__move_state_from(__result_and_scratch))};
     }
 };
 
