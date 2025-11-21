@@ -44,23 +44,23 @@ build_dl_universe(std::vector<sycl::queue>& u)
 {
     try
     {
-        auto device_cpu1 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu1 = sycl::device(sycl::default_selector_v);
         sycl::queue cpu1_queue(device_cpu1);
         u.push_back(cpu1_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to get sycl device\n";
     }
     try
     {
-        auto device_cpu2 = sycl::device(sycl::cpu_selector_v);
+        auto device_cpu2 = sycl::device(sycl::default_selector_v);
         sycl::queue cpu2_queue(device_cpu2);
         u.push_back(cpu2_queue);
     }
     catch (const sycl::exception&)
     {
-        std::cout << "SKIPPED: Unable to run with cpu_selector\n";
+        std::cout << "SKIPPED: Unable to get sycl device\n";
     }
 }
 #endif
