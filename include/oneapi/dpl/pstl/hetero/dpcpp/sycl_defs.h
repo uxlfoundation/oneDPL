@@ -80,9 +80,6 @@
     (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700) || __SYCL_COMPILER_VERSION > 20201214)
 #define _ONEDPL_SYCL2020_BUFFER_ALLOCATOR_PRESENT             (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60000))
 #define _ONEDPL_SYCL2020_LOCAL_ACCESSOR_PRESENT               (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60000))
-// The unified future supporting USM memory and buffers is only supported after DPC++ 2023.1 but not by 2023.2.
-#define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_PRESENT                                                          \
-    (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) && _ONEDPL_LIBSYCL_VERSION != 60200)
 #define _ONEDPL_SYCL2020_HOST_TARGET_PRESENT                  (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_GET_HOST_ACCESS_PRESENT              (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
@@ -108,6 +105,9 @@
 #endif
 
 #define _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70100))
+// There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
+#define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
+    (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)
 
 // Macro to check if we are compiling for SPIR-V devices. This macro must only be used within
 // SYCL kernels for determining SPIR-V compilation. Using this macro on the host may lead to incorrect behavior.
