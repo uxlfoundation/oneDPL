@@ -929,6 +929,50 @@ namespace std
 
 }; // namespace std
 
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
+namespace oneapi
+{
+namespace dpl
+{
+namespace __internal
+{
+namespace __ranges
+{
+template <bool... Flags>
+constexpr std::size_t
+__sum_flags()
+{
+    return (0 + ... + (Flags ? std::size_t{1} : std::size_t{0}));
+}
 
+// Get the positions reached in each of the each data range
+template <typename TResult, bool IncludeR1 = true, bool IncludeR2 = true, bool IncludeR3 = true>
+TResult
+__get_positions_reached(const auto& __res_op)
+{
+    TResult __res;
+
+    if constexpr (IncludeR1)
+        std::get<0>(__res) = __res_op.__rng1_info.reached;
+
+    if constexpr (IncludeR2)
+    {
+        constexpr std::size_t index = __sum_flags<IncludeR1>();
+        std::get<index>(__res) = __res_op.__rng2_info.reached;
+    }
+
+    if constexpr (IncludeR3)
+    {
+        constexpr std::size_t index = __sum_flags<IncludeR1, IncludeR2>();
+        std::get<index>(__res) = __res_op.__rng3_info.reached;
+    }
+
+    return __res;
+}
+
+} // namespace __ranges
+} // namespace __internal
+} // namespace dpl
+} // namespace oneapi
+
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 #endif // _ONEDPL_UTILS_RANGES_H
