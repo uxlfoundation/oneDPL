@@ -51,15 +51,17 @@ struct merge_checker_fn
                 return ret_type{it_1, it_2, it_out};
         }
 
-        if(it_1 == it_1_e)
+        if (it_1 == it_1_e)
         {
-            for(; it_2 != it_2_e && it_out != it_out_e; ++it_2, (void) ++it_out)
-                *it_out = *it_2;
+            auto __res_copy2 = std::ranges::copy(it_2, it_2 + std::min(it_2_e - it_2, it_out_e - it_out), it_out);
+            it_2 = __res_copy2.in;
+            it_out = __res_copy2.out;
         }
         else
         {
-            for(; it_1 != it_1_e && it_out != it_out_e; ++it_1, (void) ++it_out)
-                *it_out = *it_1;
+            auto __res_copy1 = std::ranges::copy(it_1, it_1 + std::min(it_1_e - it_1, it_out_e - it_out), it_out);
+            it_1 = __res_copy1.in;
+            it_out = __res_copy1.out;
         }
 
         return {it_1, it_2, it_out};
