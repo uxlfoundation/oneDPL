@@ -854,4 +854,81 @@ __get_range_bounds(_Range&& __rng)
 } // namespace dpl
 } // namespace oneapi
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+
+// Provide tuple-like interface specializations for std::ranges::in_in_out_result
+// This adapts the result type (holding 3 iterators: in1, in2, out) so that
+// structured bindings and std::tuple_size/std::tuple_element work.
+namespace std
+{
+    // Specialize tuple_size: the result contains exactly 3 components.
+    template <class I1, class I2, class O>
+    struct tuple_size<std::ranges::in_in_out_result<I1, I2, O>> : public std::integral_constant<std::size_t, 3>
+    {
+    };
+
+    // Specialize tuple_element to map indices 0,1,2 to the corresponding iterator types.
+    // Index 0 -> I1 (first input iterator type)
+    // Index 1 -> I2 (second input iterator type)
+    // Index 2 -> O  (output iterator type)
+    template <std::size_t I, class I1, class I2, class O>
+    struct tuple_element<I, std::ranges::in_in_out_result<I1, I2, O>>
+    {
+        static_assert(I < 3, "Index out of bounds in tuple_element<std::ranges::in_in_out_result>");
+
+        using type = std::conditional_t<I == 0, I1, std::conditional_t<I == 1, I2, O>>;
+    };
+
+    template <std::size_t I, class I1, class I2, class O>
+    constexpr auto&
+    get(std::ranges::in_in_out_result<I1, I2, O>& __r) noexcept
+    {
+        if constexpr (I == 0)
+            return __r.in1;
+        else if constexpr (I == 1)
+            return __r.in2;
+        else
+            return __r.out;
+    }
+
+    template <std::size_t I, class I1, class I2, class O>
+    constexpr const auto&
+    get(const std::ranges::in_in_out_result<I1, I2, O>& __r) noexcept
+    {
+        if constexpr (I == 0)
+            return __r.in1;
+        else if constexpr (I == 1)
+            return __r.in2;
+        else
+            return __r.out;
+    }
+
+    template <std::size_t I, class I1, class I2, class O>
+    constexpr auto&&
+    get(std::ranges::in_in_out_result<I1, I2, O>&& __r) noexcept
+    {
+        if constexpr (I == 0)
+            return __r.in1;
+        else if constexpr (I == 1)
+            return __r.in2;
+        else
+            return __r.out;
+    }
+
+    template <std::size_t I, class I1, class I2, class O>
+    constexpr const auto&&
+    get(const std::ranges::in_in_out_result<I1, I2, O>&& __r) noexcept
+    {
+        if constexpr (I == 0)
+            return __r.in1;
+        else if constexpr (I == 1)
+            return __r.in2;
+        else
+            return __r.out;
+    }
+
+}; // namespace std
+
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
 #endif // _ONEDPL_UTILS_RANGES_H
