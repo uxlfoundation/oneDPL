@@ -17,6 +17,7 @@
 #include "support/sycl_alloc_utils.h"
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
+#if SYCL_EXT_ONEAPI_PROFILING_TAG
 
 int
 test_auto_initialization(const std::vector<sycl::queue>& u)
@@ -321,6 +322,7 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     }
 }
 
+#endif //SYCL_EXT_ONEAPI_PROFILING_TAG
 #endif //TEST_DYNAMIC_SELECTION_AVAILABLE
 
 int
