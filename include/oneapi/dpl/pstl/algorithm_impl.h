@@ -3364,13 +3364,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
     const _DifferenceType1 __n1 = __last1 - __first1;
     const _DifferenceType2 __n2 = __last2 - __first2;
-    const _DifferenceTypeOutput __n_out = __result2 - __result1;
-
-    auto __size_func_limited_out = [__size_func, __n_out](_DifferenceType1 arg1, _DifferenceType2 arg2) {
-        return std::min(__n_out, __size_func(arg1, arg2));
-    };
-
-    const auto __buf_size = __size_func_limited_out(__n1, __n2);
+    
+    const auto __buf_size = __size_func(__n1, __n2);
     __par_backend::__buffer<_T> __buf(__buf_size);
 
     const auto __buf_begin = __buf.get();
@@ -3381,7 +3376,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __first2, __last2,         // bounds for data2
                                          __result1, __result2,      // bounds for results
                                          __comp, __proj1, __proj2,
-                                         __size_func_limited_out, __set_op,
+                                         __size_func,
+                                         __set_op,
                                          __buf_begin, __buf_end, __buf_size]() 
     {
         _DifferenceType1      __reached_offset1   {};           // KSATODO <<<<< required to fill
@@ -3389,19 +3385,55 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         _DifferenceTypeOutput __reached_offset_out{};           // KSATODO <<<<< required to check how it's filled
 
         // Scan predicate
-        auto __scan = [__buf_begin, __buf_end, __result = __result1](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
+        auto __scan = [__buf_begin, __buf_end, __result1, __result2](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
         {
             if (!__s.empty())
             {
                 assert(__s.__buf_pos < __buf_end - __buf_begin);
 
-                //auto __tmp_memory_from = __buf_begin + __s.__buf_pos;
-                auto __tmp_memory_from = oneapi::dpl::__utils::__advance_clamped(__buf_begin, __s.__buf_pos, __buf_end);
+                const _DifferenceTypeOutput __n_out = __result2 - __result1;
 
-                //auto __tmp_memory_to = __tmp_memory_from + __s.__len;
-                auto __tmp_memory_to = oneapi::dpl::__utils::__advance_clamped(__tmp_memory_from, __s.__len, __buf_end);
+                _DifferenceTypeCommon __count_of_items_to_transfer = __s.__len;
 
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to, __result + __s.__pos, _IsVector{});
+                auto __tmp_memory_from = __buf_begin + __s.__buf_pos;
+
+                const auto __output_write_pos                  = __result1 + __s.__pos;
+                const auto __output_pos_in_results_to_supposed = __output_write_pos + __count_of_items_to_transfer;
+                const auto __output_pos_in_results_to_real     = oneapi::dpl::__utils::__advance_clamped(__output_write_pos, __count_of_items_to_transfer, __result2);
+                const auto __out_of_range_items                = __output_pos_in_results_to_supposed - __output_pos_in_results_to_real;
+
+                // Now we know whar to copy to fit copied data into output range
+                assert(__s.__len >= __out_of_range_items);
+                auto __tmp_memory_to                     = __tmp_memory_from + __s.__len - __out_of_range_items;
+
+                // Temporary buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+                // What to copy:                                ^                                ^
+                //                                              |                                |
+                //                                       [__s.__buf_pos ....       __s.__buf_pos + __s.__len)
+                //                                              |                                |
+                //                                               \                                \
+                //                                                \    We shoult `copy` this data  \
+                //                                                 \    from temporary buffer       \
+                //                                                  \    to output range             \
+                //                                                   \ (__count_of_items_to_transfer) \
+                //                                                    |                                |
+                // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.........................
+                //                      ^                             ^                   ^            ^
+                //                      |                             |                   |            |
+                //                      |                         [__s.__pos ....         |  __s.__pos + __s.__len)
+                //                      |                      (__output_write_pos)       |            |
+                //                      |                                                 \____________/
+                //                      |                                                 |      ^
+                //                      |                                                 |      |
+                //                      |                                                 |    this data out of output range
+                //                      |                                                 |    (__out_of_range_items)
+                //                      |                                                 |
+                // Output range bounds: [__result1..................             __result2)
+
+                // Check that we fit into the rest of output range
+                assert(__output_write_pos + (__tmp_memory_to - __tmp_memory_from) < __result2);
+
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to, __output_write_pos, _IsVector{});
             }
         };
 
@@ -3434,7 +3466,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                     if (__b1 != __last1)
                         __b2 = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b1, __comp, __proj2, __proj1);
 
-                    const _DifferenceTypeCommon __buf_pos = __size_func_limited_out(__b1 - __first1, __b2 - __first2);
+                    const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
                     return _SetRange{ 0,                // offset in output range
                                       0,                // Offset in temporary buffer
                                      __buf_pos};        // Data length in temporary buffer
@@ -3452,7 +3484,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 if (__e1 != __last1)
                     __e2 = __b2 + __internal::__pstl_lower_bound(__b2, _DifferenceType2{0}, __last2 - __b2, __e1, __comp, __proj2, __proj1);
 
-                const _DifferenceTypeCommon __buf_pos = __size_func_limited_out(__b1 - __first1, __b2 - __first2);
+                const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
                 //auto __buffer_b = __buf_begin + __buf_pos;
                 auto __buffer_b = oneapi::dpl::__utils::__advance_clamped(__buf_begin, __buf_pos, __buf_end);
                 auto __res = __set_op(__b1, __e1,                           // bounds for data1
@@ -3482,8 +3514,10 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 }
             },
 /* ST.4 */  __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
-/* ST.3 */  [&__reached_offset_out, &__scan](const _SetRange& __total)                                                  // _Ap __apex       step 3 : __apex((2))
+/* ST.3 */  [&__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total)          // _Ap __apex       step 3 : __apex((2))
             {
+                // KSATODO how to fill __reached_offset1 and __reached_offset2 ?
+
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
                 __reached_offset_out = __total.__pos + __total.__len;
