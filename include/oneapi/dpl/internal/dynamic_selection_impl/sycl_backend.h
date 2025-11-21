@@ -258,7 +258,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
         }
         [[maybe_unused]] sycl::event workflow_return = f(resource, std::forward<Args>(args)...);
         async_waiter<SelectionHandle> waiter{std::make_shared<SelectionHandle>(s)};
-        async_waiter_list.add_waiter(new async_waiter(waiter));
+
         if constexpr (report_task_time)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
@@ -271,6 +271,8 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
             // if not using profiling, use the normal event
             waiter.set_end_event(workflow_return);
         }
+
+        async_waiter_list.add_waiter(new async_waiter(waiter));
 
         return waiter;
     }
