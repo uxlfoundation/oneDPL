@@ -388,8 +388,8 @@ main()
 
             //CTAD tests (testing policy construction without template arguments)
             //Template arguments types are deduced with CTAD
-            sycl::queue q1(sycl::default_selector_v);
-            sycl::queue q2(sycl::default_selector_v);
+            sycl::queue q1(sycl::default_selector_v, sycl::property_list{sycl::property::queue::enable_profiling()});
+            sycl::queue q2(sycl::default_selector_v, sycl::property_list{sycl::property::queue::enable_profiling()});
 
             //without resample time
             oneapi::dpl::experimental::auto_tune_policy p1{{q1, q2}};
