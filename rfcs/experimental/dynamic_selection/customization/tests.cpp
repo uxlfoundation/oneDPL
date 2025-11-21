@@ -73,10 +73,10 @@ namespace numa {
         void clear() { delete a_; delete tg_; }
     };
 
-    class numa_backend : public ex::backend_base<ArenaAndGroup, numa_backend> {
+    class numa_backend : public ex::backend_base<ArenaAndGroup> {
     public:
         using resource_type = ArenaAndGroup;
-        using my_base = backend_base<ArenaAndGroup, numa_backend>;
+        using my_base = backend_base<ArenaAndGroup>;
         numa_backend() : my_base(), owns_groups_(true) { 
             std::vector<tbb::numa_node_id> numa_nodes = tbb::info::numa_nodes();
             for (int i = 0; i < numa_nodes.size(); i++) {
@@ -102,7 +102,7 @@ namespace numa {
 void numa_2() {
     std::vector<tbb::numa_node_id> numa_nodes = tbb::info::numa_nodes();
 
-    ex::round_robin_policy<numa::ArenaAndGroup, numa::numa_backend> rr{ };
+    ex::round_robin_policy<numa::ArenaAndGroup, oneapi::dpl::identity, numa::numa_backend> rr{ };
     for (auto i : numa_nodes) {
         ex::submit(rr, 
             [](numa::ArenaAndGroup ag) { 
@@ -116,14 +116,19 @@ void numa_2() {
 void no_wait_support() {
     tbb::task_group t1, t2;
 
-    ex::round_robin_policy<tbb::task_group*> p{ { &t1, &t2 } };
 
+    /*
+    TODO: REMOVE: Code now includes a static_assert check for wait()
+
+    ex::round_robin_policy<tbb::task_group*> p{ { &t1, &t2 } };
     auto g = p.get_submission_group();
+        ex::wait(g);
     try {
         ex::wait(g);
     } catch (std::logic_error& e) {
         std::cout << "Failed as expected: " << e.what() << "\n";
     }
+    */
 
     struct tpw {
         tbb::task_group *tg;
