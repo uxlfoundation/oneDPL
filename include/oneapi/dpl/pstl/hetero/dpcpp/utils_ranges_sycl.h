@@ -34,6 +34,13 @@ namespace __ranges
 
 namespace __internal
 {
+
+template <typename _Range1, typename _Range2, typename _Range3>
+using __rng_set_operations_return_t =
+    oneapi::dpl::__utils::__set_operations_return_t<oneapi::dpl::__internal::__iterator_t<_Range1>,
+                                                    oneapi::dpl::__internal::__iterator_t<_Range2>,
+                                                    oneapi::dpl::__internal::__iterator_t<_Range3>>;
+
 template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
 __create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n)
