@@ -3669,10 +3669,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
                                               __first2 + __to_walk_in_r2, __result1, __copy_range);
 
-        return oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            {  __first1,   __last1, /*data1 empty*/ __first1   },
-            {  __first2,   __last2, __first2 + __to_walk_in_r2 },
-            { __result1, __result2, __result_finish            } };
+        return { {  __first1,   __last1, /*data1 empty*/ __first1   },
+                 {  __first2,   __last2, __first2 + __to_walk_in_r2 },
+                 { __result1, __result2, __result_finish            } };
     }
 
     // testing  whether the sequences are intersected
@@ -3697,10 +3696,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __result1 + __to_walk_in_r1, __copy_range);
             });
 
-        return oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            {  __first1,   __last1,  __first1 + __to_walk_in_r1                   },
-            {  __first2,   __last2,  __first2 +                   __to_walk_in_r2 },
-            { __result1, __result2, __result1 + __to_walk_in_r1 + __to_walk_in_r2 }};
+        return { {  __first1,   __last1,  __first1 + __to_walk_in_r1                   },
+                 {  __first2,   __last2,  __first2 +                   __to_walk_in_r2 },
+                 { __result1, __result2, __result1 + __to_walk_in_r1 + __to_walk_in_r2 } };
     }
 
     // testing  whether the sequences are intersected
@@ -3725,10 +3723,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                                                   __result1 + __to_walk_in_r2, __copy_range);
             });
 
-        return oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            {  __first1,   __last1,  __first1 + __to_walk_in_r1                   },
-            {  __first2,   __last2,  __first2 +                   __to_walk_in_r2 },
-            { __result1, __result2, __result1 + __to_walk_in_r1 + __to_walk_in_r2 } };
+        return { {  __first1,   __last1,  __first1 + __to_walk_in_r1                   },
+                 {  __first2,   __last2,  __first2 +                   __to_walk_in_r2 },
+                 { __result1, __result2, __result1 + __to_walk_in_r1 + __to_walk_in_r2 } };
     }
 
     const auto __m1 = __left_bound_seq_1 - __first1;
