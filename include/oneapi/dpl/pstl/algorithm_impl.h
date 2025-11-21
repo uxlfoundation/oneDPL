@@ -3824,7 +3824,8 @@ struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyCon
     std::pair<_ForwardIterator, _OutputIterator>
     operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result1, _OutputIterator __result2)
     {
-        return __brick_uninitialized_copy(__first, __last, __result1, __result2, _IsVector());
+        auto [__res_it1, __res_it2] = __brick_uninitialized_copy(__first, __last, __result1, __result2, _IsVector());
+        return {__res_it1, __res_it2};
     }
 };
 
