@@ -21,13 +21,6 @@ will achieve a good load balancing.
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
-      public:
-        round_robin_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
       
       // constructors
       round_robin_policy(deferred_initialization_t);
@@ -47,7 +40,7 @@ will achieve a good load balancing.
   
   }
   
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
+This policy can be used with all the dynamic selection functions, such as ``try_submit``, ``submit``,
 and ``submit_and_wait``. It can also be used with ``policy_traits``.
 
 Example
@@ -103,7 +96,7 @@ The key points in this example are:
 
 #. A ``round_robin_policy`` is constructed that rotates between the CPU and GPU queues.
 #. The total number of concurrent offloads, ``submission_group_size``, will be limited to the number of USM arrays or the number of queues, whichever is smaller. 
-#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offload concurrently.
+#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offloaded concurrently.
 #. The inner ``j``-loop iterates over ``submission_group_size`` submissions.
 #. ``submit`` is used to select a queue and pass it to the user's function, but does not block until the event returned by that function completes. This provides the opportunity for concurrency across the submissions.
 #. The queue is used in a function to perform an asynchronous offload. The SYCL event returned from the call to ``submit`` is returned. Returning an event is required for functions passed to ``submit`` and ``submit_and_wait``.
@@ -119,7 +112,7 @@ implementation of the selection algorithm follows:
 .. code:: cpp
 
   template<typename ...Args>
-  selection_type round_robin_policy::select(Args&&...) {
+  auto round_robin_policy::__select_impl(Args&&...) {
     if (initialized_) {
       auto& r = resources_[next_context_++ % num_resources_];
       return selection_type{*this, r};
@@ -144,7 +137,7 @@ Constructors
   
   * - Signature
     - Description
-  * - ``round_round_policy(deferred_initialization_t);``
+  * - ``round_robin_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``round_robin_policy();``
     - Initialized to use the default set of resources.
@@ -155,7 +148,7 @@ Deferred Initialization
 -----------------------
 
 A ``round_robin_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
 .. list-table:: ``round_robin_policy`` constructors
@@ -185,38 +178,3 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
-
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. However, the ``round_robin_policy`` 
-does not require any feedback about the system state or the behavior of 
-the workload. Therefore, no explicit reporting of execution information 
-is needed, as is summarized in the table below.
-
-.. list-table:: ``round_robin_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }

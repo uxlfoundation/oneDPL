@@ -23,8 +23,10 @@
 #include <tuple>
 #include <unordered_map>
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
-#if _DS_BACKEND_SYCL != 0
+#include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"
+#if _DS_BACKEND_SYCL
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
 
@@ -35,14 +37,23 @@ namespace dpl
 namespace experimental
 {
 
-#if _DS_BACKEND_SYCL != 0
-template <typename Backend = sycl_backend, typename... KeyArgs>
+#if _DS_BACKEND_SYCL
+template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #else
-template <typename Backend, typename... KeyArgs>
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
 class auto_tune_policy
+    : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
+                                          execution_info::task_submission_t, execution_info::task_completion_t,
+                                          execution_info::task_time_t>
 {
-
+  protected:
+    using base_t =
+        policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
+                    execution_info::task_submission_t, execution_info::task_completion_t, execution_info::task_time_t>;
+    friend base_t;
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;
     using wrapped_resource_t = execution_resource_t;
@@ -154,12 +165,15 @@ class auto_tune_policy
 
     class auto_tune_selection_type
     {
-        using policy_t = auto_tune_policy<Backend, KeyArgs...>;
+        using policy_t = auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>;
         policy_t policy_;
         resource_with_index_t resource_;
         std::shared_ptr<tuner_t> tuner_;
 
       public:
+        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_time_t>;
+        scratch_space_t scratch_space;
+
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
             : policy_(p), resource_(r), tuner_(::std::move(t))
         {
@@ -183,52 +197,16 @@ class auto_tune_policy
             tuner_->add_new_timing(resource_, v.count());
         }
     };
-
-  public:
-    // Needed by Policy Traits
-    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-    using wait_type = typename Backend::wait_type;
     using selection_type = auto_tune_selection_type;
 
-    auto_tune_policy(deferred_initialization_t) {}
-
-    auto_tune_policy(timing_t resample_time = never_resample) { initialize(resample_time); }
-
-    auto_tune_policy(const std::vector<resource_type>& u, timing_t resample_time = never_resample)
-    {
-        initialize(u, resample_time);
-    }
-
-    void
-    initialize(timing_t resample_time = never_resample)
-    {
-        if (!state_)
-        {
-            state_ = std::make_shared<state_t>();
-            backend_ = std::make_shared<Backend>();
-            initialize_impl(resample_time);
-        }
-    }
-
-    void
-    initialize(const std::vector<resource_type>& u, timing_t resample_time = never_resample)
-    {
-        if (!state_)
-        {
-            state_ = std::make_shared<state_t>();
-            backend_ = std::make_shared<Backend>(u);
-            initialize_impl(resample_time);
-        }
-    }
-
     template <typename Function, typename... Args>
-    selection_type
-    select(Function&& f, Args&&... args)
+    std::shared_ptr<selection_type>
+    try_select_impl(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits::lazy_report_v<Backend>)
         {
-            backend_->lazy_report();
+            this->backend_->lazy_report();
         }
         if (state_)
         {
@@ -238,12 +216,12 @@ class auto_tune_policy
             auto index = t->get_resource_to_profile();
             if (index == use_best_resource)
             {
-                return selection_type{*this, t->best_resource_, t};
+                return std::make_shared<selection_type>(*this, t->best_resource_, t);
             }
             else
             {
                 auto r = state_->resources_with_index_[index];
-                return selection_type{*this, r, t};
+                return std::make_shared<selection_type>(*this, r, t);
             }
         }
         else
@@ -252,59 +230,55 @@ class auto_tune_policy
         }
     }
 
-    template <typename Function, typename... Args>
-    auto
-    submit(selection_type e, Function&& f, Args&&... args)
+    void
+    initialize_impl(timing_t resample_time = never_resample)
     {
-        static_assert(sizeof...(KeyArgs) == sizeof...(Args));
-        if (backend_)
+        if (!state_)
         {
-            return backend_->submit(e, std::forward<Function>(f), std::forward<Args>(args)...);
-        }
-        else
-        {
-            throw std::logic_error("submit called before initialization");
+            state_ = std::make_shared<state_t>();
+            resample_time_ = resample_time;
+            auto u = base_t::get_resources();
+            for (size_type i = 0; i < u.size(); ++i)
+            {
+                state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
+            }
         }
     }
 
-    auto
-    get_resources()
+  public:
+    // Needed by Policy Traits
+    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
+
+    auto_tune_policy(deferred_initialization_t) {}
+
+    auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }
+
+    auto_tune_policy(const std::vector<ResourceType>& u)
     {
-        if (backend_)
-        {
-            return backend_->get_resources();
-        }
-        else
-        {
-            throw std::logic_error("get_resources called before initialization");
-        }
+        base_t::initialize(u, oneapi::dpl::identity(), never_resample);
     }
 
-    auto
-    get_submission_group()
+    auto_tune_policy(const std::vector<ResourceType>& u, timing_t resample_time)
     {
-        if (backend_)
-        {
-            return backend_->get_submission_group();
-        }
-        else
-        {
-            throw std::logic_error("get_submission_group called before initialization");
-        }
+        base_t::initialize(u, oneapi::dpl::identity(), resample_time);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter)
+    {
+        base_t::initialize(u, adapter, never_resample);
+    }
+
+    auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter, timing_t resample_time)
+    {
+        base_t::initialize(u, adapter, resample_time);
     }
 
   private:
-    //
     // types
-    //
-
     using task_key_t = std::tuple<void*, KeyArgs...>;
     using tuner_by_key_t = std::map<task_key_t, std::shared_ptr<tuner_t>>;
 
-    //
     // member variables
-    //
-
     timing_t resample_time_ = 0;
 
     struct state_t
@@ -314,24 +288,9 @@ class auto_tune_policy
         tuner_by_key_t tuner_by_key_;
     };
 
-    std::shared_ptr<Backend> backend_;
     std::shared_ptr<state_t> state_;
 
-    //
     // private member functions
-    //
-
-    void
-    initialize_impl(timing_t resample_time = never_resample)
-    {
-        resample_time_ = resample_time;
-        auto u = get_resources();
-        for (size_type i = 0; i < u.size(); ++i)
-        {
-            state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
-        }
-    }
-
     template <typename Function, typename... Args>
     task_key_t
     make_task_key(Function&& f, Args&&... args)
@@ -346,6 +305,28 @@ class auto_tune_policy
         return k;
     }
 };
+
+//supports auto_tune_policy p{ {t1, t2} }
+template <typename T>
+auto_tune_policy(std::initializer_list<T>)
+    -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+
+//supports auto_tune_policy p{ {t1, t2}, offset }
+template <typename T, typename I, typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+auto_tune_policy(std::initializer_list<T>, I)
+    -> auto_tune_policy<T, oneapi::dpl::identity, oneapi::dpl::experimental::default_backend<T, oneapi::dpl::identity>>;
+
+//supports auto_tune_policy p{ {t1, t2}, adapter }
+//assumes Adapter is not convertible to size_t (to prevent ambiguity)
+template <typename T, typename Adapter,
+          typename = std::enable_if_t<std::negation_v<std::is_convertible<Adapter, uint64_t>>>>
+auto_tune_policy(std::initializer_list<T>, Adapter)
+    -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
+
+//supports auto_tune_policy p{ {t1, t2}, adapter, offset }
+template <typename T, typename Adapter, typename I, typename = std::enable_if_t<std::is_convertible_v<I, uint64_t>>>
+auto_tune_policy(std::initializer_list<T>, Adapter, I)
+    -> auto_tune_policy<T, Adapter, oneapi::dpl::experimental::default_backend<T, Adapter>>;
 
 } // namespace experimental
 } // namespace dpl

@@ -26,13 +26,6 @@ the profiling phase periodically.
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
-      public:
-        auto_tune_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
       
       // constructors
       auto_tune_policy(deferred_initialization_t);
@@ -54,7 +47,7 @@ the profiling phase periodically.
   
   }
   
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
+This policy can be used with all the dynamic selection functions, such as ``try_submit``, ``submit``,
 and ``submit_and_wait``. It can also be used with ``policy_traits``.
 
 Example
@@ -130,7 +123,7 @@ implementation of the selection algorithm follows:
 .. code:: cpp
 
   template<typename Function, typename ...Args>
-  selection_type auto_tune_policy::select(Function&& f, Args&&...args) {
+  auto auto_tune_policy::__select_impl(Function&& f, Args&&...args) {
     if (initialized_) {
       auto k = make_task_key(f, args...);
       auto tuner = get_tuner(k);
@@ -184,8 +177,8 @@ Constructors
 Deferred Initialization
 -----------------------
 
-A ``auto_tune_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+An ``auto_tune_policy`` that was constructed with deferred initialization must be
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
 .. list-table:: ``auto_tune_policy`` constructors
@@ -221,40 +214,3 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
-
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. The ``auto_tune_policy`` tracks the
-performance of submissions on each device via callbacks that report
-the execution time. The instrumentation to report these events is included 
-in the implementations of ``submit`` and ``submit_and_wait``.  However, if you 
-use ``select`` and then submit work directly to the selected resource, it 
-is necessary to explicitly report these events.
-
-.. list-table:: ``auto_tune_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - Yes
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }

@@ -18,19 +18,12 @@ Traits can be used to determine useful type information about policies.
   
     template<typename Policy>
     struct policy_traits {
-      using selection_type = typename std::decay_t<Policy>::selection_type;  
       using resource_type = typename std::decay_t<Policy>::resource_type;
-      using wait_type = typename std::decay_t<Policy>::wait_type;   
     };
   
-    template<typename Policy>
-    using selection_t = typename policy_traits<Policy>::selection_type;
   
     template<typename Policy>
     using resource_t = typename policy_traits<Policy>::resource_type;
-  
-    template<typename Policy>
-    using wait_t = typename policy_traits<Policy>::wait_type;
   
   }
 
@@ -118,7 +111,7 @@ The output of this example is::
 Available Policies
 ------------------
 
-More detailed information about the API is provided in the following sections:
+More detailed information about the built-in policies is provided in the following sections:
 
 .. toctree::
    :maxdepth: 2
@@ -128,4 +121,29 @@ More detailed information about the API is provided in the following sections:
    round_robin_policy
    dynamic_load_policy
    auto_tune_policy
-   
+
+Backends
+--------
+
+Policies work with backends that manage resources and handle work submission.
+For more information about backends:
+
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+
+   backends
+
+Customization
+-------------
+
+The dynamic selection API supports creating custom policies and backends
+to extend the system with new selection strategies or resource types:
+
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+
+   custom_policies
+   custom_backends
+

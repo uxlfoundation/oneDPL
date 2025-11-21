@@ -13,10 +13,11 @@ specified resource, ``round_robin_policy`` that rotates between resources,
 submissions, and ``auto_tune_policy`` that chooses the best resources based on runtime 
 profiling information.  
 
-Policy objects are used as arguments to the dynamic selection functions. The 
-``select`` function picks and returns a resource based on a policy. The ``submit`` 
-and ``submit_and_wait`` functions select a resource and then pass the chosen resource 
-to a developer-provided function. 
+Policy objects are used as arguments to the dynamic selection functions. The
+``try_submit`` function attempts to select a resource and returns null if none are
+available. The ``submit`` function selects a resource (retrying if needed) and the
+``submit_and_wait`` function selects a resource and blocks until completion. All
+submission functions pass the chosen resource to a developer-provided function. 
 
 The following code example shows some of the key aspects of the API. The use 
 of any empty ``single_task`` is for syntactic demonstration purposes only;
@@ -87,3 +88,4 @@ More detailed information about the API is provided in the following sections:
 
    dynamic_selection_api/functions
    dynamic_selection_api/policies
+   dynamic_selection_api/backends
