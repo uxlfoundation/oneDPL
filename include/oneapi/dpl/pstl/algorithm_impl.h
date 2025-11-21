@@ -3495,9 +3495,6 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     const auto __buf_size = __size_func(__n1, __n2);
     __par_backend::__buffer<_T> __buf(__buf_size);
 
-    const auto __buf_begin = __buf.get();
-    const auto __buf_end = __buf_begin + __buf_size;
-
     return __internal::__except_handler([&__exec, __n1,
                                          __first1, __last1,         // bounds for data1
                                          __first2, __last2,         // bounds for data2
@@ -3505,24 +3502,27 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __comp, __proj1, __proj2,
                                          __size_func,
                                          __set_op,
-                                         __buf_begin, __buf_end, __buf_size]() 
+                                         &__buf, __buf_size]() 
     {
+        auto __tmp_memory = __buf.get();
+
+        const auto __tmp_memory_end = __tmp_memory + __buf_size;
+
+
         _DifferenceType1      __reached_offset1   {};           // KSATODO <<<<< required to fill
         _DifferenceType2      __reached_offset2   {};           // KSATODO <<<<< required to fill
         _DifferenceTypeOutput __reached_offset_out{};           // KSATODO <<<<< required to check how it's filled
 
         // Scan predicate
-        auto __scan = [__buf_begin, __buf_end, __result1, __result2](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
+        auto __scan = [__result1, __result2, __tmp_memory](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
         {
             if (!__s.empty())
             {
-                assert(__s.__buf_pos < __buf_end - __buf_begin);
-
                 const _DifferenceTypeOutput __n_out = __result2 - __result1;
 
                 _DifferenceTypeCommon __count_of_items_to_transfer = __s.__len;
 
-                auto __tmp_memory_from = __buf_begin + __s.__buf_pos;
+                const auto __tmp_memory_from = __tmp_memory + __s.__buf_pos;
 
                 const auto __output_write_pos                  = __result1 + __s.__pos;
                 const auto __output_pos_in_results_to_supposed = __output_write_pos + __count_of_items_to_transfer;
@@ -3530,8 +3530,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 const auto __out_of_range_items                = __output_pos_in_results_to_supposed - __output_pos_in_results_to_real;
 
                 // Now we know whar to copy to fit copied data into output range
-                assert(__s.__len >= __out_of_range_items);
-                auto __tmp_memory_to                     = __tmp_memory_from + __s.__len - __out_of_range_items;
+                assert(__s.__buf_pos + __s.__len >= __out_of_range_items);
+                const auto __tmp_memory_to = __tmp_memory + (__s.__buf_pos + __s.__len - __out_of_range_items);
 
                 // Temporary buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
                 // What to copy:                                ^                                ^
@@ -3568,7 +3568,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __backend_tag{},
             std::forward<_ExecutionPolicy>(__exec),
             __n1,                                                                                                       // _Index __n
-            _SetRange{},                                                                                                // _Tp __initial
+            _SetRange{0, 0, 0},                                                                                         // _Tp __initial
 /* ST.1 */  [=](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange                                              // _Rp __reduce     step 1 : __reduce(0, __n)
             {                                         // ^
                                                       // +-- __n <--__n1
@@ -3594,9 +3594,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                         __b2 = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b1, __comp, __proj2, __proj1);
 
                     const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
-                    return _SetRange{ 0,                // offset in output range
-                                      0,                // Offset in temporary buffer
-                                     __buf_pos};        // Data length in temporary buffer
+                    return _SetRange{0, 0, __buf_pos};
                 }
 
                 // Try searching for "corresponding" subrange [__b2; __e2) in the second sequence:
@@ -3612,33 +3610,23 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                     __e2 = __b2 + __internal::__pstl_lower_bound(__b2, _DifferenceType2{0}, __last2 - __b2, __e1, __comp, __proj2, __proj1);
 
                 const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
-                //auto __buffer_b = __buf_begin + __buf_pos;
-                auto __buffer_b = oneapi::dpl::__utils::__advance_clamped(__buf_begin, __buf_pos, __buf_end);
+                auto __buffer_b = __tmp_memory + __buf_pos;
                 auto __res = __set_op(__b1, __e1,                           // bounds for data1
                                       __b2, __e2,                           // bounds for data2
-                                      __buffer_b, __buf_end,                // bounds for results
+                                      __buffer_b, __tmp_memory_end,         // bounds for results
                                       __comp, __proj1, __proj2);
 
-                return _SetRange{ 0,                                        // __pos     : offset in output range                \
-                                 __res - __buffer_b,                        // __len     : Offset in temporary buffer             | - result of step(1)
-                                 __buf_pos};                                // __buf_pos : Data length in temporary buffer       /
+                // KSATODO Should we do anything with __res[0] and __res[1]
+                // std::get<2>(__res) - iterator in output range after last written element
+                return _SetRange{0, std::get<2>(__res) - __buffer_b, __buf_pos};
             },
 /* ST.2 */  [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine    step 2 : __combine(__initial, (1))
             {                //  ^                     ^
                              //  |                     +-- result of step(1)
                              //  +-- __initial <--_SetRange{}
                 if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-                {
-                    return _SetRange{ __a.__pos + __a.__len + __b.__pos,    // __pos     : offset in output range               \
-                                      __b.__len,                            // __len     : Offset in temporary buffer            | - result of step(2)
-                                      __b.__buf_pos};                       // __buf_pos : Data length in temporary buffer      /
-                }
-                else
-                {
-                    return _SetRange{ __b.__pos + __b.__len + __a.__pos,    // __pos     : offset in output range               \
-                                      __a.__len,                            // __len     : Offset in temporary buffer            | - result of step(2)
-                                      __a.__buf_pos};                       // __buf_pos : Data length in temporary buffer      /
-                }
+                    return _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
+                return _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
             },
 /* ST.4 */  __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [&__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total)          // _Ap __apex       step 3 : __apex((2))
@@ -3768,8 +3756,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
         auto __res_or = __result1;
-        //__result += __m1;                                                              //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
-        __result1 = oneapi::dpl::__utils::__advance_clamped(__result1, __m1, __result2); //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __result1 += __m1;                                                             //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
@@ -3800,8 +3787,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
         auto __res_or = __result1;
-        //__result += __m2;                                                              //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        __result1 = oneapi::dpl::__utils::__advance_clamped(__result1, __m2, __result2); //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __result1 += __m2;                                                              //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
