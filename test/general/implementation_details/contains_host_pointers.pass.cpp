@@ -223,7 +223,7 @@ main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+#if _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
 
     check_contains_host_pointer();
     check_contains_host_pointer_in_onedpl_zip_view();
@@ -233,7 +233,7 @@ main()
 
     bProcessed = true;
 
-#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT
+#endif // _ENABLE_STD_RANGES_TESTING && TEST_DPCPP_BACKEND_PRESENT && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
 
     return TestUtils::done(bProcessed);
 }
