@@ -326,4 +326,7 @@
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
+// Some concepts in GCC10 standard library are broken
+#define TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN (_GLIBCXX_RELEASE == 10)
+
 #endif // _TEST_CONFIG_H
