@@ -18,6 +18,10 @@ Using policy_base
 The recommended approach for creating custom policies is to inherit from ``policy_base``,
 which provides default implementations of submission and initialization logic.
 
+``policy_base`` uses the Curiously Recurring Template Pattern (CRTP), where the derived
+policy class passes itself as the first template parameter. This allows ``policy_base``
+to call derived class methods (like ``try_select``) without virtual function overhead.
+
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
