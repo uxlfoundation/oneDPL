@@ -288,12 +288,12 @@ selects from. The following example demonstrates the use of the function
                                          sycl::queue{ sycl::gpu_selector_v } } };
 
     std::cout << "Resources in explicitly set policy\n";
-    for (auto& q : p_explicit.get_resources())
+    for (auto& q : ex::get_resources(p_explicit))
       std::cout << "queue is " << ((q.get_device().is_gpu()) ? "gpu\n" : "cpu\n");
 
     std::cout << "\nResources in default policy\n";
     ex::round_robin_policy p_default;
-    for (auto& q : p_default.get_resources())
+    for (auto& q : ex::get_resources(p_default))
       std::cout << "queue is " << ((q.get_device().is_gpu()) ? "gpu\n" : "not-gpu\n");
   }
   
