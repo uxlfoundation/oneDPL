@@ -117,7 +117,7 @@ test_only_submit()
     int trace = 0;
     one_with_only_submit p(trace);
 
-    // try_submit should NOT work - only select_impl is implemented, not try_select_impl
+    // try_submit should NOT work - only select_impl is implemented, not try_select
 
     std::cout << "  Testing submit...\n";
     // Test submit - should use custom submit
@@ -144,8 +144,8 @@ test_only_submit_and_wait()
     int trace = 0;
     one_with_only_submit_and_wait p(trace);
 
-    // try_submit should NOT work - no try_select_impl
-    // submit should NOT work - no select_impl or try_select_impl
+    // try_submit should NOT work - no try_select
+    // submit should NOT work - no select_impl or try_select
 
     std::cout << "  Testing submit_and_wait...\n";
     // Test submit_and_wait - should use custom submit_and_wait

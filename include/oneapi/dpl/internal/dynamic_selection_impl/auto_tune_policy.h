@@ -201,7 +201,7 @@ class auto_tune_policy
 
     template <typename Function, typename... Args>
     std::optional<selection_type>
-    try_select_impl(Function&& f, Args&&... args)
+    try_select(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits::lazy_report_v<Backend>)

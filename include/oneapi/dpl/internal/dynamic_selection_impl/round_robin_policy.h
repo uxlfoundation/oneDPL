@@ -65,7 +65,7 @@ class round_robin_policy
 
     template <typename... Args>
     std::optional<selection_type>
-    try_select_impl(Args&&...)
+    try_select(Args&&...)
     {
         if (selector_)
         {

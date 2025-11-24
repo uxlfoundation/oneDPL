@@ -51,7 +51,7 @@ which provides default implementations of submission and initialization logic.
 
 When using ``policy_base``, your custom policy must implement:
 
-- ``try_select_impl(Args...)`` - Returns ``std::optional<selection_type>``, empty if no resource available
+- ``try_select(Args...)`` - Returns ``std::optional<selection_type>``, empty if no resource available
 - ``initialize_impl(Args...)`` - Performs policy-specific initialization
 
 Example: Custom Random Policy
@@ -97,7 +97,7 @@ selects from available resources:
 
     // Required: Select a resource (returns empty std::optional if none available)
     template<typename... Args>
-    std::optional<selection_type> try_select_impl(Args&&...) {
+    std::optional<selection_type> try_select(Args&&...) {
       if (selector_ && !selector_->resources_.empty()) {
         std::uniform_int_distribution<> dist(0, selector_->resources_.size() - 1);
         auto idx = dist(selector_->gen_);
@@ -154,7 +154,7 @@ Use it to set up policy-specific state using resources from ``get_resources()``.
 Selection Logic
 ^^^^^^^^^^^^^^^
 
-The ``try_select_impl()`` function implements your selection algorithm:
+The ``try_select()`` function implements your selection algorithm:
 
 - Returns ``std::optional<selection_type>`` with selected resource
 - Returns ``nullptr`` if no resource is currently available
@@ -195,7 +195,7 @@ Required Members
     - Type of resources (e.g., ``sycl::queue``)
   * - ``get_resources()``
     - Returns ``std::vector<resource_type>``
-  * - ``try_select_impl(Args...)``
+  * - ``try_select(Args...)``
     - Returns ``std::optional<selection_type>``, empty if no resource available
 
 Optional Members
@@ -217,14 +217,14 @@ Optional Members
     - Returns object with ``wait()`` for all submissions
 
 If optional members are not provided, free function fallbacks will be used
-based on ``try_select_impl()``.
+based on ``try_select()``.
 
 Best Practices
 --------------
 
 1. Inherit from ``policy_base`` unless you have specific reasons not to
 2. Use ``shared_ptr`` for state to enable common reference semantics
-3. Make selection fast - avoid expensive operations in ``try_select_impl()``
+3. Make selection fast - avoid expensive operations in ``try_select()``
 4. Handle empty resource sets - return ``nullptr`` when no resources available
 5. Call backend ``lazy_report()`` if your policy uses execution information
 

@@ -102,12 +102,12 @@ class policy_base
     try_submit(Function&& f, Args&&... args)
     {
         using ret_t =
-            decltype(std::declval<Backend>().submit(std::declval<decltype(*std::declval<Policy>().try_select_impl(
+            decltype(std::declval<Backend>().submit(std::declval<decltype(*std::declval<Policy>().try_select(
                                                         std::declval<Function>(), std::declval<Args>()...))>(),
                                                     std::forward<Function>(f), std::forward<Args>(args)...));
         if (backend_)
         {
-            auto e = static_cast<Policy*>(this)->try_select_impl(f, args...);
+            auto e = static_cast<Policy*>(this)->try_select(f, args...);
             if (!e.has_value())
             {
                 // return an empty std::optional

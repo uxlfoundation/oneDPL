@@ -34,7 +34,7 @@ class no_customizations_policy_base
     //required
     template <typename... Args>
     std::optional<selection_type>
-    try_select_impl(Args&&...)
+    try_select(Args&&...)
     {
         trace_ = (trace_ | t_select);
         return std::make_optional<selection_type>(*this);
@@ -134,18 +134,18 @@ class one_with_all_customizations
     // required
     template <typename... Args>
     std::optional<selection_type>
-    try_select_impl(Args&&...)
+    try_select(Args&&...)
     {
         trace_ = (trace_ | t_select);
         return std::make_optional<selection_type>(*this);
     }
 
-    // generic try_submit based on try_select_impl
+    // generic try_submit based on try_select
     template <typename Function, typename... Args>
     auto
     try_submit(Function&&, Args&&... args)
     {
-        auto e = try_select_impl(args...);
+        auto e = try_select(args...);
         if (!e.has_value())
         {
             return std::optional<submission>{};
@@ -395,7 +395,7 @@ class one_with_intermittent_failure
     // Fails every other selection attempt
     template <typename... Args>
     std::optional<selection_type>
-    try_select_impl(Args&&...)
+    try_select(Args&&...)
     {
         int count = state_->attempt_count_.fetch_add(1);
 
