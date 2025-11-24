@@ -41,8 +41,8 @@ by submitting tasks to a resource that completes work faster.
   
   }
   
-This policy can be used with all the dynamic selection functions, such as ``try_submit``, ``submit``,
-and ``submit_and_wait``. It can also be used with ``policy_traits``.
+This policy can be used with all the dynamic selection functions, such as ``submit``,
+``submit_and_wait``, and ``try_submit``. It can also be used with ``policy_traits``.
 
 Example
 -------
