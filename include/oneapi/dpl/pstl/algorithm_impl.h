@@ -1470,8 +1470,8 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                 }
                 bool* __stop =
                     __internal::__brick_find_if(__mask_start, __mask_end, oneapi::dpl::identity{}, _IsVector{});
-                if (__stop != __mask_end) // Found the position of the first element that cannot be copied
-                    __res_in = __stop - __mask;
+                if (__stop != __mask_end)       // Found the position of the first element that cannot be copied
+                    __res_in = __stop - __mask; // Since there is only one such position, there is no data race
             },
             [&__res_out](auto __total_out) { // Apex
                 if (__total_out < __res_out) // Output size is bigger than needed
