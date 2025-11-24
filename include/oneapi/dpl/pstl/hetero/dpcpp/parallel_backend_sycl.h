@@ -1156,10 +1156,11 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     auto __diff_buffer_keeper = __keep_diff_buffer(__diff_buffer_begin, __diff_buffer_begin + __diff_buffer_size);
 
     // 1. Calc difference {2} \ {1} (i.e. all items of {2} that are not in {1})
+    auto __output_all_view = __diff_buffer_keeper.all_view();
     auto __set_op_impl_res = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __diff_buffer_keeper.all_view(), __comp, __proj2, __proj1);
+        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __output_all_view, __comp, __proj2, __proj1);
 
-    const std::size_t __difference_size = __set_op_impl_res.__rng3_info.last - __set_op_impl_res.__rng3_info.first;
+    const std::size_t __difference_size = oneapi::dpl::__ranges::__size(__output_all_view);
 
     // 2. Merge {2} and the difference
     if (__difference_size == 0)
@@ -1171,9 +1172,9 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
             __q, __available_to_copy, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
 
-        return { { __first1,  __last1,   __first1  + __available_to_copy },
-                 { __first2,  __last2,   __last2                         }, // TODO is it correct to return last2 here as finish pointer? KSA: I think so.
-                 { __result1, __result2, __result1 + __available_to_copy } };
+        return { __first1  + __available_to_copy,
+                 __last2,                           // TODO is it correct to return last2 here as finish pointer? KSA: I think so.
+                 __result1 + __available_to_copy };
     }
     else
     {
@@ -1194,9 +1195,9 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
         // We can't merge more elements than the output can hold
         assert(__merge_result.second + __merge_result.second <= __n_out);
 
-        return { { __first1, __last1,    __first1  + __merge_result.first                         },
-                 { __first2, __last2,    __first2  +                        __merge_result.second },
-                 { __result1, __result2, __result1 + __merge_result.first + __merge_result.second } };
+        return { __first1  + __merge_result.first,
+                 __first2  + __merge_result.second,
+                 __result1 + __merge_result.first + __merge_result.second };
     }
 }
 
