@@ -3511,14 +3511,15 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         bool empty() const { return __len == 0; }
     };
 
-    const _DifferenceType1        __n1 = __last1 - __first1;        // Size of first input range
-    const _DifferenceType2        __n2 = __last2 - __first2;        // Size of second input range
-    const _DifferenceTypeCommon __nOut = __result2 - __result1;     // Size of output range
+    const _DifferenceType1         __n1 = __last1 - __first1;       // Size of first input range
+    const _DifferenceType2         __n2 = __last2 - __first2;       // Size of second input range
+    const _DifferenceTypeCommon __n_out = __result2 - __result1;    // Size of output range
 
     const auto __buf_size = __size_func(__n1, __n2);
     __par_backend::__buffer<_T> __buf(__buf_size);
 
-    return __internal::__except_handler([&__exec, __n1,
+    return __internal::__except_handler([&__exec,
+                                        __n1, __n_out,
                                          __first1, __last1,         // bounds for data1
                                          __first2, __last2,         // bounds for data2
                                          __result1, __result2,      // bounds for results
@@ -3538,53 +3539,51 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         _DifferenceTypeOutput __reached_offset_out{};   // For result: reached offset in output range
 
         // Scan predicate
-        auto __scan = [__result1, __result2, __buf_raw_data_begin](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
+        auto __scan = [__result1, __result2, __buf_raw_data_begin, __n_out](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
         {
             if (!__s.empty())
             {
-                const _DifferenceTypeOutput __n_out = __result2 - __result1;
+                const auto __buf_raw_data_from = __buf_raw_data_begin + __s.__buf_pos;
 
-                _DifferenceTypeCommon __count_of_items_to_transfer = __s.__len;
+                const auto __output_write_pos_begin =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos,             __result2);
+                const auto __output_write_pos_end   =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos + __s.__len, __result2);
+                const auto __out_remaining          = __output_write_pos_end - __output_write_pos_begin;
 
-                const auto __buf_from = __buf_raw_data_begin + __s.__buf_pos;
+                const auto __buf_raw_data_to = __buf_raw_data_from + std::min(__out_remaining, __s.__len);
 
-                const auto __output_write_pos                  = __result1 + __s.__pos;
-                const auto __output_pos_in_results_to_supposed = __output_write_pos + __count_of_items_to_transfer;
-                const auto __output_pos_in_results_to_real     = oneapi::dpl::__utils::__advance_clamped(__output_write_pos, __count_of_items_to_transfer, __result2);
-                const auto __out_of_range_items                = __output_pos_in_results_to_supposed - __output_pos_in_results_to_real;
+                /////////////////////////////////////////////////////////////////////////////////////////
+                // Work schema of copying data from temporary buffer to output range:
+                //
+                //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
+                //                                              |
+                //                                              |                                          +<-(__buf_raw_data_begin + __s.__buf_pos + __s.__len)
+                //                                              | <--- what to copy w/o output limits ---->|
+                //                                              V                                          V
+                // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+                //                                              |                             |            |
+                //                                              |<----- __out_remaining ----->|            |
+                //                                              |                             |            |
+                //                                              |                             |            |
+                //                                               \                             \            \
+                //                                                \ We shoult `move/destroy`    \            \
+                //                                                 \  this data from temporary   \            \
+                //                                                  \   buffer to output range    \            \
+                //                                                   \     (__s.__len)             \            \
+                //                                                    |                             |            |
+                //                                                    V                             V            V
+                // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
+                //                      ^                             ^                             ^            ^
+                //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
+                //                      |                (__output_write_pos_begin)                 |            |
+                //                      |                                                           \____________/
+                //                      |                                                           |      ^
+                //                      |                                                           |      this data no longer fit into output range
+                //                      |                                                           |
+                //                      |                                                           |<-(__output_write_pos_end)
+                //                      |                                                           |
+                // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
-                // Now we know whar to copy to fit copied data into output range
-                assert(__s.__buf_pos + __s.__len >= __out_of_range_items;
-                const auto __buf_to = __buf_from + __s.__len - __out_of_range_items;
-
-                // Temporary buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-                // What to copy:                                ^                                ^
-                //                                              |                                |
-                //                                       [__s.__buf_pos ....       __s.__buf_pos + __s.__len)
-                //                                              |                                |
-                //                                               \                                \
-                //                                                \    We shoult `copy` this data  \
-                //                                                 \    from temporary buffer       \
-                //                                                  \    to output range             \
-                //                                                   \ (__count_of_items_to_transfer) \
-                //                                                    |                                |
-                // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.........................
-                //                      ^                             ^                   ^            ^
-                //                      |                             |                   |            |
-                //                      |                         [__s.__pos ....         |  __s.__pos + __s.__len)
-                //                      |                      (__output_write_pos)       |            |
-                //                      |                                                 \____________/
-                //                      |                                                 |      ^
-                //                      |                                                 |      |
-                //                      |                                                 |    this data out of output range
-                //                      |                                                 |    (__out_of_range_items)
-                //                      |                                                 |
-                // Output range bounds: [__result1..................             __result2)
-
-                // Check that we fit into the rest of output range
-                assert(__output_write_pos + (__buf_to - __buf_from) < __result2);
-
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_from, __buf_to, __output_write_pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __output_write_pos, _IsVector{});
             }
         };
 
@@ -3672,7 +3671,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                  __sri1.__reached_input_offset2 + __sri2.__reached_input_offset2);  // reached offset in second input range
             },
 /* ST.4 */  __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
-/* ST.3 */  [__nOut, &__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total)  // _Ap __apex       step 3 : __apex((2))
+/* ST.3 */  [__n_out, &__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total) // _Ap __apex       step 3 : __apex((2))
             {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
@@ -3681,8 +3680,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __reached_offset1 = __total.__reached_input_offset1;
                 __reached_offset2 = __total.__reached_input_offset2;
 
-                // Store reached offset in output range: we should not exceed __nOut
-                __reached_offset_out = std::min(__nOut, __total.__pos + __total.__len);
+                // Store reached offset in output range: we should not exceed __n_out
+                __reached_offset_out = std::min(__n_out, __total.__pos + __total.__len);
             });
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
