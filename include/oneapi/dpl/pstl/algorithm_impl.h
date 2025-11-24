@@ -3882,8 +3882,9 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
-__brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                  _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+__brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                  _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                  _OutputIterator __result, _Compare __comp,
                   /*__is_vector=*/::std::false_type) noexcept
 {
     return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
@@ -3903,8 +3904,10 @@ struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyCon
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
 _OutputIterator
-__brick_set_union(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                  _RandomAccessIterator2 __last2, _OutputIterator __result, _Compare __comp,
+__brick_set_union(_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                  _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                  _OutputIterator __result,
+                  _Compare __comp,
                   /*__is_vector=*/::std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
