@@ -1000,7 +1000,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
         oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
             __mask_buf.get_buffer()));
 
-#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE
+#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     // __parallel_transform_reduce_then_scan -> __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
     //     __result_and_scratch_storage<typename _InitType::__value_type> ===>>> oneapi::dpl::__internal::__difference_t<_Range3>
     return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
@@ -1088,7 +1088,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
                                                                                 __gen_reduce_input);
     }
 
-#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE
+#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     return __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
         __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
         _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
@@ -1137,7 +1137,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
         oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
             __mask_buf.get_buffer()));
 
-#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE
+#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
         __q,
         std::move(__zip_view), std::forward<_Range3>(__result),
