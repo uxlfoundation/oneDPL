@@ -35,7 +35,7 @@ which provides default implementations of submission and initialization logic.
                       ResourceAdapter adapter, Args... args);
 
       // Submission operations (provided by base)
-      auto try_submit(Function&& f, Args&&... args);  // Returns std::shared_ptr or null
+      auto try_submit(Function&& f, Args&&... args);  // Returns std::optional
       auto submit(Function&& f, Args&&... args);      // Retries until success
       void submit_and_wait(Function&& f, Args&&... args);  // Blocks until complete
 
@@ -51,7 +51,7 @@ which provides default implementations of submission and initialization logic.
 
 When using ``policy_base``, your custom policy must implement:
 
-- ``try_select_impl(Args...)`` - Returns ``std::shared_ptr<selection_type>`` or null if no resource available
+- ``try_select_impl(Args...)`` - Returns ``std::optional<selection_type>``, empty if no resource available
 - ``initialize_impl(Args...)`` - Performs policy-specific initialization
 
 Example: Custom Random Policy
@@ -95,13 +95,13 @@ selects from available resources:
       selector_->resources_ = base_t::get_resources();
     }
 
-    // Required: Select a resource (returns null if none available)
+    // Required: Select a resource (returns empty std::optional if none available)
     template<typename... Args>
-    std::shared_ptr<selection_type> try_select_impl(Args&&...) {
+    std::optional<selection_type> try_select_impl(Args&&...) {
       if (selector_ && !selector_->resources_.empty()) {
         std::uniform_int_distribution<> dist(0, selector_->resources_.size() - 1);
         auto idx = dist(selector_->gen_);
-        return std::make_shared<selection_type>(*this, selector_->resources_[idx]);
+        return std::make_optional<selection_type>(*this, selector_->resources_[idx]);
       }
       return nullptr;
     }
@@ -156,7 +156,7 @@ Selection Logic
 
 The ``try_select_impl()`` function implements your selection algorithm:
 
-- Returns ``std::shared_ptr<selection_type>`` with selected resource
+- Returns ``std::optional<selection_type>`` with selected resource
 - Returns ``nullptr`` if no resource is currently available
 - May accept additional arguments for selection hints
 
@@ -196,7 +196,7 @@ Required Members
   * - ``get_resources()``
     - Returns ``std::vector<resource_type>``
   * - ``try_select_impl(Args...)``
-    - Returns ``std::shared_ptr<selection_type>`` or null
+    - Returns ``std::optional<selection_type>``, empty if no resource available
 
 Optional Members
 ^^^^^^^^^^^^^^^^
@@ -208,7 +208,7 @@ Optional Members
   * - Member
     - Description
   * - ``try_submit(f, args...)``
-    - Returns ``std::shared_ptr<submission>`` or null if no resource available
+    - Returns ``std::optional<submission>``, empty if no resource available
   * - ``submit(f, args...)``
     - Returns submission, retrying with backoff if needed
   * - ``submit_and_wait(f, args...)``

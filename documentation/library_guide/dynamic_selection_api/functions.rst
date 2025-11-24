@@ -212,9 +212,8 @@ Try Submit
 
 Attempts to choose a resource using the policy ``p`` and, if successful,
 calls the user function ``f``, passing the unwrapped selection and ``args...``
-as the arguments. Returns a ``std::shared_ptr`` to a submission object if
-a resource was available, or a null ``std::shared_ptr`` if no resource could
-be selected.
+as the arguments. Returns a ``std::optional`` to a submission object if
+a resource was available, empty if no resource could be selected.
 
 This function is useful when you want to handle the case where no resources
 are immediately available without blocking.
@@ -240,9 +239,9 @@ are immediately available without blocking.
                                        },
                                        i);
 
-      if (maybe_done) {
+      if (maybe_done.has_value()) {
         std::cout << "(i == " << i << "): submission succeeded\n";
-        ex::wait(*maybe_done);
+        ex::wait(maybe_done.value());
       } else {
         std::cout << "(i == " << i << "): no resource available, trying alternative work\n";
         // Could retry, do other work, or handle the failure differently

@@ -200,7 +200,7 @@ class auto_tune_policy
     using selection_type = auto_tune_selection_type;
 
     template <typename Function, typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
@@ -216,12 +216,12 @@ class auto_tune_policy
             auto index = t->get_resource_to_profile();
             if (index == use_best_resource)
             {
-                return std::make_shared<selection_type>(*this, t->best_resource_, t);
+                return std::make_optional<selection_type>(*this, t->best_resource_, t);
             }
             else
             {
                 auto r = state_->resources_with_index_[index];
-                return std::make_shared<selection_type>(*this, r, t);
+                return std::make_optional<selection_type>(*this, r, t);
             }
         }
         else

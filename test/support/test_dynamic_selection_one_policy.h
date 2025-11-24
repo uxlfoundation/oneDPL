@@ -33,11 +33,11 @@ class no_customizations_policy_base
   protected:
     //required
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return std::make_shared<selection_type>(*this);
+        return std::make_optional<selection_type>(*this);
     }
 
     void
@@ -133,11 +133,11 @@ class one_with_all_customizations
 
     // required
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         trace_ = (trace_ | t_select);
-        return std::make_shared<selection_type>(*this);
+        return std::make_optional<selection_type>(*this);
     }
 
     // generic try_submit based on try_select_impl
@@ -146,12 +146,12 @@ class one_with_all_customizations
     try_submit(Function&&, Args&&... args)
     {
         auto e = try_select_impl(args...);
-        if (!e)
+        if (!e.has_value())
         {
-            return std::shared_ptr<submission>{};
+            return std::optional<submission>{};
         }
         trace_ = (trace_ | t_try_submit_function);
-        return std::make_shared<submission>(trace_);
+        return std::make_optional<submission>(trace_);
     }
 
     // required
@@ -160,7 +160,7 @@ class one_with_all_customizations
     submit(Function&& f, Args&&... args)
     {
         auto e = try_submit(f, args...);
-        while (!e)
+        while (!e.has_value())
         {
             e = try_submit(f, args...);
             std::this_thread::yield();
@@ -255,7 +255,7 @@ class one_with_only_try_submit
     {
         // built in selection
         trace_ = (trace_ | t_try_submit_function);
-        return std::make_shared<submission>(submission{trace_});
+        return std::make_optional<submission>(submission{trace_});
     }
 };
 
@@ -394,7 +394,7 @@ class one_with_intermittent_failure
 
     // Fails every other selection attempt
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         int count = state_->attempt_count_.fetch_add(1);
@@ -402,9 +402,9 @@ class one_with_intermittent_failure
         // Fail on even attempts (0, 2, 4, ...), succeed on odd attempts (1, 3, 5, ...)
         if (count % 2 == 0)
         {
-            return std::shared_ptr<selection_type>{};
+            return std::optional<selection_type>{};
         }
-        return std::make_shared<selection_type>(*this);
+        return std::make_optional<selection_type>(*this);
     }
 
     void

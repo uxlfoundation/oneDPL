@@ -64,7 +64,7 @@ class round_robin_policy
     }
 
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         if (selector_)
@@ -78,7 +78,7 @@ class round_robin_policy
                 if (selector_->next_context_.compare_exchange_strong(current, next))
                     break;
             }
-            return std::make_shared<selection_type>(*this, selector_->resources_[current]);
+            return std::make_optional<selection_type>(*this, selector_->resources_[current]);
         }
         else
         {

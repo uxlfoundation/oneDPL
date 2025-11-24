@@ -26,7 +26,8 @@ test_no_customizations()
     std::cout << "  Testing try_submit...\n";
     trace = 0;
     auto opt_sub = oneapi::dpl::experimental::try_submit(p, [](int i) { return i; });
-    EXPECT_TRUE((bool)opt_sub, "ERROR: try_submit should return a value");
+    EXPECT_TRUE((bool)opt_sub.has_value(), "ERROR: try_submit should return a value");
+    opt_sub.value().wait();
     EXPECT_EQ((int)(t_select), trace, "ERROR: unexpected trace of try_submit function");
 
     std::cout << "  Testing submit...\n";
@@ -54,8 +55,9 @@ test_all_customizations()
     std::cout << "  Testing try_submit...\n";
     trace = 0;
     auto opt_sub = oneapi::dpl::experimental::try_submit(p, [](int i) { return i; });
-    EXPECT_TRUE((bool)opt_sub, "ERROR: try_submit should return a value");
+    EXPECT_TRUE((bool)opt_sub.has_value(), "ERROR: try_submit should return a value");
     EXPECT_EQ((int)(t_select | t_try_submit_function), trace, "ERROR: unexpected trace of try_submit function");
+    opt_sub.value().wait();
 
     std::cout << "  Testing submit...\n";
     trace = 0;
@@ -85,8 +87,9 @@ test_only_try_submit()
     // Test try_submit - should use custom try_submit
     trace = 0;
     auto opt_sub = oneapi::dpl::experimental::try_submit(p, [](int i) { return i; });
-    EXPECT_TRUE((bool)opt_sub, "ERROR: try_submit should return a value");
+    EXPECT_TRUE((bool)opt_sub.has_value(), "ERROR: try_submit should return a value");
     EXPECT_EQ((int)(t_try_submit_function), trace, "ERROR: try_submit should use custom try_submit");
+    opt_sub.value().wait();
 
     std::cout << "  Testing submit (should use generic based on try_submit)...\n";
     // Test submit - should have generic implementation based on try_submit

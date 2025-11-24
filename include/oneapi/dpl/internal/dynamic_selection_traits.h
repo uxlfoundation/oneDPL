@@ -156,7 +156,7 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
     // Policy has a try_submit method
     auto result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     std::size_t retry_count = 0;
-    while (!result)
+    while (!result.has_value())
     {
         if (retry_count < std::size_t{10})
         {
@@ -173,7 +173,7 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
         ++retry_count;
         result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
     }
-    return *result;
+    return result.value();
 }
 
 template <typename Policy, typename Function, typename... Args>

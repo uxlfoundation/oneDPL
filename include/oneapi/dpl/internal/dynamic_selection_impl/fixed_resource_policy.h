@@ -62,12 +62,12 @@ class fixed_resource_policy
     }
 
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         if (selector_)
         {
-            return std::make_shared<selection_type>(*this, selector_->resources_[selector_->index_]);
+            return std::make_optional<selection_type>(*this, selector_->resources_[selector_->index_]);
         }
         else
         {

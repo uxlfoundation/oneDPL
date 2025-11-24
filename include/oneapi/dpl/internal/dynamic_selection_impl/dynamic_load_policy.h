@@ -116,7 +116,7 @@ class dynamic_load_policy
     }
 
     template <typename... Args>
-    std::shared_ptr<selection_type>
+    std::optional<selection_type>
     try_select_impl(Args&&...)
     {
         if constexpr (backend_traits::lazy_report_v<Backend>)
@@ -138,7 +138,7 @@ class dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
-            return std::make_shared<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this),
+            return std::make_optional<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this),
                                                     least_loaded);
         }
         else
