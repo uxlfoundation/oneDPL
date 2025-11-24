@@ -3452,7 +3452,7 @@ inline constexpr auto __set_algo_cut_off = 1000;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
-    oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
+    oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
@@ -3700,7 +3700,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
-oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,    // bounds for data1
                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,    // bounds for data2
@@ -3805,7 +3805,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (__m1 > __set_algo_cut_off)
     {
-        oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
+        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
         auto __res_or = __result1;
         __result1 += __m1;                                                             //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
@@ -3836,7 +3836,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     assert(__m1 == 0 || __m2 == 0);
     if (__m2 > __set_algo_cut_off)
     {
-        oneapi::dpl::__utils::__set_operations_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
+        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
         auto __res_or = __result1;
         __result1 += __m2;                                                              //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)

@@ -437,7 +437,7 @@ struct __enumerable_thread_local_storage_base
 };
 
 template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessOutputIterator>
-struct __set_operations_return_t
+struct __set_operations_result
 {
     _RandomAccessIterator1 __in1;
     _RandomAccessIterator2 __in2;
