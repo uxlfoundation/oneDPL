@@ -3965,7 +3965,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-        .output_position_reached();
+        .__get_reached_out();
 }
 
 //------------------------------------------------------------------------
@@ -4074,7 +4074,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-                .output_position_reached();
+                .__get_reached_out();
         });
     }
 
@@ -4106,7 +4106,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-                .output_position_reached();
+                .__get_reached_out();
         });
     }
 
@@ -4218,7 +4218,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-            .output_position_reached();
+            .__get_reached_out();
     }
 
     // use serial algorithm
@@ -4307,7 +4307,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
-            .output_position_reached();
+            .__get_reached_out();
     });
 }
 

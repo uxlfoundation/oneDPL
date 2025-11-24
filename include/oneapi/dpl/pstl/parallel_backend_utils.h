@@ -455,9 +455,23 @@ struct __set_operations_return_t
     __data_result_t<_RandomAccessIterator3> __rng3_info;
 
     _RandomAccessIterator3
-    output_position_reached() const
+    __get_reached_out() const
     {
         return __rng3_info.first;
+    }
+
+    template <typename TResult>
+    TResult
+    __get_reached_in1_out() const
+    {
+        return {__rng1_info.reached, __rng3_info.reached};
+    }
+
+    template <typename TResult>
+    TResult
+    __get_reached_in1_in2_out() const
+    {
+        return {__rng1_info.reached, __rng2_info.reached, __rng3_info.reached};
     }
 };
 
