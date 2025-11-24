@@ -220,3 +220,9 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
+
+Reporting Requirements
+----------------------
+A ``auto_tune_policy`` requires the ``task_time`` reporting requirement. See the
+:ref:`Execution Information <execution-information>` section of the backends page
+for more information about reporting requirements.

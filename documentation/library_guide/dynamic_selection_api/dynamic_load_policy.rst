@@ -191,3 +191,10 @@ member functions.
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
+
+
+Reporting Requirements
+----------------------
+A ``dynamic_load_policy`` requires the ``task_submission`` and ``task_completion``
+reporting requirements. See the :ref:`Execution Information <execution-information>`
+section of the backends page for more information about reporting requirements.

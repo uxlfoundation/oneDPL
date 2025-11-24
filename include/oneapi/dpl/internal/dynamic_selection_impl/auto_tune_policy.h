@@ -46,13 +46,12 @@ template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identit
 #endif
 class auto_tune_policy
     : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
-                                          execution_info::task_submission_t, execution_info::task_completion_t,
                                           execution_info::task_time_t>
 {
   protected:
     using base_t =
         policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
-                    execution_info::task_submission_t, execution_info::task_completion_t, execution_info::task_time_t>;
+                    execution_info::task_time_t>;
     friend base_t;
     using backend_t = Backend;
     using execution_resource_t = typename backend_t::execution_resource_t;

@@ -122,23 +122,9 @@ Backends can support various execution information reporting requirements.
 When a policy requests reporting, the backend must confirm that it can
 satisfy those requirements, and filter out resources that cannot satisfy them.
 
-The following execution info types are defined:
-.. list-table:: Available Execution Info
-  :widths: 30 30 40
-  :header-rows: 1
+See the :ref:`Execution Information <execution-information>` section of the backends
+page for more information about the specific reporting requirements available.
 
-  * - Execution Info
-    - Value Type
-    - Description
-  * - ``task_submission_t``
-    - void
-    - Task has been submitted
-  * - ``task_completion_t``
-    - void
-    - Task has completed
-  * - ``task_time_t``
-    - ``std::chrono::milliseconds``
-    - Task execution time
 
 In your constructor, validate and filter:
 

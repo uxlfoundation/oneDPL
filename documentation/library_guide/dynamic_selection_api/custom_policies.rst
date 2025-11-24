@@ -176,6 +176,10 @@ reporting requirements as template parameters to ``policy_base``:
     // Policy implementation that receives timing information
   };
 
+See the :ref:`Execution Information <execution-information>` section of the
+backends page for more information about the specific reporting requirements
+available, including ``task_time``.
+
 Implementing from Scratch
 --------------------------
 

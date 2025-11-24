@@ -90,6 +90,8 @@ in this example).
 Execution Information
 ---------------------
 
+.. _execution-information:
+
 Backends can provide execution information to policies that need it for making
 informed selection decisions. The SYCL backend supports:
 
@@ -131,7 +133,7 @@ The following table shows the reporting requirements for each built-in policy:
   * - ``dynamic_load_policy``
     - ``task_submission``, ``task_completion``
   * - ``auto_tune_policy``
-    - ``task_submission``, ``task_completion``, ``task_time``
+    - ``task_time``
 
 Policies with no reporting requirements can work with any backend, including
 the minimal ``default_backend``. Policies with reporting requirements need
