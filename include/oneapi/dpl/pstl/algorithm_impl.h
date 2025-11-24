@@ -3476,41 +3476,42 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     // Describes a data window in the temporary buffer and corresponding positions in the output range
     struct _SetRange
     {
-        //                             [.........................)
-        // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-        //                             ^                         ^
-        //                             +<-(buf_pos)              +<-(buf_pos + __len)
-        //                             |                         |
-        //                              \                         \
-        //                               \                         \
-        //                                | <-(__pos)               |
-        //                                V                         V
-        // Output range:     OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        //                                       [.........................)
+        // Temporary buffer:              TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+        //                                       ^                         ^
+        //                                       +<-(buf_pos)              +<-(buf_pos + __len)
+        //                                       |                         |
+        //                                        \                         \
+        //                                         \                         \
+        //                                          |<-(__pos)                |<-(__pos + __len)
+        //                                          V                         V
+        // Output range (long):        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        // Output range (limited):     OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO......................
 
 
-        _DifferenceTypeCommon __pos                  {};    // Offset in output range
-        _DifferenceTypeCommon __len                  {};    // Length in temporary buffer
-        _DifferenceTypeCommon __buf_pos              {};    // Position in temporary buffer
+        _DifferenceTypeCommon __pos       {};   // Offset in output range
+        _DifferenceTypeCommon __len       {};   // Length in temporary buffer
+        _DifferenceTypeCommon __buf_pos   {};   // Position in temporary buffer
 
-        _DifferenceType1      __reached_input_offset1{};    // Reached offset in first input range
-        _DifferenceType2      __reached_input_offset2{};    // Reached offset in second input range
+        _DifferenceType1      __processed1{};   // How many items were processed from the first input range
+        _DifferenceType2      __processed2{};   // How many items were processed from the second input range
 
         _SetRange() = default;
 
         /*
-         * @param __pos                   - position in output range
-         * @param __len                   - length of data in temporary buffer
-         * @param __buf_pos               - position in temporary buffer
-         * @param __reached_input_offset1 - reached offset in first input range
-         * @param __reached_input_offset2 - reached offset in second input range
+         * @param __pos        - position in output range
+         * @param __len        - length of data in temporary buffer
+         * @param __buf_pos    - position in temporary buffer
+         * @param __processed1 - how many items were processed from the first input range
+         * @param __processed2 - how many items were processed from the second input range
          */
         _SetRange(_DifferenceTypeCommon __pos, _DifferenceTypeCommon __len, _DifferenceTypeCommon __buf_pos,
-                  _DifferenceType1 __reached_input_offset1, _DifferenceType2 __reached_input_offset2)
+                  _DifferenceType1 __processed1, _DifferenceType2 __processed2)
             : __pos(__pos),
               __len(__len),
               __buf_pos(__buf_pos),
-              __reached_input_offset1(__reached_input_offset1),
-              __reached_input_offset2(__reached_input_offset2)
+              __processed1(__processed1),
+              __processed2(__processed2)
         {
         }
 
@@ -3624,11 +3625,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                     const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
 
-                    return _SetRange(0,                    // position in output range
-                                     0,                    // length of data in temporary buffer
-                                     __buf_pos,            // position in temporary buffer
-                                     0,                    // reached offset in first input range (first range is empty)
-                                     __b2 - __first2);     // reached offset in second input range
+                    return _SetRange(0,                                                                                     // position in output range
+                                     0,                                                                                     // length of data in temporary buffer
+                                     __buf_pos,                                                                             // position in temporary buffer
+                                     0,                                                                                     // reached offset in first input range (first range is empty)
+                                     __b2 - __first2);                                                                      // reached offset in second input range
                 }
 
                 // Try searching for "corresponding" subrange [__b2; __e2) in the second sequence:
@@ -3652,16 +3653,16 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                              __buffer_b, __buf_raw_data_end,    // bounds for results
                              __comp, __proj1, __proj2);
 
-                return _SetRange(0,                                     // position in output range
-                                 __it_reached_out - __buffer_b,         // length of data in temporary buffer
-                                 __buf_pos,                             // position in temporary buffer
-                                 __it_reached1 - __b1,                  // reached offset in first input range
-                                 __it_reached2 - __b2);                 // reached offset in second input range
+                return _SetRange(0,                                                                 // position in output range
+                                 __it_reached_out - __buffer_b,                                     // length of data in temporary buffer
+                                 __buf_pos,                                                         // position in temporary buffer
+                                 __it_reached1 - __b1,                                              // how many items were processed from the first input range
+                                 __it_reached2 - __b2);                                             // how many items were processed from the second input range
             },
 /* ST.2 */  [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine    step 2 : __combine(__initial, (1))
             {                //  ^                     ^
                              //  |                     +-- result of step(1)
-                             //  +-- __initial <--_SetRange()
+                             //  +-- __initial <--_SetRange state
 
                 const bool __set_range_cmp_check =
                                  __b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty());
@@ -3672,8 +3673,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 return _SetRange(__sri1.__pos + __sri1.__len + __sri2.__pos,                        // position in output range
                                  __sri2.__len,                                                      // length of data in temporary buffer
                                  __sri2.__buf_pos,                                                  // position in temporary buffer
-                                 __sri1.__reached_input_offset1 + __sri2.__reached_input_offset1,   // reached offset in first input range
-                                 __sri1.__reached_input_offset2 + __sri2.__reached_input_offset2);  // reached offset in second input range
+                                 __sri1.__processed1 + __sri2.__processed1,                         // how many items were processed from the first input range: summarize
+                                 __sri1.__processed2 + __sri2.__processed2);                        // how many items were processed from the second input range: summarize
             },
 /* ST.4 */  __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [__n_out, &__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total) // _Ap __apex       step 3 : __apex((2))
@@ -3682,8 +3683,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
                 // Store reached offsets in input ranges
-                __reached_offset1 = __total.__reached_input_offset1;
-                __reached_offset2 = __total.__reached_input_offset2;
+                __reached_offset1 = __total.__processed1;
+                __reached_offset2 = __total.__processed2;
 
                 // Store reached offset in output range: we should not exceed __n_out
                 __reached_offset_out = std::min(__n_out, __total.__pos + __total.__len);
