@@ -436,42 +436,34 @@ struct __enumerable_thread_local_storage_base
     const std::tuple<_Args...> __args;
 };
 
-// struct __set_operations_return_t - describes the return type of set operations:
-// - the information about the data ranges involved in the set operation
-//     - begin, end and first unprocessed element iterators for each range
-template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessIterator3>
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessOutputIterator>
 struct __set_operations_return_t
 {
-    template <typename _RandomAccessIterator>
-    struct __data_result_t
-    {
-        _RandomAccessIterator first;    // Iterator to the start of data
-        _RandomAccessIterator last;     // Iterator to the end of data
-        _RandomAccessIterator reached;  // Iterator to the first unprocessed element
-    };
+    _RandomAccessIterator1 __in1;
+    _RandomAccessIterator2 __in2;
+    _RandomAccessOutputIterator __it_out;
 
-    __data_result_t<_RandomAccessIterator1> __rng1_info;
-    __data_result_t<_RandomAccessIterator2> __rng2_info;
-    __data_result_t<_RandomAccessIterator3> __rng3_info;
-
-    _RandomAccessIterator3
-    __get_reached_out() const
-    {
-        return __rng3_info.first;
-    }
-
+    // Get reached input1 and output iterators
     template <typename TResult>
     TResult
     __get_reached_in1_out() const
     {
-        return {__rng1_info.reached, __rng3_info.reached};
+        return {__in1, __it_out};
     }
 
+    // Get reached input1, input2 and output iterators
     template <typename TResult>
     TResult
     __get_reached_in1_in2_out() const
     {
-        return {__rng1_info.reached, __rng2_info.reached, __rng3_info.reached};
+        return {__in1, __in2, __it_out};
+    }
+
+    // Get reached output iterator
+    _RandomAccessOutputIterator
+    __get_reached_out() const
+    {
+        return __it_out;
     }
 };
 
