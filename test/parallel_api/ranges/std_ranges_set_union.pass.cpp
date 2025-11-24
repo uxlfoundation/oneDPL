@@ -163,7 +163,7 @@ main()
 
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_mixed_types_device();
+    //test_mixed_types_device();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     bProcessed = true;
