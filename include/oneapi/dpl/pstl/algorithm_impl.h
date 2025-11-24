@@ -3469,20 +3469,26 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
     using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using  = typename std::iterator_traits<_OutputIterator>::difference_type;
-    using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
     // Describes a data window in the temporary buffer and corresponding positions in the output range
     struct _SetRange
     {
-        //                             [ -- len -- )
-        // Temporary buffer:    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-        //                             ^           ^
-        //                             |           |
-        //                          buf_pos      __len
+        //                             [.........................)
+        // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+        //                             ^                         ^
+        //                             +<-(buf_pos)              +<-(buf_pos + __len)
+        //                             |                         |
+        //                              \                         \
+        //                               \                         \
+        //                                | <-(__pos)               |
+        //                                V                         V
+        // Output range:     OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
-        _DifferenceTypeCommon __output_pos           {};    // Offset in output range
+
+        _DifferenceTypeCommon __pos                  {};    // Offset in output range
         _DifferenceTypeCommon __len                  {};    // Length in temporary buffer
         _DifferenceTypeCommon __buf_pos              {};    // Position in temporary buffer
 
@@ -3500,7 +3506,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
          */
         _SetRange(_DifferenceTypeCommon __pos, _DifferenceTypeCommon __len, _DifferenceTypeCommon __buf_pos,
                   _DifferenceType1 __reached_input_offset1, _DifferenceType2 __reached_input_offset2)
-            : __output_pos(__pos),
+            : __pos(__pos),
               __len(__len),
               __buf_pos(__buf_pos),
               __reached_input_offset1(__reached_input_offset1),
@@ -3539,19 +3545,10 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         _DifferenceTypeOutput __reached_offset_out{};   // For result: reached offset in output range
 
         // Scan predicate
-        auto __scan = [__result1, __result2, __buf_raw_data_begin, __n_out](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
+        auto __scan = [__result1, __result2, __buf_raw_data_begin](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
         {
             if (!__s.empty())
             {
-                const auto __buf_raw_data_from = __buf_raw_data_begin + __s.__buf_pos;
-
-                const auto __output_write_pos_begin =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos,             __result2);
-                const auto __output_write_pos_end   =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos + __s.__len, __result2);
-                const auto __out_remaining          = __output_write_pos_end - __output_write_pos_begin;
-
-                const auto __buf_raw_data_to = __buf_raw_data_from + std::min(__out_remaining, __s.__len);
-
-                /////////////////////////////////////////////////////////////////////////////////////////
                 // Work schema of copying data from temporary buffer to output range:
                 //
                 //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
@@ -3562,7 +3559,6 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
                 //                                              |                             |            |
                 //                                              |<----- __out_remaining ----->|            |
-                //                                              |                             |            |
                 //                                              |                             |            |
                 //                                               \                             \            \
                 //                                                \ We shoult `move/destroy`    \            \
@@ -3583,7 +3579,16 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 //                      |                                                           |
                 // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __output_write_pos, _IsVector{});
+                // Evalueate output range boundaries for current data chunk
+                const auto __output_write_pos_begin =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos,             __result2);
+                const auto __output_write_pos_end   =  oneapi::dpl::__utils::__advance_clamped(__result1, __s.__pos + __s.__len, __result2);
+                const auto __out_remaining          = __output_write_pos_end - __output_write_pos_begin;
+
+                // Evaluate pointers to current data chunk in temporary buffer
+                const auto __buf_raw_data_from = __buf_raw_data_begin + __s.__buf_pos;
+                const auto __buf_raw_data_to   = __buf_raw_data_begin + __s.__buf_pos + std::min(__out_remaining, __s.__len);
+
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __output_write_pos_begin, _IsVector{});
             }
         };
 
