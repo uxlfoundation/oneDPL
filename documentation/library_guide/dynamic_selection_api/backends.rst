@@ -241,7 +241,7 @@ Custom Backends
 
 For advanced use cases, you can create custom backends to support new resource
 types or provide specialized instrumentation. Custom backends are created by
-specializing ``default_backend_impl`` for your resource type.
+specializing ``core_resource_backend`` for your resource type.
 
 See :doc:`custom_backends` for detailed information on creating custom backends.
 

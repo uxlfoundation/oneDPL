@@ -138,19 +138,19 @@ class backend_base
     };
 };
 
-template <typename BaseResourceType, typename ResourceType, typename ResourceAdapter>
-class default_backend_impl : public backend_base<ResourceType>
+template <typename CoreResourceType, typename ResourceType, typename ResourceAdapter>
+class core_resource_backend : public backend_base<ResourceType>
 {
   public:
     using resource_type = ResourceType;
     using my_base = backend_base<ResourceType>;
 
     template <typename... ReportReqs>
-    default_backend_impl(ReportReqs... reqs) : my_base(reqs...)
+    core_resource_backend(ReportReqs... reqs) : my_base(reqs...)
     {
     }
     template <typename... ReportReqs>
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportReqs... reqs)
+    core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportReqs... reqs)
         : my_base(u, reqs...), adapter(adapter_)
     {
     }
@@ -161,12 +161,12 @@ class default_backend_impl : public backend_base<ResourceType>
 
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
 class default_backend
-    : public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+    : public core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
                                   ResourceType, ResourceAdapter>
 {
   public:
     using base_t =
-        default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+        core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
                              ResourceType, ResourceAdapter>;
 
   public:

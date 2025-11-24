@@ -32,7 +32,7 @@ namespace experimental
 {
 
 template <typename ResourceType, typename ResourceAdapter>
-class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public backend_base<ResourceType>
+class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public backend_base<ResourceType>
 {
   private:
     // Base template for scratch storage - empty by default
@@ -191,13 +191,13 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     };
 
   public:
-    default_backend_impl(const default_backend_impl& v) = delete;
-    default_backend_impl&
-    operator=(const default_backend_impl&) = delete;
+    core_resource_backend(const core_resource_backend& v) = delete;
+    core_resource_backend&
+    operator=(const core_resource_backend&) = delete;
 
     template <typename... ReportReqs, typename T = ResourceAdapter,
               typename = std::enable_if_t<std::is_same_v<T, oneapi::dpl::identity>>>
-    default_backend_impl(ReportReqs... report_reqs) : base_t(), adapter()
+    core_resource_backend(ReportReqs... report_reqs) : base_t(), adapter()
     {
         static_assert(
             (execution_info::contains_reporting_req_v<ReportReqs, execution_info::task_submission_t,
@@ -215,7 +215,7 @@ class default_backend_impl<sycl::queue, ResourceType, ResourceAdapter> : public 
     }
 
     template <typename NativeUniverseVector, typename... ReportReqs>
-    default_backend_impl(const NativeUniverseVector& v, ResourceAdapter adapter_, ReportReqs... report_reqs)
+    core_resource_backend(const NativeUniverseVector& v, ResourceAdapter adapter_, ReportReqs... report_reqs)
         : base_t(), adapter(adapter_)
     {
         static_assert(

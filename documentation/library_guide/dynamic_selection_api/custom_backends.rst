@@ -14,7 +14,7 @@ like task timing and completion events.
 Backend Architecture
 --------------------
 
-Custom backends are created by specializing ``default_backend_impl`` for
+Custom backends are created by specializing ``core_resource_backend`` for
 your resource type:
 
 .. code:: cpp
@@ -26,22 +26,22 @@ your resource type:
     class backend_base { /* ... */ };
 
     // Specialize this for your resource type
-    template<typename BaseResourceType, typename ResourceType,
+    template<typename CoreResourceType, typename ResourceType,
              typename ResourceAdapter>
-    class default_backend_impl : public backend_base<ResourceType> {
+    class core_resource_backend : public backend_base<ResourceType> {
       // Override submit() and provide scratch_t for reporting
     };
 
-    // Convenience alias that determines BaseResourceType
+    // Convenience class that determines CoreResourceType
     template<typename ResourceType,
              typename ResourceAdapter = oneapi::dpl::identity>
-    class default_backend : public default_backend_impl<...> { /* ... */ };
+    class default_backend : public core_resource_backend<...> { /* ... */ };
 
   }
 
 The ``backend_base`` provides minimal default implementations but does **not**
 support reporting requirements. To add reporting support, specialize
-``default_backend_impl`` for your specific base resource type.
+``core_resource_backend`` for your specific base resource type.
 
 Backend with Reporting Support
 -------------------------------
