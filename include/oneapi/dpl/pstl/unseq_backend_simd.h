@@ -264,7 +264,7 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _UnaryPredicate>
-_OutputIterator
+_DifferenceType
 __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _UnaryPredicate __pred) noexcept
 {
     _DifferenceType __cnt = 0;
@@ -279,7 +279,7 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
             ++__cnt;
         }
     }
-    return __result + __cnt;
+    return __cnt;
 }
 
 template <class _InputIterator, class _DifferenceType, class _BinaryPredicate>
@@ -313,7 +313,7 @@ __simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _U
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
-void
+_DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
                     _Assigner __assigner) noexcept
 {
@@ -330,6 +330,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
             }
         }
     }
+    return __cnt;
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
