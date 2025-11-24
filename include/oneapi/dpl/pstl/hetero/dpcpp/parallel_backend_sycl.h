@@ -481,7 +481,7 @@ template <typename _KernelName>
 struct __parallel_copy_if_single_group_functor;
 
 template <typename... _ScanKernelName>
-struct __parallel_copy_if_single_group_functor<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
+struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>

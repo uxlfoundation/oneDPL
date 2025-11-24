@@ -50,6 +50,7 @@ main()
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
     test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
+    test_range_algo<6, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, select_many);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
