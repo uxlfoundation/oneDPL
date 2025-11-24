@@ -19,6 +19,12 @@ by submitting tasks to a resource that completes work faster.
   
     template<typename Backend = sycl_backend> 
     class dynamic_load_policy {
+    protected: 
+      class selection_type {
+      public:
+        dynamic_load_policy<Backend> get_policy() const;
+        resource_type unwrap() const;
+      };
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
@@ -117,8 +123,9 @@ Simplified, expository implementation of the selection algorithm:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename... Args>
-  auto dynamic_load_policy::__select_impl(Args&& ...) {
+  selection_type dynamic_load_policy::select(Args&& ...) {
     if (initialized_) {
       auto least_loaded_resource = find_least_loaded(resources_);
       return selection_type{dynamic_load_policy<Backend>(*this), least_loaded};

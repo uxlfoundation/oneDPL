@@ -18,6 +18,12 @@ will achieve a good load balancing.
   
     template<typename Backend = sycl_backend> 
     class round_robin_policy {
+    protected:
+      class selection_type {
+      public:
+        round_robin_policy<Backend> get_policy() const;
+        resource_type unwrap() const;
+      };
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
@@ -111,8 +117,9 @@ implementation of the selection algorithm follows:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename ...Args>
-  auto round_robin_policy::__select_impl(Args&&...) {
+  selection_type round_robin_policy::select(Args&&...) {
     if (initialized_) {
       auto& r = resources_[next_context_++ % num_resources_];
       return selection_type{*this, r};

@@ -19,6 +19,12 @@ The fixed-resource policy always returns the same resource selection.
   
     template<typename Backend = sycl_backend>
     class fixed_resource_policy {
+    protected:
+      class selection_type {
+      public:
+        fixed_resource_policy<Backend> get_policy() const;
+        resource_type unwrap() const;
+      };
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
@@ -132,9 +138,9 @@ resource is set during construction or deferred initialization.
 Simplified, expository implementation of the selection algorithm:
  
 .. code:: cpp
-
+  //not a public function, for exposition purposes only
   template<typename... Args>
-  auto fixed_resource_policy::__select_impl(Args&& ...) {
+  selection_type fixed_resource_policy::select(Args&& ...) {
     if (initialized_) {
       return selection_type{*this, resources_[fixed_offset_]};
     } else {

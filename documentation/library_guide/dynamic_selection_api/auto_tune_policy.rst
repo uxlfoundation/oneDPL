@@ -23,6 +23,12 @@ the profiling phase periodically.
   
     template<typename Backend = sycl_backend> 
     class auto_tune_policy {
+    protected:
+      class selection_type {
+      public:
+        auto_tune_policy<Backend> get_policy() const;
+        resource_type unwrap() const;
+      };
     public:
       // useful types
       using resource_type = typename Backend::resource_type;
@@ -121,15 +127,15 @@ to choose the best resource for the given function. A simplified, expository
 implementation of the selection algorithm follows:
  
 .. code:: cpp
-
+  //not a public function, for exposition purposes only
   template<typename Function, typename ...Args>
-  auto auto_tune_policy::__select_impl(Function&& f, Args&&...args) {
+  selection_type auto_tune_policy::__select_impl(Function&& f, Args&&...args) {
     if (initialized_) {
       auto k = make_task_key(f, args...);
       auto tuner = get_tuner(k);
       auto offset = tuner->get_resource_to_profile();
       if (offset == use_best) {
-        return selection_type {*this, tuner->best_resource_, tuner}; 
+        return selection_type{*this, tuner->best_resource_, tuner}; 
       } else {
         auto r = resources_[offset];
         return selection{*this, r, tuner}; 
