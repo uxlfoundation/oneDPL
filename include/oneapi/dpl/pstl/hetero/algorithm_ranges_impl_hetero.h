@@ -655,8 +655,10 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1),
-                                                     __m = oneapi::dpl::__ranges::__size(__rng2);
+    using _Size = std::common_type_t<oneapi::dpl::__internal::__difference_t<_Range1>,
+                                     oneapi::dpl::__internal::__difference_t<_Range2>>;
+    _Size __n = oneapi::dpl::__ranges::__size(__rng1);
+    _Size __m = oneapi::dpl::__ranges::__size(__rng2);
     if (__n == 0 || __m == 0)
         return 0;
 
@@ -673,7 +675,8 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
-    using _Size = oneapi::dpl::__internal::__difference_t<_OutRange>;
+    using _Size = std::common_type_t<oneapi::dpl::__internal::__difference_t<_InRange>,
+                                     oneapi::dpl::__internal::__difference_t<_OutRange>>;
     _Size __n = oneapi::dpl::__ranges::__size(__in_r);
     if (__n == 0)
         return {std::ranges::begin(__in_r), std::ranges::begin(__out_r)};

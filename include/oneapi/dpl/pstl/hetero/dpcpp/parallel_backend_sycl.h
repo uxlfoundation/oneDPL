@@ -325,8 +325,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
-                auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh,
-                                                       __dpl_sycl::__no_init{});
+                auto __res_acc =
+                    __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
@@ -887,9 +887,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp>;
 
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
-                                                 std::forward<_Range2>(__result), __n, _CreateOp{__pred},
-                                                 _CopyOp{_ReduceOp{}});
+        auto&& [__event, __payload] =
+            __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
+                                              __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
         return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
@@ -925,7 +925,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        __ret = __par_backend_hetero::__parallel_copy_if_single_group_functor<_KernelName>()(
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
@@ -935,9 +935,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
-        _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-                                                  std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred, {}},
-                                                  _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{}).get();
+        _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred, {}},
+            _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{}).get();
         __ret = {__stop_out, __n};
     }
     else
@@ -947,8 +947,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-                                                 std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred},
-                                                 _CopyOp{_ReduceOp{}, __assign});
+            std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());
     }
