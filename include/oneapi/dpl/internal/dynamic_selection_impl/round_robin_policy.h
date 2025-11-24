@@ -51,7 +51,7 @@ class round_robin_policy
     std::shared_ptr<selector_t> selector_;
 
     void
-    initialize_impl()
+    initialize_state()
     {
         if (!selector_)
         {

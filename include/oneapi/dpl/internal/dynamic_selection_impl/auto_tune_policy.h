@@ -231,7 +231,7 @@ class auto_tune_policy
     }
 
     void
-    initialize_impl(timing_t resample_time = never_resample)
+    initialize_state(timing_t resample_time = never_resample)
     {
         if (!state_)
         {

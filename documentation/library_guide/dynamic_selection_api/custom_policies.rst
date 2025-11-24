@@ -52,7 +52,7 @@ which provides default implementations of submission and initialization logic.
 When using ``policy_base``, your custom policy must implement:
 
 - ``try_select(Args...)`` - Returns ``std::optional<selection_type>``, empty if no resource available
-- ``initialize_impl(Args...)`` - Performs policy-specific initialization
+- ``initialize_state(Args...)`` - Performs policy-specific initialization
 
 Example: Custom Random Policy
 ------------------------------
@@ -88,7 +88,7 @@ selects from available resources:
     std::shared_ptr<selector_t> selector_;
 
     // Required: Initialize policy-specific state
-    void initialize_impl() {
+    void initialize_state() {
       if (!selector_) {
         selector_ = std::make_shared<selector_t>();
       }
@@ -148,7 +148,7 @@ common reference semantics - copies of your policy will share the same state.
 Initialization
 ^^^^^^^^^^^^^^
 
-The ``initialize_impl()`` function is called after the backend is initialized.
+The ``initialize_state()`` function is called after the backend is initialized.
 Use it to set up policy-specific state using resources from ``get_resources()``.
 
 Selection Logic

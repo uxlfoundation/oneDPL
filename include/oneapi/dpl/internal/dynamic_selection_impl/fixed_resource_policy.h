@@ -50,7 +50,7 @@ class fixed_resource_policy
     std::shared_ptr<selector_t> selector_;
 
     void
-    initialize_impl(std::size_t index = 0)
+    initialize_state(std::size_t index = 0)
     {
         if (!selector_)
         {

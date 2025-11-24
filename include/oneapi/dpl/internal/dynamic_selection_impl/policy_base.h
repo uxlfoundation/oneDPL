@@ -57,7 +57,7 @@ class policy_base
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl();
+        static_cast<Policy*>(this)->initialize_state();
     }
 
     template <typename Arg0, typename... Args,
@@ -67,7 +67,7 @@ class policy_base
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+        static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
     }
 
     void
@@ -75,7 +75,7 @@ class policy_base
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl();
+        static_cast<Policy*>(this)->initialize_state();
     }
 
     template <typename Arg0, typename... Args,
@@ -85,7 +85,7 @@ class policy_base
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+        static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
     }
 
     template <typename... Args>
@@ -94,7 +94,7 @@ class policy_base
     {
         if (!backend_)
             backend_ = std::make_shared<backend_t>(u, adapter, ReportReqs{}...);
-        static_cast<Policy*>(this)->initialize_impl(args...);
+        static_cast<Policy*>(this)->initialize_state(args...);
     }
 
     template <typename Function, typename... Args>

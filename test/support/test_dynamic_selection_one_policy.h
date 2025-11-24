@@ -41,7 +41,7 @@ class no_customizations_policy_base
     }
 
     void
-    initialize_impl()
+    initialize_state()
     {
         std::cout << "init\n";
         trace_ = (trace_ | t_init);
@@ -408,7 +408,7 @@ class one_with_intermittent_failure
     }
 
     void
-    initialize_impl()
+    initialize_state()
     {
         if (!state_)
         {
