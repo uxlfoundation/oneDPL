@@ -408,6 +408,7 @@ struct __sycl_usm_free
     }
 };
 
+// TODO: remove this function once it is no more used in __result_and_scratch_storage
 template <typename _T, sycl::usm::alloc __alloc_t>
 _T*
 __sycl_usm_alloc(const sycl::queue& __q, std::size_t __elements)

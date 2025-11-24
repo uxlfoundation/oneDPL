@@ -289,16 +289,15 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
 
-        __combined_storage<_Type> __result_and_scratch{__q, __n_groups + 1, /*result size*/ 2};
+        __combined_storage<_Type> __temp_and_result{__q, __n_groups + 1, /*result size*/ 2};
 
         _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
 
         // 1. Local scan on each workgroup
         auto __submit_event = __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc = __get_accessor(sycl::write_only, __result_and_scratch, __cgh, __dpl_sycl::__no_init{});
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
-                                                  __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
@@ -325,8 +324,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
-                auto __temp_acc = __get_accessor(sycl::read_write, __result_and_scratch, __cgh);
-                auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh,
+                auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
+                auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh,
                                                        __dpl_sycl::__no_init{});
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -352,8 +351,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         auto __final_event = __q.submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__submit_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __rng1, __rng2); //get an access to data under SYCL buffer
-            auto __temp_acc = __get_accessor(sycl::read_only, __result_and_scratch, __cgh);
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result_and_scratch, __cgh);
+            auto __temp_acc = __get_accessor(sycl::read_only, __temp_and_result, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();
@@ -361,7 +360,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             });
         });
 
-        return {std::move(__final_event), std::move(__result_and_scratch)};
+        return {std::move(__final_event), std::move(__temp_and_result)};
     }
 };
 
@@ -478,15 +477,15 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
     }
 };
 
-template <typename _Size, typename _KernelName>
-struct __parallel_copy_if_single_group_submitter;
+template <typename _KernelName>
+struct __parallel_copy_if_single_group_functor;
 
-template <typename _Size, typename... _ScanKernelName>
-struct __parallel_copy_if_single_group_submitter<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
+template <typename... _ScanKernelName>
+struct __parallel_copy_if_single_group_functor<_Size, __internal::__optional_kernel_name<_ScanKernelName...>>
 {
-    template <typename _InRng, typename _OutRng, typename _UnaryOp, typename _Assign>
+    template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, std::size_t __m,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __m,
                _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
     {
         using _ValueType = std::uint16_t;
@@ -926,7 +925,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        __ret = __par_backend_hetero::__parallel_copy_if_single_group_submitter<_Size, _KernelName>()(
+        __ret = __par_backend_hetero::__parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
