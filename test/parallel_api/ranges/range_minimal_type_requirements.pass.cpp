@@ -269,14 +269,18 @@ void call_test_algo()
 
 int main()
 {
-#if _ENABLE_STD_RANGES_TESTING
+    bool bProcessed = false;
+
+#if _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
 
     call_test_algo<test_count>    ();
     call_test_algo<test_merge>    ();
     call_test_algo<test_copy_if>  ();
     call_test_algo<test_transform>();
 
-#endif // _ENABLE_STD_RANGES_TESTING
+    bProcessed = true;
 
-    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
+#endif // _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
+
+    return TestUtils::done(bProcessed);
 }
