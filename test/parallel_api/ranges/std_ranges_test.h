@@ -272,6 +272,14 @@ private:
 
     static constexpr int kParts = 2;
 
+    static constexpr int kPaddingSize = 20;
+
+    // Get real range size considering padding for out ranges
+    int get_padded_size(int n)
+    {
+        return n + kPaddingSize * kParts;
+    }
+
     // Test dangling iterators in return types for call with temporary data
     template <int idx, typename Policy, typename Algo, typename ...Args>
     constexpr void
@@ -395,6 +403,41 @@ private:
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
+    template <TestDataMode mode, typename View>
+    auto
+    get_view_part_for_output_wo_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            return std::views::drop(view, kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
+        }
+        else
+        {
+            return view;
+        }
+    }
+
+    template <TestDataMode mode, typename View>
+    bool check_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
     void
     process_data_in_out(int max_n, int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
@@ -405,7 +448,7 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
         Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
@@ -416,7 +459,8 @@ private:
         auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
-        typename Container::type& B = cont_out();
+        auto&& B_with_padding = cont_out();
+        auto&& B = get_view_part_for_output_wo_padding<mode>(B_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
@@ -429,9 +473,13 @@ private:
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
 
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(B_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
+
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
@@ -540,7 +588,7 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
         Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
@@ -553,9 +601,14 @@ private:
 
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
-        typename Container::type& C = cont_out();
+        auto&& C_with_padding = cont_out();
+        auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(C_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -571,7 +624,7 @@ private:
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
+        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
             + typeid(Algo).name()).c_str());
 
         // Test dangling iterators in return types for call with temporary data
