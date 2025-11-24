@@ -3469,7 +3469,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
     using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using  = typename std::iterator_traits<_OutputIterator>::difference_type;
     using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
@@ -3482,16 +3482,39 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         //                             |           |
         //                          buf_pos      __len
 
-        _DifferenceTypeCommon __pos    {};        // offset in output range
-        _DifferenceTypeCommon __len    {};        // Offset in temporary buffer
-        _DifferenceTypeCommon __buf_pos{};        // Data length in temporary buffer
+        _DifferenceTypeCommon __output_pos           {};    // Offset in output range
+        _DifferenceTypeCommon __len                  {};    // Length in temporary buffer
+        _DifferenceTypeCommon __buf_pos              {};    // Position in temporary buffer
+
+        _DifferenceType1      __reached_input_offset1{};    // Reached offset in first input range
+        _DifferenceType2      __reached_input_offset2{};    // Reached offset in second input range
+
+        _SetRange() = default;
+
+        /*
+         * @param __pos                   - position in output range
+         * @param __len                   - length of data in temporary buffer
+         * @param __buf_pos               - position in temporary buffer
+         * @param __reached_input_offset1 - reached offset in first input range
+         * @param __reached_input_offset2 - reached offset in second input range
+         */
+        _SetRange(_DifferenceTypeCommon __pos, _DifferenceTypeCommon __len, _DifferenceTypeCommon __buf_pos,
+                  _DifferenceType1 __reached_input_offset1, _DifferenceType2 __reached_input_offset2)
+            : __output_pos(__pos),
+              __len(__len),
+              __buf_pos(__buf_pos),
+              __reached_input_offset1(__reached_input_offset1),
+              __reached_input_offset2(__reached_input_offset2)
+        {
+        }
 
         bool empty() const { return __len == 0; }
     };
 
-    const _DifferenceType1 __n1 = __last1 - __first1;
-    const _DifferenceType2 __n2 = __last2 - __first2;
-    
+    const _DifferenceType1        __n1 = __last1 - __first1;        // Size of first input range
+    const _DifferenceType2        __n2 = __last2 - __first2;        // Size of second input range
+    const _DifferenceTypeCommon __nOut = __result2 - __result1;     // Size of output range
+
     const auto __buf_size = __size_func(__n1, __n2);
     __par_backend::__buffer<_T> __buf(__buf_size);
 
@@ -3504,17 +3527,18 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __set_op,
                                          &__buf, __buf_size]() 
     {
-        auto __tmp_memory = __buf.get();
+        // Buffer raw data pointers
+        const auto __buf_raw_data_begin = __buf.get();
 
-        const auto __tmp_memory_end = __tmp_memory + __buf_size;
+        // End of buffer raw data
+        const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-
-        _DifferenceType1      __reached_offset1   {};           // KSATODO <<<<< required to fill
-        _DifferenceType2      __reached_offset2   {};           // KSATODO <<<<< required to fill
-        _DifferenceTypeOutput __reached_offset_out{};           // KSATODO <<<<< required to check how it's filled
+        _DifferenceType1      __reached_offset1   {};   // For result: reached offset in first input range
+        _DifferenceType2      __reached_offset2   {};   // For result: reached offset in second input range
+        _DifferenceTypeOutput __reached_offset_out{};   // For result: reached offset in output range
 
         // Scan predicate
-        auto __scan = [__result1, __result2, __tmp_memory](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
+        auto __scan = [__result1, __result2, __buf_raw_data_begin](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
         {
             if (!__s.empty())
             {
@@ -3522,7 +3546,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 _DifferenceTypeCommon __count_of_items_to_transfer = __s.__len;
 
-                const auto __tmp_memory_from = __tmp_memory + __s.__buf_pos;
+                const auto __buf_from = __buf_raw_data_begin + __s.__buf_pos;
 
                 const auto __output_write_pos                  = __result1 + __s.__pos;
                 const auto __output_pos_in_results_to_supposed = __output_write_pos + __count_of_items_to_transfer;
@@ -3530,8 +3554,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 const auto __out_of_range_items                = __output_pos_in_results_to_supposed - __output_pos_in_results_to_real;
 
                 // Now we know whar to copy to fit copied data into output range
-                assert(__s.__buf_pos + __s.__len >= __out_of_range_items);
-                const auto __tmp_memory_to = __tmp_memory + (__s.__buf_pos + __s.__len - __out_of_range_items);
+                assert(__s.__buf_pos + __s.__len >= __out_of_range_items;
+                const auto __buf_to = __buf_from + __s.__len - __out_of_range_items;
 
                 // Temporary buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
                 // What to copy:                                ^                                ^
@@ -3558,23 +3582,24 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 // Output range bounds: [__result1..................             __result2)
 
                 // Check that we fit into the rest of output range
-                assert(__output_write_pos + (__tmp_memory_to - __tmp_memory_from) < __result2);
+                assert(__output_write_pos + (__buf_to - __buf_from) < __result2);
 
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__tmp_memory_from, __tmp_memory_to, __output_write_pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_from, __buf_to, __output_write_pos, _IsVector{});
             }
         };
 
-        __par_backend::__parallel_strict_scan( // KSATODO <<<<<
+        __par_backend::__parallel_strict_scan(
             __backend_tag{},
             std::forward<_ExecutionPolicy>(__exec),
             __n1,                                                                                                       // _Index __n
-            _SetRange{0, 0, 0},                                                                                         // _Tp __initial
+            _SetRange(),                                                                                                // _Tp __initial
 /* ST.1 */  [=](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange                                              // _Rp __reduce     step 1 : __reduce(0, __n)
             {                                         // ^
                                                       // +-- __n <--__n1
+
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b1 = __first1 + __i;
-                _RandomAccessIterator1 __e1 = __b1 + __len;
+                _RandomAccessIterator1 __e1 = __first1 + __i + __len;
 
                 // try searching for the first element in data1[__b1, __last1) which is GREAT then *__b1
                 if (__b1 != __first1)
@@ -3594,7 +3619,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                         __b2 = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b1, __comp, __proj2, __proj1);
 
                     const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
-                    return _SetRange{0, 0, __buf_pos};
+
+                    return _SetRange(0,                    // position in output range
+                                     0,                    // length of data in temporary buffer
+                                     __buf_pos,            // position in temporary buffer
+                                     0,                    // reached offset in first input range (first range is empty)
+                                     __b2 - __first2);     // reached offset in second input range
                 }
 
                 // Try searching for "corresponding" subrange [__b2; __e2) in the second sequence:
@@ -3610,38 +3640,55 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                     __e2 = __b2 + __internal::__pstl_lower_bound(__b2, _DifferenceType2{0}, __last2 - __b2, __e1, __comp, __proj2, __proj1);
 
                 const _DifferenceTypeCommon __buf_pos = __size_func(__b1 - __first1, __b2 - __first2);
-                auto __buffer_b = __tmp_memory + __buf_pos;
-                auto __res = __set_op(__b1, __e1,                           // bounds for data1
-                                      __b2, __e2,                           // bounds for data2
-                                      __buffer_b, __tmp_memory_end,         // bounds for results
-                                      __comp, __proj1, __proj2);
+                auto __buffer_b = __buf_raw_data_begin + __buf_pos;
 
-                // KSATODO Should we do anything with __res[0] and __res[1]
-                // std::get<2>(__res) - iterator in output range after last written element
-                return _SetRange{0, std::get<2>(__res) - __buffer_b, __buf_pos};
+                auto [__it_reached1, __it_reached2, __it_reached_out] =
+                    __set_op(__b1, __e1,                        // bounds for data1
+                             __b2, __e2,                        // bounds for data2
+                             __buffer_b, __buf_raw_data_end,    // bounds for results
+                             __comp, __proj1, __proj2);
+
+                return _SetRange(0,                                     // position in output range
+                                 __it_reached_out - __buffer_b,         // length of data in temporary buffer
+                                 __buf_pos,                             // position in temporary buffer
+                                 __it_reached1 - __b1,                  // reached offset in first input range
+                                 __it_reached2 - __b2);                 // reached offset in second input range
             },
 /* ST.2 */  [](const _SetRange& __a, const _SetRange& __b)                                                              // _Cp __combine    step 2 : __combine(__initial, (1))
             {                //  ^                     ^
                              //  |                     +-- result of step(1)
-                             //  +-- __initial <--_SetRange{}
-                if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-                    return _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
-                return _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+                             //  +-- __initial <--_SetRange()
+
+                const bool __set_range_cmp_check =
+                                 __b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty());
+
+                const _SetRange& __sri1 = __set_range_cmp_check ? __a : __b;
+                const _SetRange& __sri2 = __set_range_cmp_check ? __b : __a;
+
+                return _SetRange(__sri1.__pos + __sri1.__len + __sri2.__pos,                        // position in output range
+                                 __sri2.__len,                                                      // length of data in temporary buffer
+                                 __sri2.__buf_pos,                                                  // position in temporary buffer
+                                 __sri1.__reached_input_offset1 + __sri2.__reached_input_offset1,   // reached offset in first input range
+                                 __sri1.__reached_input_offset2 + __sri2.__reached_input_offset2);  // reached offset in second input range
             },
 /* ST.4 */  __scan,                                                                                                     // _Sp __scan       step 4 : __scan(0, __n, __initial)
-/* ST.3 */  [&__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total)          // _Ap __apex       step 3 : __apex((2))
+/* ST.3 */  [__nOut, &__reached_offset1, &__reached_offset2, &__reached_offset_out, &__scan](const _SetRange& __total)  // _Ap __apex       step 3 : __apex((2))
             {
-                // KSATODO how to fill __reached_offset1 and __reached_offset2 ?
-
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
-                __reached_offset_out = __total.__pos + __total.__len;
+
+                // Store reached offsets in input ranges
+                __reached_offset1 = __total.__reached_input_offset1;
+                __reached_offset2 = __total.__reached_input_offset2;
+
+                // Store reached offset in output range: we should not exceed __nOut
+                __reached_offset_out = std::min(__nOut, __total.__pos + __total.__len);
             });
 
-        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            {__first1,     __last1,  __first1 + __reached_offset1    },
-            { __first2,    __last2,  __first2 + __reached_offset2    },
-            { __result1, __result2, __result1 + __reached_offset_out } };
+        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+            { { __first1,    __last1,  __first1 + __reached_offset1    },
+              { __first2,    __last2,  __first2 + __reached_offset2    },
+              { __result1, __result2, __result1 + __reached_offset_out } };
     });
 }
 
