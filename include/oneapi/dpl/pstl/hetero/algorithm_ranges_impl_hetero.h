@@ -1083,14 +1083,13 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
         return {__first1 + __to_walk_in_r1, __first2, __result1 + __idx};
     }
 
-    auto __op_res = __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
+    return __par_backend_hetero::__parallel_set_op<unseq_backend::_UnionTag>(
                _BackendTag{}, unseq_backend::_UnionTag{}, std::forward<_ExecutionPolicy>(__exec),
                oneapi::dpl::__ranges::__get_subscription_view(__r1),
                oneapi::dpl::__ranges::__get_subscription_view(__r2),
                oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-               __comp, __proj1, __proj2);
-
-    return oneapi::dpl::__internal::__ranges::__get_positions_reached<__pattern_set_union_return_t<_R1, _R2, _OutRange>>(__op_res);
+               __comp, __proj1, __proj2)
+        .template __get_reached_in1_in2_out<__pattern_set_union_return_t<_R1, _R2, _OutRange>>();
 }
 
 template <typename _R1, typename _R2, typename _OutRange>
@@ -1112,14 +1111,13 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     if (__n1 == 0 || __n2 == 0)
         return {__first1 + __n1, __first2 + __n2, std::ranges::begin(__out_r)};
 
-    auto __op_res = __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
+    return __par_backend_hetero::__parallel_set_op<unseq_backend::_IntersectionTag>(
         _BackendTag{}, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1),
         oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), 
-        __comp, __proj1, __proj2);
-
-    return oneapi::dpl::__internal::__ranges::__get_positions_reached<__pattern_set_intersection_return_t<_R1, _R2, _OutRange>>(__op_res);
+        __comp, __proj1, __proj2)
+        .template __get_reached_in1_in2_out<__pattern_set_intersection_return_t<_R1, _R2, _OutRange>>();
 }
 
 //Dummy names to avoid kernel problems
@@ -1161,14 +1159,13 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         return {__first1 + __to_walk_in_r1, __result1 + __idx};
     }
 
-    auto __op_res = __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
+    return __par_backend_hetero::__parallel_set_op<unseq_backend::_DifferenceTag>(
         _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R2>(__r2)),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        __comp, __proj1, __proj2);
-
-    return oneapi::dpl::__internal::__ranges::__get_positions_reached<__pattern_set_difference_return_t<_R1, _OutRange>, /* _R1 */ true, /* _R2 */ false, /* _R3 */ true>(__op_res);
+        __comp, __proj1, __proj2)
+        .template __get_reached_in1_out<__pattern_set_difference_return_t<_R1, _OutRange>>();
 }
 
 //Dummy names to avoid kernel problems
@@ -1230,14 +1227,13 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
         return {__first1 + __to_walk_in_r1, __first2, __result1 + __idx};
     }
 
-    auto __op_res = __par_backend_hetero::__parallel_set_op<unseq_backend::_SymmetricDifferenceTag>(
+    return __par_backend_hetero::__parallel_set_op<unseq_backend::_SymmetricDifferenceTag>(
         _BackendTag{}, unseq_backend::_SymmetricDifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(__r1),
         oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r),
-        __comp, __proj1, __proj2);
-
-    return oneapi::dpl::__internal::__ranges::__get_positions_reached<__pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>>(__op_res);
+        __comp, __proj1, __proj2)
+        .template __get_reached_in1_in2_out<__pattern_set_symmetric_difference_return_t<_R1, _R2, _OutRange>>();
 }
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
