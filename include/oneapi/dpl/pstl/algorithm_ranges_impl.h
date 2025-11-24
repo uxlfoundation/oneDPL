@@ -819,7 +819,8 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                   /*__is_vector=*/std::false_type) noexcept
 {
     return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
@@ -828,7 +829,8 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
+__brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
+                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                   /*__is_vector=*/std::true_type) noexcept
 {
     _PSTL_PRAGMA_MESSAGE("Vectorized algorithm unimplemented, redirected to serial");
@@ -941,7 +943,10 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
      [[maybe_unused]] auto [__it2,       __end2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
      [[maybe_unused]] auto [__out_it, __out_end, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
-    return __serial_set_intersection<_R1, _R2, _OutRange>(__it1, __end1, __it2, __end2, __out_it, __out_end, __comp, __proj1, __proj2);
+    return __serial_set_intersection<_R1, _R2, _OutRange>(__it1, __end1,
+                                                          __it2, __end2,
+                                                          __out_it, __out_end,
+                                                          __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
