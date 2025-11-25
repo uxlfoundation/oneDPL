@@ -32,7 +32,7 @@ int
 test_cout()
 {
     oneapi::dpl::experimental::default_backend<sycl::queue> s;
-    oneapi::dpl::experimental::default_backend<sycl::queue>::execution_resource_t e;
+    oneapi::dpl::experimental::default_backend<sycl::queue>::resource_type e;
     return 0;
 }
 

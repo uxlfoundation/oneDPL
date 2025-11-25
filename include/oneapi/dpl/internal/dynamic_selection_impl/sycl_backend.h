@@ -59,8 +59,6 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
     {
     };
 
-    using execution_resource_t = resource_type;
-    using resource_container_t = std::vector<execution_resource_t>;
     using resource_adapter_t = ResourceAdapter;
     using base_resource_t = sycl::queue;
 
@@ -174,11 +172,11 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
 
     class submission_group
     {
-        resource_container_t resources_;
+        std::vector<resource_type> resources_;
         ResourceAdapter adapter_;
 
       public:
-        submission_group(const resource_container_t& v, ResourceAdapter adapter) : resources_(v), adapter_(adapter) {}
+        submission_group(const std::vector<resource_type>& v, ResourceAdapter adapter) : resources_(v), adapter_(adapter) {}
 
         void
         wait()

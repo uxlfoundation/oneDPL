@@ -31,17 +31,12 @@ class policy_base
 {
   protected:
     using backend_t = Backend;
-    using resource_container_t = typename backend_t::resource_container_t;
-    using resource_container_size_t = typename resource_container_t::size_type;
-    using execution_resource_t = typename backend_t::execution_resource_t;
-    using wrapped_resource_t = execution_resource_t;
-    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
-    using report_reqs_t = std::tuple<ReportReqs...>;
 
   public:
-    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
-
+    using resource_type = typename backend_t::resource_type;
   protected:
+    using selection_type = basic_selection_handle_t<Policy, resource_type>;
+    using report_reqs_t = std::tuple<ReportReqs...>;
     std::shared_ptr<backend_t> backend_;
 
   public:

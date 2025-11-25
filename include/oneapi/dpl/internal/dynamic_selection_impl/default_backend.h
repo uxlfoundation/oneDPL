@@ -36,8 +36,6 @@ class backend_base
 
   public:
     using resource_type = ResourceType;
-    using execution_resource_t = resource_type;
-    using resource_container_t = std::vector<ResourceType>;
     using report_duration = std::chrono::milliseconds;
 
     template <typename... Req>
@@ -82,7 +80,7 @@ class backend_base
     }
 
   protected:
-    resource_container_t resources_;
+    std::vector<resource_type> resources_;
 
     template <typename WaitType>
     class default_submission

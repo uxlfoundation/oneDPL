@@ -34,7 +34,7 @@ int
 test_cout()
 {
     TestUtils::int_inline_backend_t<> s;
-    TestUtils::int_inline_backend_t<>::execution_resource_t e;
+    TestUtils::int_inline_backend_t<>::resource_type e;
     return 0;
 }
 

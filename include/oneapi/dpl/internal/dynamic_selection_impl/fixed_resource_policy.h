@@ -39,12 +39,12 @@ class fixed_resource_policy
   protected:
     using base_t = policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
     friend base_t;
-    using resource_container_size_t = typename base_t::resource_container_size_t;
     using selection_type = typename base_t::selection_type;
 
     struct selector_t
     {
-        typename base_t::resource_container_t resources_;
+        using resource_type = typename base_t::resource_type;
+        std::vector<resource_type> resources_;
         ::std::size_t index_ = 0;
     };
 

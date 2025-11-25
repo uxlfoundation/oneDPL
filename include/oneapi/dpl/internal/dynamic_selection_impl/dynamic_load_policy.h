@@ -42,18 +42,19 @@ class dynamic_load_policy
     using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
                                execution_info::task_submission_t, execution_info::task_completion_t>;
     friend base_t;
-    using resource_container_size_t = typename base_t::resource_container_size_t;
 
-    using execution_resource_t = typename base_t::execution_resource_t;
+  public:
+    using resource_type = typename base_t::resource_type;
+    
+  protected:
     using load_t = int;
 
     struct resource_t
     {
-        execution_resource_t e_;
+        resource_type e_;
         std::atomic<load_t> load_;
-        resource_t(execution_resource_t e) : e_(e), load_(0) {}
+        resource_t(resource_type e) : e_(e), load_(0) {}
     };
-    using resource_container_t = std::vector<std::shared_ptr<resource_t>>;
 
     template <typename Policy>
     class dl_selection_handle_t
@@ -95,7 +96,7 @@ class dynamic_load_policy
 
     struct selector_t
     {
-        resource_container_t resources_;
+        std::vector<std::shared_ptr<resource_t>> resources_;
         std::mutex m_;
     };
 
@@ -149,8 +150,6 @@ class dynamic_load_policy
     }
 
   public:
-    using resource_type = typename base_t::resource_type;
-    using typename base_t::backend_t;
 
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}

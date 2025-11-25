@@ -82,10 +82,9 @@ selects from available resources:
     friend base_t;
 
     using typename base_t::selection_type;
-    using typename base_t::resource_container_t;
 
     struct selector_t {
-      resource_container_t resources_;
+      std::vector<resource_type> resources_;
       std::mt19937 gen_{std::random_device{}()};
     };
 

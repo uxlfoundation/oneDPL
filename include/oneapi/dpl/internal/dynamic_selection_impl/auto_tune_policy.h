@@ -54,9 +54,13 @@ class auto_tune_policy
         policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
                     execution_info::task_time_t>;
     friend base_t;
+
+  public:
+    // Needed by Policy Traits
+    using resource_type = typename base_t::resource_type;
+
+  protected:
     using backend_t = Backend;
-    using execution_resource_t = typename backend_t::execution_resource_t;
-    using wrapped_resource_t = execution_resource_t;
     using size_type = typename std::vector<typename Backend::resource_type>::size_type;
     using timing_t = uint64_t;
 
@@ -68,7 +72,7 @@ class auto_tune_policy
 
     struct resource_with_index_t
     {
-        wrapped_resource_t r_;
+        resource_type r_;
         size_type index_ = 0;
     };
 
@@ -246,8 +250,6 @@ class auto_tune_policy
     }
 
   public:
-    // Needed by Policy Traits
-    using resource_type = decltype(unwrap(std::declval<wrapped_resource_t>()));
 
     auto_tune_policy(deferred_initialization_t) {}
 
