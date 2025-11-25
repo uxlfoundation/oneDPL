@@ -326,13 +326,28 @@
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::view concept in libstdc++ 10 is broken
-#define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN (_GLIBCXX_RELEASE == 10)
+// std::ranges::view concept in libstdc++ 10 is broken prior to GCC 11.4
+#if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
+#    define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN                                                                 \
+        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230714))
+#else
+#    define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN 0
+#endif
 
-// std::ranges::views::all in libstdc++ 10 is broken
-#define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN (_GLIBCXX_RELEASE == 10)
+// std::ranges::views::all in libstdc++ 10 is broken prior to GCC 12.1
+#if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
+#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN                                                                      \
+        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20220507))
+#else
+#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN 0
+#endif
 
-// contains_host_pointer checks with std::ranges::views::all in libstdc++ 10 is broken
-#define TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN (_GLIBCXX_RELEASE == 10)
+// contains_host_pointer checks with std::ranges::views::all in libstdc++ 10 is broken prior to GCC 11.3
+#if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
+#    define TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN                                                                    \
+        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20220421))
+#else
+#    define TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN 0
+#endif
 
 #endif // _TEST_CONFIG_H
