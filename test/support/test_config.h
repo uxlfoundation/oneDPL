@@ -341,7 +341,7 @@
 #    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN 0
 #endif
 
-// contains_host_pointer checks with std::ranges::views::all in libstdc++ 10 is broken prior to GCC 11.3
+// contains_host_pointer checks with std::ranges::views::all in all GCC 10.x releases are broken; fixed in GCC 11.3 and later
 #if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
 #    define TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN                                                                    \
         ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20220421))
