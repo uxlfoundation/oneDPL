@@ -129,15 +129,6 @@ customization while providing sensible defaults for resource management and back
 2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select()` and `initialize_state()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
-### Core Features
-
-- **Resource Management**: Policies store and manage resources through the backend
-- **Backend Integration**: All backend operations are handled by the base class
-- **Initialization Support**: Both immediate and deferred initialization patterns
-- **Selection Delegation**: The base class delegates selection to the derived policy's `try_select()` method
-- **Submission Handling**: All submission operations are forwarded to the backend
-- **Error Handling**: Proper error checking for uninitialized policies
-
 ### Implementation Details
 
 The proposed `policy_base` class provides core functionality that derived policies can customize:
@@ -364,15 +355,10 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
 ## Benefits of the Proposed Design
 
-The proposed design provides several advantages:
-
-1. **Reduced Complexity**: Policy writers only need to implement selection logic, not resource management
-2. **Backend Integration**: All backend operations are handled automatically by the base class
-3. **Error Handling**: Proper initialization checking and error reporting built-in
-4. **Flexibility**: Support for both immediate and deferred initialization patterns
-5. **Performance**: Template-based design with compile-time polymorphism
-6. **Consistency**: All policies follow the same patterns for resource management and submission
-7. **Extensibility**: Easy to add new selection strategies by focusing only on the selection logic
+The main benefit of the proposed design is simplification of the policy customization experience, and reduction of
+individual policy implementations to only their unique elements, selection and initialization. This reduces redundancy
+and boiler-plate code, and improves maintainability.  It also makes it easier on customizers to implement new policy
+ideas.
 
 ## Implementation Requirements
 
@@ -382,7 +368,7 @@ To implement a custom policy using this design:
 2. **Implement `initialize_state()`**: Set up any policy-specific state after backend initialization
 3. **Implement `select_impl()`**: Implement the core selection strategy
 4. **Optional: Custom selection handle**: For policies requiring specialized reporting or state tracking
-5. **Constructor support**: Provide constructors for immediate and deferred initialization
+5. **Constructors**: Provide constructors for immediate and deferred initialization
 
 ### Minimal Custom Policy Example
 
@@ -437,17 +423,3 @@ Testing for these changes should include:
    way to break out of this loop if it is taking too long; currently there is none. This is possible future work to
    investigate and possibly add a way to abort submission. TBB's `concurrent_queue` has a possible system we could use
    as a model within its `pop` implementation.
-
-## Conclusion
-
-This proposal presents a simplified approach to policy customization for Dynamic Selection. Key benefits include:
-
-1. **Focused Development**: Policy writers can focus solely on selection strategy implementation
-2. **Automatic Backend Integration**: All resource management and backend operations handled automatically  
-3. **Consistent Interface**: All policies follow the same patterns and provide the same baseline functionality with their own selection criteria.
-4. **Reduced Boilerplate**: Eliminates the need to implement resource management, submission delegation, and error handling
-5. **Backward Compatibility**: Maintains the existing Dynamic Selection API contract
-6. **Extensibility**: Easy to add new selection strategies with minimal code
-
-This design opens Dynamic Selection policy development to broader use cases while maintaining performance and providing a consistent developer experience.
-

@@ -47,15 +47,6 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 3. **`default_backend<ResourceType, ResourceAdapter>`**: A wrapper template that **users instantiate** when creating policies. It automatically determines the `CoreResourceType` by applying the `ResourceAdapter` to the `ResourceType`, then inherits from the appropriate `core_resource_backend` specialization.
 4. **A SYCL specialization of core_resource_backend**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
-### Core Features
-
-- **Resource Management**: Backends store resources in a vector and provide `get_resources()` to access them
-- **Submission System**: The `submit()` method invokes user functions with selected resources and returns submission objects
-- **Instrumentation**: The `submit()` method can be optionally overridden to provide instrumentation of submissions for policies that require reporting.
-- **Group Operations**: `get_submission_group()` returns an object that can wait for all submissions to complete
-- **Trait Support**: Type traits for `resource_t<T>`, and lazy reporting detection
-- **Scratch Space**: Optional scratch space allocation for backend-specific needs via traits
-
 ### Reporting Requirements and Scratch Space Contract
 
 Backends must now explicitly accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
@@ -354,12 +345,11 @@ policy_pointer_t p(u_ptrs, deref_op);
 
 ### Adapter Usage Patterns
 
-Adapters enable several useful patterns:
+Adapters enable a few useful patterns:
 
-1. **Pointer Resources**: Store pointers but work with references/values
-2. **Wrapper Types**: Unwrap resource containers or smart pointers  
-3. **Type Conversion**: Convert between compatible resource types
-4. **Ownership Management**: Pair a context (memory space, side information, etc.) with a core resource, but rely on the implementation of the core resource without extra backend implementation.
+1. **Pointer Resources**: Store / copy around pointers but have a single implementation for the decayed type backend
+2. **Wrapper Types**: Unwrap resource containers or smart pointers
+3. **Ownership Management**: Pair a context (memory space, side information, etc.) with a core resource, but rely on the implementation of the core resource without extra backend implementation.
 
 ## Testing
 Testing for these changes should include:
@@ -385,14 +375,4 @@ Testing for these changes should include:
 ## Open questions
 * What other backends would make sense as examples / descriptive tests for dynamic selection?
 * Should users have a way to get / query the resource adapter function from their submitted workloads?
-
-## Conclusion
-
-This proposal presents a simplified approach to backend customization for Dynamic Selection. Key benefits include:
-
-1. **Reduced Complexity**: The default backend eliminates the need to write backend code for most use cases
-2. **Custom Resource Integration**: Direct support for any resource type without transformation overhead
-3. **Optional Adapter Pattern**: Enables flexible resource management when transformation enable reuse of an existing backend.
-4. **SYCL Optimization**: Specialized backend for SYCL resources maintains performance while providing additional features
-5. **Extensibility**: Easy to add new backend specializations
 
