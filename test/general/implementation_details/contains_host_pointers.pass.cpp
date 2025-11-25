@@ -29,6 +29,10 @@ using MinimalisticRangeViewForIntVec = TestUtils::MinimalisticView <IteratorOfIn
 template <typename RandomIt>
 struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
 {
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticViewWithSubscription() = default;
+#endif
+
     MinimalisticViewWithSubscription(RandomIt it_begin, RandomIt it_end)
         : TestUtils::MinimalisticView<RandomIt>(it_begin, it_end)
     {
@@ -118,15 +122,12 @@ check_contains_host_pointer_in_onedpl_zip_view()
 
         auto zip_view = oneapi::dpl::__ranges::make_zip_view(all_view1, all_view2);
 
-#if !TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN
         static_assert(contains_host_pointer_v<decltype(all_view1)> == false);
-#endif
         static_assert(contains_host_pointer_v<decltype(all_view2)> == true);
         static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == true);
     }
 
-#if !TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN
     {
         IntVector vec;
 
@@ -139,7 +140,6 @@ check_contains_host_pointer_in_onedpl_zip_view()
         static_assert(contains_host_pointer_v<decltype(zip_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(zip_view)> == false);
     }
-#endif
 }
 
 struct SimpleMapForPermutationView
