@@ -326,13 +326,13 @@
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::view concept in GCC10 standard library is broken
+// std::ranges::view concept in libstdc++ 10 is broken
 #define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::views::all in GCC10 standard library is broken
+// std::ranges::views::all in libstdc++ 10 is broken
 #define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// contains_host_pointer checks with std::ranges::views::all are broken in GCC10 standard library
+// contains_host_pointer checks with std::ranges::views::all in libstdc++ 10 is broken
 #define TEST_GCC10_CONTAINS_HOST_POINTER_BROKEN (_GLIBCXX_RELEASE == 10)
 
 #endif // _TEST_CONFIG_H
