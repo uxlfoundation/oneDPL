@@ -726,7 +726,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
         /*apex*/ __ignore_op);
-    return __future(__event, __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
+    return __future(std::move(__event), __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
 }
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
@@ -823,7 +823,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}}, _CopyOp{_ReduceOp{}, _Assign{}});
-        return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
 
@@ -890,7 +890,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         auto&& [__event, __payload] =
             __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
                                               __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
-        return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
 
@@ -1114,7 +1114,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
                               _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
-    return __future(__event, __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+    return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
 }
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
