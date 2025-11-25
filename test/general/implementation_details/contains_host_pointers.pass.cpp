@@ -72,6 +72,7 @@ check_contains_host_pointer()
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == true);
     }
 
+#if !TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN
     {
         IntVector vec;
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
@@ -86,6 +87,7 @@ check_contains_host_pointer()
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
     }
+#endif
 }
 
 // oneapi::dpl::__ranges::__contains_host_pointer functional with oneapi::dpl::__ranges::zip_view

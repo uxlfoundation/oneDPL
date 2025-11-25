@@ -329,4 +329,7 @@
 // std::ranges::view concept in GCC10 standard library is broken
 #define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN (_GLIBCXX_RELEASE == 10)
 
+// std::ranges::view::all in GCC10 standard library is broken
+#define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN (_GLIBCXX_RELEASE == 10)
+
 #endif // _TEST_CONFIG_H
