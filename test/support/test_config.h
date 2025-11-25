@@ -326,12 +326,12 @@
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::view concept in libstdc++ 10 is broken, and in GCC 11 is broken prior to GCC 11.4 (i.e., __GLIBCXX__ < 20230714)
+// std::ranges::view concept requires default_initializable prior to GCC 11.4 (i.e., __GLIBCXX__ < 20230714)
 #if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
-#    define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN                                                                 \
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
         ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230714))
 #else
-#    define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN 0
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
 
 // std::ranges::views::all in libstdc++ 10 is broken prior to GCC 12.1

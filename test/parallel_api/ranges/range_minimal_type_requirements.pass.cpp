@@ -271,7 +271,7 @@ int main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 
     call_test_algo<test_count>    ();
     call_test_algo<test_merge>    ();
@@ -280,7 +280,7 @@ int main()
 
     bProcessed = true;
 
-#endif // _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN
+#endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }

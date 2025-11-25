@@ -1352,6 +1352,10 @@ struct MinimalisticRange
     RandomIt it_begin;
     RandomIt it_end;
 
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticRange() = default;
+#endif
+
     MinimalisticRange(RandomIt it_begin, RandomIt it_end)
         : it_begin(it_begin), it_end(it_end)
     {
@@ -1377,6 +1381,10 @@ end(MinimalisticRange<RandomIt> range)
 template <typename RandomIt>
 struct MinimalisticView : MinimalisticRange<RandomIt>, std::ranges::view_base
 {
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticView() = default;
+#endif
+
     MinimalisticView(RandomIt it_begin, RandomIt it_end)
         : MinimalisticRange<RandomIt>(it_begin, it_end)
     {
