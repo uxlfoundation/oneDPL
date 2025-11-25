@@ -33,19 +33,19 @@ the sycl backend expects a `sycl::event` to be returned from user-submitted func
 
 ## Proposed Design to Enable Easier Customization of Backends
 
-This proposal presents a flexible backend system based on a `backend_base` template class and a `default_backend_impl` template that can be used for most resource types.
+This proposal presents a flexible backend system based on a `backend_base` template class and a `core_resource_backend` template that can be used for most resource types.
 
 ### Key Components
 
 1. **`backend_base<ResourceType>`**: A proposed base class template that implements core backend functionality to inherit from.
-2. **`default_backend_impl<BaseResourceType, ResourceType, ResourceAdapter>`**: A proposed template that backend developers partially specialize to implement a backend for a specific `BaseResourceType`. The implementation provides instrumentation and resource management for that base resource type. A `ResourceAdapter` can be used to transform a `ResourceType` into a `BaseResourceType`, allowing reuse of an existing `default_backend_impl` specialization.
+2. **`core_resource_backend<CoreResourceType, ResourceType, ResourceAdapter>`**: A proposed template that backend developers partially specialize to implement a backend for a specific `CoreResourceType`. The implementation provides instrumentation and resource management for that core resource type. A `ResourceAdapter` can be used to transform a `ResourceType` into a `CoreResourceType`, allowing reuse of an existing `core_resource_backend` specialization.
 
-   The `BaseResourceType` is the fundamental resource type that a backend knows how to instrument and submit work to. For example, `sycl::queue` is the base resource type for the SYCL backend. When using adapters, the `ResourceType` may differ from the `BaseResourceType` (e.g., storing `sycl::queue*` while the backend operates on `sycl::queue`).
+   The `CoreResourceType` is the fundamental resource type that a backend knows how to instrument and submit work to. For example, `sycl::queue` is the core resource type for the SYCL backend. When using adapters, the `ResourceType` may differ from the `CoreResourceType` (e.g., storing `sycl::queue*` while the backend operates on `sycl::queue`).
 
-   Note: any partial specialization of `default_backend_impl` that targets a particular `BaseResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
+   Note: any partial specialization of `core_resource_backend` that targets a particular `CoreResourceType` must be declared in the namespace `oneapi::dpl::experimental`.
 
-3. **`default_backend<ResourceType, ResourceAdapter>`**: A wrapper template that **users instantiate** when creating policies. It automatically determines the `BaseResourceType` by applying the `ResourceAdapter` to the `ResourceType`, then inherits from the appropriate `default_backend_impl` specialization.
-4. **A SYCL specialization of default_backend_impl**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
+3. **`default_backend<ResourceType, ResourceAdapter>`**: A wrapper template that **users instantiate** when creating policies. It automatically determines the `CoreResourceType` by applying the `ResourceAdapter` to the `ResourceType`, then inherits from the appropriate `core_resource_backend` specialization.
+4. **A SYCL specialization of core_resource_backend**: A specialized implementation for `sycl::queue` resources that handles SYCL-specific event management and profiling. Using an adapter, it is possible to reuse this for other types that can be adapted into a `sycl::queue`, such as a `sycl::queue *` or a struct that contains a `sycl::queue`.
 
 ### Core Features
 
@@ -66,9 +66,9 @@ Backends must now explicitly accept a (possibly empty) variadic list of reportin
 
 ```cpp
 template <typename... ReportingReqs>
-default_backend_impl(ReportingReqs... reqs);
+core_resource_backend(ReportingReqs... reqs);
 template <typename... ReportingReqs>
-default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter, ReportingReqs... reqs);
+core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapter, ReportingReqs... reqs);
 ```
 
 - Compile-time checks: The backend implementation should `static_assert` if any type in `ReportingReqs...` is not a supported reporting requirement for that backend. This makes unsupported combinations a hard error at compile time.
@@ -113,20 +113,20 @@ class backend_base
 };
 ```
 
-The `default_backend_impl` class extends `backend_base` with adapter support but requires the
-`BaseResourceType` to be known:
+The `core_resource_backend` class extends `backend_base` with adapter support but requires the
+`CoreResourceType` to be known:
 
 ```cpp
-template< typename BaseResourceType, typename ResourceType, typename ResourceAdapter >
-class default_backend_impl : public backend_base<ResourceType> {
+template< typename CoreResourceType, typename ResourceType, typename ResourceAdapter >
+class core_resource_backend : public backend_base<ResourceType> {
 public:
     using resource_type = ResourceType;
     using my_base = backend_base<ResourceType>;
 
     template <typename... ReportingReqs>
-    default_backend_impl(ReportingReqs... reqs) : my_base(reqs...) {}
+    core_resource_backend(ReportingReqs... reqs) : my_base(reqs...) {}
     template <typename... ReportingReqs>
-    default_backend_impl(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportingReqs... reqs)
+    core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportingReqs... reqs)
        : my_base(u, reqs...), adapter(adapter_) {}
 
   private:
@@ -134,17 +134,17 @@ public:
 };
 ```
 
-The class `default_backend` determines the `BaseResourceType` from the `ResourceType` and the type
+The class `default_backend` determines the `CoreResourceType` from the `ResourceType` and the type
 returned by `Adapter`.
 
 ```cpp
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
 class default_backend :
-  public default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+  public core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
          ResourceType, ResourceAdapter>
 {
   public:
-    using base_t = default_backend_impl<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
+    using base_t = core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>, ResourceType, ResourceAdapter>;
 
     template <typename... ReportingReqs>
     default_backend(ReportingReqs... reqs) : base_t(reqs...)
@@ -156,18 +156,18 @@ class default_backend :
     }
 };
 ```
-The `default_backend_impl` class is partially specialized to create a specific backend. Adapters allow backends
+The `core_resource_backend` class is partially specialized to create a specific backend. Adapters allow backends
 to be reused by providing an adapter to transform a custom resource type `ResourceType` into a known
-resource type `BaseResourceType` with an already existing `default_backend_impl`. 
+resource type `CoreResourceType` with an already existing `core_resource_backend`. 
 
 ### Default Implementation Details
 
 The `backend_base` provides **minimal** default implementations for the core backend methods. Importantly:
 - `backend_base` does **not** support any reporting requirements by default
 - The default `scratch_t` template is empty (provides `no_scratch_t`)
-- Resource-specific features (timing, profiling, etc.) require specializing `default_backend_impl` for your `BaseResourceType`
+- Resource-specific features (timing, profiling, etc.) require specializing `core_resource_backend` for your `CoreResourceType`
 
-To create a backend with reporting support, you must create a partial specialization of `default_backend_impl` for your specific `BaseResourceType` (e.g., `sycl::queue`). The specialization should:
+To create a backend with reporting support, you must create a partial specialization of `core_resource_backend` for your specific `CoreResourceType` (e.g., `sycl::queue`). The specialization should:
 1. Accept reporting requirements in the constructor
 2. Implement `scratch_t<ReportingReqs...>` with appropriate storage
 3. Override `submit()` to perform instrumentation
@@ -203,7 +203,7 @@ reuse a `sycl::queue` with `sycl::queue *` resources, the user's function is sti
 
 #### Instrumentation Support
 Where instrumentation is required, the customizer will need to override `submit` with their own code which performs instrumentation
-for the `BaseResourceType`. The overload must call the user function as is done in the default, and return an object which wraps the return from the user function and supports `wait()` which blocks until the user's job has completed and `unwrap()` which returns the user's returned object.
+for the `CoreResourceType`. The overload must call the user function as is done in the default, and return an object which wraps the return from the user function and supports `wait()` which blocks until the user's job has completed and `unwrap()` which returns the user's returned object.
 
 **Rationale**: It is not possible to define a general mechanism for instrumenting code execution for arbitrary custom resource types. Each resource type has different characteristics for timing, profiling, and performance measurement. Specialized backends (like the SYCL backend) can override these methods to provide resource-specific instrumentation.
 
@@ -223,13 +223,13 @@ auto get_submission_group() {
     return default_submission_group{resources_, adapter};
 }
 ```
-The `default_submission_group` attempts to call `wait()` on the `BaseResourceType` by applying
+The `default_submission_group` attempts to call `wait()` on the `CoreResourceType` by applying
 `adapter` to the `ResourceType` object.
 :
 ```cpp
 class default_submission_group {
     void wait() {
-        if constexpr (has_wait_method_v<BaseResourceType>) {
+        if constexpr (has_wait_method_v<CoreResourceType>) {
             for (auto& resource : resources_) {
                 adapter(resource).wait();
             }
@@ -239,13 +239,13 @@ class default_submission_group {
     }
 };
 ```
-**Assumptions**: For group waiting to work, the `BaseResourceType` must provide a `wait()` method
+**Assumptions**: For group waiting to work, the `CoreResourceType` must provide a `wait()` method
 that blocks until all work on that resource is complete. Note that the default implementation does
 not wait on each submission, but instead waits on each resource. This works for some resource types,
 such as SYCL queues or oneTBB `task_group` objects, but may not be applicable to all types. Using
 an adapter may allow types that do not provide a `wait` function to be used if they have a `wait` function
 when adapted.  For example, an adapter `[](auto pointer){ return *pointer; }`, would allow `sycl::queue *`
-or `tbb::task_group *` to be used as a `ResourceType`, because when adapted to their `BaseResourceType`
+or `tbb::task_group *` to be used as a `ResourceType`, because when adapted to their `CoreResourceType`
 of `sycl::queue` or `tbb::task_group`, they define `wait` methods.
 
 For SYCL resources, the proposed specialization provides:
@@ -257,7 +257,7 @@ For SYCL resources, the proposed specialization provides:
 ## Support for Custom Resource Types
 
 A primary goal of this proposal is to enable easy use of custom resource types with Dynamic Selection. The default backend can work many resource types, making it straightforward to integrate new kinds of compute resources without writing complex backend code. If the defaults are not sufficient, a custom backend can be written by 
-partially specializing `default_backend_impl`. 
+partially specializing `core_resource_backend`. 
 
 ### Custom Resource Example: TBB Task Groups and Arenas
 
@@ -304,12 +304,12 @@ ex::wait(rr.get_submission_group());
 
 If `ArenaAndGroup` will be used with policies that require instrumentation, then
 a custom backend that provides `submit` with the appropriate instrumentation
-will be needed. This can be done by partially specializing `default_backend_impl`.
+will be needed. This can be done by partially specializing `core_resource_backend`.
 
 ## Adapter Support for Resource Transformation
 
 For some cases a backend may be reused if a custom resource `ResourceType` can be transformed
-into a resource `BaseResourceType` that already has a well defined backed. This proposal
+into a resource `CoreResourceType` that already has a well defined backed. This proposal
 includes support for **resource adapters**. Adapters allow backends to work with resources that
 require transformation before use.
 
@@ -320,17 +320,17 @@ expected by the backend functions. The default adapter is `oneapi::dpl::identity
 no transformation.
 
 **Adapter Requirements**:
-- Must be callable with `ResourceType` and return `BaseResourceType`
+- Must be callable with `ResourceType` and return `CoreResourceType`
 - Is stored in the backend and applied during submission operations
-- The user function still receives the **unadapted** `ResourceType` (not the `BaseResourceType`)
+- The user function still receives the **unadapted** `ResourceType` (not the `CoreResourceType`)
 
 For example, with an adapter that dereferences pointers (`[](auto* p) { return *p; }`):
 - Resources are stored as `sycl::queue*` (the `ResourceType`)
-- Backend internally works with `sycl::queue` (the `BaseResourceType`)
+- Backend internally works with `sycl::queue` (the `CoreResourceType`)
 - User-provided functions receive `sycl::queue*` as their argument
 
 Custom backends must support a resource and resource adapter as the first two arguments of a constructor, respectively.
-This is built in if using `default_backend_impl`, but custom backends must provide their own custom support for resource
+This is built in if using `core_resource_backend`, but custom backends must provide their own custom support for resource
 adapters.
 
 ### Example: Pointer Dereferencing
@@ -366,7 +366,7 @@ Testing for these changes should include:
  * Test of SYCL backend using a `sycl::queue*` as the execution resource with a dereferencing resource adapter function.
  * Test of automatic backend selection by providing a universe of resources to construction which are used to deduce the backend.
  * Test of a policy using `default_backend` (which uses the default `backend_base` implementation) for a simple resource type.
- * Test of a custom backend created by partially specializing `default_backend_impl` with minimally overridden `submit()` for a simple resource type.
+ * Test of a custom backend created by partially specializing `core_resource_backend` with minimally overridden `submit()` for a simple resource type.
 
 ## Explored Alternatives
 
