@@ -332,7 +332,7 @@
 // 3. Microsoft STL (MSVC) - prior to VS 2022 17.0
 #if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
-        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230714))
+        ((_GLIBCXX_RELEASE < 11) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230714))
 #elif defined(_LIBCPP_VERSION)
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE (_LIBCPP_VERSION < 13000)
 #elif defined(_MSVC_STL_VERSION) && defined(_MSVC_STL_UPDATE)
