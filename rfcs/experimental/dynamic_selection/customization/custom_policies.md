@@ -16,8 +16,8 @@ type `T` satisfies the *Policy* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `p.try_select_impl(args…)` | Returns selection within `std::shared_ptr` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns null `std::shared_ptr`. |
-| `p.select_impl(args...)` | Loops calling `try_select_impl(args...)` until a selection is returned. |
+| `p.try_select(args…)` | Returns selection within `std::shared_ptr` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns null `std::shared_ptr`. |
+| `p.select_impl(args...)` | Loops calling `try_select(args...)` until a selection is returned. |
 | `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::shared_ptr` holding the submission object. Returns null shared_ptr if no resource is available for selection. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
@@ -103,12 +103,12 @@ With this contract, if `p.submit(f, args…)` is well-formed, a generic implemen
 
 While the **public API** no longer exposes `select()`, policy authors still need a way to implement selection logic. The `policy_base` class provides generic implementations of the submission methods, but delegates the actual selection decision to a protected method that derived policies must implement:
 
-**`try_select_impl(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::shared_ptr<selection_type>` containing the selected resource, or an empty `std::shared_ptr` (null shared_ptr) if no resource is available.
+**`try_select(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::shared_ptr<selection_type>` containing the selected resource, or an empty `std::shared_ptr` (null shared_ptr) if no resource is available.
 
 This separation means:
 - **Users** only call `ex::submit()`, `ex::submit_and_wait()`, or `ex::try_submit()` (never `select()`)
-- **Policy authors** implement `try_select_impl()` as the internal primitive
-- **`policy_base`** provides generic submission methods that call `try_select_impl()` internally and forward to the backend
+- **Policy authors** implement `try_select()` as the internal primitive
+- **`policy_base`** provides generic submission methods that call `try_select()` internally and forward to the backend
 
 This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
 
@@ -126,7 +126,7 @@ customization while providing sensible defaults for resource management and back
 ### Key Components
 
 1. **`policy_base<Policy, ResourceAdapter, Backend, ReportReqs...>`**: A proposed base class template that implements the core policy functionality using CRTP. Note that `ResourceType` is not a template parameter; instead, it is deduced from the backend as `resource_type = decltype(unwrap(typename Backend::execution_resource_t))`.
-2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select_impl()` and `initialize_impl()` methods.
+2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select()` and `initialize_state()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
 ### Core Features
@@ -134,7 +134,7 @@ customization while providing sensible defaults for resource management and back
 - **Resource Management**: Policies store and manage resources through the backend
 - **Backend Integration**: All backend operations are handled by the base class
 - **Initialization Support**: Both immediate and deferred initialization patterns
-- **Selection Delegation**: The base class delegates selection to the derived policy's `try_select_impl()` method
+- **Selection Delegation**: The base class delegates selection to the derived policy's `try_select()` method
 - **Submission Handling**: All submission operations are forwarded to the backend
 - **Error Handling**: Proper error checking for uninitialized policies
 
@@ -185,22 +185,22 @@ class policy_base
 
 Derived policies need only implement two key methods:
 
-#### `initialize_impl()` Implementation
+#### `initialize_state()` Implementation
 Handles policy-specific initialization after the backend is set up:
 
 ```cpp
-void initialize_impl() {
+void initialize_state() {
     // Policy-specific initialization logic
     // Backend and resources are already available via base_t::get_resources()
 }
 ```
 
-#### `try_select_impl()` Implementation
+#### `try_select()` Implementation
 Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
-std::shared_ptr<selection_type> try_select_impl(Args&&... args) {
+std::shared_ptr<selection_type> try_select(Args&&... args) {
     // Implement selection logic here
     // If a resource is available:
     //   return std::make_shared<selection_type>(selection_type{*this, selected_resource});
@@ -208,7 +208,7 @@ std::shared_ptr<selection_type> try_select_impl(Args&&... args) {
     //   return std::shared_ptr<selection_type>{}; // empty/null shared_ptr
 }
 ```
-Providing `try_select_impl()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
+Providing `try_select()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
 via generic implementations depending only on the selection logic.
 
 #### Task Reporting Requirements
@@ -255,7 +255,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
     }
 
     // Policy-specific initialization
-    void initialize_impl() {
+    void initialize_state() {
         if (!selector_) {
             selector_ = std::make_shared<selector_t>();
         }
@@ -267,7 +267,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     // Round-robin selection strategy
     template <typename... Args>
-    std::shared_ptr<selection_type> try_select_impl(Args&&...) {
+    std::shared_ptr<selection_type> try_select(Args&&...) {
         if (selector_) {
             resource_container_size_t current;
             // Atomic round-robin selection
@@ -336,7 +336,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
   public:
 
     // Initialization with load tracking setup
-    void initialize_impl() {
+    void initialize_state() {
         auto u = base_t::get_resources();
         resources_.clear();
         resources_.reserve(u.size());
@@ -347,7 +347,7 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Load-based selection strategy
     template <typename... Args>
-    std::shared_ptr<selection_type> try_select_impl(Args&&...) {
+    std::shared_ptr<selection_type> try_select(Args&&...) {
         if (!resources_.empty()) {
             // Find resource with minimum load
             auto min_resource = std::min_element(resources_.begin(), resources_.end(),
@@ -379,7 +379,7 @@ The proposed design provides several advantages:
 To implement a custom policy using this design:
 
 1. **Inherit from `policy_base`**: Use CRTP pattern with appropriate template parameters
-2. **Implement `initialize_impl()`**: Set up any policy-specific state after backend initialization
+2. **Implement `initialize_state()`**: Set up any policy-specific state after backend initialization
 3. **Implement `select_impl()`**: Implement the core selection strategy
 4. **Optional: Custom selection handle**: For policies requiring specialized reporting or state tracking
 5. **Constructor support**: Provide constructors for immediate and deferred initialization
@@ -406,7 +406,7 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     random_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) 
         : gen_(rd_()) { base_t::initialize(u, adapter); }
 
-    void initialize_impl() {
+    void initialize_state() {
         resources_ = base_t::get_resources();
     }
 
@@ -432,7 +432,7 @@ Testing for these changes should include:
 
 ## Open Questions
  * The generic `submit` and `submit_and_wait` design has an infinite loop in its generic implementation if a resource is
-   never available from the policy's `try_select_impl`. If a resource is never available, this is generally an issue with
+   never available from the policy's `try_select`. If a resource is never available, this is generally an issue with
    the backend or the environment. However, there is some question as to whether there should be some external programmatic
    way to break out of this loop if it is taking too long; currently there is none. This is possible future work to
    investigate and possibly add a way to abort submission. TBB's `concurrent_queue` has a possible system we could use

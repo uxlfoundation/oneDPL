@@ -87,14 +87,14 @@ classDiagram
         #selector_: shared_ptr~selector_t~
         +round_robin_policy()
         +round_robin_policy(vector~ResourceType~)
-        +initialize_impl()
-        +try_select_impl(args...) shared_ptr~selection_type~
+        +initialize_state()
+        +try_select(args...) shared_ptr~selection_type~
     }
 
-    class default_backend_impl~BaseResourceType, ResourceType, ResourceAdapter~ {
+    class core_resource_backend~CoreResourceType, ResourceType, ResourceAdapter~ {
         -adapter: ResourceAdapter
-        +default_backend_impl(ReportReqs...)
-        +default_backend_impl(vector~ResourceType~, adapter, ReportReqs...)
+        +core_resource_backend(ReportReqs...)
+        +core_resource_backend(vector~ResourceType~, adapter, ReportReqs...)
         +submit(s, f, args...) //to override default
     }
 
@@ -105,8 +105,8 @@ classDiagram
 
     %% Relationships - Inheritance
     round_robin_policy --|> policy_base : inherits (CRTP)
-    default_backend_impl --|> backend_base : inherits
-    default_backend --|> default_backend_impl : inherits
+    core_resource_backend --|> backend_base : inherits
+    default_backend --|> core_resource_backend : inherits
 
     %% Relationships - Composition
     policy_base *-- default_backend : backend_
@@ -125,7 +125,7 @@ classDiagram
     %% Notes
     note for FreeFunctions "Entry points for users in the form of free functions for submission"
     note for round_robin_policy "Entry points for users in the form of member functions for submission"
-    note for default_backend_impl "Customize by partially specializing for specific BaseResourceType inheriting from backend_base"
+    note for core_resource_backend "Customize by partially specializing for specific CoreResourceType inheriting from backend_base"
     note for round_robin_policy "Customize at this level with minimal effort inheriting from policy_base"
 
 ```

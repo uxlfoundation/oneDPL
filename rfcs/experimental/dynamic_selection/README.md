@@ -111,7 +111,7 @@ The type `T` satisfies *Policy* if given,
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
-| `p.try_select_impl(args…)` | Returns `std::shared_ptr<selection_t<T>>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
+| `p.try_select(args…)` | Returns `std::shared_ptr<selection_t<T>>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 
 | *Optional*  | Description |
 | `p.select_impl(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
@@ -213,7 +213,7 @@ The type `T` satisfies the *Backend* contract if given,
 | Signature | Description |
 | --------- | ----------- |
 | `vector<typename policy_traits<P>::resource_type> get_resources(P&& p);` | Returns the resources associated with the Policy `p`. |
-| `template<Policy P, typename F, typename... Args> auto try_submit(P&& p, F&& f, Args&&... args);` | Attempts to select a resource. If successful, invokes `f` with the unwrapped resource selected by `p.try_select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. Returns a `std::shared_ptr` of the submission type if successful, or a null `std::shared_ptr` if unable to select a resource. |
+| `template<Policy P, typename F, typename... Args> auto try_submit(P&& p, F&& f, Args&&... args);` | Attempts to select a resource. If successful, invokes `f` with the unwrapped resource selected by `p.try_select(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. Returns a `std::shared_ptr` of the submission type if successful, or a null `std::shared_ptr` if unable to select a resource. |
 | `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. If the policy provides `try_submit()` but not `submit()`, this function will retry with backoff until a resource becomes available. |
 | `template<Policy P, typename F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args` and then waits on object returned by the `f`. |
 | `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
