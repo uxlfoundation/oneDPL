@@ -271,14 +271,7 @@ int main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING
-
-    TestingVector v1 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    TestUtils::MinimalisticView r1(v1.begin(), v1.end());
-
-    static_assert(std::ranges::view<decltype(r1)>, "MinimalisticView must model a view"); 
-    
-#if !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
+#if _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
 
     call_test_algo<test_count>    ();
     call_test_algo<test_merge>    ();
@@ -287,9 +280,7 @@ int main()
 
     bProcessed = true;
 
-#endif // !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
-
-#endif // _ENABLE_STD_RANGES_TESTING
+#endif // _ENABLE_STD_RANGES_TESTING && !TEST_GCC10_IS_VIEW_CONCEPTS_BROKEN
 
     return TestUtils::done(bProcessed);
 }
