@@ -11,6 +11,7 @@
 #define _ONEDPL_DYNAMIC_LOAD_POLICY_H
 
 #include <mutex>
+#include <optional>
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_impl/default_backend.h"

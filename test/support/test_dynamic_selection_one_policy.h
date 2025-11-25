@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_DYNAMIC_SELECTION_ONE_POLICY_H
 #define _ONEDPL_DYNAMIC_SELECTION_ONE_POLICY_H
 
+#include <optional>
 #include "oneapi/dpl/dynamic_selection"
 
 enum tracing_enum
