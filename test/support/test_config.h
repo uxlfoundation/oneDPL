@@ -342,12 +342,20 @@
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
 
-// std::ranges::views::all in libstdc++ 10 is broken prior to GCC 12.1
+// std::ranges::viewable_range concept is broken:
+// 1. GNU libstdc++ (GCC)  - prior to GCC 12.1
+// 2. LLVM libc++          - prior to LLVM 14.0
+// 3. Microsoft STL (MSVC) - prior to VS 2022 17.14
 #if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
-#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN                                                                      \
-        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20220507))
+#    define TEST_STD_RANGES_VIEWABLE_RANGE_CONCEPT_BROKEN                                                              \
+        ((_GLIBCXX_RELEASE < 12) || (_GLIBCXX_RELEASE == 12 && __GLIBCXX__ < 20220507))
+#elif defined(_LIBCPP_VERSION)
+#    define TEST_STD_RANGES_VIEWABLE_RANGE_CONCEPT_BROKEN (_LIBCPP_VERSION < 14000)
+#elif defined(_MSVC_STL_VERSION) && defined(_MSVC_STL_UPDATE)
+#    define TEST_STD_RANGES_VIEWABLE_RANGE_CONCEPT_BROKEN                                                              \
+        (_MSVC_STL_VERSION < 143 || (_MSVC_STL_VERSION == 143 && _MSVC_STL_UPDATE < 202505))
 #else
-#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN 0
+#    define TEST_STD_RANGES_VIEWABLE_RANGE_CONCEPT_BROKEN 0
 #endif
 
 #endif // _TEST_CONFIG_H
