@@ -329,7 +329,7 @@
 // std::ranges::view concept in GCC10 standard library is broken
 #define TEST_GCC10_STD_RANGES_VIEW_CONCEPTS_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// std::ranges::view::all in GCC10 standard library is broken
+// std::ranges::views::all in GCC10 standard library is broken
 #define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN (_GLIBCXX_RELEASE == 10)
 
 // contains_host_pointer checks with std::ranges::views::all are broken in GCC10 standard library
