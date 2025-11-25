@@ -335,8 +335,9 @@
 #endif
 
 // std::ranges::views::all in libstdc++ 10 is broken prior to GCC 12.1
-#if defined(_GLIBCXX_RELEASE)
-#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN ((_GLIBCXX_RELEASE > 0) && (_GLIBCXX_RELEASE < 12))
+#if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
+#    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN                                                                      \
+        ((_GLIBCXX_RELEASE == 10) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20220507))
 #else
 #    define TEST_GCC10_STD_RANGES_VIEW_ALL_BROKEN 0
 #endif
