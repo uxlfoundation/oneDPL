@@ -42,7 +42,7 @@ classDiagram
     direction BT
 
     %% Backend Layer
-    class backend_base~ResourceType, Backend~ {
+    class backend_base~ResourceType~ {
         #resources_: vector~ResourceType~
         +backend_base(ReportReqs...)
         +backend_base(vector~ResourceType~, ReportReqs...)
