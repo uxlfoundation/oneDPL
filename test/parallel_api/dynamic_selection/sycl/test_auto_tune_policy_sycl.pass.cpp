@@ -274,6 +274,13 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
     return 0;
 }
 
+bool
+check_profiling_enabled(const sycl::queue& q)
+{
+    return  (q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag) &&
+             q.template has_property<sycl::property::queue::enable_profiling>());
+}
+
 
 static inline void
 build_auto_tune_universe(std::vector<sycl::queue>& u)
@@ -284,7 +291,8 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     {
         auto device_gpu1 = sycl::device(sycl::gpu_selector_v);
         sycl::queue gpu1_queue{device_gpu1, prop_list};
-        u.push_back(gpu1_queue);
+        if (check_profiling_enabled(gpu1_queue))
+            u.push_back(gpu1_queue);
     }
     catch (const sycl::exception&)
     {
@@ -294,7 +302,8 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     {
         auto device_gpu2 = sycl::device(sycl::gpu_selector_v);
         sycl::queue gpu2_queue{device_gpu2, prop_list};
-        u.push_back(gpu2_queue);
+        if (check_profiling_enabled(gpu2_queue))
+            u.push_back(gpu2_queue);
     }
     catch (const sycl::exception&)
     {
@@ -304,7 +313,8 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     {
         auto device_gpu3 = sycl::device(sycl::gpu_selector_v);
         sycl::queue gpu3_queue{device_gpu3, prop_list};
-        u.push_back(gpu3_queue);
+        if (check_profiling_enabled(gpu3_queue))
+            u.push_back(gpu3_queue);
     }
     catch (const sycl::exception&)
     {
@@ -314,7 +324,8 @@ build_auto_tune_universe(std::vector<sycl::queue>& u)
     {
         auto device_gpu4 = sycl::device(sycl::gpu_selector_v);
         sycl::queue gpu4_queue{device_gpu4, prop_list};
-        u.push_back(gpu4_queue);
+        if (check_profiling_enabled(gpu4_queue))
+            u.push_back(gpu4_queue);
     }
     catch (const sycl::exception&)
     {
