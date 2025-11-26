@@ -1399,6 +1399,17 @@ end(MinimalisticView<RandomIt> view)
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
+struct DefaultInitializedToOne
+{
+    int value = 1;
+
+    friend bool
+    operator==(const DefaultInitializedToOne& x, const DefaultInitializedToOne& y)
+    {
+        return x.value == y.value;
+    }
+};
+
 } /* namespace TestUtils */
 
 #endif // _UTILS_H
