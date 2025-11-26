@@ -492,7 +492,11 @@ struct take_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __n;
+    _Size __n = {};
+
+    constexpr take_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
     {
@@ -534,7 +538,11 @@ struct drop_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __n;
+    _Size __n = {};
+
+    constexpr drop_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
     {
