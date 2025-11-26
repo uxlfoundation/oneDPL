@@ -58,6 +58,8 @@ When using ``policy_base``, your custom policy must implement:
 - ``try_select(Args...)`` - Returns ``std::optional<selection_type>``, empty if no resource available
 - ``initialize_state(Args...)`` - Performs policy-specific initialization
 
+The ``policy_base`` automatically provides the required ``backend_type`` and ``resource_type`` aliases.
+
 Example: Custom Random Policy
 ------------------------------
 
@@ -110,6 +112,7 @@ selects from available resources:
     }
 
   public:
+    using backend_type = Backend;
     using resource_type = typename base_t::resource_type;
 
     // Constructors
@@ -198,8 +201,10 @@ Required Members
 
   * - Member
     - Description
+  * - ``backend_type``
+    - Type alias for the backend type
   * - ``resource_type``
-    - Type of resources (e.g., ``sycl::queue``)
+    - Type alias for resources (e.g., ``sycl::queue``)
   * - ``get_resources()``
     - Returns ``std::vector<resource_type>``
   * - ``try_select(Args...)``

@@ -101,6 +101,36 @@ Your backend specialization must provide:
   * - ``get_submission_group()``
     - Return object with ``wait()`` for all submissions
 
+Wait Type
+^^^^^^^^^
+
+Backends control the return type requirements for user-submitted functions through
+the optional ``wait_type`` type alias:
+
+**If your backend defines wait_type**: User functions must return a type implicitly convertible to that type.
+This is required when the backend needs a specific type to instrument or track operations.
+
+.. code:: cpp
+
+  class my_backend {
+  public:
+    using wait_type = my_event_type;  // User functions MUST return my_event_type
+    // ...
+  };
+
+**If your backend does NOT define wait_type**: User functions may return any *waitable-type*
+(any type with a ``wait()`` member function which can be used to synchronize with the operation's completion).
+
+.. code:: cpp
+
+  class my_backend {
+    // No wait_type defined - user functions can return any waitable-type
+    // ...
+  };
+
+The SYCL backend defines ``wait_type = sycl::event`` because it requires SYCL events
+for profiling and proper dependency tracking.
+
 Optional Members
 ^^^^^^^^^^^^^^^^
 
@@ -155,7 +185,7 @@ requests it. To enable lazy reporting:
 
 1. Store submission handles/events internally
 2. Implement ``lazy_report()`` to check and report completed tasks
-3. The trait ``backend_traits::lazy_report_v<Backend>`` will be true
+3. The trait ``backend_traits<Backend>::lazy_report_v`` will be ``true``
 
 .. code:: cpp
 

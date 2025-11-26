@@ -168,19 +168,45 @@ Backend traits provide compile-time information about backend capabilities:
 
 .. code:: cpp
 
-  namespace oneapi::dpl::experimental::backend_traits {
-
-    // True if backend requires lazy_report() to be called
+  namespace oneapi::dpl::experimental
+  {
     template<typename Backend>
-    inline constexpr bool lazy_report_v = /* ... */;
+    struct backend_traits {
 
-    // Scratch space type for selection handles
-    template<typename Backend, typename... ReportReqs>
-    using selection_scratch_t = /* ... */;
+      // True if backend has explicit wait_type
+      static constexpr bool has_wait_type_v = /* ... */;
 
+      // If has_wait_type_v is True, specific type required from user functions.
+      // If has_wait_type_v is False, void (user functions must return waitable-type)
+      using wait_type = /* ... */;
+
+      // True if backend requires lazy_report() to be called
+      static constexpr bool lazy_report_v = /* ... */;
+
+      // Scratch space type for selection handles
+      template<typename... ReportReqs>
+      using selection_scratch_t = /* ... */;
+    };
   }
 
 These traits are primarily used by policy implementers, not application developers.
+
+Wait Type Requirements
+^^^^^^^^^^^^^^^^^^^^^^
+
+Backends specify return type requirements for user-submitted functions through the
+``wait_type`` member:
+
+**Explicit wait_type**: If a backend defines a ``wait_type`` alias (e.g., ``using wait_type = sycl::event;``),
+user functions **must** return that specific type. This is typically required when the backend
+needs to instrument or track asynchronous operations.
+
+**No explicit wait_type**: If a backend does not define a ``wait_type`` alias, user functions
+may return any *waitable-type*. A waitable-type is any type with a ``wait()`` member function
+that can be called to synchronize with the operation's completion.
+
+The SYCL backend defines ``wait_type = sycl::event``, requiring user functions to return
+``sycl::event`` for proper instrumentation and synchronization.
 
 Common Backend Patterns
 -----------------------

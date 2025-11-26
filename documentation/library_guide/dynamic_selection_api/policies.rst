@@ -18,24 +18,53 @@ Traits can be used to determine useful type information about policies.
   
     template<typename Policy>
     struct policy_traits {
-      using resource_type = typename std::decay_t<Policy>::resource_type;
+      // backend associated with this policy
+      using backend_type = /*...*/;
+
+      // resource type associated with this policy
+      using resource_type = /* ... */;
+
+      // True if explicit wait_type is required by associated backend, False otherwise
+      static constexpr bool has_wait_type_v = /* ... */;
+
+      // If has_wait_type_v is True, type required to be returned by user submitted functions.
+      // If has_wait_type_v is False, void
+      using wait_type = typename std::decay_t<Policy>::wait_type;
     };
-  
-  
-    template<typename Policy>
+
+    template <typename Policy>
+    using backend_t = typename policy_traits<Policy>::backend_type;
+
+    template <typename Policy>
     using resource_t = typename policy_traits<Policy>::resource_type;
-  
+
+    template <typename Policy>
+    inline constexpr bool has_wait_type_v = typename policy_traits<Policy>::has_wait_type_v;
+
+    template <typename Policy>
+    using wait_t = typename policy_traits<Policy>::wait_type;
   }
 
-``selection_t<Policy>`` is the type returned by calls to ``select`` when using policy of type ``Policy``. 
-Calling ``unwrap`` on an object of type ``selection_t<Policy>`` returns an object of 
-type ``resource_t<Policy>``. When using the default SYCL backend, ``resource_t<Policy>`` 
-is ``sycl::queue`` and ``sycl::wait_t<Policy>`` is ``sycl::event``.  The user functions
-passed to ``submit`` and ``submit_and_wait`` are expected to have a signature of:
+When using the default SYCL backend, ``resource_t<Policy>`` is ``sycl::queue`` and ``wait_t<Policy>`` is
+``sycl::event``.  
+
+If ``has_wait_type_v<Policy>`` is ``true``, the user functions passed to submission functions are expected to have a
+signature of:
 
 .. code:: cpp
 
   wait_t<Policy> user_function(resource_t<Policy>, ...);
+
+If ``has_wait_type_v<Policy>`` is ``false``, the user functions passed to submission functions are expected to have a
+signature of:
+
+.. code:: cpp
+
+  T user_function(resource_t<Policy>, ...);
+
+Where ``T`` is a *waitable-type*. A *waitable-type* is a type which has a member method ``wait()`` that can be called to
+wait for completion of the submitted work.
+
 
 Common Reference Semantics
 --------------------------

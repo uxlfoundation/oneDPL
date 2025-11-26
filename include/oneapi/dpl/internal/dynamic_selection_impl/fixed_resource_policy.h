@@ -78,7 +78,6 @@ class fixed_resource_policy
 
   public:
     using resource_type = typename base_t::resource_type;
-    using typename base_t::backend_t;
 
     fixed_resource_policy(std::size_t index = 0) { base_t::initialize(index); }
     fixed_resource_policy(deferred_initialization_t) {}

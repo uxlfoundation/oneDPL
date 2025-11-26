@@ -93,7 +93,6 @@ class round_robin_policy
     }
 
   public:
-    using typename base_t::backend_t;
 
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}

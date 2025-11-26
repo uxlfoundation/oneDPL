@@ -29,15 +29,13 @@ namespace experimental
 template <typename Policy, typename ResourceAdapter, typename Backend, typename... ReportReqs>
 class policy_base
 {
-  protected:
-    using backend_t = Backend;
-
   public:
-    using resource_type = typename backend_t::resource_type;
+    using backend_type = Backend;
+    using resource_type = typename backend_type::resource_type;
   protected:
     using selection_type = basic_selection_handle_t<Policy, resource_type>;
     using report_reqs_t = std::tuple<ReportReqs...>;
-    std::shared_ptr<backend_t> backend_;
+    std::shared_ptr<backend_type> backend_;
 
   public:
     auto
@@ -52,7 +50,7 @@ class policy_base
     initialize()
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(ReportReqs{}...);
+            backend_ = std::make_shared<backend_type>(ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_state();
     }
 
@@ -62,7 +60,7 @@ class policy_base
     initialize(Arg0&& arg0, Args&&... args)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(ReportReqs{}...);
+            backend_ = std::make_shared<backend_type>(ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
     }
 
@@ -70,7 +68,7 @@ class policy_base
     initialize(const std::vector<resource_type>& u)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
+            backend_ = std::make_shared<backend_type>(u, oneapi::dpl::identity(), ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_state();
     }
 
@@ -80,7 +78,7 @@ class policy_base
     initialize(const std::vector<resource_type>& u, Arg0&& arg0, Args&&... args)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(u, oneapi::dpl::identity(), ReportReqs{}...);
+            backend_ = std::make_shared<backend_type>(u, oneapi::dpl::identity(), ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
     }
 
@@ -89,7 +87,7 @@ class policy_base
     initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
     {
         if (!backend_)
-            backend_ = std::make_shared<backend_t>(u, adapter, ReportReqs{}...);
+            backend_ = std::make_shared<backend_type>(u, adapter, ReportReqs{}...);
         static_cast<Policy*>(this)->initialize_state(args...);
     }
 

@@ -64,7 +64,7 @@ class dynamic_load_policy
 
       public:
         dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {}
-        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_submission_t,
+        using scratch_space_t = typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
                                                                              execution_info::task_completion_t>;
         scratch_space_t scratch_space;
 
@@ -121,7 +121,7 @@ class dynamic_load_policy
     std::optional<selection_type>
     try_select(Args&&...)
     {
-        if constexpr (backend_traits::lazy_report_v<Backend>)
+        if constexpr (backend_traits<Backend>::lazy_report_v)
         {
             this->backend_->lazy_report();
         }

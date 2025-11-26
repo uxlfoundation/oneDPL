@@ -60,7 +60,6 @@ class auto_tune_policy
     using resource_type = typename base_t::resource_type;
 
   protected:
-    using backend_t = Backend;
     using size_type = typename std::vector<typename Backend::resource_type>::size_type;
     using timing_t = uint64_t;
 
@@ -175,7 +174,7 @@ class auto_tune_policy
         std::shared_ptr<tuner_t> tuner_;
 
       public:
-        using scratch_space_t = typename backend_traits::selection_scratch_t<Backend, execution_info::task_time_t>;
+        using scratch_space_t = typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_time_t>;
         scratch_space_t scratch_space;
 
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
@@ -208,7 +207,7 @@ class auto_tune_policy
     try_select(Function&& f, Args&&... args)
     {
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
-        if constexpr (backend_traits::lazy_report_v<Backend>)
+        if constexpr (backend_traits<Backend>::lazy_report_v)
         {
             this->backend_->lazy_report();
         }
