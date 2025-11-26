@@ -92,8 +92,10 @@ The type `T` satisfies *Policy* if given,
 
 | Policy Traits* | Description |
 | -------------- | ----------- |
+| `policy_traits<T>::backed_type`, `backend_t<T>` | The backend type associated with this policy. |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
-| `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
+| `policy_traits<T>::has_wait_type_v`, `has_wait_type_v<T>` | Boolean which determines if explicit wait type has been provided by the backend associated with this policy. 
+| `policy_traits<T>::wait_type`, `wait_type_t<T>` | If `has_wait_type_v<T>` is `true`, contains the type that must returned by the user function object for this policy, otherwise `void`. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
 
 The default implementation of these traits depends on types defined in the Policy:
 
@@ -222,7 +224,7 @@ availability of features required for these reporting requirements.
 
 `auto_tune_policy` requires `task_time_t`, and `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
 
-When creating a selection handle for your policy, you must include a member variable `scratch_space` of type `backend_traits::selection_scratch_t<Backend, reqs...>` where `Backend` is your backend and `reqs` is a variadic pack of reporting requirements needed for your policy. This allows the backend to have the storage it needs allocated alongside each selection handle to implement instrumentation for the reporting requirements.
+When creating a selection handle for your policy, you must include a member variable `scratch_space` of type `backend_traits<Backend>::template selection_scratch_t<reqs...>` where `Backend` is your backend and `reqs` is a variadic pack of reporting requirements needed for your policy. This allows the backend to have the storage it needs allocated alongside each selection handle to implement instrumentation for the reporting requirements.
 
 ## Examples of Policy Implementation
 
