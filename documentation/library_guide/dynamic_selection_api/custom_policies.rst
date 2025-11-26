@@ -243,6 +243,6 @@ Best Practices
 See Also
 --------
 
-- :doc:`custom_backends` - Creating custom backends for new resource types
+- :doc:`backends` - Overview of the backend concept
 - :doc:`policies` - Overview of the policy concept
 - :doc:`functions` - Free functions for working with policies

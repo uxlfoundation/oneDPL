@@ -212,6 +212,6 @@ Policies using backends with lazy reporting will automatically call
 See Also
 --------
 
-- :doc:`custom_policies` - Creating custom selection policies
+- :doc:`backends` - Overview of the backends concept
 - :doc:`policies` - Overview of the policy concept
 - :doc:`functions` - Free functions for working with backends and policies
