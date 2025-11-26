@@ -452,6 +452,10 @@ struct reverse_view_simple
 
     _R __r;
 
+    constexpr reverse_view_simple()
+        requires std::default_initializable<_R>
+    = default;
+
     reverse_view_simple(_R __rng) : __r(__rng) {}
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
