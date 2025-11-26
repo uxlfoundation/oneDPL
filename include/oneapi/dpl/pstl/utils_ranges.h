@@ -790,6 +790,10 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
 
     _View __base;
 
+    constexpr __subscription_impl_view_simple()
+        requires std::default_initializable<_View>
+    = default;
+
     constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
 
     constexpr auto
