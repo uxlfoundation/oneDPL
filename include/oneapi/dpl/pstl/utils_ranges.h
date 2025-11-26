@@ -734,6 +734,10 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<is_map_view<_M>::
     _Source __src; //Iterator (pointer) or unreachable range
     _M __map;      //permutation range
 
+    constexpr permutation_view_simple()
+        requires std::default_initializable<_Source> && std::default_initializable<_M>
+    = default;
+
     permutation_view_simple(_Source __data, _M __m) : __src(__data), __map(__m) {}
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
