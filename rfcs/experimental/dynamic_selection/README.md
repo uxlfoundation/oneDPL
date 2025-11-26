@@ -126,7 +126,10 @@ The type `T` satisfies *Policy* if given,
 
 | Policy Traits | Description |
 | ------- | ----------- |
-| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
+| `policy_traits<T>::backed_type`, `backend_t<T>` | The backend type associated with this policy. |
+| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
+| `policy_traits<T>::has_wait_type_v`, `has_wait_type_v<T>` | Boolean which determines if explicit wait type has been provided by the backend associated with this policy. 
+| `policy_traits<T>::wait_type`, `wait_type_t<T>` | If `has_wait_type_v<T>` is `true`, contains the type that must returned by the user function object for this policy, otherwise `void`. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
 
 The default implementation of these traits depends on types defined in the Policy:
 
@@ -226,6 +229,14 @@ The type `T` satisfies the *Backend* contract if given,
 | `template <typename S, typename Info> void report(S&& s, const Info& i);` | `S` is a *Selection*. Reports that event `i` has occurred if `s.report(i)` is available. |
 | `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | `S` is a *Selection*. Reports a new value `v` for event `i` if `s.report(i, v)` is available. |
 
+| Backend Traits* | Description |
+| ------- | ----------- |
+| `backend_traits<Backend>::has_wait_type_v` | `true` if a *Backend* requires that submission functions return a explicitly specified type. `false` if *Backend* only requires that a *waitable-type* is required.  |
+| `backend_traits<Backend>::wait_type` | if `has_wait_type_v` is `true`, contains the type that the *Backend* explicitly requires submission functions to return, `void` otherwise. |
+| `backend_traits<Backend>::lazy_report_v` | `true` if a *Backend* requires that a *Policy* calls `lazy_report()` before making a selection. |
+| `backend_traits<Backend>::template has_scratch_space_v<Reqs...>` | `true` if a *Backend* has a scratch space requirement for instrumentation and fulfulling reporting requirements with this set of Execution Info `Reqs...`, `false` otherwise. |
+| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space requirements for instrumentation and fulfilling reporting requirements with this set of Execution Info `Reqs...`. |
+
 ### Policy Member Functions vs Free Functions
 
 Policies may provide submission operations either as member functions or rely on the free function implementations:
@@ -294,13 +305,10 @@ Some execution information (like `task_completion` or `task_time`) cannot be rep
 A backend that uses lazy reporting should:
 1. Store submission handles/events internally when `submit()` is called
 2. Define a `lazy_report()` member function that checks for completed tasks and reports their execution information
-3. The backend trait `backend_traits::lazy_report_v<Backend>` will be `true` for such backends
+3. The backend trait `backend_traits<Backend>::lazy_report_v` will be `true` for such backends
 
 Policies that use backends with lazy reporting should call `backend.lazy_report()` before making selection decisions to ensure they have the most recent execution information.
 
-| Backend Traits* | Description |
-| ------- | ----------- |
-| `lazy_report_v<B>` | `true` if a *Backend* requires that a *Policy* calls `lazy_report()` before making a selection. |
 
 The example below shows how a policy's selection function might check this trait and call `lazy_report()` before it
 applies its selection logic.
@@ -310,7 +318,7 @@ applies its selection logic.
     selection_type
     select(Function&& f, Args&&... args)
     {
-        if constexpr (backend_traits::lazy_report_v<Backend>)
+        if constexpr (backend_traits<Backend>::lazy_report_v)
             backend_->lazy_report();
 
         // rest of selection logic ....
