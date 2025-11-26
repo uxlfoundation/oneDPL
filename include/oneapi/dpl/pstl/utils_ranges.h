@@ -584,7 +584,11 @@ struct replicate_start_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __repl_count;
+    _Size __repl_count = {};
+
+    constexpr replicate_start_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     replicate_start_view_simple(_R __rng, _Size __replicate_count) : __r(__rng), __repl_count(__replicate_count)
     {
