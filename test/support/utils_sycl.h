@@ -426,5 +426,18 @@ test4buffers(int mult = kDefaultMultValue)
     test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
+template <typename Acc>
+auto
+get_accessor_ptr(const Acc& acc)
+{
+#if _ONEDPL_SYCL2020_LOCAL_ACC_GET_MULTI_PTR_PRESENT
+    return acc.template get_multi_ptr<sycl::access::decorated::no>().get();
+#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(70000)
+    return acc.get_pointer();
+#else
+#    error "sycl::accessor::get_multi_ptr is not supported, and no alternative is available"
+#endif
+}
+
 } /* namespace TestUtils */
 #endif // _UTILS_SYCL_H
