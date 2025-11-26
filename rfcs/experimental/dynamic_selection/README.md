@@ -205,6 +205,7 @@ The type `T` satisfies the *Backend* contract if given,
 
 | *Optional* | Description |
 | --------------------- | ----------- |
+| `wait_type` | Type alias specifying the exact type user functions must return. If not defined, user functions may return any *waitable-type* (a type with a `wait()` member function, which waits for submitted work to complete). |
 | `void lazy_report()` | If defined by a backend, this function must be called by a policy before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
 <a id="free_functions_id"></a>

@@ -28,8 +28,15 @@ Currently, these functions and traits (except the `lazy_report` function) must b
 in each backend. The experimental backend for SYCL queues is a bit more than 250 lines of code. 
 With sensible defaults, this proposal aims to simplify backend writing to open up Dynamic Selection to more use cases.
 
-A backend is expected to document the expected `/*ret_type*/` from user-submitted functions, but it is not encoded as a trait. For instance,
-the sycl backend expects a `sycl::event` to be returned from user-submitted functions, and this is required for instrumentation to work.
+### Wait Type Requirements
+
+Backends specify return type requirements for user-submitted functions through an optional `wait_type` type alias:
+
+**Explicit wait_type**: If a backend defines a `wait_type` alias (e.g., `using wait_type = sycl::event;`), user functions **must** return that specific type. This is typically required when the backend needs to instrument or track asynchronous operations.
+
+**No explicit wait_type**: If a backend does not define a `wait_type` alias, user functions may return any *waitable-type*. A waitable-type is any type with a `wait()` member function that can be called to synchronize with the operation's completion.
+
+The SYCL backend defines `wait_type = sycl::event`, requiring user functions to return `sycl::event` for proper instrumentation and synchronization. This requirement allows the SYCL backend to properly track dependencies and collect profiling information.
 
 ## Proposed Design to Enable Easier Customization of Backends
 
@@ -78,6 +85,9 @@ struct scratch_space_t {
 For example, the SYCL backend must provide `scratch_space_t<execution_info::task_time_t>` that includes an extra `sycl::event` to store the "start" profiling tag. Policies will use the backend trait `backend_traits::selection_scratch_t<Backend, ReportingReqs...>` (or equivalent) to declare the `scratch_space` member inside selection handle types.
 
 Policy selection handles must declare a member `scratch_space` of the appropriate `scratch_space_t` instantiation in their selection handles when they require reporting.
+
+- Wait type (optional): Backends may define a `wait_type` type alias to specify the exact type that user-submitted functions must return. If not defined, user functions may return any waitable-type (a type with a `wait()` member function). Defining a `wait_type` may be necessary to properly instrument jobs to support some reporting requirements. The sycl backend defines a `using wait_type = sycl::event` as it is required for checking completion of submitted asynchronous work for instrumentation.
+
 
 ### Implementation Details
 
