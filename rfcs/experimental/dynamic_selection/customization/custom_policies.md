@@ -16,9 +16,9 @@ type `T` satisfies the *Policy* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `p.try_select(args…)` | Returns selection within `std::shared_ptr` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns null `std::shared_ptr`. |
+| `p.try_select(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
 | `p.select_impl(args...)` | Loops calling `try_select(args...)` until a selection is returned. |
-| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::shared_ptr` holding the submission object. Returns null shared_ptr if no resource is available for selection. |
+| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::optional` holding the submission object. Returns empty `std::optional` if no resource is available for selection. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. Delegates to backend. |
@@ -65,7 +65,7 @@ Policies must implement at least one of the following member functions to suppor
 
 | at least one *Must* be well-formed | Description |
 | ---------------------------------- | ----------- |
-| `p.try_submit(f, args…)` | Returns `std::shared_ptr<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns null shared_ptr if no resource is available for selection |
+| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty `std::optional` if no resource is available for selection |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 | `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
 
@@ -114,7 +114,7 @@ With this contract, if `p.submit(f, args…)` is well-formed, a generic implemen
 
 While the **public API** no longer exposes `select()`, policy authors still need a way to implement selection logic. The `policy_base` class provides generic implementations of the submission methods, but delegates the actual selection decision to a protected method that derived policies must implement:
 
-**`try_select(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::shared_ptr<selection_type>` containing the selected resource, or an empty `std::shared_ptr` (null shared_ptr) if no resource is available.
+**`try_select(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::optional<selection_type>` containing the selected resource, or an empty `std::optional` if no resource is available.
 
 This separation means:
 - **Users** only call `ex::submit()`, `ex::submit_and_wait()`, or `ex::try_submit()` (never `select()`)
@@ -202,12 +202,12 @@ Implements the policy's resource selection strategy:
 
 ```cpp
 template <typename... Args>
-std::shared_ptr<selection_type> try_select(Args&&... args) {
+std::optional<selection_type> try_select(Args&&... args) {
     // Implement selection logic here
     // If a resource is available:
-    //   return std::make_shared<selection_type>(selection_type{*this, selected_resource});
+    //   return std::make_optional<selection_type>(selection_type{*this, selected_resource});
     // If no resource is available:
-    //   return std::shared_ptr<selection_type>{}; // empty/null shared_ptr
+    //   return std::nullopt; // empty optional
 }
 ```
 Providing `try_select()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
@@ -272,7 +272,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 
     // Round-robin selection strategy
     template <typename... Args>
-    std::shared_ptr<selection_type> try_select(Args&&...) {
+    std::optional<selection_type> try_select(Args&&...) {
         if (selector_) {
             resource_container_size_t current;
             // Atomic round-robin selection
@@ -282,7 +282,7 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
                 if (selector_->next_context_.compare_exchange_strong(current, next)) 
                     break;
             }
-            return std::make_shared<selection_type>(*this, selector_->resources_[current]);
+            return std::make_optional<selection_type>(*this, selector_->resources_[current]);
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -352,14 +352,14 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Load-based selection strategy
     template <typename... Args>
-    std::shared_ptr<selection_type> try_select(Args&&...) {
+    std::optional<selection_type> try_select(Args&&...) {
         if (!resources_.empty()) {
             // Find resource with minimum load
             auto min_resource = std::min_element(resources_.begin(), resources_.end(),
                 [](const auto& a, const auto& b) {
                     return a->load_.load() < b->load_.load();
                 });
-            return std::make_shared<selection_type>(*this, *min_resource);
+            return std::make_optional<selection_type>(*this, *min_resource);
         } else {
             throw std::logic_error("select called before initialization");
         }
@@ -417,11 +417,11 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     }
 
     template <typename... Args>
-    std::shared_ptr<selection_type> select_impl(Args&&...) {
+    std::optional<selection_type> select_impl(Args&&...) {
         if (!resources_.empty()) {
             std::uniform_int_distribution<> dis(0, resources_.size() - 1);
             auto index = dis(gen_);
-            return std::make_shared<selection_type>(*this, resources_[index]);
+            return std::make_optional<selection_type>(*this, resources_[index]);
         } else {
             throw std::logic_error("select called before initialization");
         }
