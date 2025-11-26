@@ -269,11 +269,14 @@ For advanced use cases, you can create custom backends to support new resource
 types or provide specialized instrumentation. Custom backends are created by
 specializing ``core_resource_backend`` for your resource type.
 
-See :doc:`custom_backends` for detailed information on creating custom backends.
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+
+   custom_backends
 
 See Also
 --------
 
-- :doc:`custom_backends` - Creating custom backends for new resource types
 - :doc:`policies` - Overview of selection policies
 - :doc:`functions` - Free functions for working with backends and policies

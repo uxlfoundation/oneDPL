@@ -151,28 +151,20 @@ More detailed information about the built-in policies is provided in the followi
    dynamic_load_policy
    auto_tune_policy
 
-Backends
---------
-
-Policies work with backends that manage resources and handle work submission.
-For more information about backends:
-
-.. toctree::
-   :maxdepth: 2
-   :titlesonly:
-
-   backends
-
 Customization
 -------------
 
-The dynamic selection API supports creating custom policies and backends
-to extend the system with new selection strategies or resource types:
+The dynamic selection API supports creating custom policies to extend the system
+with new selection strategies or resource types:
 
 .. toctree::
    :maxdepth: 2
    :titlesonly:
 
    custom_policies
-   custom_backends
 
+See Also
+--------
+
+- :doc:`backends` - Overview of backends for managing resources and handling work submission
+- :doc:`functions` - Free functions for working with backends and policies
