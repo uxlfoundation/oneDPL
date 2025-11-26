@@ -15,39 +15,30 @@ will achieve a good load balancing.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend> 
-    class round_robin_policy {
-    protected:
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
+    class round_robin_policy
+      : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
+    {
       public:
-        round_robin_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      
-      // constructors
-      round_robin_policy(deferred_initialization_t);
-      round_robin_policy();
-      round_robin_policy(const std::vector<resource_type>& u);
-  
-      // deferred initializer
-      void initialize();
-      void initialize(const std::vector<resource_type>& u);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        round_robin_policy(deferred_initialization_t);
+        round_robin_policy();
+        round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {});
+
+        // deferred initializer
+        void initialize();
+        void initialize(const std::vector<resource_type>& u);
+        // other implementation defined functions...
     };
   
   }
   
 This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``. It can also be used with ``policy_traits``.
+``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
+It can also be used with ``policy_traits``.
 
 Example
 -------
@@ -141,27 +132,27 @@ Constructors
 .. list-table:: ``round_robin_policy`` constructors
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``round_robin_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``round_robin_policy();``
     - Initialized to use the default set of resources.
-  * - ``round_robin_policy(const std::vector<resource_type>& u);``
-    - Overrides the default set of resources.
+  * - ``round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {});``
+    - Overrides the default set of resources with an optional resource adapter.
 
 Deferred Initialization
 -----------------------
 
-A ``round_robin_policy`` that was constructed with deferred initialization must be 
+A ``round_robin_policy`` that was constructed with deferred initialization must be
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table:: ``round_robin_policy`` initializers
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``initialize();``
@@ -172,13 +163,13 @@ to select or submit.
 Queries
 -------
 
-A ``round_robin_policy`` has ``get_resources`` and ``get_submission_group`` 
+A ``round_robin_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table:: ``round_robin_policy`` queries
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``

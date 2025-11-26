@@ -16,41 +16,31 @@ The fixed-resource policy always returns the same resource selection.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend>
-    class fixed_resource_policy {
-    protected:
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
+    class fixed_resource_policy
+      : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
+    {
       public:
-        fixed_resource_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      
-      // constructors
-      fixed_resource_policy(deferred_initialization_t);
-      fixed_resource_policy(std::size_t offset = 0);
-      fixed_resource_policy(const std::vector<resource_type>& u,
-                            std::size_t offset = 0);
-  
-      // deferred initializers
-      void initialize(std::size_t offset = 0);
-      void initialize(const std::vector<resource_type>& u,
-                      std::size_t offset = 0);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        fixed_resource_policy(deferred_initialization_t);
+        fixed_resource_policy(std::size_t index = 0);
+        fixed_resource_policy(const std::vector<ResourceType>& u, std::size_t index = 0);
+        fixed_resource_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter, std::size_t index = 0);
+
+        // deferred initializer
+        void initialize(std::size_t index = 0);
+        void initialize(const std::vector<resource_type>& u, std::size_t index = 0);
+        // other implementation defined functions...
     };
-  
+
   }
-  
+
 This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``. It can also be used with ``policy_traits``.
+``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
+It can also be used with ``policy_traits``.
 
 
 Example
@@ -157,49 +147,51 @@ and then remain constant.
 Constructors
 ------------
 
-``fixed_resource_policy`` provides three constructors.
+``fixed_resource_policy`` provides four constructors.
 
 .. list-table:: ``fixed_resource_policy`` constructors
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``fixed_resource_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
-  * - ``fixed_resource_policy(std::size_t offset = 0);``
+  * - ``fixed_resource_policy(std::size_t index = 0);``
     - Sets the index for the resource to be selected. Uses the default set of resources.
-  * - ``fixed_resource_policy(const std::vector<resource_type>& u, std::size_t offset = 0);``
+  * - ``fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0);``
     - Overrides the default set of resources and optionally sets the index for the resource to be selected.
+  * - ``fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0);``
+    - Overrides the default set of resources with a resource adapter and optionally sets the index for the resource to be selected.
 
 Deferred Initialization
 -----------------------
 
-A ``fixed_resource_policy`` that was constructed with deferred initialization must be 
+A ``fixed_resource_policy`` that was constructed with deferred initialization must be
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table:: ``fixed_resource_policy`` initializers
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
-  * - ``initialize(std::size_t offset = 0);``
+  * - ``initialize(std::size_t index = 0);``
     - Sets the index for the resource to be selected. Uses the default set of resources.
-  * - ``initialize(const std::vector<resource_type>& u, std::size_t offset = 0);``
+  * - ``initialize(const std::vector<resource_type>& u, std::size_t index = 0);``
     - Overrides the default set of resources and optionally sets the index for the resource to be selected.
 
 Queries
 -------
 
-A ``fixed_resource_policy`` has ``get_resources`` and ``get_submission_group`` 
-member functions. 
+A ``fixed_resource_policy`` has ``get_resources`` and ``get_submission_group``
+member functions.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table:: ``fixed_resource_policy`` queries
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``

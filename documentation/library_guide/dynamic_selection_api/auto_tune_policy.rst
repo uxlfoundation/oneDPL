@@ -20,41 +20,48 @@ the profiling phase periodically.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend> 
-    class auto_tune_policy {
-    protected:
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
+    class auto_tune_policy
+      : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>,
+                           ResourceAdapter, Backend, execution_info::task_time_t>
+    {
       public:
-        auto_tune_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      
-      // constructors
-      auto_tune_policy(deferred_initialization_t);
-      auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);
-      auto_tune_policy(const std::vector<resource_type>& u,
-                       uint64_t resample_interval_in_milliseconds = 0);
-  
-      // deferred initializer
-      void initialize(uint64_t resample_interval_in_milliseconds = 0);
-      void initialize(const std::vector<resource_type>& u,
-                      uint64_t resample_interval_in_milliseconds = 0);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        auto_tune_policy(deferred_initialization_t);
+        auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);
+        auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {},
+                         uint64_t resample_interval_in_milliseconds = 0);
+
+        // deferred initializer
+        void initialize(uint64_t resample_interval_in_milliseconds = 0);
+        void initialize(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);
+        // other implementation defined functions...
     };
-  
+
   }
-  
+
 This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``. It can also be used with ``policy_traits``.
+``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
+It can also be used with ``policy_traits``.
+
+Task Identification with KeyArgs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The template parameter pack ``KeyArgs`` allows the policy to track performance for submitted jobs.
+By default (empty ``KeyArgs``), all invocations of the same function share performance history.
+When ``KeyArgs`` are specified, the policy uses both the function pointer and the specified
+arguments to create a unique key for tracking performance.
+
+**Important**: The number of ``KeyArgs`` types must exactly match the number of extra arguments
+passed to the user function beyond the resource. This requirement is enforced at compile-time.
+
+For example, ``auto_tune_policy<sycl::queue, oneapi::dpl::identity, default_backend, std::size_t>``
+will track performance separately for each distinct ``std::size_t`` argument value, useful
+when performance varies with problem size. Here, one ``KeyArg`` type corresponds to one extra
+argument passed to the function after the ``sycl::queue``.
 
 Example
 -------
@@ -164,15 +171,15 @@ Constructors
 .. list-table:: ``auto_tune_policy`` constructors
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``auto_tune_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);``
     - Initialized to use the default set of resources. An optional resampling interval can be provided.
-  * - ``auto_tune_policy(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
-    - Overrides the default set of resources. An optional resampling interval can be provided.
+  * - ``auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {}, uint64_t resample_interval_in_milliseconds = 0);``
+    - Overrides the default set of resources with an optional resource adapter. An optional resampling interval can be provided.
 
 .. Note::
 
@@ -187,10 +194,10 @@ An ``auto_tune_policy`` that was constructed with deferred initialization must b
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table:: ``auto_tune_policy`` initializers
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``initialize(uint64_t resample_interval_in_milliseconds = 0);``
@@ -207,13 +214,13 @@ to select or submit.
 Queries
 -------
 
-A ``auto_tune_policy`` has ``get_resources`` and ``get_submission_group`` 
+An ``auto_tune_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table:: ``auto_tune_policy`` queries
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``
