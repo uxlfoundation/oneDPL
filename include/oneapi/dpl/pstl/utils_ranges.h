@@ -631,6 +631,10 @@ struct transform_view_simple
     _R __r;
     _F __f;
 
+    constexpr transform_view_simple()
+        requires std::default_initializable<_R> && std::default_initializable<_F>
+    = default;
+
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
     auto operator[](Idx __i) const -> decltype(__f(__r[__i]))
