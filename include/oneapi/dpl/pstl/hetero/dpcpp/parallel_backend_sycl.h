@@ -2184,6 +2184,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     const auto __n = oneapi::dpl::__ranges::__size(__keys);
     assert(__n > 0);
 
+    using __size_type = decltype(__n);
     using __diff_type = oneapi::dpl::__internal::__difference_t<_Range1>;
     using __key_type = oneapi::dpl::__internal::__value_t<_Range1>;
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
@@ -2257,7 +2258,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
-        __view3.size(), __view4.size(),
+        __size_type(__view3.size()), __size_type(__view4.size()),
         __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
         unseq_backend::__brick_assign_key_position{})[0];
 
