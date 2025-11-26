@@ -83,7 +83,7 @@ struct scratch_space_t {
 };
 ```
 
-For example, the SYCL backend must provide `scratch_space_t<execution_info::task_time_t>` that includes an extra `sycl::event` to store the "start" profiling tag. Policies will use the backend trait `backend_traits::selection_scratch_t<Backend, ReportingReqs...>` (or equivalent) to declare the `scratch_space` member inside selection handle types.
+For example, the SYCL backend must provide `scratch_space_t<execution_info::task_time_t>` that includes an extra `sycl::event` to store the "start" profiling tag. Policies will use the backend trait `backend_traits<Backend>::template selection_scratch_t<ReportingReqs...>` (or equivalent) to declare the `scratch_space` member inside selection handle types.
 
 Policy selection handles must declare a member `scratch_space` of the appropriate `scratch_space_t` instantiation in their selection handles when they require reporting.
 
