@@ -86,11 +86,12 @@ An example, demonstrating this difference, is shown below:
   
   namespace ex = oneapi::dpl::experimental;
   
-  template<typename Selection>
-  void print_type(const std::string &str, Selection s) {
-    auto q = ex::unwrap(s);
-    std::cout << str << ((q.get_device().is_gpu()) ? "gpu\n" : "cpu\n");
-  }
+  struct print_type{
+    sycl::event operator()(sycl::queue q, const std::string &str) {
+      std::cout << str << ((q.get_device().is_gpu()) ? "gpu\n" : "cpu\n");
+      return sycl::event{};
+    }
+  };
   
   int main() {
     ex::round_robin_policy p1{ { sycl::queue{ sycl::cpu_selector_v },  
@@ -99,27 +100,20 @@ An example, demonstrating this difference, is shown below:
                                  sycl::queue{ sycl::gpu_selector_v } } };
     ex::round_robin_policy p3 = p2; 
   
+    print_type prnt{};
+
     std::cout << "independent instances operate independently\n";
-    auto p1s1 = ex::select(p1);  
-    print_type("p1 selection 1: ", p1s1);
-    auto p2s1 = ex::select(p2);  
-    print_type("p2 selection 1: ", p2s1);
-    auto p2s2 = ex::select(p2);  
-    print_type("p2 selection 2: ", p2s2);
-    auto p1s2 = ex::select(p1);  
-    print_type("p1 selection 2: ", p1s2);
+    ex::submit_and_wait(p1, prnt, "p1 selection 1: ");
+    ex::submit_and_wait(p2, prnt, "p2 selection 1: ");
+    ex::submit_and_wait(p2, prnt, "p2 selection 2: ");
+    ex::submit_and_wait(p1, prnt, "p1 selection 2: ");
   
     std::cout << "\ncopies provide common reference semantics\n";
-    auto p3s1 = ex::select(p3);  
-    print_type("p3 (copy of p2) selection 1: ", p3s1);
-    auto p2s3 = ex::select(p2);  
-    print_type("p2 selection 3: ", p2s3);
-    auto p3s2 = ex::select(p3);  
-    print_type("p3 (copy of p2) selection 2: ", p3s2);
-    auto p3s3 = ex::select(p3);  
-    print_type("p3 (copy of p2) selection 3: ", p3s3);
-    auto p2s4 = ex::select(p2);  
-    print_type("p2 selection 4: ", p2s4);
+    ex::submit_and_wait(p3, prnt, "p3 (copy of p2) selection 1: ");
+    ex::submit_and_wait(p2, prnt, "p2 selection 3: ");
+    ex::submit_and_wait(p3, prnt, "p3 (copy of p2) selection 2: ");
+    ex::submit_and_wait(p3, prnt, "p3 (copy of p2) selection 3: ");
+    ex::submit_and_wait(p2, prnt, "p2 selection 4: ");
   }
 
 The output of this example is::
