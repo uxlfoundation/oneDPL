@@ -2218,8 +2218,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     // TODO: replace wgroup size with segment size based on platform specifics.
     auto __intermediate_result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec), __view1, __view2, __n,
-        __n, __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
+        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key1_wrapper>(__exec),
+        __view1, __view2, __n, __view2.size(),
+        __internal::__parallel_reduce_by_segment_fallback_fn1<_BinaryPredicate>{__binary_pred, __wgroup_size},
         unseq_backend::__brick_assign_key_position{})[0];
 
     //reduce by segment
@@ -2256,7 +2257,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
     auto __result_end = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__assign_key2_wrapper>(__exec), __view3, __view4,
-        __view3.size(), __view3.size(),
+        __view3.size(), __view4.size(),
         __internal::__parallel_reduce_by_segment_fallback_fn2<_BinaryPredicate>{__binary_pred},
         unseq_backend::__brick_assign_key_position{})[0];
 
