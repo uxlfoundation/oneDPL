@@ -689,7 +689,11 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<oneapi::dpl::__in
 
     _Source __src; //Iterator (pointer) or unreachable range
     _M __map_fn;
-    _Size __size;
+    _Size __size = {};
+
+    constexpr permutation_view_simple()
+        requires std::default_initializable<_Source> && std::default_initializable<_M>
+    = default;
 
     permutation_view_simple(_Source __data, _M __m, _Size __s) : __src(__data), __map_fn(__m), __size(__s) {}
 
