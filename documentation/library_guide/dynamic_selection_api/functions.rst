@@ -255,7 +255,7 @@ available for a well formed policy with existing resources.
 available resources, such as a custom policy which has hard capacity limits
 on specific devices.
 
-The standard ``submit`` function uses ``try_submit`` internally and retries
+The ``submit`` function uses ``try_submit`` internally and retries
 with backoff when no resource is available.
 
 Policy Queries
