@@ -176,7 +176,10 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
         ResourceAdapter adapter_;
 
       public:
-        submission_group(const std::vector<resource_type>& v, ResourceAdapter adapter) : resources_(v), adapter_(adapter) {}
+        submission_group(const std::vector<resource_type>& v, ResourceAdapter adapter)
+            : resources_(v), adapter_(adapter)
+        {
+        }
 
         void
         wait()
@@ -234,8 +237,9 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
     auto
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
-        static_assert(std::is_convertible_v<decltype(f(std::declval<resource_type>(), std::forward<Args>(args)...)), wait_type>, 
-                      "Submitted functions for the sycl backend must return a type convertible to the wait_type (sycl::event)");
+        static_assert(
+            std::is_convertible_v<decltype(f(std::declval<resource_type>(), std::forward<Args>(args)...)), wait_type>,
+            "Submitted functions for the sycl backend must return a type convertible to the wait_type (sycl::event)");
         constexpr bool report_task_submission = report_info_v<SelectionHandle, execution_info::task_submission_t>;
         constexpr bool report_task_time = report_value_v<SelectionHandle, execution_info::task_time_t, report_duration>;
 #if !SYCL_EXT_ONEAPI_PROFILING_TAG

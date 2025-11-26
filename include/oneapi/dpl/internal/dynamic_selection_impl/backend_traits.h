@@ -93,7 +93,6 @@ struct wait_trait<Backend, true>
     using type = typename Backend::wait_type;
 };
 
-
 } //namespace internal
 
 template <typename Backend>
@@ -112,7 +111,6 @@ struct backend_traits
     template <typename... Req>
     using selection_scratch_t =
         typename scratch_trait_t_impl<std::decay_t<Backend>, has_scratch_space_v<Req...>, Req...>::type;
-
 };
 
 } // namespace experimental

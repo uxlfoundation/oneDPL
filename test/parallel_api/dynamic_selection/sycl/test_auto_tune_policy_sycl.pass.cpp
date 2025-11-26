@@ -277,10 +277,9 @@ test_auto_submit_and_wait(UniverseContainer u, int best_resource, Adapter adapte
 bool
 check_profiling_enabled(const sycl::queue& q)
 {
-    return  (q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag) &&
-             q.template has_property<sycl::property::queue::enable_profiling>());
+    return (q.get_device().has(sycl::aspect::ext_oneapi_queue_profiling_tag) &&
+            q.template has_property<sycl::property::queue::enable_profiling>());
 }
-
 
 static inline void
 build_auto_tune_universe(std::vector<sycl::queue>& u)

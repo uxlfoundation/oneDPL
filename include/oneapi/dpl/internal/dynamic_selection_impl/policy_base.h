@@ -32,6 +32,7 @@ class policy_base
   public:
     using backend_type = Backend;
     using resource_type = typename backend_type::resource_type;
+
   protected:
     using selection_type = basic_selection_handle_t<Policy, resource_type>;
     using report_reqs_t = std::tuple<ReportReqs...>;

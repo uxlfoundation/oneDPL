@@ -15,8 +15,8 @@
 #include "oneapi/dpl/functional"
 #include "support/test_dynamic_selection_utils.h"
 
-template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
-          typename... Args>
+template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType,
+          typename ResourceAdapter, typename... Args>
 int
 run_round_robin_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter,
                              Args&&... args)
@@ -88,7 +88,6 @@ main()
 
             oneapi::dpl::experimental::round_robin_policy p3({&q1, &q2}, deref_op);
             oneapi::dpl::experimental::round_robin_policy p4{{&q1, &q2}, deref_op};
-
         }
         else
         {

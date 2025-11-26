@@ -158,14 +158,14 @@ class core_resource_backend : public backend_base<ResourceType>
 };
 
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
-class default_backend
-    : public core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
-                                  ResourceType, ResourceAdapter>
+class default_backend : public core_resource_backend<
+                            std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+                            ResourceType, ResourceAdapter>
 {
   public:
     using base_t =
         core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
-                             ResourceType, ResourceAdapter>;
+                              ResourceType, ResourceAdapter>;
 
   public:
     template <typename... ReportReqs>

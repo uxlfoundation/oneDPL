@@ -93,7 +93,6 @@ class round_robin_policy
     }
 
   public:
-
     round_robin_policy() { base_t::initialize(); }
     round_robin_policy(deferred_initialization_t) {}
     round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})

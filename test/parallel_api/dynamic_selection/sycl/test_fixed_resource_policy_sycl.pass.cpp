@@ -14,8 +14,8 @@
 #include "support/test_dynamic_selection_utils.h"
 #include "support/utils.h"
 
-template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType, typename ResourceAdapter,
-          typename... Args>
+template <typename Policy, typename Backend, typename ResourceContainer, typename FunctionType,
+          typename ResourceAdapter, typename... Args>
 int
 run_fixed_resource_policy_tests(const ResourceContainer& resources, const FunctionType& f, ResourceAdapter adapter,
                                 Args&&... args)
@@ -100,7 +100,6 @@ main()
             policy_t p12(u, 1);
             policy_t p13(u, oneapi::dpl::identity());
             policy_t p14(u, oneapi::dpl::identity(), 1);
-
         }
         else
         {

@@ -129,9 +129,8 @@ main()
 
             oneapi::dpl::experimental::dynamic_load_policy p3({&q1, &q2}, deref_op);
             oneapi::dpl::experimental::dynamic_load_policy p4{{&q1, &q2}, deref_op};
-
         }
-        else 
+        else
         {
             std::cout << "SKIPPED: No devices available to build universe (CPU or GPU required)\n";
         }

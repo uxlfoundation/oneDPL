@@ -45,14 +45,12 @@ template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi
 template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
 #endif
-class auto_tune_policy
-    : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
-                                          execution_info::task_time_t>
+class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>,
+                                            ResourceAdapter, Backend, execution_info::task_time_t>
 {
   protected:
-    using base_t =
-        policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter, Backend,
-                    execution_info::task_time_t>;
+    using base_t = policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>, ResourceAdapter,
+                               Backend, execution_info::task_time_t>;
     friend base_t;
 
   public:
@@ -174,7 +172,8 @@ class auto_tune_policy
         std::shared_ptr<tuner_t> tuner_;
 
       public:
-        using scratch_space_t = typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_time_t>;
+        using scratch_space_t =
+            typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_time_t>;
         scratch_space_t scratch_space;
 
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
@@ -249,7 +248,6 @@ class auto_tune_policy
     }
 
   public:
-
     auto_tune_policy(deferred_initialization_t) {}
 
     auto_tune_policy(timing_t resample_time = never_resample) { base_t::initialize(resample_time); }

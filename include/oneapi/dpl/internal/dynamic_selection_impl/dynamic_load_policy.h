@@ -45,7 +45,7 @@ class dynamic_load_policy
 
   public:
     using resource_type = typename base_t::resource_type;
-    
+
   protected:
     using load_t = int;
 
@@ -64,8 +64,9 @@ class dynamic_load_policy
 
       public:
         dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {}
-        using scratch_space_t = typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
-                                                                             execution_info::task_completion_t>;
+        using scratch_space_t =
+            typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
+                                                                           execution_info::task_completion_t>;
         scratch_space_t scratch_space;
 
         auto
@@ -140,8 +141,8 @@ class dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
-            return std::make_optional<selection_type>(dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this),
-                                                    least_loaded);
+            return std::make_optional<selection_type>(
+                dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
         }
         else
         {
@@ -150,7 +151,6 @@ class dynamic_load_policy
     }
 
   public:
-
     dynamic_load_policy() { base_t::initialize(); }
     dynamic_load_policy(deferred_initialization_t) {}
     dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
