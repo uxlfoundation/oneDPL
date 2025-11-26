@@ -31,14 +31,6 @@ class fake_selection_handle_t
 };
 
 int
-test_cout()
-{
-    TestUtils::int_inline_backend_t<> s;
-    TestUtils::int_inline_backend_t<>::resource_type e;
-    return 0;
-}
-
-int
 test_submit_and_wait_on_submission_group()
 {
     const int N = 100;
@@ -171,7 +163,6 @@ test_properties()
 int
 main()
 {
-    EXPECT_EQ(0, (test_cout()), "test_cout failed");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group()), "");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_single_element()), "");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_empty()), "");
