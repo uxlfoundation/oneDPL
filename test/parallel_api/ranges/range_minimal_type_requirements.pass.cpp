@@ -269,8 +269,6 @@ void call_test_algo()
 
 int main()
 {
-    bool bProcessed = false;
-
 #if _ENABLE_STD_RANGES_TESTING
 
     call_test_algo<test_count>    ();
@@ -278,9 +276,7 @@ int main()
     call_test_algo<test_copy_if>  ();
     call_test_algo<test_transform>();
 
-    bProcessed = true;
-
 #endif // _ENABLE_STD_RANGES_TESTING
 
-    return TestUtils::done(bProcessed);
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
