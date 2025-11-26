@@ -16,6 +16,7 @@ type `T` satisfies the *Backend* contract if given,
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
+| `T::resource_type` | Type alias for the resource type. |
 | `resource_t<T>` | Backend trait for the resource type. |
 | `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the return object returned by `f`. Returns an object that satisfies *Submission*. |
 | *Submission* type | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
@@ -58,7 +59,7 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 
 Backends must now explicitly accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
 
-#### Requirements for Backend Implementrrs
+#### Requirements for Backend Implementers
 
 - Constructor contract: backend constructors (both the default and the one accepting a universe of resources) must accept an trailing variadic pack of reporting requirement types. For example:
 

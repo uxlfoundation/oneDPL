@@ -110,6 +110,8 @@ The type `T` satisfies *Policy* if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
+| backend_type          | Type alias for the backend type.  |
+| resource_type         | Type alias for the resource type. |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 | `p.try_select(args…)` | Returns `std::shared_ptr<selection_t<T>>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 
@@ -199,6 +201,7 @@ The type `T` satisfies the *Backend* contract if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
+| `resource_type` | Type alias for the resource type. |
 | `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait on the type returned by it for the job to complete. |
 | `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this backend are complete. |
 | `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |

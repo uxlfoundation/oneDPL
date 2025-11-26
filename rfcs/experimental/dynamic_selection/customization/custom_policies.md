@@ -81,6 +81,8 @@ The type `T` satisfies *Policy* if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
+| `T::backend_type` | Type alias for the backend type used by the policy. |
+| `T::resource_type` | Type alias for the resource type used by the policy. |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 
 | One of the following *must* be well-formed | Description |
@@ -103,6 +105,8 @@ The default implementation of these traits depends on types defined in the Polic
       using resource_type = typename std::decay_t<Policy>::resource_type;
   };
 ```
+
+**Note:** Policies inheriting from `policy_base` automatically have `backend_type` and `resource_type` type aliases provided by the base class, satisfying these requirements without additional code.
 
 With this contract, if `p.submit(f, args…)` is well-formed, a generic implementation of `submit_and_wait` that uses `submit` is available and waits on the result unless overridden. If `p.try_submit(f,args...)` is well-formed, then a generic implementation of `submit` which uses `try_submit` is available unless overridden. Therefore, providing `try_submit` is enough to have implementations for all three submit variants automatically.
 
@@ -132,7 +136,7 @@ customization while providing sensible defaults for resource management and back
 
 ### Key Components
 
-1. **`policy_base<Policy, ResourceAdapter, Backend, ReportReqs...>`**: A proposed base class template that implements the core policy functionality using CRTP. Note that `ResourceType` is not a template parameter; instead, it is deduced from the backend as `resource_type = decltype(unwrap(typename Backend::execution_resource_t))`.
+1. **`policy_base<Policy, ResourceAdapter, Backend, ReportReqs...>`**: A proposed base class template that implements the core policy functionality using CRTP.
 2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select()` and `initialize_state()` methods.
 3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
@@ -146,12 +150,12 @@ class policy_base
 {
   protected:
     using backend_t = Backend;
-    using resource_container_t = typename backend_t::resource_container_t;
-    using execution_resource_t = typename backend_t::execution_resource_t;
-    using selection_type = basic_selection_handle_t<Policy, execution_resource_t>;
+    using selection_type = basic_selection_handle_t<Policy, resource_type>;
 
   public:
-    using resource_type = decltype(unwrap(std::declval<execution_resource_t>()));
+    // Required type aliases for policy contract
+    using backend_type = Backend;
+    using resource_type = typename backend_type::resource_type;
 
   protected:
     std::shared_ptr<backend_t> backend_;
@@ -233,9 +237,10 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
 {
   protected:
     using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
+    using resource_container_size_t = typename std::vector<resource_type>::size_type;
     
     struct selector_t {
-        typename base_t::resource_container_t resources_;
+        std::vector<std::shared_ptr<resource_t>> resources_;
         resource_container_size_t num_contexts_;
         std::atomic<resource_container_size_t> next_context_;
     };
@@ -243,6 +248,8 @@ class round_robin_policy : public policy_base<round_robin_policy<ResourceType, R
     using selection_type = base_t::selection_type;
 
   public:
+    // Required type aliases (provided by policy_base)
+    using backend_type = typename base_t::backend_type;
     using resource_type = typename base_t::resource_type;
 
     // Constructors
@@ -299,9 +306,9 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 
     // Resource wrapper with load tracking
     struct resource_t {
-        execution_resource_t e_;
+        resource_type e_;
         std::atomic<load_t> load_;
-        resource_t(execution_resource_t e) : e_(e), load_(0) {}
+        resource_t(resource_type e) : e_(e), load_(0) {}
     };
     using resource_container_t = std::vector<std::shared_ptr<resource_t>>;
 
@@ -386,14 +393,20 @@ template <typename ResourceType, typename ResourceAdapter, typename Backend>
 class random_policy : public policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
 {
   protected:
-    using base_t = policy_base<random_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
-    typename base_t::resource_container_t resources_;
+    using base_t = policy_base<random_policy<ResourceType,  ResourceAdapter, Backend>, ResourceAdapter, Backend>;
+
+  public:
+    // Required type aliases (provided by policy_base)
+    using backend_type = typename base_t::backend_type;
+    using resource_type = typename base_t::resource_type;
+
+  protected:
+    std::vector<resource_type> resources_;
     std::random_device rd_;
     std::mt19937 gen_;
     using typename base_t::selection_type;
 
   public:
-    using resource_type = typename base_t::resource_type;
 
     random_policy() : gen_(rd_()) { base_t::initialize(); }
     random_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) 
