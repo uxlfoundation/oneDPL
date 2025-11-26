@@ -50,7 +50,7 @@ class round_robin_policy
     struct selector_t
     {
         std::vector<resource_type> resources_;
-        std::vector<resource_type>::size_type num_contexts_;
+        resource_container_size_t num_contexts_;
         std::atomic<resource_container_size_t> next_context_;
     };
 
