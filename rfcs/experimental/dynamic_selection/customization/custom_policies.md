@@ -93,7 +93,6 @@ The type `T` satisfies *Policy* if given,
 | Policy Traits* | Description |
 | -------------- | ----------- |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
-| `policy_traits<T>::has_async_submit` | Boolean that defines if a policy has an asynchronous submission function. |
 | `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
 
 The default implementation of these traits depends on types defined in the Policy:
