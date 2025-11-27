@@ -294,11 +294,11 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__binary_op<_Pred, _Proj, oneapi::dpl::identity> __pred_2{__pred, __proj,
-                                                                                       oneapi::dpl::identity{}};
-
-    auto __res = oneapi::dpl::__internal::__pattern_search_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __count, __value, __pred_2);
+    auto __res = oneapi::dpl::__internal::__pattern_search_n(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+        std::ranges::begin(__r) + std::ranges::size(__r), __count, __value,
+        oneapi::dpl::__internal::__binary_op<_Pred, _Proj, oneapi::dpl::identity>{__pred, __proj,
+                                                                                  oneapi::dpl::identity{}});
 
     return {__res, __res == std::ranges::end(__r) ? __res : __res + __count};
 }
@@ -321,10 +321,10 @@ __pattern_count_if(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _Pred __pred
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
-
     return oneapi::dpl::__internal::__pattern_count(__tag, std::forward<_ExecutionPolicy>(__exec),
-        std::ranges::begin(__r), std::ranges::begin(__r) + std::ranges::size(__r), __pred_1);
+                                                    std::ranges::begin(__r),
+                                                    std::ranges::begin(__r) + std::ranges::size(__r),
+                                                    oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj});
 }
 
 template <typename _ExecutionPolicy, typename _R, typename _Proj, typename _Pred>
