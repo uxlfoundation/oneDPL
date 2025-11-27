@@ -20,7 +20,7 @@
 
 // -- Check for C++ standard library feature macros --
 #if __has_include(<version>)
-#    include <version> // The standard C++20 header
+#    include <version>
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 1
 #else
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
