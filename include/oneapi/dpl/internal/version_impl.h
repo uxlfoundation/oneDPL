@@ -49,7 +49,7 @@
 #    define _PSTL_VERSION_PATCH (_PSTL_VERSION % 10)
 #endif
 
-// -- Define oneDPL future macros --
+// -- Define oneDPL feature macros --
 #define ONEDPL_HAS_RANDOM_NUMBERS         202409L
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #    define ONEDPL_HAS_RANGE_ALGORITHMS   202509L
