@@ -326,27 +326,18 @@
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
 
-// Combine two restrictions in one macro for simplicity:
-// 1) std::ranges::view concept requires default_initializable:
-//    GNU libstdc++ (GCC)  - prior to GCC 11.4
-//    LLVM libc++          - prior to LLVM 13.0
-//    Microsoft STL (MSVC) - prior to VS 2022 17.0
-// 2) std::ranges::viewable_range concept is broken:
-//    GNU libstdc++ (GCC)  - prior to GCC 12.1
-//    LLVM libc++          - prior to LLVM 14.0
-//    Microsoft STL (MSVC) - prior to VS 2022 17.14
-//    ===============================================
-//                         - prior to GCC 12.1
-//                         - prior to LLVM 14.0
-//                         - prior to VS 2022 17.14
+// std::ranges::view concept requires default_initializable:
+// 1. GNU libstdc++ (GCC)  - prior to GCC 11.4
+// 2. LLVM libc++          - prior to LLVM 13.0
+// 3. Microsoft STL (MSVC) - prior to VS 2022 17.0
 #if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
-        ((_GLIBCXX_RELEASE < 12) || (_GLIBCXX_RELEASE == 12 && __GLIBCXX__ < 20220507))
+        ((_GLIBCXX_RELEASE < 11) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230714))
 #elif defined(_LIBCPP_VERSION)
-#    define TEST_STD_RANGES_VIEWABLE_RANGE_CONCEPT_BROKEN (_LIBCPP_VERSION < 14000)
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE (_LIBCPP_VERSION < 13000)
 #elif defined(_MSVC_STL_VERSION) && defined(_MSVC_STL_UPDATE)
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
-        (_MSVC_STL_VERSION < 143 || (_MSVC_STL_VERSION == 143 && _MSVC_STL_UPDATE < 202505))
+        (_MSVC_STL_VERSION < 143 || (_MSVC_STL_VERSION == 143 && _MSVC_STL_UPDATE < 202111))
 #else
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
