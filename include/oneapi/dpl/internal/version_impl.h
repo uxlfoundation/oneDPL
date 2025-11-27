@@ -22,14 +22,9 @@
 #if __has_include(<version>)
 #    include <version>
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 1
-#else
-#    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
-#endif
-
-// -- Check for C++20 concepts support --
-#if _ONEDPL_STD_FEATURE_MACROS_PRESENT
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT (__cpp_concepts >= 201907L && __cpp_lib_concepts >= 202002L)
 #else
+#    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
 #    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
 #endif
 
