@@ -297,8 +297,7 @@ __pattern_search_n(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, std::ranges:
     auto __res = oneapi::dpl::__internal::__pattern_search_n(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
         std::ranges::begin(__r) + std::ranges::size(__r), __count, __value,
-        oneapi::dpl::__internal::__binary_op<_Pred, _Proj, oneapi::dpl::identity>{__pred, __proj,
-                                                                                  oneapi::dpl::identity{}});
+        oneapi::dpl::__internal::__binary_op<_Pred, _Proj, oneapi::dpl::identity>{__pred, __proj});
 
     return {__res, __res == std::ranges::end(__r) ? __res : __res + __count};
 }
