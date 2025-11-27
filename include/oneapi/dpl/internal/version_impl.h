@@ -21,10 +21,21 @@
 #if __has_include(<version>)
 #    include <version> // The standard C++20 header
 #    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 1
+#else
+#    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
+#endif
+
+#if _ONEDPL_STD_FEATURE_MACROS_PRESENT
+#    define _ONEDPL_CPP20_CONCEPTS_PRESENT (__cpp_concepts >= 201907L && __cpp_lib_concepts >= 202002L)
+#else
+#    define _ONEDPL_CPP20_CONCEPTS_PRESENT 0
+#endif
+
+// Ranges library is available if the standard library provides it and concepts are supported
+#if _ONEDPL_CPP20_CONCEPTS_PRESENT
 // Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
 #    define _ONEDPL_CPP20_RANGES_PRESENT ((__cpp_lib_ranges >= 201911L) && !(__clang__ && __clang_major__ < 16))
 #else
-#    define _ONEDPL_STD_FEATURE_MACROS_PRESENT 0
 #    define _ONEDPL_CPP20_RANGES_PRESENT 0
 #endif
 
