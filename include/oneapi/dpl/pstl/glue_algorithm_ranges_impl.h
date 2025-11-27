@@ -1047,7 +1047,8 @@ struct __replace_if_fn
         return oneapi::dpl::ranges::for_each(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__replace_functor<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>, decltype(__pred_prj)>(
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>,
+                oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>(
                 __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}));
     }
 }; //__replace_if_fn
