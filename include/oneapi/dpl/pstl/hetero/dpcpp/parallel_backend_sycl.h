@@ -719,7 +719,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
     return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
-        _ReduceOp{}, _GenScanInput{__generate_mask, {}}, _ScanInputTransform{}, __write_op,
+        _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
@@ -850,10 +850,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
         using _WriteOp =
             oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
-                                                             std::forward<_Range2>(__result), __n, _GenMask{__pred, {}},
-                                                             _WriteOp{},
-                                                             /*_IsUniquePattern=*/std::false_type{});
+        return __parallel_reduce_then_scan_copy<_CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
+            /*_IsUniquePattern=*/std::false_type{});
     }
     else
     {
@@ -907,8 +906,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
 
         return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-                                                             std::forward<_OutRng>(__out_rng), __n,
-                                                             _GenMask{__pred, {}}, _WriteOp{__assign},
+                                                             std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
+                                                             _WriteOp{__assign},
                                                              /*_IsUniquePattern=*/std::false_type{});
     }
     else
