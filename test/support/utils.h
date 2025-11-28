@@ -40,6 +40,9 @@
 #include <limits>
 #include <cassert>
 #include <functional> // for std::invoke
+#if _ENABLE_STD_RANGES_TESTING
+#    include <ranges> // for std::ranges::enable_borrowed_range
+#endif
 
 #include "utils_const.h"
 #include "iterator_utils.h"
@@ -1408,5 +1411,19 @@ end(MinimalisticView<RandomIt> view)
 #endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
+
+#if _ENABLE_STD_RANGES_TESTING
+
+// Standard-conforming specialization: inside namespace std::ranges
+namespace std
+{
+namespace ranges
+{
+template <typename RandomIt>
+inline constexpr bool enable_borrowed_range<TestUtils::MinimalisticRange<RandomIt>> = true;
+} // namespace ranges
+} // namespace std
+
+#endif // _ENABLE_STD_RANGES_TESTING
 
 #endif // _UTILS_H
