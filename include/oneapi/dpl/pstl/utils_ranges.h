@@ -452,6 +452,10 @@ struct reverse_view_simple
 
     _R __r;
 
+    constexpr reverse_view_simple()
+        requires std::default_initializable<_R>
+    = default;
+
     reverse_view_simple(_R __rng) : __r(__rng) {}
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
@@ -488,7 +492,11 @@ struct take_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __n;
+    _Size __n = {};
+
+    constexpr take_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     take_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
     {
@@ -530,7 +538,11 @@ struct drop_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __n;
+    _Size __n = {};
+
+    constexpr drop_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     drop_view_simple(_R __rng, _Size __size) : __r(__rng), __n(__size)
     {
@@ -572,7 +584,11 @@ struct replicate_start_view_simple
     using value_type = oneapi::dpl::__internal::__value_t<_R>;
 
     _R __r;
-    _Size __repl_count;
+    _Size __repl_count = {};
+
+    constexpr replicate_start_view_simple()
+        requires std::default_initializable<_R>
+    = default;
 
     replicate_start_view_simple(_R __rng, _Size __replicate_count) : __r(__rng), __repl_count(__replicate_count)
     {
@@ -614,6 +630,10 @@ struct transform_view_simple
 
     _R __r;
     _F __f;
+
+    constexpr transform_view_simple()
+        requires std::default_initializable<_R> && std::default_initializable<_F>
+    = default;
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
@@ -669,7 +689,11 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<oneapi::dpl::__in
 
     _Source __src; //Iterator (pointer) or unreachable range
     _M __map_fn;
-    _Size __size;
+    _Size __size = {};
+
+    constexpr permutation_view_simple()
+        requires std::default_initializable<_Source> && std::default_initializable<_M>
+    = default;
 
     permutation_view_simple(_Source __data, _M __m, _Size __s) : __src(__data), __map_fn(__m), __size(__s) {}
 
@@ -709,6 +733,10 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<is_map_view<_M>::
 
     _Source __src; //Iterator (pointer) or unreachable range
     _M __map;      //permutation range
+
+    constexpr permutation_view_simple()
+        requires std::default_initializable<_Source> && std::default_initializable<_M>
+    = default;
 
     permutation_view_simple(_Source __data, _M __m) : __src(__data), __map(__m) {}
 
