@@ -40,6 +40,9 @@
 #include <limits>
 #include <cassert>
 #include <functional> // for std::invoke
+#if _ENABLE_STD_RANGES_TESTING
+#    include <ranges> // for std::ranges::enable_borrowed_range
+#endif
 
 #include "utils_const.h"
 #include "iterator_utils.h"
@@ -1352,6 +1355,10 @@ struct MinimalisticRange
     RandomIt it_begin;
     RandomIt it_end;
 
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticRange() = default;
+#endif
+
     MinimalisticRange(RandomIt it_begin, RandomIt it_end)
         : it_begin(it_begin), it_end(it_end)
     {
@@ -1377,6 +1384,10 @@ end(MinimalisticRange<RandomIt> range)
 template <typename RandomIt>
 struct MinimalisticView : MinimalisticRange<RandomIt>, std::ranges::view_base
 {
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticView() = default;
+#endif
+
     MinimalisticView(RandomIt it_begin, RandomIt it_end)
         : MinimalisticRange<RandomIt>(it_begin, it_end)
     {
@@ -1400,5 +1411,19 @@ end(MinimalisticView<RandomIt> view)
 #endif // _ENABLE_STD_RANGES_TESTING
 
 } /* namespace TestUtils */
+
+#if _ENABLE_STD_RANGES_TESTING
+
+// Standard-conforming specialization: inside namespace std::ranges
+namespace std
+{
+namespace ranges
+{
+template <typename RandomIt>
+inline constexpr bool enable_borrowed_range<TestUtils::MinimalisticRange<RandomIt>> = true;
+} // namespace ranges
+} // namespace std
+
+#endif // _ENABLE_STD_RANGES_TESTING
 
 #endif // _UTILS_H
