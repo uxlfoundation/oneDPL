@@ -18,19 +18,12 @@
 #include <algorithm>
 #include <iostream>
 
+#include "support/utils_sycl_defs.h" // for TestUtils::unique_kernel_name and etc.
+
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 
 class load1;
 class load2;
-
-namespace TestUtils
-{
-template <typename Op, ::std::size_t CallNumber>
-struct unique_kernel_name;
-
-template <typename Policy, int idx>
-using new_kernel_name = unique_kernel_name<std::decay_t<Policy>, idx>;
-} // namespace TestUtils
 
 int
 test_dl_initialization(const std::vector<sycl::queue>& u)

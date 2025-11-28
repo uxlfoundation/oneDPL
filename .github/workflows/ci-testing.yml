@@ -212,7 +212,7 @@ jobs:
 
             # set targets for dpcpp tests
             make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests"
-            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)"
+            tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)"
             if [[ "${{ matrix.device_type }}" != "FPGA_EMU" ]]; then
               make_targets+=" build-onedpl-ranges-tests"
               tests_regex+="|(std_ranges_.*)"
@@ -362,7 +362,7 @@ jobs:
             )
 
             set ninja_targets=build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests
-            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)\.pass"
+            set ctest_flags=-R "(sycl_iterator_.*)|(std_ranges_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)\.pass"
           ) else (
             set ninja_targets=build-onedpl-tests
           )
@@ -372,7 +372,7 @@ jobs:
 
           :: TODO: fix or justify the excluded warnings
           if "${{ matrix.cxx_compiler }}" == "cl" (
-            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4700 /wd4805 /wd4996
+            set warning_flags=/W4 /WX /wd4018 /wd4100 /wd4146 /wd4244 /wd4245 /wd4267 /wd4310 /wd4389 /wd4805 /wd4996
           ) else (
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
           )
