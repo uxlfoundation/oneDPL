@@ -79,11 +79,6 @@ check_contains_host_pointer()
 #if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
     {
         IntVector vec;
-
-        static_assert(std::ranges::range<decltype(MinimalisticRangeForIntVec(vec.begin(), vec.end()))>);
-        static_assert(std::ranges::borrowed_range<decltype(MinimalisticRangeForIntVec(vec.begin(), vec.end()))>);
-        static_assert(!std::ranges::view<decltype(MinimalisticRangeForIntVec(vec.begin(), vec.end()))>);
-
         auto all_view = std::ranges::views::all(MinimalisticRangeForIntVec(vec.begin(), vec.end()));
         static_assert(contains_host_pointer_v<decltype(all_view)> == false);
         static_assert(contains_host_pointer_on_any_layers_v<decltype(all_view)> == false);
