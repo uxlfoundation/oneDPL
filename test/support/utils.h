@@ -1376,13 +1376,6 @@ end(MinimalisticRange<RandomIt> range)
     return range.it_end;
 }
 
-template <typename RandomIt>
-auto
-size(MinimalisticRange<RandomIt> range)
-{
-    return end(range) - begin(range);
-}
-
 // A minimalistic view to detect an accidental use of methods such as begin(), end(), empty(), operator[] and etc,
 // which are not required for a class to be considered a range.
 template <typename RandomIt>
@@ -1411,13 +1404,6 @@ end(MinimalisticView<RandomIt> view)
 {
     return view.it_end;
 }
-
-template <typename RandomIt>
-auto
-size(MinimalisticView<RandomIt> view)
-{
-    return end(view) - begin(view);
-}   
 
 #endif // _ENABLE_STD_RANGES_TESTING
 

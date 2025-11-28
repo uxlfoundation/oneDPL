@@ -58,13 +58,6 @@ end(MinimalisticViewWithSubscription<RandomIt> view)
     return view.it_end;
 }
 
-template <typename RandomIt>
-auto
-size(MinimalisticViewWithSubscription<RandomIt> range)
-{
-    return end(range) - begin(range);
-}
-
 template <typename _Rng>
 inline constexpr bool contains_host_pointer_v = oneapi::dpl::__ranges::__contains_host_pointer<_Rng>::value;
 
