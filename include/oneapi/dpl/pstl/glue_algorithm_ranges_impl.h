@@ -23,6 +23,7 @@
 #    include <type_traits>
 #    include <iterator>
 #    include <algorithm> // std::ranges::sort, std::ranges::stable_sort
+#    include <concepts>  // for std::copy_constructible, std::indirectly_unary_invocable, std::indirectly_writable
 #endif
 
 #include "utils_ranges.h" // __difference_t
