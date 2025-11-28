@@ -231,6 +231,9 @@ using projected_value_t = std::remove_cvref_t<std::invoke_result_t<Proj&, std::i
 namespace __ranges
 {
 
+template <typename _Range>
+using __iterator_t = decltype(__begin(std::declval<_Range&>()));
+
 template <typename... _Rng>
 using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
 

@@ -618,11 +618,12 @@ struct __minmax_element_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        const auto& [__min, __max] =
-            oneapi::dpl::__internal::__ranges::__pattern_minmax_element(__dispatch_tag, std::forward<_ExecutionPolicy>(__exec),
-            std::forward<_R>(__r), __comp, __proj);
 
-        return {__min, __max};
+        std::pair<oneapi::dpl::__ranges::__iterator_t<_R>, oneapi::dpl::__ranges::__iterator_t<_R>> __res =
+            oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+                __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __r, __comp, __proj);
+
+        return {__res.first, __res.second};
     }
 }; //__minmax_element_fn
 } //__internal
@@ -2033,9 +2034,14 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng, _Compare __comp)
 {
     const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range>(__rng)),
-        __comp);
+    auto __view = views::all_read(std::forward<_Range>(__rng));
+    auto __v_begin = __view.begin();
+    using __v_iterator_t = decltype(__v_begin);
+
+    std::pair<__v_iterator_t, __v_iterator_t> __res = oneapi::dpl::__internal::__ranges::__pattern_minmax_element(
+        __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __view, __comp);
+
+    return {std::distance(__v_begin, __res.first), std::distance(__v_begin, __res.second)};
 }
 
 template <typename _ExecutionPolicy, typename _Range>
