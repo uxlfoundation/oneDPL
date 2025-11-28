@@ -25,7 +25,8 @@
 #include <cassert>     // assert
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
+#    include <ranges>   // std::ranges::sized_range, std::ranges::range_size_t
+#    include <concepts> // for std::default_initializable
 #endif
 
 #include "iterator_defs.h"
