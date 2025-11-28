@@ -47,8 +47,12 @@ namespace test_std_ranges
 template <typename>
 constexpr bool supress_dangling_iterators_check = false;
 
+#if PSTL_USE_DEBUG
+inline constexpr int big_size = (1<<22) + 37; //4M
+#else
 // The largest specializations of algorithms with device policies handle 16M+ elements.
 inline constexpr int big_size = (1<<24) + 10; //16M
+#endif
 
 // ~100K is sufficient for parallel policies.
 // It also usually results in using multiple-work-group specializations for device policies.
