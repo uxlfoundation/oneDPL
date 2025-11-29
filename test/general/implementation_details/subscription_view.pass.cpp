@@ -19,7 +19,9 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
+#endif
 
+#if _ENABLE_STD_RANGES_TESTING
 template <typename TContainer>
 void
 verify_subscription_view_concept_equality()
