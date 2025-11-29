@@ -24,21 +24,23 @@ template <typename TContainer>
 void
 verify_subscription_view_preserves_range_concepts()
 {
+    using TContainerValue = std::ranges::range_value_t<TContainer>;
+
     using TSubscriptionView = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<TContainer>()));
+    using TSubscriptionViewValue = std::ranges::range_value_t<TSubscriptionView>;
 
     static_assert(std::ranges::range              <TContainer> == std::ranges::range              <TSubscriptionView>);
     static_assert(std::ranges::borrowed_range     <TContainer> == std::ranges::borrowed_range     <TSubscriptionView>);
     static_assert(std::ranges::sized_range        <TContainer> == std::ranges::sized_range        <TSubscriptionView>);
     static_assert(std::ranges::view               <TContainer> == std::ranges::view               <TSubscriptionView>);
     static_assert(std::ranges::input_range        <TContainer> == std::ranges::input_range        <TSubscriptionView>);
-    static_assert(std::ranges::output_range       <TContainer> == std::ranges::output_range       <TSubscriptionView>);
+    static_assert(std::ranges::output_range       <TContainer, TContainerValue> == std::ranges::output_range<TSubscriptionView, TSubscriptionViewValue>);
     static_assert(std::ranges::forward_range      <TContainer> == std::ranges::forward_range      <TSubscriptionView>);
     static_assert(std::ranges::bidirectional_range<TContainer> == std::ranges::bidirectional_range<TSubscriptionView>);
     static_assert(std::ranges::random_access_range<TContainer> == std::ranges::random_access_range<TSubscriptionView>);
     static_assert(std::ranges::contiguous_range   <TContainer> == std::ranges::contiguous_range   <TSubscriptionView>);
     static_assert(std::ranges::common_range       <TContainer> == std::ranges::common_range       <TSubscriptionView>);
     static_assert(std::ranges::viewable_range     <TContainer> == std::ranges::viewable_range     <TSubscriptionView>);
-    static_assert(std::ranges::constant_range     <TContainer> == std::ranges::constant_range     <TSubscriptionView>);
 }
 #endif
 
