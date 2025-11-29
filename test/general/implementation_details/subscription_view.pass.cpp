@@ -19,9 +19,8 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
-#endif
 
-#if _ENABLE_STD_RANGES_TESTING && _ONEDPL_CPP20_RANGES_PRESENT
+#if _ENABLE_STD_RANGES_TESTING
 template <typename TContainer>
 void
 verify_subscription_view_concept_equality()
@@ -44,7 +43,8 @@ verify_subscription_view_concept_equality()
     static_assert(std::ranges::common_range       <TContainer> == std::ranges::common_range       <TSubscriptionView>);
     static_assert(std::ranges::viewable_range     <TContainer> == std::ranges::viewable_range     <TSubscriptionView>);
 }
-#endif // _ENABLE_STD_RANGES_TESTING && _ONEDPL_CPP20_RANGES_PRESENT
+#endif // _ENABLE_STD_RANGES_TESTING
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
@@ -67,9 +67,7 @@ main()
     using MinimalisticRangeForIntVec = TestUtils::MinimalisticView<IteratorOfIntVector>;
 
     // Verify that subscription_view preserves range concepts for MinimalisticRangeForIntVec
-#if _ONEDPL_CPP20_RANGES_PRESENT
     verify_subscription_view_concept_equality<MinimalisticRangeForIntVec>();
-#endif
 
     // Check that MinimalisticRangeForIntVec satisfies range, sized_range and view concepts
     static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
@@ -103,13 +101,12 @@ main()
     // Check that MinimalisticView with vector<int>::iterator is a range
     static_assert(std::ranges::range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
     // Verify that subscription_view preserves range concepts for MinimalisticView
     verify_subscription_view_concept_equality<TestUtils::MinimalisticView<IntVector::iterator>>();
 
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
