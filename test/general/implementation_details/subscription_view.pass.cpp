@@ -21,27 +21,28 @@
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
 
 #if _ENABLE_STD_RANGES_TESTING
-template <typename TContainer>
+template <typename SourceView>
+    requires std::ranges::view<SourceView>
 void
 verify_subscription_view_concept_equality()
 {
-    using TContainerValue = std::ranges::range_value_t<TContainer>;
+    using SourceViewValue = std::ranges::range_value_t<SourceView>;
 
-    using TSubscriptionView = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<TContainer>()));
+    using TSubscriptionView = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<SourceView>()));
     using TSubscriptionViewValue = std::ranges::range_value_t<TSubscriptionView>;
 
-    static_assert(std::ranges::range              <TContainer> == std::ranges::range              <TSubscriptionView>);
-    static_assert(std::ranges::borrowed_range     <TContainer> == std::ranges::borrowed_range     <TSubscriptionView>);
-    static_assert(std::ranges::sized_range        <TContainer> == std::ranges::sized_range        <TSubscriptionView>);
-    static_assert(std::ranges::view               <TContainer> == std::ranges::view               <TSubscriptionView>);
-    static_assert(std::ranges::input_range        <TContainer> == std::ranges::input_range        <TSubscriptionView>);
-    static_assert(std::ranges::output_range       <TContainer, TContainerValue> == std::ranges::output_range<TSubscriptionView, TSubscriptionViewValue>);
-    static_assert(std::ranges::forward_range      <TContainer> == std::ranges::forward_range      <TSubscriptionView>);
-    static_assert(std::ranges::bidirectional_range<TContainer> == std::ranges::bidirectional_range<TSubscriptionView>);
-    static_assert(std::ranges::random_access_range<TContainer> == std::ranges::random_access_range<TSubscriptionView>);
-    static_assert(std::ranges::contiguous_range   <TContainer> == std::ranges::contiguous_range   <TSubscriptionView>);
-    static_assert(std::ranges::common_range       <TContainer> == std::ranges::common_range       <TSubscriptionView>);
-    static_assert(std::ranges::viewable_range     <TContainer> == std::ranges::viewable_range     <TSubscriptionView>);
+    static_assert(std::ranges::range              <SourceView> == std::ranges::range              <TSubscriptionView>);
+    static_assert(std::ranges::borrowed_range     <SourceView> == std::ranges::borrowed_range     <TSubscriptionView>);
+    static_assert(std::ranges::sized_range        <SourceView> == std::ranges::sized_range        <TSubscriptionView>);
+    static_assert(std::ranges::view               <SourceView> == std::ranges::view               <TSubscriptionView>);
+    static_assert(std::ranges::input_range        <SourceView> == std::ranges::input_range        <TSubscriptionView>);
+    static_assert(std::ranges::output_range       <SourceView, SourceViewValue> == std::ranges::output_range<TSubscriptionView, TSubscriptionViewValue>);
+    static_assert(std::ranges::forward_range      <SourceView> == std::ranges::forward_range      <TSubscriptionView>);
+    static_assert(std::ranges::bidirectional_range<SourceView> == std::ranges::bidirectional_range<TSubscriptionView>);
+    static_assert(std::ranges::random_access_range<SourceView> == std::ranges::random_access_range<TSubscriptionView>);
+    static_assert(std::ranges::contiguous_range   <SourceView> == std::ranges::contiguous_range   <TSubscriptionView>);
+    static_assert(std::ranges::common_range       <SourceView> == std::ranges::common_range       <TSubscriptionView>);
+    static_assert(std::ranges::viewable_range     <SourceView> == std::ranges::viewable_range     <TSubscriptionView>);
 }
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -65,9 +66,6 @@ main()
 
     using IteratorOfIntVector = typename IntVector::iterator;
     using MinimalisticRangeForIntVec = TestUtils::MinimalisticView<IteratorOfIntVector>;
-
-    // Verify that subscription_view preserves range concepts for MinimalisticRangeForIntVec
-    verify_subscription_view_concept_equality<MinimalisticRangeForIntVec>();
 
     // Check that MinimalisticRangeForIntVec satisfies range, sized_range and view concepts
     static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
