@@ -22,7 +22,7 @@
 
 template <typename TContainer>
 void
-verify_subscription_view_preserves_range_concepts()
+erify_subscription_view_concept_equality()
 {
     using TContainerValue = std::ranges::range_value_t<TContainer>;
 
@@ -65,7 +65,7 @@ main()
     using MinimalisticRangeForIntVec = TestUtils::MinimalisticView<IteratorOfIntVector>;
 
     // Verify that subscription_view preserves range concepts for MinimalisticRangeForIntVec
-    verify_subscription_view_preserves_range_concepts<MinimalisticRangeForIntVec>();
+    erify_subscription_view_concept_equality<MinimalisticRangeForIntVec>();
 
     // Check that MinimalisticRangeForIntVec satisfies range, sized_range and view concepts
     static_assert(std::ranges::range      <MinimalisticRangeForIntVec>);
@@ -100,7 +100,7 @@ main()
     static_assert(std::ranges::range<TestUtils::MinimalisticView<IntVector::iterator>>);
 
     // Verify that subscription_view preserves range concepts for MinimalisticView
-    verify_subscription_view_preserves_range_concepts<TestUtils::MinimalisticView<IntVector::iterator>>();
+    erify_subscription_view_concept_equality<TestUtils::MinimalisticView<IntVector::iterator>>();
 
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);
