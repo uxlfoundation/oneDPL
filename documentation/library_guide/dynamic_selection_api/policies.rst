@@ -1,11 +1,11 @@
 Policies
 ########
 
-The dynamic selection API is an experimental feature in the |onedpl_long| 
-(|onedpl_short|) that selects an *execution resource* based on a chosen 
-*selection policy*. There are several policies provided as part 
-of the API. Policies encapsulate the logic and any associated state needed 
-to make a selection. 
+The dynamic selection API is an experimental feature in the |onedpl_long|
+(|onedpl_short|) that selects an *execution resource* based on a chosen
+*selection policy*. There are several policies provided as part
+of the API. Policies encapsulate the logic and any associated state needed
+to make a selection.
 
 Policy Structure
 ----------------
@@ -43,12 +43,16 @@ initialize it later by calling ``initialize()``:
   // ... later, when resources are available ...
   policy.initialize(resources);
 
-Deferred initialization is useful when the policy must be constructed before 
-execution resources are available, such as during early program setup or when 
+Deferred initialization is useful when the policy must be constructed before
+execution resources are available, such as during early program setup or when
 resources depend on runtime configuration.
 
-Attempting to use a deferred-initialization policy before calling ``initialize()`` 
+Attempting to use a deferred-initialization policy before calling ``initialize()``
 will throw ``std::logic_error``.
+
+Once policies are initialized, work can be submitted via the submit
+:doc:`free functions <functions>`: ``submit``, ``submit_and_wait``, or ``try_submit``,
+which will select the appropriate execution resource for the work.
 
 Policy Traits
 -------------
