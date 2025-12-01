@@ -133,10 +133,19 @@ The SYCL backend defines ``wait_type = sycl::event``, requiring user functions t
 Selection Scratch Space
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Backends must specify what scratch space is necessary within each ``selection_type``
-to properly implement instrumentation and reporting. This is done via
-``backend_traits<Backend>::template selection_scratch_t<ReportReqs...>``, based upon
-the backend and the reporting requirements of the policy.
+.. _selection_scratch_space:
+
+Backends need storage space within selection handles to implement instrumentation.
+The ``selection_scratch_t`` trait specifies what additional data a backend requires
+based on the policy's reporting needs.
+
+When a policy tracks execution information (like task timing or completion), the backend
+needs to store temporary data with each selection. For example, the SYCL backend stores
+an extra ``sycl::event`` for start-time profiling tags when ``task_time`` reporting is requested.
+
+The backend populates and uses this scratch space during work submission and reporting.
+For policies without reporting requirements, ``selection_scratch_t<>`` is empty,
+adding no overhead.
 
 Custom Backends
 ---------------

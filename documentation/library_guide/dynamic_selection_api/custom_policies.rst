@@ -105,6 +105,13 @@ define a custom selection type with ``report()`` methods:
     Policy policy_;
     resource_type resource_;
 
+    using scratch_space_t =
+        typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
+                                                                       execution_info::task_completion_t>;
+    scratch_space_t scratch_space;
+
+
+
   public:
     custom_selection_handle_t(const Policy& p, resource_type r)
       : policy_(p), resource_(std::move(r)) {}
@@ -123,6 +130,14 @@ define a custom selection type with ``report()`` methods:
 
 The backend will call the selection handle's ``report()`` methods when execution
 events occur, allowing the policy to update its state accordingly.
+
+As shown above, for policies that need execution information, the selection
+handle must also include a member named ``scratch_space`` with type dictated by
+``backend_traits<Backend>::template selection_scratch_t<Reqs...>`` where ``Reqs...``
+is a variadic pack of all execution information requirements.  The backend will
+use this ``scratch_space`` member to store temporary instrumentation data (like
+profiling events) needed to satisfy the reporting requirement. For more
+information, see :ref:`Selection Scratch Space <selection_scratch_space>`.
 
 Reporting Requirements
 ----------------------
