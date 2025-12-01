@@ -95,7 +95,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
         void
         set_end_event(sycl::event e)
         {
-            my_end_event = e;
+            my_end_event = std::move(e);
         }
 
         void
@@ -194,7 +194,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
     };
 
   public:
-    core_resource_backend(const core_resource_backend& v) = delete;
+    core_resource_backend(const core_resource_backend&) = delete;
     core_resource_backend&
     operator=(const core_resource_backend&) = delete;
 
@@ -255,7 +255,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
         if constexpr (report_task_submission)
             oneapi::dpl::experimental::report(s, execution_info::task_submission);
 
-        sycl::event my_start_event{};
+        sycl::event my_start_event;
         if constexpr (report_task_time)
         {
 #ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
