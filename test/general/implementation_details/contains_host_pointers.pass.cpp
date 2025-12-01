@@ -29,6 +29,10 @@ using MinimalisticRangeViewForIntVec = TestUtils::MinimalisticView <IteratorOfIn
 template <typename RandomIt>
 struct MinimalisticViewWithSubscription : TestUtils::MinimalisticView<RandomIt>
 {
+#if TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    MinimalisticViewWithSubscription() = default;
+#endif
+
     MinimalisticViewWithSubscription(RandomIt it_begin, RandomIt it_end)
         : TestUtils::MinimalisticView<RandomIt>(it_begin, it_end)
     {
