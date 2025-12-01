@@ -426,5 +426,18 @@ test4buffers(int mult = kDefaultMultValue)
     test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
+template <typename Acc>
+auto
+get_accessor_ptr(const Acc& acc)
+{
+#if (TEST_LIBSYCL_VERSION >= 70000)
+    return acc.template get_multi_ptr<sycl::access::decorated::no>().get();
+#else
+    return acc.get_pointer();
+#endif
+}
+#endif
+
 } /* namespace TestUtils */
 #endif // _UTILS_SYCL_H
