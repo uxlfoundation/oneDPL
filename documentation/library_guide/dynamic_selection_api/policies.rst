@@ -7,6 +7,49 @@ The dynamic selection API is an experimental feature in the |onedpl_long|
 of the API. Policies encapsulate the logic and any associated state needed 
 to make a selection. 
 
+Policy Structure
+----------------
+
+A policy manages a collection of execution resources and applies a selection
+strategy to choose among them. Internally, policies use a *backend* to handle
+resource-specific operations such as work submission and synchronization.
+
+All policies support three construction patterns:
+
+**Initialization with explicit resources**: Construct the policy with an explicit
+vector of resources to manage:
+
+.. code:: cpp
+
+  namespace ex = oneapi::dpl::experimental;
+  std::vector<resource_type> r {/* resources */};
+  ex::round_robin_policy policy{r};
+
+**Default initialization**: Construct the policy without arguments, allowing the
+backend to select default resources:
+
+.. code:: cpp
+
+  namespace ex = oneapi::dpl::experimental;
+  ex::round_robin_policy policy{}; // uses backend's default resources
+
+**Deferred initialization**: Construct the policy in an uninitialized state, then
+initialize it later by calling ``initialize()``:
+
+.. code:: cpp
+
+  namespace ex = oneapi::dpl::experimental;
+  ex::round_robin_policy policy{ex::deferred_initialization};
+  // ... later, when resources are available ...
+  policy.initialize(resources);
+
+Deferred initialization is useful when the policy must be constructed before 
+execution resources are available, such as during early program setup or when 
+resources depend on runtime configuration.
+
+Attempting to use a deferred-initialization policy before calling ``initialize()`` 
+will throw ``std::logic_error``.
+
 Policy Traits
 -------------
 
