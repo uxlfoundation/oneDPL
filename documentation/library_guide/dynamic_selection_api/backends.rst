@@ -17,10 +17,11 @@ A backend is responsible for:
 Backends are typically not directly visible to application developers - they work  
 behind the scenes to enable policies to function.
 
-Default SYCL Backend
---------------------
+SYCL Backend
+------------
 
-By default, policies use the SYCL backend which manages ``sycl::queue`` resources.
+A sycl backend is provided to manage ``sycl::queue`` core resources, and ``sycl::queue``
+is the default resource if none is provided or deduce-able from resource arguments.
 The SYCL backend provides:
 
 - Default initialization from available SYCL devices
@@ -45,6 +46,12 @@ backend's default initialization:
 
 The SYCL backend supports the reporting for :ref:`Execution Information <execution-information>`
 of ``task_submission``, ``task_completion``, and ``task_time``.
+
+Backend Architecture and Default Backend
+----------------------------------------
+For resource types other than ``sycl::queue``...
+
+If no partial specialization exists for the resource type...
 
 Lazy Reporting
 --------------
@@ -106,18 +113,20 @@ that can be called to synchronize with the operation's completion.
 The SYCL backend defines ``wait_type = sycl::event``, requiring user functions to return
 ``sycl::event`` for proper instrumentation and synchronization.
 
+Selection Scratch Space
+^^^^^^^^^^^^^^^^^^^^^^^
+Backends must specify what scratch space is necessary within each ``selection_type``
+to properly implement instrumentation and reporting. This is done via
+``backend_traits<Backend>::template selection_scratch_t<ReportReqs...>``, based upon
+the backend and the reporting requirements of the policy.
+
 Custom Backends
 ---------------
 
 For advanced use cases, you can create custom backends to support new resource
 types or provide specialized instrumentation. Custom backends are created by
-specializing ``core_resource_backend`` for your resource type.
-
-.. toctree::
-   :maxdepth: 2
-   :titlesonly:
-
-   custom_backends
+specializing ``core_resource_backend`` for your resource type. For an example of
+how to do this, look at ``core_resource_backend<sycl::queue, ...>``.
 
 See Also
 --------
