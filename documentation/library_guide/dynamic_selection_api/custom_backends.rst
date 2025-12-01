@@ -152,8 +152,8 @@ Backends can support various execution information reporting requirements.
 When a policy requests reporting, the backend must confirm that it can
 satisfy those requirements, and filter out resources that cannot satisfy them.
 
-See the :ref:`Execution Information <execution-information>` section of the backends
-page for more information about the specific reporting requirements available.
+See the :ref:`Execution Information <execution-information>` section
+for more information about the specific reporting requirements available.
 
 
 In your constructor, validate and filter:

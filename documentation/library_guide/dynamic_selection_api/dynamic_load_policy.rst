@@ -189,4 +189,4 @@ Reporting Requirements
 ----------------------
 A ``dynamic_load_policy`` requires the ``task_submission`` and ``task_completion``
 reporting requirements. See the :ref:`Execution Information <execution-information>`
-section of the backends page for more information about reporting requirements.
+section for more information about reporting requirements.

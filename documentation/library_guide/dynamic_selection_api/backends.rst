@@ -44,75 +44,15 @@ backend's default initialization:
   ex::round_robin_policy<sycl::queue> policy2{my_queues};
 
 
-Execution Information
----------------------
-
-.. _execution-information:
-
-Backends can provide execution information to policies that need it for making
-informed selection decisions. The SYCL backend supports:
-
-.. list-table:: Execution Information Types
-  :widths: 30 30 40
-  :header-rows: 1
-
-  * - Information Type
-    - Value Type
-    - Description
-  * - ``task_submission``
-    - void
-    - Signals when a task is submitted
-  * - ``task_completion``
-    - void
-    - Signals when a task completes
-  * - ``task_time``
-    - ``std::chrono::milliseconds``
-    - Elapsed time from submission to completion
-
-Policies that require execution information must specify reporting requirements.
-The backend will only provide resources capable of satisfying those requirements.
-
-Built-In Policy Requirements
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The following table shows the reporting requirements for each built-in policy:
-
-.. list-table:: Policy Reporting Requirements
-  :widths: 40 60
-  :header-rows: 1
-
-  * - Policy
-    - Reporting Requirements
-  * - ``fixed_resource_policy``
-    - None
-  * - ``round_robin_policy``
-    - None
-  * - ``dynamic_load_policy``
-    - ``task_submission``, ``task_completion``
-  * - ``auto_tune_policy``
-    - ``task_time``
-
-Policies with no reporting requirements can work with any backend, including
-the minimal ``default_backend``. Policies with reporting requirements need
-a backend that supports those specific types of execution information.
-
-For example, the ``auto_tune_policy`` requires timing information:
-
-.. code:: cpp
-
-  // This policy requires task_time_t reporting
-  ex::auto_tune_policy<sycl::queue> p{queues};
-
-If no devices support profiling, the backend will throw an error during construction.
 
 Lazy Reporting
 --------------
 
-For asynchronous execution, backends may use *lazy reporting* where execution
-information is not immediately available. The SYCL backend uses lazy reporting
-for ``task_completion`` and ``task_time``.
+For asynchronous execution, backends may use *lazy reporting* where
+:ref:`Execution Information <execution-information>` is not immediately available.
+ The SYCL backend uses lazy reporting for ``task_completion`` and ``task_time``.
 
-Policies that use execution information automatically call the backend's
+Policies that use execution information always call the backend's
 ``lazy_report()`` function before making selections, ensuring they have
 up-to-date information about completed tasks.
 

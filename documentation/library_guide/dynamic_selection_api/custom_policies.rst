@@ -140,9 +140,55 @@ reporting requirements as template parameters to ``policy_base``:
     // Policy implementation that receives timing information
   };
 
-See the :ref:`Execution Information <execution-information>` section of the
-backends page for more information about the specific reporting requirements
-available, including ``task_time``.
+Execution Information
+---------------------
+
+.. _execution-information:
+
+Backends can provide execution information to policies that need it for making
+informed selection decisions. The following execution information reports exist:
+
+.. list-table:: Execution Information Types
+  :widths: 30 30 40
+  :header-rows: 1
+
+  * - Information Type
+    - Value Type
+    - Description
+  * - ``task_submission``
+    - void
+    - Signals when a task is submitted
+  * - ``task_completion``
+    - void
+    - Signals when a task completes
+  * - ``task_time``
+    - ``std::chrono::milliseconds``
+    - Elapsed time from submission to completion
+
+
+Built-In Policy Requirements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following table shows the reporting requirements for each built-in policy:
+
+.. list-table:: Policy Reporting Requirements
+  :widths: 40 60
+  :header-rows: 1
+
+  * - Policy
+    - Reporting Requirements
+  * - ``fixed_resource_policy``
+    - None
+  * - ``round_robin_policy``
+    - None
+  * - ``dynamic_load_policy``
+    - ``task_submission``, ``task_completion``
+  * - ``auto_tune_policy``
+    - ``task_time``
+
+Policies with no reporting requirements can work with any backend, including
+the minimal ``default_backend``. Policies with reporting requirements need
+a backend that supports those specific types of execution information.
 
 Policy State Reference Semantics
 --------------------------------

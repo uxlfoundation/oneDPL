@@ -231,5 +231,5 @@ member functions.
 Reporting Requirements
 ----------------------
 A ``auto_tune_policy`` requires the ``task_time`` reporting requirement. See the
-:ref:`Execution Information <execution-information>` section of the backends page
-for more information about reporting requirements.
+:ref:`Execution Information <execution-information>` section for more information
+about reporting requirements.
