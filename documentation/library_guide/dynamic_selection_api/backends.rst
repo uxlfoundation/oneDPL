@@ -43,43 +43,6 @@ backend's default initialization:
   std::vector<sycl::queue> my_queues = { /* ... */ };
   ex::round_robin_policy<sycl::queue> policy2{my_queues};
 
-Backend Template Parameters
----------------------------
-
-Policies accept a backend template parameter to control the resource type:
-
-.. code:: cpp
-
-  template<typename ResourceType = sycl::queue,
-           typename ResourceAdapter = oneapi::dpl::identity,
-           typename Backend = default_backend<ResourceType, ResourceAdapter>>
-  class round_robin_policy { /* ... */ };
-
-- **ResourceType** - The type of resources managed (default: ``sycl::queue``)
-- **ResourceAdapter** - Adapter to transform resources (default: ``oneapi::dpl::identity``)
-- **Backend** - The backend implementation (default: ``default_backend``)
-
-Most users only need to specify ``ResourceType`` if using non-SYCL resources.
-
-Resource Adapters
------------------
-
-Resource adapters allow a backend designed for one resource type to work with
-related types. For example, using pointers instead of values:
-
-.. code:: cpp
-
-  // Adapter converts sycl::queue* to sycl::queue&
-  auto adapter = [](sycl::queue* qp) -> sycl::queue& { return *qp; };
-
-  std::vector<sycl::queue*> queue_ptrs = get_queue_pointers();
-
-  // Policy uses SYCL backend via the adapter
-  ex::round_robin_policy<sycl::queue*, decltype(adapter)> p{queue_ptrs, adapter};
-
-The adapter is applied internally when the backend needs to access backend-specific
-features, but user functions still receive the original resource type (``sycl::queue*``
-in this example).
 
 Execution Information
 ---------------------

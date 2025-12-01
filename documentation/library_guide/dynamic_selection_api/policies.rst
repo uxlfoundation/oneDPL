@@ -195,6 +195,41 @@ More detailed information about the built-in policies is provided in the followi
 Customization
 -------------
 
+Resource Adapters
+^^^^^^^^^^^^^^^^^
+
+Resource adapters let you use variations of a resource type without rewriting backend
+code. For example, you can use ``sycl::queue*`` instead of ``sycl::queue`` by providing
+an adapter that converts between them.
+
+**Why use adapters?** They provide flexibility when you need a different resource storage
+format (like pointers or wrappers) but want to reuse an existing backend implementation.
+
+``ResourceAdapter`` is the second template argument of a policy, it defaults to 
+``oneapi::dpl::identity``.
+
+**Example**: Using queue pointers with the SYCL backend:
+
+.. code:: cpp
+
+  // Adapter converts pointer to reference for backend use
+  auto adapter = [](sycl::queue* qp) -> sycl::queue& { return *qp; };
+
+  std::vector<sycl::queue*> queue_ptrs = get_queue_pointers();
+
+  // Policy works with pointers, backend uses references internally
+  ex::round_robin_policy<sycl::queue*, decltype(adapter)> p{queue_ptrs, adapter};
+
+  ex::submit(p, [](sycl::queue* qp) {  // User function receives pointer
+    return qp->submit(/* ... */);
+  });
+
+The backend applies the adapter internally, but your user functions always receive the 
+original resource type (``sycl::queue*``).
+
+Custom Policies
+^^^^^^^^^^^^^^^
+
 The dynamic selection API supports creating custom policies to extend the system
 with new selection strategies or resource types:
 
