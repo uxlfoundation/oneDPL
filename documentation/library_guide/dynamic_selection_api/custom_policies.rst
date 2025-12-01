@@ -7,11 +7,6 @@ The dynamic selection API is an experimental feature in the |onedpl_long|
 you can create custom policies to implement application-specific selection
 strategies.
 
-Creating a custom policy can be done in two ways:
-
-1. **Using policy_base** - Inherit from ``policy_base`` to minimize boilerplate code
-2. **Implementing from scratch** - Implement the policy contract directly for full control
-
 Using policy_base
 -----------------
 
@@ -186,59 +181,6 @@ See the :ref:`Execution Information <execution-information>` section of the
 backends page for more information about the specific reporting requirements
 available, including ``task_time``.
 
-Implementing from Scratch
---------------------------
-
-For full control, you can implement the policy contract directly without
-inheriting from ``policy_base``. Your policy must provide:
-
-Required Members
-^^^^^^^^^^^^^^^^
-
-.. list-table:: Required Policy Members
-  :widths: 50 50
-  :header-rows: 1
-
-  * - Member
-    - Description
-  * - ``backend_type``
-    - Type alias for the backend type
-  * - ``resource_type``
-    - Type alias for resources (e.g., ``sycl::queue``)
-  * - ``get_resources()``
-    - Returns ``std::vector<resource_type>``
-  * - ``try_select(Args...)``
-    - Returns ``std::optional<selection_type>``, empty if no resource available
-
-Optional Members
-^^^^^^^^^^^^^^^^
-
-.. list-table:: Optional Policy Members
-  :widths: 50 50
-  :header-rows: 1
-
-  * - Member
-    - Description
-  * - ``try_submit(f, args...)``
-    - Returns ``std::optional<submission>``, empty if no resource available
-  * - ``submit(f, args...)``
-    - Returns submission, retrying with backoff if needed
-  * - ``submit_and_wait(f, args...)``
-    - Submits and blocks until complete
-  * - ``get_submission_group()``
-    - Returns object with ``wait()`` for all submissions
-
-If optional members are not provided, free function fallbacks will be used
-based on ``try_select()``.
-
-Best Practices
---------------
-
-1. Inherit from ``policy_base`` unless you have specific reasons not to
-2. Use ``shared_ptr`` for state to enable common reference semantics
-3. Make selection fast - avoid expensive operations in ``try_select()``
-4. Handle empty resource sets - return ``nullptr`` when no resources available
-5. Call backend ``lazy_report()`` if your policy uses execution information
 
 See Also
 --------
