@@ -40,10 +40,12 @@ struct
         return ret_type{in + i, out + j};
     }
 } copy_if_checker;
+#endif // _ENABLE_STD_RANGES_TESTING
 
 std::int32_t
 main()
 {
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
@@ -56,9 +58,7 @@ main()
 #endif
     test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
     test_range_algo<6, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, select_many);
+#endif // _ENABLE_STD_RANGES_TESTING
 
-    return TestUtils::done();
+    return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
-#else
-std::int32_t main() { return TestUtils::done(0); } // skipped
-#endif //_ENABLE_STD_RANGES_TESTING
