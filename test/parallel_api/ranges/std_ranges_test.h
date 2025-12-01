@@ -936,12 +936,6 @@ struct test_range_algo
     void
     operator()(auto algo, auto& checker, auto... args)
     {
-        
-        std::cout << "Run configuration: " <<  n_serial << ", " << n_parallel <<
-#if TEST_DPCPP_BACKEND_PRESENT
-            ", " << n_device <<
-#endif
-            std::endl;
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT

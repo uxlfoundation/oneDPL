@@ -49,13 +49,11 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-#if 0
     test_range_algo<0, int, data_in_out_lim>{217}(dpl_ranges::copy_if, copy_if_checker, pred);
     test_range_algo<1, int, data_in_out_lim>{1234}(dpl_ranges::copy_if, copy_if_checker, select_many);
     test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, select_many, proj);
     test_range_algo<3, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::x);
     test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::copy_if, copy_if_checker, pred, &P2::proj);
-#endif
     test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, pred);
     test_range_algo<6, int, data_in_out_lim>{big_sz}(dpl_ranges::copy_if, copy_if_checker, select_many);
 #endif // _ENABLE_STD_RANGES_TESTING
