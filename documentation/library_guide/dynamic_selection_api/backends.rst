@@ -43,7 +43,8 @@ backend's default initialization:
   std::vector<sycl::queue> my_queues = { /* ... */ };
   ex::round_robin_policy<sycl::queue> policy2{my_queues};
 
-
+The SYCL backend supports the reporting for :ref:`Execution Information <execution-information>`
+of ``task_submission``, ``task_completion``, and ``task_time``.
 
 Lazy Reporting
 --------------
