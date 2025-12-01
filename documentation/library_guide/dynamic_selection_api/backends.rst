@@ -56,6 +56,8 @@ If no partial specialization exists for the resource type...
 Lazy Reporting
 --------------
 
+.. _lazy_report:
+
 For asynchronous execution, backends may use *lazy reporting* where
 :ref:`Execution Information <execution-information>` is not immediately available.
  The SYCL backend uses lazy reporting for ``task_completion`` and ``task_time``.

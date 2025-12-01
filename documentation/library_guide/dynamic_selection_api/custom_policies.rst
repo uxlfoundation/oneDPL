@@ -190,6 +190,12 @@ Policies with no reporting requirements can work with any backend, including
 the minimal ``default_backend``. Policies with reporting requirements need
 a backend that supports those specific types of execution information.
 
+For policies which require instrumentation, it is required for the policy to call
+``lazy_report()`` prior to selection for backends which support it.
+:ref:`Lazy Reporting <lazy_report>` allows backends to update their execution
+information state before making selection decisions. See ``dynamic_load_policy``
+and ``auto_tune_policy`` for examples of this.
+
 Policy State Reference Semantics
 --------------------------------
 
