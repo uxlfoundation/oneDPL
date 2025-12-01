@@ -154,7 +154,7 @@ auto
 submit_fallback(Policy&& p, Function&& f, Args&&... args)
 {
     // Policy has a try_submit method
-    auto result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
+    auto result = oneapi::dpl::experimental::try_submit(p, f, args...);
     std::size_t retry_count = 0;
     while (!result.has_value())
     {
@@ -171,7 +171,7 @@ submit_fallback(Policy&& p, Function&& f, Args&&... args)
             std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
         ++retry_count;
-        result = oneapi::dpl::experimental::try_submit(std::forward<Policy>(p), f, args...);
+        result = oneapi::dpl::experimental::try_submit(p, f, args...);
     }
     return result.value();
 }
