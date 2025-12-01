@@ -426,6 +426,7 @@ test4buffers(int mult = kDefaultMultValue)
     test4buffers<alloc_type, typename TestName::UsedValueType, TestName, TestSyclBuffer>(mult, TestName::ScaleStep, TestName::ScaleMax);
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
 template <typename Acc>
 auto
 get_accessor_ptr(const Acc& acc)
@@ -436,6 +437,7 @@ get_accessor_ptr(const Acc& acc)
     return acc.get_pointer();
 #endif
 }
+#endif
 
 } /* namespace TestUtils */
 #endif // _UTILS_SYCL_H
