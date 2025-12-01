@@ -261,9 +261,9 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
         using _GroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __scan_group_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
-        std::size_t __n = oneapi::dpl::__ranges::__size(__rng1); // input size
-        std::size_t __m = oneapi::dpl::__ranges::__size(__rng2); // output size
-        assert(__n > 0 && __m > 0);
+        std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);     // input size
+        std::size_t __n_out = oneapi::dpl::__ranges::__size(__rng2); // output size
+        assert(__n > 0 && __n_out > 0);
 
         auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         // get the work group size adjusted to the local memory limit
@@ -308,13 +308,13 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
                 sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
                     auto __temp_ptr = __temp_acc.__data();
-                    __local_scan(__item, __n, __m, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
+                    __local_scan(__item, __n, __n_out, __local_acc, __rng1, __rng2, __temp_ptr, __size_per_wg,
                                  __wgroup_size, __iters_per_witem, __init);
                     if (__n_groups == 1)
                     {
                         __dpl_sycl::__group_barrier(__item);
                         if (__item.get_local_id(0) == 0)
-                            __apex(__res_acc.__data(), __temp_ptr[0], __m, __n);
+                            __apex(__res_acc.__data(), __temp_ptr[0], __n_out, __n);
                     }
                 });
         });
@@ -342,7 +342,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                                      /*dummy*/ __temp_ptr, __n_groups, __wgroup_size, __iters_per_single_wg);
                         __dpl_sycl::__group_barrier(__item);
                         if (__item.get_local_id(0) == 0)
-                            __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __m, __n);
+                            __apex(__res_acc.__data(), __temp_ptr[__n_groups - 1], __n_out, __n);
                     });
             });
         }
@@ -356,7 +356,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __cgh.parallel_for<_PropagateScanName...>(sycl::range<1>(__n_groups * __size_per_wg), [=](auto __item) {
                 auto __temp_ptr = __temp_acc.__data();
                 auto __res_ptr = __res_acc.__data();
-                __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __m, __n, __size_per_wg);
+                __global_scan(__item, __rng2, __rng1, __temp_ptr, __res_ptr, __n_out, __n, __size_per_wg);
             });
         });
 
@@ -485,7 +485,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __m,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out,
                _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
     {
         using _ValueType = std::uint16_t;
@@ -507,7 +507,6 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
-                    _Size* __res_ptr = __res_acc.__data();
                     const auto& __group = __self_item.get_group();
                     // This kernel is only launched for sizes less than 2^16
                     const std::uint16_t __item_id = __self_item.get_local_linear_id();
@@ -529,9 +528,9 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                     {
                         if (__lacc[__idx]) {
                             _ValueType __out_idx = __lacc[__idx + __n_uniform];
-                            if (__out_idx < __m)
+                            if (__out_idx < __n_out)
                                 __assign(static_cast<__tuple_type>(__in_rng[__idx]), __out_rng[__out_idx]);
-                            if (__out_idx == __m)
+                            if (__out_idx == __n_out)
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
                     }
@@ -539,10 +538,11 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
                     if (__item_id == 0)
                     {
+                        _Size* __res_ptr = __res_acc.__data();
                         _ValueType __stop_in = __lacc[2 * __n_uniform];
                         __res_ptr[1] = __stop_in;
                         // Add predicate of last element to account for the scan's exclusivity
-                        __res_ptr[0] = (__stop_in == __n) ? __lacc[__n_uniform + __n - 1] + __lacc[__n - 1] : __m;
+                        __res_ptr[0] = (__stop_in == __n) ? __lacc[__n_uniform + __n - 1] + __lacc[__n - 1] : __n_out;
                     }
                 });
         }).wait_and_throw();
@@ -897,10 +897,10 @@ template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename
           typename _Assign = oneapi::dpl::__internal::__pstl_assign>
 std::array<_Size, 2>
 __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _InRng&& __in_rng,
-                   _OutRng&& __out_rng, _Size __n, _Size __m, _Pred __pred, _Assign __assign = _Assign{})
+                   _OutRng&& __out_rng, _Size __n, _Size __n_out, _Pred __pred, _Assign __assign = _Assign{})
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
-    std::array<_Size, 2> __ret = {__m, __n};
+    std::array<_Size, 2> __ret = {__n_out, __n};
 
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
@@ -912,7 +912,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
     // The kernel stores n integers for the predicate and another n integers for the offsets
-    const auto __req_slm_size = sizeof(std::uint16_t) * __n_uniform * 2;
+    const auto __req_slm_size = sizeof(std::uint16_t) * (__n_uniform * 2 + 1);
 
     constexpr std::uint16_t __max_elem_per_item = 2;
 
@@ -925,10 +925,10 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
-            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __m, __pred, __assign,
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out, __pred, __assign,
             static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
     }
-    else if (__m >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
@@ -951,9 +951,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         __payload.__copy_result(__ret.data(), __ret.size());
     }
 
-    assert(__ret[0] >= 0 && __m >= __ret[0]);
+    assert(__ret[0] >= 0 && __n_out >= __ret[0]);
     assert(__ret[1] > 0 && __n >= __ret[1]);
-    assert(__ret[0] == __m || __ret[1] == __n);
+    assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
 }
 
