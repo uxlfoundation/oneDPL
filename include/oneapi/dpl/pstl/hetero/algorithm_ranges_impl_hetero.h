@@ -332,7 +332,7 @@ __pattern_find_end(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _
     auto __idx = oneapi::dpl::__internal::__ranges::__pattern_find_end(__tag, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(__r1), oneapi::dpl::__ranges::views::all_read(__r2), __bin_pred);
 
-    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__first1, __last1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
 
     auto __it = __first1 + __idx;
 
@@ -1029,9 +1029,9 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
                     _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    [[maybe_unused]] auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result1};
@@ -1089,8 +1089,8 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
                            _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -1121,9 +1121,9 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds_n(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
@@ -1173,9 +1173,9 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                                    _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds_n(__out_r);
 
     if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result1};
