@@ -7,8 +7,8 @@ The dynamic selection API is an experimental feature in the |onedpl_long|
 of the API. Policies encapsulate the logic and any associated state needed
 to make a selection.
 
-Policy Structure
-----------------
+Policy Basics
+-------------
 
 A policy manages a collection of execution resources and applies a selection
 strategy to choose among them. Internally, policies use a *backend* to handle
