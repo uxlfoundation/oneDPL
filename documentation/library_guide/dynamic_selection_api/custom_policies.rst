@@ -103,7 +103,7 @@ selects from available resources:
         auto idx = dist(selector_->gen_);
         return std::make_optional<selection_type>(*this, selector_->resources_[idx]);
       }
-      return nullptr;
+      return std::nullopt;
     }
 
   public:
@@ -158,7 +158,7 @@ Selection Logic
 The ``try_select()`` function implements your selection algorithm:
 
 - Returns ``std::optional<selection_type>`` with selected resource
-- Returns ``nullptr`` if no resource is currently available
+- Returns ``std::nullopt`` if no resource is currently available
 - May accept additional arguments for selection hints
 
 Reporting Requirements
