@@ -1,27 +1,21 @@
 Backends
 ########
 
-The dynamic selection API is an experimental feature in the |onedpl_long|
-(|onedpl_short|) that selects an *execution resource* based on a chosen
-*selection policy*. A *backend* is responsible for managing a set of resources
-and handling the submission of work to those resources.
+The dynamic selection API is an experimental feature in the |onedpl_long|  
+(|onedpl_short|) that selects an *execution resource* based on a chosen  
+*selection policy*. For the policies to work with different resource types.  
+the resource management and work submission mechanics are handled  
+separately by resource-specific *backends*.
 
-Backends are typically not directly visible to application developers - they work
+A backend is responsible for:  
+
+1. **Resource Management** - storing and providing access to a set of resources  
+2. **Work Submission** - executing user functions on selected resources  
+3. **Synchronization** - waiting for submitted work to complete  
+4. **Instrumentation** - optionally reporting execution information (timing, completion)  
+
+Backends are typically not directly visible to application developers - they work  
 behind the scenes to enable policies to function.
-
-Role of Backends
-----------------
-
-A backend serves several key purposes:
-
-1. **Resource Management** - Stores and provides access to a set of resources
-2. **Work Submission** - Handles the execution of user functions on selected resources
-3. **Instrumentation** - Optionally reports execution information (timing, completion) to policies
-4. **Synchronization** - Provides mechanisms to wait for submitted work to complete
-
-The dynamic selection API separates the *selection logic* (in policies) from the
-*resource management and submission mechanics* (in backends), allowing policies
-to work with different resource types.
 
 Default SYCL Backend
 --------------------
