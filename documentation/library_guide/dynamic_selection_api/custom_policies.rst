@@ -161,6 +161,59 @@ The ``try_select()`` function implements your selection algorithm:
 - Returns ``std::nullopt`` if no resource is currently available
 - May accept additional arguments for selection hints
 
+Selection Type
+^^^^^^^^^^^^^^
+
+The ``selection_type`` represents a selected resource and encapsulates the policy and
+resource information. It must satisfy the *Selection* requirements:
+
+- ``unwrap()`` - Returns the unwrapped resource (e.g., ``sycl::queue``)
+- ``get_policy()`` - Returns the policy that created the selection
+- *optional* ``report(i)`` and ``report(i, v)`` - Report execution information back to the policy if required
+
+For policies that do not require execution information reporting (such as simple
+``round_robin_policy``), you may use the provided ``basic_selection_handle_t``:
+
+.. code:: cpp
+
+  template<typename Policy, typename Resource>
+  class basic_selection_handle_t {
+  public:
+    explicit basic_selection_handle_t(const Policy& p, Resource e);
+    auto unwrap();
+    Policy get_policy();
+  };
+
+For policies that need execution information (like ``dynamic_load_policy`` which tracks
+task submissions and completions, or ``auto_tune_policy`` which measures task timing),
+define a custom selection type with ``report()`` methods:
+
+.. code:: cpp
+
+  template<typename Policy>
+  class custom_selection_handle_t {
+    Policy policy_;
+    resource_type resource_;
+
+  public:
+    custom_selection_handle_t(const Policy& p, resource_type r)
+      : policy_(p), resource_(std::move(r)) {}
+
+    auto unwrap() { return oneapi::dpl::experimental::unwrap(resource_); }
+    Policy get_policy() { return policy_; }
+
+    // Report execution events
+    void report(const execution_info::task_submission_t&) const {
+      // Handle task submission event
+    }
+    void report(const execution_info::task_completion_t&) const {
+      // Handle task completion event
+    }
+  };
+
+The backend will call the selection handle's ``report()`` methods when execution
+events occur, allowing the policy to update its state accordingly.
+
 Reporting Requirements
 ^^^^^^^^^^^^^^^^^^^^^^
 
