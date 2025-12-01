@@ -47,11 +47,26 @@ backend's default initialization:
 The SYCL backend supports the reporting for :ref:`Execution Information <execution-information>`
 of ``task_submission``, ``task_completion``, and ``task_time``.
 
-Backend Architecture and Default Backend
-----------------------------------------
-For resource types other than ``sycl::queue``...
+Backend Architecture
+--------------------
 
-If no partial specialization exists for the resource type...
+The backend system uses a layered design to support multiple resource types:
+
+**default_backend**: When you create a policy, ``default_backend`` automatically
+determines the core resource type by applying any
+:ref:`resource adapter <resource-adapters>` to your resource type. It then 
+delegates to the appropriate ``core_resource_backend`` specialization.
+
+**core_resource_backend**: Specialized backend implementations exist for specific core
+resource types (like ``sycl::queue``). A generic implementation is provided
+for core resources without an explicitly specialized implementation which provides
+a minimal amount of functionality:
+
+- Basic resource storage and retrieval
+- Simple work submission without instrumentation (No execution information reporting)
+
+To use a custom resource type with full instrumentation support, you must create a
+``core_resource_backend`` specialization.
 
 Lazy Reporting
 --------------
@@ -117,6 +132,7 @@ The SYCL backend defines ``wait_type = sycl::event``, requiring user functions t
 
 Selection Scratch Space
 ^^^^^^^^^^^^^^^^^^^^^^^
+
 Backends must specify what scratch space is necessary within each ``selection_type``
 to properly implement instrumentation and reporting. This is done via
 ``backend_traits<Backend>::template selection_scratch_t<ReportReqs...>``, based upon

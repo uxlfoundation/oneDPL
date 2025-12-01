@@ -198,6 +198,9 @@ Customization
 Resource Adapters
 ^^^^^^^^^^^^^^^^^
 
+.. _resource-adapters:
+
+
 Resource adapters let you use variations of a resource type without rewriting backend
 code. For example, you can use ``sycl::queue*`` instead of ``sycl::queue`` by providing
 an adapter that converts between them.
