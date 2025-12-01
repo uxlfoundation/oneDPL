@@ -90,7 +90,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
 
       public:
         async_waiter() = default;
-        async_waiter(std::shared_ptr<Selection> selection) : s(selection) {}
+        async_waiter(std::shared_ptr<Selection> selection) : s(std::move(selection)) {}
 
         void
         set_end_event(sycl::event e)
