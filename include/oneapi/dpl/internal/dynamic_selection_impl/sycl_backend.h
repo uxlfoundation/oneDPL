@@ -111,6 +111,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
             {
                 if (s != nullptr)
                 {
+#ifdef SYCL_EXT_ONEAPI_PROFILING_TAG
                     const auto time_start =
                         s->scratch_space.my_start_event
                             .template get_profiling_info<sycl::info::event_profiling::command_start>();
@@ -119,6 +120,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
 
                     s->report(execution_info::task_time, std::chrono::duration_cast<report_duration>(
                                                              std::chrono::nanoseconds(time_end - time_start)));
+#endif // SYCL_EXT_ONEAPI_PROFILING_TAG
                 }
             }
             if constexpr (report_info_v<Selection, execution_info::task_completion_t>)
