@@ -55,105 +55,15 @@ When using ``policy_base``, your custom policy must implement:
 
 The ``policy_base`` automatically provides the required ``backend_type`` and ``resource_type`` aliases.
 
-Example: Custom Random Policy
-------------------------------
-
-The following example demonstrates creating a custom policy that randomly
-selects from available resources:
-
-.. code:: cpp
-
-  #include <oneapi/dpl/dynamic_selection>
-  #include <random>
-
-  namespace ex = oneapi::dpl::experimental;
-
-  template<typename ResourceType = sycl::queue,
-           typename ResourceAdapter = oneapi::dpl::identity,
-           typename Backend = ex::default_backend<ResourceType, ResourceAdapter>>
-  class random_policy
-    : public ex::policy_base<random_policy<ResourceType, ResourceAdapter, Backend>,
-                             ResourceAdapter, Backend> {
-  protected:
-    using base_t = ex::policy_base<random_policy, ResourceAdapter, Backend>;
-    friend base_t;
-
-    using typename base_t::selection_type;
-
-    struct selector_t {
-      std::vector<resource_type> resources_;
-      std::mt19937 gen_{std::random_device{}()};
-    };
-
-    std::shared_ptr<selector_t> selector_;
-
-    // Required: Initialize policy-specific state
-    void initialize_state() {
-      if (!selector_) {
-        selector_ = std::make_shared<selector_t>();
-      }
-      selector_->resources_ = base_t::get_resources();
-    }
-
-    // Required: Select a resource (returns empty std::optional if none available)
-    template<typename... Args>
-    std::optional<selection_type> try_select(Args&&...) {
-      if (selector_ && !selector_->resources_.empty()) {
-        std::uniform_int_distribution<> dist(0, selector_->resources_.size() - 1);
-        auto idx = dist(selector_->gen_);
-        return std::make_optional<selection_type>(*this, selector_->resources_[idx]);
-      }
-      return std::nullopt;
-    }
-
-  public:
-    using backend_type = Backend;
-    using resource_type = typename base_t::resource_type;
-
-    // Constructors
-    random_policy() { base_t::initialize(); }
-    random_policy(ex::deferred_initialization_t) {}
-    random_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {}) {
-      base_t::initialize(u, adapter);
-    }
-  };
-
-This custom policy can be used like any built-in policy:
-
-.. code:: cpp
-
-  random_policy<sycl::queue> p{my_queues};
-
-  ex::submit(p, [](sycl::queue q) {
-    return q.submit([](sycl::handler& h) {
-      // kernel code
-    });
-  });
-
-Key Points for Custom Policies
--------------------------------
-
-Selection State
-^^^^^^^^^^^^^^^
-
-Best practice is to make your policy's selection state stored in a ``shared_ptr`` to enable
-common reference semantics - copies of your policy will share the same state.
-
-.. code:: cpp
-
-  struct selector_t {
-    // Policy-specific selection state
-  };
-  std::shared_ptr<selector_t> selector_;
 
 Initialization
-^^^^^^^^^^^^^^
+--------------
 
 The ``initialize_state()`` function is called after the backend is initialized.
 Use it to set up policy-specific state using resources from ``get_resources()``.
 
 Selection Logic
-^^^^^^^^^^^^^^^
+---------------
 
 The ``try_select()`` function implements your selection algorithm:
 
@@ -162,7 +72,7 @@ The ``try_select()`` function implements your selection algorithm:
 - May accept additional arguments for selection hints
 
 Selection Type
-^^^^^^^^^^^^^^
+--------------
 
 The ``selection_type`` represents a selected resource and encapsulates the policy and
 resource information. It must satisfy the *Selection* requirements:
@@ -215,7 +125,7 @@ The backend will call the selection handle's ``report()`` methods when execution
 events occur, allowing the policy to update its state accordingly.
 
 Reporting Requirements
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 If your policy needs execution information (like task completion times), specify
 reporting requirements as template parameters to ``policy_base``:
@@ -233,6 +143,27 @@ reporting requirements as template parameters to ``policy_base``:
 See the :ref:`Execution Information <execution-information>` section of the
 backends page for more information about the specific reporting requirements
 available, including ``task_time``.
+
+Policy State Reference Semantics
+--------------------------------
+
+Best practice is to make your policy's selection state stored in a ``shared_ptr`` to enable
+common reference semantics - copies of your policy will share the same state, as set up by
+``initialize_state`` calls.
+
+.. code:: cpp
+
+  struct selector_t {
+    // Policy-specific selection state
+  };
+  std::shared_ptr<selector_t> selector_;
+
+Examples
+--------
+
+For examples please look to the existing policies within oneDPL (``fixed_resource_policy``,
+``round_robin_policy``, ``dynamic_load_policy``, ``auto_tune_policy``), which are
+all written using ``policy_base`` and according to these best practices.
 
 
 See Also
