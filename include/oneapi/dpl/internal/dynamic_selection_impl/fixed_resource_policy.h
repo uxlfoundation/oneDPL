@@ -58,8 +58,7 @@ class fixed_resource_policy
             selector_ = std::make_shared<selector_t>();
         }
         selector_->index_ = index;
-        auto u = base_t::get_resources();
-        selector_->resources_ = u;
+        selector_->resources_ = base_t::get_resources();
     }
 
     template <typename... Args>
