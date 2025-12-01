@@ -31,18 +31,18 @@ verify_subscription_view_concept_equality()
     using TSubscriptionView = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<SourceView>()));
     using TSubscriptionViewValue = std::ranges::range_value_t<TSubscriptionView>;
 
-    static_assert(std::ranges::range<SourceView>                         == std::ranges::range<TSubscriptionView>);
-    static_assert(std::ranges::borrowed_range<SourceView>                == std::ranges::borrowed_range<TSubscriptionView>);
-    static_assert(std::ranges::sized_range<SourceView>                   == std::ranges::sized_range<TSubscriptionView>);
-    static_assert(std::ranges::view<SourceView>                          == std::ranges::view<TSubscriptionView>);
-    static_assert(std::ranges::input_range<SourceView>                   == std::ranges::input_range<TSubscriptionView>);
+    static_assert(std::ranges::range<SourceView> == std::ranges::range<TSubscriptionView>);
+    static_assert(std::ranges::borrowed_range<SourceView> == std::ranges::borrowed_range<TSubscriptionView>);
+    static_assert(std::ranges::sized_range<SourceView> == std::ranges::sized_range<TSubscriptionView>);
+    static_assert(std::ranges::view<SourceView> == std::ranges::view<TSubscriptionView>);
+    static_assert(std::ranges::input_range<SourceView> == std::ranges::input_range<TSubscriptionView>);
     static_assert(std::ranges::output_range<SourceView, SourceViewValue> == std::ranges::output_range<TSubscriptionView, TSubscriptionViewValue>);
-    static_assert(std::ranges::forward_range<SourceView>                 == std::ranges::forward_range<TSubscriptionView>);
-    static_assert(std::ranges::bidirectional_range<SourceView>           == std::ranges::bidirectional_range<TSubscriptionView>);
-    static_assert(std::ranges::random_access_range<SourceView>           == std::ranges::random_access_range<TSubscriptionView>);
-    static_assert(std::ranges::contiguous_range<SourceView>              == std::ranges::contiguous_range<TSubscriptionView>);
-    static_assert(std::ranges::common_range<SourceView>                  == std::ranges::common_range<TSubscriptionView>);
-    static_assert(std::ranges::viewable_range<SourceView>                == std::ranges::viewable_range<TSubscriptionView>);
+    static_assert(std::ranges::forward_range<SourceView> == std::ranges::forward_range<TSubscriptionView>);
+    static_assert(std::ranges::bidirectional_range<SourceView> == std::ranges::bidirectional_range<TSubscriptionView>);
+    static_assert(std::ranges::random_access_range<SourceView> == std::ranges::random_access_range<TSubscriptionView>);
+    static_assert(std::ranges::contiguous_range<SourceView> == std::ranges::contiguous_range<TSubscriptionView>);
+    static_assert(std::ranges::common_range<SourceView> == std::ranges::common_range<TSubscriptionView>);
+    static_assert(std::ranges::viewable_range<SourceView> == std::ranges::viewable_range<TSubscriptionView>);
 }
 #endif // _ENABLE_STD_RANGES_TESTING
 #endif // TEST_DPCPP_BACKEND_PRESENT
