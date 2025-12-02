@@ -40,7 +40,7 @@ The fixed-resource policy always returns the same resource selection.
   }
 
 This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
-as well as with :ref:`Policy Traits <policy-traits>`.
+as well as with :ref:`policy traits <policy-traits>`.
 
 
 Example
