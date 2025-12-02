@@ -160,9 +160,14 @@ Constructors
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``fixed_resource_policy(std::size_t index = 0);``
     - Sets the index for the resource to be selected. Uses the default set of resources.
-  * - ``fixed_resource_policy(const std::vector<resource_type>& u, std::size_t index = 0);``
+  * - ``fixed_resource_policy(
+          const std::vector<resource_type>& u,
+          std::size_t index = 0);``
     - Overrides the default set of resources and optionally sets the index for the resource to be selected.
-  * - ``fixed_resource_policy(const std::vector<resource_type>& u, ResourceAdapter adapter, std::size_t index = 0);``
+  * - ``fixed_resource_policy(
+          const std::vector<resource_type>& u,
+          ResourceAdapter adapter,
+          std::size_t index = 0);``
     - Overrides the default set of resources with a resource adapter and optionally sets the index for the resource to be selected.
 
 Deferred Initialization

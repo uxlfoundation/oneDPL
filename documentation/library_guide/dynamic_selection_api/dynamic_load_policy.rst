@@ -147,7 +147,9 @@ Constructors
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``dynamic_load_policy();``
     - Initialized to use the default set of resources.
-  * - ``dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {});``
+  * - ``dynamic_load_policy(
+          const std::vector<ResourceType>& u,
+          ResourceAdapter adapter = {});``
     - Overrides the default set of resources with an optional resource adapter.
 
 Deferred Initialization
