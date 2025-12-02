@@ -106,11 +106,10 @@ define a custom selection type with ``report()`` methods:
     resource_type resource_;
 
     using scratch_space_t =
-        typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
-                                                                       execution_info::task_completion_t>;
+        typename backend_traits<Backend>::template
+            selection_scratch_t<execution_info::task_submission_t,
+                                execution_info::task_completion_t>;
     scratch_space_t scratch_space;
-
-
 
   public:
     custom_selection_handle_t(const Policy& p, resource_type r)
