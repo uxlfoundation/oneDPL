@@ -20,11 +20,15 @@ behind the scenes to enable policies to function.
 SYCL Backend
 ------------
 
-A sycl backend is provided to manage ``sycl::queue`` core resources, and ``sycl::queue``
-is the default resource if none is provided or deduce-able from resource arguments.
+A SYCL backend specialization of ``core_resource_backend`` is provided to support
+``sycl::queue`` resources. If no list of resources or explicit resource type is
+provided upon policy construction, the SYCL backend is the default, and
+``sycl::queue`` is the resource type.
+
 The SYCL backend provides:
 
-- Default initialization from available SYCL devices
+- Default initialization, which automatically discovers all available SYCL devices
+and creates queues
 - Event-based submission and waiting
 - Optional profiling and timing instrumentation
 
