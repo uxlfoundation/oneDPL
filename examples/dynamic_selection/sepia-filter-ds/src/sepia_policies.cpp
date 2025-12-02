@@ -112,8 +112,8 @@ writeImages(std::vector<sycl::buffer<uint8_t>>& output_buffers)
 //   pointers; sycl::multi_ptr specialization for particular address space
 //   can used for more control
 __attribute__((always_inline)) static void
-ApplyFilter(multi_ptr<const unsigned char, access::address_space::global_space, (sycl::access::decorated)2> src_image,
-            uint8_t* dst_image, int i)
+ApplyFilter(sycl::multi_ptr<const unsigned char, access::address_space::global_space, sycl::access::decorated::no> src_image,
+            sycl::multi_ptr<unsigned char, access::address_space::global_space, sycl::access::decorated::no> dst_image, int i)
 {
     i *= 3;
     float temp;
@@ -166,7 +166,8 @@ invokeDS(int num_offloads, std::vector<sycl::queue>& resources, std::vector<size
                     // the lambda parameter of the parallel_for is the kernel, which
                     // actually executes on device
                     h.parallel_for(range<1>(num_pixels), [=](auto i) {
-                        ApplyFilter(image_acc.get_pointer(), image_exp_acc.get_pointer(), i);
+                        ApplyFilter(image_acc.template get_multi_ptr<sycl::access::decorated::no>(),
+                                    image_exp_acc.template get_multi_ptr<sycl::access::decorated::no>(), i);
                     });
                 });
             };

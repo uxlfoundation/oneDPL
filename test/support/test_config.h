@@ -34,7 +34,7 @@
 // When such an issue is fixed, we must replace the usage of these "Latest" macros with the appropriate version number
 // before updating to the newest version in this section.
 
-#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20250301
+#define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20260000
 
 #define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
 
@@ -325,5 +325,21 @@
 
 // Drop view throws exceptions in libstdc++ 10
 #define _PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN (_GLIBCXX_RELEASE == 10)
+
+// std::ranges::view concept requires default_initializable:
+// 1. GNU libstdc++ (GCC)  - prior to GCC 11.4
+// 2. LLVM libc++          - prior to LLVM 13.0
+// 3. Microsoft STL (MSVC) - prior to VS 2022 17.0
+#if defined(_GLIBCXX_RELEASE) && defined(__GLIBCXX__)
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
+        ((_GLIBCXX_RELEASE < 11) || (_GLIBCXX_RELEASE == 11 && __GLIBCXX__ < 20230528))
+#elif defined(_LIBCPP_VERSION)
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE (_LIBCPP_VERSION < 13000)
+#elif defined(_MSVC_STL_VERSION) && defined(_MSVC_STL_UPDATE)
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE                                                \
+        (_MSVC_STL_VERSION < 143 || (_MSVC_STL_VERSION == 143 && _MSVC_STL_UPDATE < 202111))
+#else
+#    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
+#endif
 
 #endif // _TEST_CONFIG_H

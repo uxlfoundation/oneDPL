@@ -25,7 +25,8 @@
 #include <cassert>     // assert
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    include <ranges> // std::ranges::sized_range, std::ranges::range_size_t
+#    include <ranges>   // std::ranges::sized_range, std::ranges::range_size_t
+#    include <concepts> // for std::default_initializable
 #endif
 
 #include "iterator_defs.h"
@@ -360,7 +361,7 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
-    size() const -> decltype(oneapi::dpl::__ranges::__size(std::get<0>(std::declval<_tuple_ranges_t>())))
+    size() const
     {
         return oneapi::dpl::__ranges::__size(std::get<0>(__m_ranges));
     }
@@ -789,6 +790,10 @@ struct __subscription_impl_view_simple : std::ranges::view_interface<__subscript
                   "The usage of __subscription_impl_view_simple prohibited if _View::operator[] implemented");
 
     _View __base;
+
+    constexpr __subscription_impl_view_simple()
+        requires std::default_initializable<_View>
+    = default;
 
     constexpr explicit __subscription_impl_view_simple(_View __view) : __base(std::move(__view)) {}
 
