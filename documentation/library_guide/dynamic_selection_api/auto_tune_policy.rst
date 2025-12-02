@@ -57,8 +57,8 @@ arguments to create a unique key for tracking performance.
 
 .. Note::
 
-The number of ``KeyArgs`` types must exactly match the number of extra arguments
-passed to the user function beyond the resource. This requirement is enforced at compile-time.
+   The number of ``KeyArgs`` types must exactly match the number of extra arguments
+   passed to the user function beyond the resource. This requirement is enforced at compile-time.
 
 For example, ``auto_tune_policy<sycl::queue, oneapi::dpl::identity, default_backend, std::size_t>``
 will track performance separately for each distinct ``std::size_t`` argument value, useful
