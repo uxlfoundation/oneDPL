@@ -212,7 +212,7 @@ replace_copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIt
                 _ForwardIterator2 __result, _UnaryPredicate __pred, const _Tp& __new_value);
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2,
-          class _Tp = typename std::iterator_traits<_ForwardIterator2>::value_type>
+          class _Tp>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _ForwardIterator2>
 replace_copy(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last, _ForwardIterator2 __result,
              const _Tp& __old_value, const _Tp& __new_value);

@@ -138,60 +138,16 @@ struct is_replace_copy_if_well_formed<It, DestIt,
                                                                                         int{}, // actually, some callable should be here but since the function does not have any constraints any type will work
                                                                                         {3}))>> : std::true_type {};
 
-constexpr void test_default_template_argument_from_output_iterator()
+constexpr void test_default_template_argument()
 {
-    static_assert(is_replace_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
-                  "Positive: The default argument of replace_copy shall be taken from output iterator");
+    static_assert(!is_replace_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
+                  "Input iterator value_type test: std::replace_copy shall NOT have any default template argument for list-initialization");
     static_assert(!is_replace_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
-                  "Negative: The default argument of replace_copy shall be taken from output iterator");
+                  "Output iterator value_type test: std::replace_copy shall NOT have any default template argument for list-initialization");
     static_assert(is_replace_copy_if_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
-                  "Positive: The default argument of replace_copy_if shall be taken from output iterator");
+                  "The default template argument for list-initialization of replace_copy_if is NOT a value_type of the output iterator");
     static_assert(!is_replace_copy_if_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
-                  "Positive: The default argument of replace_copy_if shall be taken from output iterator");
-}
-
-void test_empty_list_initialization_for_replace_copy()
-{
-    {
-        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
-        std::vector<int> dest(v.size());
-        std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-        oneapi::dpl::replace_copy(oneapi::dpl::execution::seq, v.begin(), v.end(), dest.begin(), {3}, {});
-        EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `seq` policy");
-    }
-    {
-        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
-        std::vector<int> dest(v.size());
-        std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-        oneapi::dpl::replace_copy(oneapi::dpl::execution::unseq, v.begin(), v.end(), dest.begin(), {3}, {});
-        EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `unseq` policy");
-    }
-
-    {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_copy(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), dest_custom.begin(), {3}, {});
-            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_copy(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), dest_custom.begin(), {3}, {});
-            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `par` policy");
-        }
-    }
-#if TEST_DPCPP_BACKEND_PRESENT
-    std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
-    std::vector<int> dest(v.size());
-    std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-    sycl::buffer<int> buf(v);
-    sycl::buffer<int> dest_buf(v);
-    oneapi::dpl::replace_copy(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), {3}, {});
-    EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy with empty list-initialized value and with `device_policy` policy");
-#endif
+                  "The default template argument for list-initialization of replace_copy_if shall be a value_type of the output iterator");
 }
 
 void test_empty_list_initialization_for_replace_copy_if()
@@ -212,20 +168,18 @@ void test_empty_list_initialization_for_replace_copy_if()
     }
 
     {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_copy_if(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), dest_custom.begin(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
-            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_copy_if(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), dest_custom.begin(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
-            EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `par_unseq` policy");
-        }
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace_copy_if(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), dest_custom.begin(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
+        EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> dest_custom(v_custom.size());
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace_copy_if(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), dest_custom.begin(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
+        EXPECT_TRUE(dest_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
@@ -261,8 +215,7 @@ main()
     test_algo_basic_double<std::int32_t>(run_for_rnd_fw<test_non_const<std::int32_t>>());
 #endif
 
-    test_default_template_argument_from_output_iterator();
-    test_empty_list_initialization_for_replace_copy();
+    test_default_template_argument();
     test_empty_list_initialization_for_replace_copy_if();
 
     return done();

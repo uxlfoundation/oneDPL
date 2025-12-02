@@ -172,18 +172,16 @@ void test_empty_list_initialization_for_replace()
     }
 
     {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {3}, {});
-            EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace with empty list-initialized value and with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {3}, {});
-            EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace with empty list-initialized value and with `par_unseq` policy");
-        }
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {3}, {});
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace with empty list-initialized value and with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {3}, {});
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace with empty list-initialized value and with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
@@ -210,18 +208,16 @@ void test_empty_list_initialization_for_replace_if()
     }
 
     {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_if(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
-            EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_if with empty list-initialized value and with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
-            std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
-            oneapi::dpl::replace_if(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
-            EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_if with empty list-initialized value and with `par_unseq` policy");
-        }
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace_if(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_if with empty list-initialized value and with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{3},{3},{1},{8},{2},{3},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{1},{1},{5},{1},{1},{1},{8},{2},{1},{1}};
+        oneapi::dpl::replace_if(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), [](auto x) { return x == TestUtils::DefaultInitializedToOne{3}; }, {});
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::replace_if with empty list-initialized value and with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};

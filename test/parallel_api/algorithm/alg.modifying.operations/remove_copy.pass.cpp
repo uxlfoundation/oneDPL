@@ -115,9 +115,9 @@ struct is_remove_copy_well_formed<It, DestIt,
 constexpr void test_default_template_argument_from_output_iterator()
 {
     static_assert(is_remove_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
-                  "Positive: The default argument of remove_copy shall be taken from input iterator");
+                  "The default template argument for list-initialization of remove_copy is NOT a value_type of the input iterator");
     static_assert(!is_remove_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
-                  "Negative: The default argument of remove_copy shall be taken from input iterator");
+                  "The default template argument for list-initialization of remove_copy is shall be a value_type of the input iterator");
 }
 
 void test_empty_list_initialization()

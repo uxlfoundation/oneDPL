@@ -111,18 +111,16 @@ void test_empty_list_initialization_for_fill()
     }
 
     {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
-            oneapi::dpl::fill(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {});
-            EXPECT_TRUE(std::count(v_custom.begin(), v_custom.end(), TestUtils::DefaultInitializedToOne{}) == v_custom.size(),
-                        "a sequence is not filled properly by oneapi::dpl::fill with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
-            oneapi::dpl::fill(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {});
-            EXPECT_TRUE(std::count(v_custom.begin(), v_custom.end(), TestUtils::DefaultInitializedToOne{}) == v_custom.size(),
-                        "a sequence is not filled properly by oneapi::dpl::fill with `par_unseq` policy");
-        }
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
+        oneapi::dpl::fill(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {});
+        EXPECT_TRUE(std::count(v_custom.begin(), v_custom.end(), TestUtils::DefaultInitializedToOne{}) == v_custom.size(),
+                    "a sequence is not filled properly by oneapi::dpl::fill with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
+        oneapi::dpl::fill(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {});
+        EXPECT_TRUE(std::count(v_custom.begin(), v_custom.end(), TestUtils::DefaultInitializedToOne{}) == v_custom.size(),
+                    "a sequence is not filled properly by oneapi::dpl::fill with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,5,4,3,7,8,0,2,4};
@@ -151,20 +149,18 @@ void test_empty_list_initialization_for_fill_n()
     }
 
     {
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
-            auto it = oneapi::dpl::fill_n(oneapi::dpl::execution::par, v_custom.begin(), fill_number, {});
-            auto count = std::count(v_custom.begin(), v_custom.begin() + fill_number, TestUtils::DefaultInitializedToOne{1});
-            EXPECT_TRUE(it == (v_custom.begin() + fill_number), "an incorrect iterator returned from oneapi::dpl::fill_n with `par` policy");
-            EXPECT_TRUE(count == fill_number, "a sequence is not filled properly by oneapi::dpl::fill_n with `par` policy");
-        }
-        {
-            std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
-            auto it = oneapi::dpl::fill_n(oneapi::dpl::execution::par_unseq, v_custom.begin(), fill_number, {});
-            auto count = std::count(v_custom.begin(), v_custom.begin() + fill_number, TestUtils::DefaultInitializedToOne{1});
-            EXPECT_TRUE(it == (v_custom.begin() + fill_number), "an incorrect iterator returned from oneapi::dpl::fill_n with `par_unseq` policy");
-            EXPECT_TRUE(count == fill_number, "a sequence is not filled properly by oneapi::dpl::fill_n with `par_unseq` policy");
-        }
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
+        auto it = oneapi::dpl::fill_n(oneapi::dpl::execution::par, v_custom.begin(), fill_number, {});
+        auto count = std::count(v_custom.begin(), v_custom.begin() + fill_number, TestUtils::DefaultInitializedToOne{1});
+        EXPECT_TRUE(it == (v_custom.begin() + fill_number), "an incorrect iterator returned from oneapi::dpl::fill_n with `par` policy");
+        EXPECT_TRUE(count == fill_number, "a sequence is not filled properly by oneapi::dpl::fill_n with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{6},{5},{4},{3},{7},{8},{2},{1},{4}};
+        auto it = oneapi::dpl::fill_n(oneapi::dpl::execution::par_unseq, v_custom.begin(), fill_number, {});
+        auto count = std::count(v_custom.begin(), v_custom.begin() + fill_number, TestUtils::DefaultInitializedToOne{1});
+        EXPECT_TRUE(it == (v_custom.begin() + fill_number), "an incorrect iterator returned from oneapi::dpl::fill_n with `par_unseq` policy");
+        EXPECT_TRUE(count == fill_number, "a sequence is not filled properly by oneapi::dpl::fill_n with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,5,4,3,7,8,0,2,4};
