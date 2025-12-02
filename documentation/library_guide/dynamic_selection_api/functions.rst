@@ -17,9 +17,9 @@ Submit
   }
 
 Chooses a resource using the policy ``p`` and 
-then calls the user function ``f``, passing the unwrapped selection 
-and ``args...`` as the arguments. It also implements the necessary 
-calls to report execution information for policies that 
+then calls the user function ``f``, passing the selected resource
+and ``args...`` as the arguments. It also implements the necessary
+calls to report execution information for policies that
 require reporting.
 
 ``submit`` returns a *submission* object. Passing the *submission* object to the 
@@ -27,9 +27,9 @@ require reporting.
 submission is complete. When using SYCL queues, this behaves as if calling
 ``sycl::event::wait`` on the SYCL event returned by the user function.
 
-The following example demonstrates the use of the function ``submit`` and the 
-function ``wait``. The use of ``single_task`` is for syntactic demonstration 
-purposes only; any valid command group or series of command groups can be 
+The following example demonstrates the use of the function ``submit`` and the
+function ``wait``. The use of ``single_task`` is for syntactic demonstration
+purposes only; any valid command group or series of command groups can be
 submitted to the selected queue.
 
 .. code:: cpp
@@ -151,7 +151,7 @@ for calling ``wait`` on the object returned by a call to ``submit``.
   }
 
 Chooses a resource using the policy ``p`` and 
-then calls the user function ``f``, passing the unwrapped selection 
+then calls the user function ``f``, passing the selected resource
 and ``args...`` as the arguments. It implements the necessary 
 calls to report execution information for policies that 
 require reporting. This function blocks the calling thread until 
@@ -211,7 +211,7 @@ Try Submit
   }
 
 Attempts to choose a resource using the policy ``p`` and, if successful,
-calls the user function ``f``, passing the unwrapped selection and ``args...``
+calls the user function ``f``, passing the selected resource and ``args...``
 as the arguments. Returns a ``std::optional`` to a submission object if
 a resource was available, empty if no resource could be selected.
 
@@ -254,9 +254,6 @@ available for a well formed policy with existing resources.
 ``try_submit`` is most useful with policies that may temporarily have no
 available resources, such as a custom policy which has hard capacity limits
 on specific devices.
-
-The ``submit`` function uses ``try_submit`` internally and retries
-with backoff when no resource is available.
 
 Policy Queries
 --------------

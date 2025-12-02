@@ -33,10 +33,10 @@ to call derived class methods (like ``try_select``) without virtual function ove
       void initialize(const std::vector<resource_type>& u,
                       ResourceAdapter adapter, Args... args);
 
-      // Submission operations (provided by base)
-      auto try_submit(Function&& f, Args&&... args);  // Returns std::optional
-      auto submit(Function&& f, Args&&... args);      // Retries until success
+      // Submission operations
+      auto submit(Function&& f, Args&&... args);           // Retries until success
       void submit_and_wait(Function&& f, Args&&... args);  // Blocks until complete
+      auto try_submit(Function&& f, Args&&... args);       // Returns std::optional
 
       // Queries
       auto get_resources() const;

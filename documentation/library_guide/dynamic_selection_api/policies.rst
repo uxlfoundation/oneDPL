@@ -57,6 +57,8 @@ which will select the appropriate execution resource for the work.
 Policy Traits
 -------------
 
+.. _policy-traits:
+
 Traits can be used to determine useful type information about policies. 
 
 .. code:: cpp
@@ -201,17 +203,19 @@ Resource Adapters
 .. _resource-adapters:
 
 
-Resource adapters let you use variations of a resource type without rewriting backend
-code. For example, you can use ``sycl::queue*`` instead of ``sycl::queue`` by providing
-an adapter that converts between them.
+A *resource adapter* is a transformation function applied to convert a custom resource type
+to the type the policy backend operates with.
 
-**Why use adapters?** They provide flexibility when you need a different resource storage
-format (like pointers or wrappers) but want to reuse an existing backend implementation.
+Resource adapters let you use variations of a resource type when you need a different resource
+storage format (like pointers or wrappers) or when additional information should be associated
+with each resource.
 
-``ResourceAdapter`` is the second template argument of a policy, it defaults to 
-``oneapi::dpl::identity``.
+All oneDPL selection policy types allow setting a resource adapter as the second template argument
+when creating a policy. If not provided via function argument or specified as a template argument,
+it defaults to ``oneapi::dpl::identity``.
 
-**Example**: Using queue pointers with the SYCL backend:
+The example code shows how you can use ``sycl::queue*`` with the SYCL backend
+instead of ``sycl::queue`` by providing an adapter that converts between them.
 
 .. code:: cpp
 
@@ -234,7 +238,7 @@ Custom Policies
 ^^^^^^^^^^^^^^^
 
 The dynamic selection API supports creating custom policies to extend the system
-with new selection strategies or resource types:
+with new selection strategies or resource types. For details, see:
 
 .. toctree::
    :maxdepth: 2

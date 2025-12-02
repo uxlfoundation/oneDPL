@@ -18,7 +18,8 @@ will achieve a good load balancing.
   template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
     class round_robin_policy
-      : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
+      : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend>
     {
       public:
         using resource_type = ResourceType;
@@ -35,10 +36,9 @@ will achieve a good load balancing.
     };
   
   }
-  
-This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
-It can also be used with ``policy_traits``.
+
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`Policy Traits <policy-traits>`.
 
 Example
 -------
@@ -129,7 +129,7 @@ Constructors
 
 ``round_robin_policy`` provides three constructors.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -149,7 +149,7 @@ A ``round_robin_policy`` that was constructed with deferred initialization must 
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``round_robin_policy`` initializers
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -166,7 +166,7 @@ Queries
 A ``round_robin_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``round_robin_policy`` queries
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 

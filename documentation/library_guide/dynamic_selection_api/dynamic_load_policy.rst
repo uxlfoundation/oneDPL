@@ -19,8 +19,9 @@ by submitting tasks to a resource that completes work faster.
   template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
           typename Backend = default_backend<ResourceType, ResourceAdapter>>
     class dynamic_load_policy
-      : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
-                           execution_info::task_submission_t, execution_info::task_completion_t>
+      : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend, execution_info::task_submission_t,
+                           execution_info::task_completion_t>
     {
       public:
         using resource_type = ResourceType;
@@ -38,9 +39,9 @@ by submitting tasks to a resource that completes work faster.
 
   }
 
-This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
-It can also be used with ``policy_traits``.
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`Policy Traits <policy-traits>`.
+
 
 Example
 -------
@@ -136,7 +137,7 @@ Constructors
 
 ``dynamic_load_policy`` provides three constructors.
 
-.. list-table:: ``dynamic_load_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -156,7 +157,7 @@ A ``dynamic_load_policy`` that was constructed with deferred initialization must
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``dynamic_load_policy`` initializers
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -173,7 +174,7 @@ Queries
 A ``dynamic_load_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``dynamic_load_policy`` queries
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 

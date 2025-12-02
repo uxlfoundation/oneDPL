@@ -17,9 +17,10 @@ The fixed-resource policy always returns the same resource selection.
 
   namespace oneapi::dpl::experimental {
   template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
-          typename Backend = default_backend<ResourceType, ResourceAdapter>>
+            typename Backend = default_backend<ResourceType, ResourceAdapter>>
     class fixed_resource_policy
-      : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
+      : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend>
     {
       public:
         using resource_type = ResourceType;
@@ -28,19 +29,18 @@ The fixed-resource policy always returns the same resource selection.
         fixed_resource_policy(deferred_initialization_t);
         fixed_resource_policy(std::size_t index = 0);
         fixed_resource_policy(const std::vector<ResourceType>& u, std::size_t index = 0);
-        fixed_resource_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter, std::size_t index = 0);
+        fixed_resource_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter,
+                              std::size_t index = 0);
 
         // deferred initializer
         void initialize(std::size_t index = 0);
         void initialize(const std::vector<resource_type>& u, std::size_t index = 0);
-        // other implementation defined functions...
     };
 
   }
 
-This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
-It can also be used with ``policy_traits``.
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`Policy Traits <policy-traits>`.
 
 
 Example
@@ -128,6 +128,7 @@ resource is set during construction or deferred initialization.
 Simplified, expository implementation of the selection algorithm:
  
 .. code:: cpp
+
   //not a public function, for exposition purposes only
   template<typename... Args>
   selection_type fixed_resource_policy::select(Args&& ...) {
@@ -149,7 +150,7 @@ Constructors
 
 ``fixed_resource_policy`` provides four constructors.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -171,7 +172,7 @@ A ``fixed_resource_policy`` that was constructed with deferred initialization mu
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``fixed_resource_policy`` initializers
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -188,7 +189,7 @@ Queries
 A ``fixed_resource_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``fixed_resource_policy`` queries
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 

@@ -37,15 +37,15 @@ the profiling phase periodically.
 
         // deferred initializer
         void initialize(uint64_t resample_interval_in_milliseconds = 0);
-        void initialize(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);
+        void initialize(const std::vector<resource_type>& u,
+                        uint64_t resample_interval_in_milliseconds = 0);
         // other implementation defined functions...
     };
 
   }
 
-This policy can be used with all the dynamic selection functions, such as ``submit``,
-``submit_and_wait``, and ``try_submit``, ``get_resources``, ``get_submission_group``.
-It can also be used with ``policy_traits``.
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`Policy Traits <policy-traits>`.
 
 Task Identification with KeyArgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -55,7 +55,8 @@ By default (empty ``KeyArgs``), all invocations of the same function share perfo
 When ``KeyArgs`` are specified, the policy uses both the function pointer and the specified
 arguments to create a unique key for tracking performance.
 
-**Important**: The number of ``KeyArgs`` types must exactly match the number of extra arguments
+.. note::
+The number of ``KeyArgs`` types must exactly match the number of extra arguments
 passed to the user function beyond the resource. This requirement is enforced at compile-time.
 
 For example, ``auto_tune_policy<sycl::queue, oneapi::dpl::identity, default_backend, std::size_t>``
@@ -168,7 +169,7 @@ Constructors
 
 ``auto_tune_policy`` provides three constructors.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -194,7 +195,7 @@ An ``auto_tune_policy`` that was constructed with deferred initialization must b
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``auto_tune_policy`` initializers
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
@@ -217,7 +218,7 @@ Queries
 An ``auto_tune_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``auto_tune_policy`` queries
+.. list-table::
   :widths: 50 50
   :header-rows: 1
 
