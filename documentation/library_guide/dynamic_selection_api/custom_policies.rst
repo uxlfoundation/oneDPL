@@ -171,7 +171,7 @@ to provide the requested execution information to the policy via
 
 The following execution information types are available:
 
-.. list-table:: Execution Information Types
+.. list-table::
   :widths: 18 17 30 35
   :header-rows: 1
 
@@ -198,7 +198,7 @@ Built-In Policy Requirements
 
 The following table shows the reporting requirements for each built-in policy:
 
-.. list-table:: Policy Reporting Requirements
+.. list-table::
   :widths: 40 60
   :header-rows: 1
 
