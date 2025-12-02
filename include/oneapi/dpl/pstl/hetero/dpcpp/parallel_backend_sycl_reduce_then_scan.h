@@ -1522,6 +1522,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
+
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _InRng, typename _TmpStorageAcc>
@@ -1531,6 +1532,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         using _InitValueType = typename _InitType::__value_type;
+        
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             __cgh.depends_on(__prior_event);
@@ -2068,7 +2070,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q,
                                       _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
-                                      _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
+                                      _WriteOp __write_op,
+                                      _InitType __init,
+                                      _Inclusive,
+                                      _IsUniquePattern,
                                       sycl::event __prior_event = {})
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
