@@ -127,7 +127,7 @@ struct __simple_write_to_id
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign>
+template <std::int32_t __offset, typename _Assign, bool IsBounded>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
@@ -142,7 +142,22 @@ struct __write_to_id_if
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+        {
+            if constexpr (IsBounded)
+            {
+                const auto __idx_out_rng = std::get<0>(__v) - 1 + __offset;
+
+                // Check putput range size
+                if (__idx_out_rng < oneapi::dpl::__ranges::__size(__out_rng))
+                {
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__idx_out_rng]);
+                }
+            }
+            else
+            {
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+            }
+        }
     }
     _Assign __assign;
 };
