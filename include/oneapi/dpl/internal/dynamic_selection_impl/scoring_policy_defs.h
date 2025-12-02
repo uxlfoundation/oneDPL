@@ -25,10 +25,10 @@ class basic_selection_handle_t
 
   public:
     explicit basic_selection_handle_t(const Policy& p, Resource e = Resource{}) : p_(p), e_(std::move(e)) {}
-    auto
+    Resource
     unwrap()
     {
-        return oneapi::dpl::experimental::unwrap(e_);
+        return e_;
     }
     Policy
     get_policy()
