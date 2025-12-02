@@ -51,12 +51,9 @@ class backend_base
     }
 
     template <typename... ReportReqs>
-    backend_base(const std::vector<ResourceType>& u, ReportReqs...)
+    backend_base(const std::vector<ResourceType>& u, ReportReqs...) : resources_(u.begin(), u.end())
     {
         static_assert(sizeof...(ReportReqs) == 0, "Default backend does not support reporting");
-
-        for (const auto& e : u)
-            resources_.push_back(e);
     }
 
     auto

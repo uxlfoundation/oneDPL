@@ -237,13 +237,9 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
     {
         if (!state_)
         {
-            state_ = std::make_shared<state_t>();
             resample_time_ = resample_time;
             auto u = base_t::get_resources();
-            for (size_type i = 0; i < u.size(); ++i)
-            {
-                state_->resources_with_index_.push_back(resource_with_index_t{u[i], i});
-            }
+            state_ = std::make_shared<state_t>(u);
         }
     }
 
@@ -285,6 +281,16 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         std::mutex m_;
         std::vector<resource_with_index_t> resources_with_index_;
         tuner_by_key_t tuner_by_key_;
+
+        state_t() = default;
+
+        state_t(const std::vector<resource_type>& u) : resources_with_index_(u.size())
+        {
+            for (size_type i = 0; i < u.size(); ++i)
+            {
+                resources_with_index_[i] = resource_with_index_t{u[i], i};
+            }
+        }
     };
 
     std::shared_ptr<state_t> state_;
