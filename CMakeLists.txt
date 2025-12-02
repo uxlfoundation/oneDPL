@@ -151,7 +151,7 @@ message(STATUS "Using parallel policies with ${ONEDPL_BACKEND} backend")
 string(TOLOWER ${ONEDPL_BACKEND} ONEDPL_BACKEND)
 
 if (ONEDPL_ENABLE_SIMD)
-    # MSVC supports OpenMP 2.0 which is not sufficent for SIMD execution
+    # MSVC supports OpenMP 2.0 which is not sufficient for SIMD execution
     # TODO: check if -openmp:experimental can be used
     if ((NOT INTEL_LLVM_COMPILER AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
