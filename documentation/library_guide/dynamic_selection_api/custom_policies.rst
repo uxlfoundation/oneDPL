@@ -138,7 +138,7 @@ handle must also include a member named ``scratch_space`` with type dictated by
 is a variadic pack of all execution information requirements.  The backend will
 use this ``scratch_space`` member to store temporary instrumentation data (like
 profiling events) needed to satisfy the reporting requirement. For more
-information, see :ref:`Selection Scratch Space <selection_scratch_space>`.
+information, see :ref:`Selection Scratch Space <selection-scratch-space>`.
 
 Reporting Requirements
 ----------------------
@@ -220,7 +220,7 @@ reporting requirements need a backend that supports those specific types of
 execution information.
 
 Policies with reporting requirements must call ``lazy_report()`` prior to selection,
-if the backend supports it. :ref:`Lazy Reporting <lazy_report>` allows backends 
+if the backend supports it. :ref:`Lazy Reporting <lazy-report>` allows backends 
 to update their execution information state before making selection decisions.
 See ``dynamic_load_policy`` and ``auto_tune_policy`` for examples of this.
 

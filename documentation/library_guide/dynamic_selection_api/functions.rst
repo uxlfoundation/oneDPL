@@ -283,7 +283,7 @@ selects from. The following example demonstrates the use of the function
   namespace ex = oneapi::dpl::experimental;
 
   int main() {
-    ex::round_robin_policy p_explicit{ { sycl::queue{ sycl::cpu_selector_v },  
+    ex::round_robin_policy p_explicit{ { sycl::queue{ sycl::cpu_selector_v },
                                          sycl::queue{ sycl::gpu_selector_v } } };
 
     std::cout << "Resources in explicitly set policy\n";

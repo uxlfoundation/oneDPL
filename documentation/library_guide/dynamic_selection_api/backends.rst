@@ -76,7 +76,7 @@ To use a custom resource type with full instrumentation support, you must create
 Lazy Reporting
 --------------
 
-.. _lazy_report:
+.. _lazy-report:
 
 For asynchronous execution, backends may use *lazy reporting* where
 :ref:`Execution Information <execution-information>` is not immediately available.
@@ -140,7 +140,7 @@ The SYCL backend defines ``wait_type = sycl::event``, requiring user functions t
 Selection Scratch Space
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-.. _selection_scratch_space:
+.. _selection-scratch-space:
 
 Backends need storage space within selection handles to implement instrumentation.
 The ``selection_scratch_t`` trait specifies what additional data a backend requires
