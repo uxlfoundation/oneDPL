@@ -1031,7 +1031,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
 {
     [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
     [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
-    [[maybe_unused]] auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+    [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds_n(__out_r);
 
     if (__n1 == 0 && __n2 == 0)
         return {__first1, __first2, __result1};
