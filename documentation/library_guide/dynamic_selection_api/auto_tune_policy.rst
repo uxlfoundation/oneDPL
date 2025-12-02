@@ -177,13 +177,13 @@ Constructors
     - Description
   * - ``auto_tune_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
-  * - ``auto_tune_policy(
-          uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``auto_tune_policy(``
+      |   ``uint64_t resample_interval_in_milliseconds = 0);``
     - Initialized to use the default set of resources. An optional resampling interval can be provided.
-  * - ``auto_tune_policy(
-          const std::vector<ResourceType>& u,
-          ResourceAdapter adapter = {},
-          uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``auto_tune_policy(``
+      |   ``const std::vector<ResourceType>& u,``
+      |   ``ResourceAdapter adapter = {},``
+      |   ``uint64_t resample_interval_in_milliseconds = 0);``
     - Overrides the default set of resources with an optional resource adapter. An optional resampling interval can be provided.
 
 .. Note::
@@ -205,9 +205,12 @@ to select or submit.
 
   * - Signature
     - Description
-  * - ``initialize(uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``initialize(``
+      | ``  uint64_t resample_interval_in_milliseconds = 0);``
     - Initialize to use the default set of resources. An optional resampling interval can be provided.
-  * - ``initialize(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``initialize(``
+      |   ``const std::vector<resource_type>& u,``
+      |   ``uint64_t resample_interval_in_milliseconds = 0);``
     - Overrides the default set of resources. An optional resampling interval can be provided.
 
 .. Note::
