@@ -1020,7 +1020,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
     using _MaskPredicateNoOp = oneapi::dpl::identity;
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicateNoOp, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign, /*IsBounded*/ std::true_type>;
 
     //using _SizeOfRange3 = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
