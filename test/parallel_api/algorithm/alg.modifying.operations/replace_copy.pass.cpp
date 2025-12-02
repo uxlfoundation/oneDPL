@@ -141,13 +141,13 @@ struct is_replace_copy_if_well_formed<It, DestIt,
 constexpr void test_default_template_argument()
 {
     static_assert(!is_replace_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
-                  "Input iterator value_type test: std::replace_copy shall NOT have any default template argument for list-initialization");
+                  "Input iterator value_type test: std::replace_copy must NOT have any default template argument for list-initialization");
     static_assert(!is_replace_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
-                  "Output iterator value_type test: std::replace_copy shall NOT have any default template argument for list-initialization");
+                  "Output iterator value_type test: std::replace_copy must NOT have any default template argument for list-initialization");
     static_assert(is_replace_copy_if_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
                   "The default template argument for list-initialization of replace_copy_if is NOT a value_type of the output iterator");
     static_assert(!is_replace_copy_if_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
-                  "The default template argument for list-initialization of replace_copy_if shall be a value_type of the output iterator");
+                  "The default template argument for list-initialization of replace_copy_if must be a value_type of the output iterator");
 }
 
 void test_empty_list_initialization_for_replace_copy_if()

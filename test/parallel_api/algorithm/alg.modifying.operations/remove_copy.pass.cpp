@@ -117,7 +117,7 @@ constexpr void test_default_template_argument_from_output_iterator()
     static_assert(is_remove_copy_well_formed<std::vector<int>::iterator, std::vector<not_implicitly_convertible>::iterator>::value,
                   "The default template argument for list-initialization of remove_copy is NOT a value_type of the input iterator");
     static_assert(!is_remove_copy_well_formed<std::vector<not_implicitly_convertible>::iterator, std::vector<int>::iterator>::value,
-                  "The default template argument for list-initialization of remove_copy is shall be a value_type of the input iterator");
+                  "The default template argument for list-initialization of remove_copy must be a value_type of the input iterator");
 }
 
 void test_empty_list_initialization()
