@@ -21,9 +21,7 @@ SYCL Backend
 ------------
 
 A SYCL backend specialization of ``core_resource_backend`` is provided to support
-``sycl::queue`` resources. If no list of resources or explicit resource type is
-provided upon policy construction, the SYCL backend is the default, and
-``sycl::queue`` is the resource type.
+``sycl::queue`` resources.
 
 The SYCL backend provides:
 
@@ -32,8 +30,9 @@ and creates queues
 - Event-based submission and waiting
 - Optional profiling and timing instrumentation
 
-When you construct a policy without specifying resources, it uses the SYCL
-backend's default initialization:
+If no list of resources or explicit resource type is provided upon policy
+construction, the SYCL backend is the default, and ``sycl::queue`` is the
+resource type.
 
 .. code:: cpp
 
@@ -50,6 +49,9 @@ backend's default initialization:
 
 The SYCL backend supports the reporting for :ref:`Execution Information <execution-information>`
 of ``task_submission``, ``task_completion``, and ``task_time``.
+
+User functions submitted to the SYCL backend must return a ``sycl::event``, which is
+its :ref:`wait type <wait-type>`.
 
 Backend Architecture
 --------------------
@@ -118,6 +120,8 @@ These traits are primarily used by policy implementers, not application develope
 
 Wait Type Requirements
 ^^^^^^^^^^^^^^^^^^^^^^
+
+.. _wait-type:
 
 Backends specify return type requirements for user-submitted functions through the
 ``wait_type`` member:
