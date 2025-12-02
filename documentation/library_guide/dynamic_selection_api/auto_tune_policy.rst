@@ -31,14 +31,14 @@ the profiling phase periodically.
         using backend_type = Backend;
 
         auto_tune_policy(deferred_initialization_t);
-        auto_tune_policy(uint64_t resample_interval_milliseconds = 0);
+        auto_tune_policy(uint64_t resample_interval_ms = 0);
         auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {},
-                         uint64_t resample_interval_milliseconds = 0);
+                         uint64_t resample_interval_ms = 0);
 
         // deferred initializer
-        void initialize(uint64_t resample_interval_milliseconds = 0);
+        void initialize(uint64_t resample_interval_ms = 0);
         void initialize(const std::vector<resource_type>& u,
-                        uint64_t resample_interval_milliseconds = 0);
+                        uint64_t resample_interval_ms = 0);
         // other implementation defined functions...
     };
 
@@ -178,12 +178,12 @@ Constructors
   * - ``auto_tune_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - | ``auto_tune_policy(``
-      |   ``uint64_t resample_interval_milliseconds = 0);``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Initialized to use the default set of resources. An optional resampling interval can be provided.
   * - | ``auto_tune_policy(``
       |   ``const std::vector<ResourceType>& u,``
       |   ``ResourceAdapter adapter = {},``
-      |   ``uint64_t resample_interval_milliseconds = 0);``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Overrides the default set of resources with an optional resource adapter. An optional resampling interval can be provided.
 
 .. Note::
@@ -206,11 +206,11 @@ to select or submit.
   * - Signature
     - Description
   * - | ``initialize(``
-      |   ``uint64_t resample_interval_milliseconds = 0);``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Initialize to use the default set of resources. An optional resampling interval can be provided.
   * - | ``initialize(``
       |   ``const std::vector<resource_type>& u,``
-      |   ``uint64_t resample_interval_milliseconds = 0);``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Overrides the default set of resources. An optional resampling interval can be provided.
 
 .. Note::
