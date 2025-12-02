@@ -113,7 +113,7 @@ class dynamic_load_policy
         auto u = base_t::get_resources();
         selector_->resources_.clear();
         selector_->resources_.reserve(u.size());
-        for (auto x : u)
+        for (auto& x : u)
         {
             selector_->resources_.push_back(std::make_shared<resource_t>(x));
         }

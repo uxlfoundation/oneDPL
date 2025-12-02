@@ -330,10 +330,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
         }
         else // other reporting requirements beside task_time
         {
-            for (auto& x : v)
-            {
-                this->resources_.push_back(x);
-            }
+            this->resources_.insert(this->resources_.end(), v.begin(), v.end());
         }
     }
 
@@ -352,7 +349,7 @@ class core_resource_backend<sycl::queue, ResourceType, ResourceAdapter> : public
         {
             prop_list = sycl::property_list{sycl::property::queue::enable_profiling()};
         }
-
+        v.reserve(devices.size());
         for (auto& x : devices)
         {
             v.push_back(sycl::queue(x, prop_list));
