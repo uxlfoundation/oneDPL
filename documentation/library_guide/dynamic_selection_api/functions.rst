@@ -251,7 +251,7 @@ are immediately available without blocking.
 
 .. Note::
 
-   For most policies,  like ``round_robin_policy``, resources are always
+   For most policies, like ``round_robin_policy``, resources are always
    available and ``try_submit`` will always succeed in submitting work.
    ``try_submit`` is most useful with policies that may temporarily have no
    available resources, such as a custom policy which has hard capacity limits
