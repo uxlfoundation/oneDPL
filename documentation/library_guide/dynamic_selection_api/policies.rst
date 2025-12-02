@@ -16,39 +16,39 @@ resource-specific operations such as work submission and synchronization.
 
 All policies support three construction patterns:
 
-**Initialization with explicit resources**: Construct the policy with an explicit
-vector of resources to manage:
+1. **Initialization with explicit resources** - Construct the policy with an explicit
+   vector of resources to manage:
 
-.. code:: cpp
+   .. code:: cpp
 
-  namespace ex = oneapi::dpl::experimental;
-  std::vector<resource_type> r {/* resources */};
-  ex::round_robin_policy policy{r};
+     namespace ex = oneapi::dpl::experimental;
+     std::vector<resource_type> r {/* resources */};
+     ex::round_robin_policy policy{r};
 
-**Default initialization**: Construct the policy without arguments, allowing the
-backend to select default resources:
+2. **Default initialization** - Construct the policy without arguments, allowing the
+   backend to select default resources:
 
-.. code:: cpp
+   .. code:: cpp
 
-  namespace ex = oneapi::dpl::experimental;
-  ex::round_robin_policy policy{}; // uses backend's default resources
+     namespace ex = oneapi::dpl::experimental;
+     ex::round_robin_policy policy{}; // uses backend's default resources
 
-**Deferred initialization**: Construct the policy in an uninitialized state, then
-initialize it later by calling ``initialize()``:
+3. **Deferred initialization** - Construct the policy in an uninitialized state, then
+   initialize it later by calling ``initialize()``:
 
-.. code:: cpp
+   .. code:: cpp
 
-  namespace ex = oneapi::dpl::experimental;
-  ex::round_robin_policy policy{ex::deferred_initialization};
-  // ... later, when resources are available ...
-  policy.initialize(resources);
+     namespace ex = oneapi::dpl::experimental;
+     ex::round_robin_policy policy{ex::deferred_initialization};
+     // ... later, when resources are available ...
+     policy.initialize(resources);
 
-Deferred initialization is useful when the policy must be constructed before
-execution resources are available, such as during early program setup or when
-resources depend on runtime configuration.
+   Deferred initialization is useful when the policy must be constructed before
+   execution resources are available, such as during early program setup or when
+   resources depend on runtime configuration.
 
-Attempting to use a deferred-initialization policy before calling ``initialize()``
-will throw ``std::logic_error``.
+   Attempting to use a deferred-initialization policy before calling ``initialize()``
+   will throw ``std::logic_error``.
 
 Once policies are initialized, work can be submitted via the submit
 :doc:`free functions <functions>`: ``submit``, ``submit_and_wait``, or ``try_submit``,
