@@ -55,7 +55,8 @@ By default (empty ``KeyArgs``), all invocations of the same function share perfo
 When ``KeyArgs`` are specified, the policy uses both the function pointer and the specified
 arguments to create a unique key for tracking performance.
 
-.. note::
+.. Note::
+
 The number of ``KeyArgs`` types must exactly match the number of extra arguments
 passed to the user function beyond the resource. This requirement is enforced at compile-time.
 
