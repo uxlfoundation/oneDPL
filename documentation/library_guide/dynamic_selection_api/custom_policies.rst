@@ -74,10 +74,12 @@ The ``try_select()`` function implements your selection algorithm:
 Selection Type
 --------------
 
+.. _selection-type:
+
 The ``selection_type`` represents a selected resource and encapsulates the policy and
 resource information. It must satisfy the *Selection* requirements:
 
-- ``unwrap()`` - Returns the unwrapped resource (e.g., ``sycl::queue``)
+- ``unwrap()`` - Returns the resource object (e.g., ``sycl::queue``) the selection represents
 - ``get_policy()`` - Returns the policy that created the selection
 - *optional* ``report(i)`` and ``report(i, v)`` - Report execution information back to the policy if required
 
@@ -90,25 +92,25 @@ For policies that do not require execution information reporting (such as simple
   class basic_selection_handle_t {
   public:
     explicit basic_selection_handle_t(const Policy& p, Resource e);
-    auto unwrap();
+    Resource unwrap();
     Policy get_policy();
   };
 
 For policies that need execution information (like ``dynamic_load_policy`` which tracks
 task submissions and completions, or ``auto_tune_policy`` which measures task timing),
-define a custom selection type with ``report()`` methods:
+define a custom selection type with ``report()`` methods, as is shown in the following
+example:
 
 .. code:: cpp
 
-  template<typename Policy>
+  template<typename Policy, typename Backend>
   class custom_selection_handle_t {
     Policy policy_;
     resource_type resource_;
 
     using scratch_space_t =
-        typename backend_traits<Backend>::template
-            selection_scratch_t<execution_info::task_submission_t,
-                                execution_info::task_completion_t>;
+        typename backend_traits<Backend>::template selection_scratch_t<
+            execution_info::task_submission_t, execution_info::task_completion_t>;
     scratch_space_t scratch_space;
 
   public:
@@ -159,23 +161,34 @@ Execution Information
 
 .. _execution-information:
 
-Backends can provide execution information to policies that need it for making
-informed selection decisions. The following execution information reports exist:
+Backends can provide execution information to policies for making informed selection
+decisions. The ``oneapi::dpl::experimental::execution_info`` namespace contains
+tag types and tag objects that describe the instrumentation information policies
+require for their selection logic. Policies specify their requirements using these
+tags during backend construction. Backends then call ``report`` with these tags
+to provide the requested execution information to the policy via
+:ref:`selection objects <selection-type>`.
+
+The following execution information types are available:
 
 .. list-table:: Execution Information Types
-  :widths: 30 30 40
+  :widths: 20 20 30 40
   :header-rows: 1
 
-  * - Information Type
+  * - Tag Type
+    - Tag Object
     - Value Type
     - Description
-  * - ``task_submission``
+  * - ``task_submission_t``
+    - ``task_submission``
     - void
     - Signals when a task is submitted
-  * - ``task_completion``
+  * - ``task_completion_t``
+    - ``task_completion``
     - void
     - Signals when a task completes
-  * - ``task_time``
+  * - ``task_time_t``
+    - ``task_time``
     - ``std::chrono::milliseconds``
     - Elapsed time from submission to completion
 
@@ -201,14 +214,15 @@ The following table shows the reporting requirements for each built-in policy:
     - ``task_time``
 
 Policies with no reporting requirements can work with any backend, including
-the minimal ``default_backend``. Policies with reporting requirements need
-a backend that supports those specific types of execution information.
+the provided generic backend implementation which is used when no specialization
+of ``core_resource_backend`` exists for the specific resource. Policies with
+reporting requirements need a backend that supports those specific types of
+execution information.
 
-For policies which require instrumentation, it is required for the policy to call
-``lazy_report()`` prior to selection for backends which support it.
-:ref:`Lazy Reporting <lazy_report>` allows backends to update their execution
-information state before making selection decisions. See ``dynamic_load_policy``
-and ``auto_tune_policy`` for examples of this.
+Policies with reporting requirements must call ``lazy_report()`` prior to selection,
+if the backend supports it. :ref:`Lazy Reporting <lazy_report>` allows backends 
+to update their execution information state before making selection decisions.
+See ``dynamic_load_policy`` and ``auto_tune_policy`` for examples of this.
 
 Policy State Reference Semantics
 --------------------------------
