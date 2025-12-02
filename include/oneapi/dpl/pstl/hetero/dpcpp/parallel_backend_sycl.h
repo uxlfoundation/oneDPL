@@ -534,7 +534,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                                 __lacc[2 * __n_uniform] = __idx; // the actual stop position in the input
                         }
                     }
-                    sycl::group_barrier(__group);
+                    __dpl_sycl::__group_barrier(__self_item);
 
                     if (__item_id == 0)
                     {
@@ -911,7 +911,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     const std::size_t __max_slm_size =
         __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
 
-    // The kernel stores n integers for the predicate and another n integers for the offsets
+    // n predicate evaluations, n offsets, 1 element for the stop position in the input
     const auto __req_slm_size = sizeof(std::uint16_t) * (__n_uniform * 2 + 1);
 
     constexpr std::uint16_t __max_elem_per_item = 2;
