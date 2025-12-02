@@ -784,7 +784,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, /*IsBounded*/ std::false_type>;
 
         return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
                                                              std::forward<_Range2>(__result), __n, _GenMask{__pred},
@@ -860,7 +860,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
         using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
+            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign, /*IsBounded*/ std::false_type>;
 
         return __parallel_reduce_then_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
@@ -915,7 +915,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign, /*IsBounded*/ std::false_type>;
 
         return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
                                                              std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
