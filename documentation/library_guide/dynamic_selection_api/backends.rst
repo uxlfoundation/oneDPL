@@ -58,9 +58,8 @@ determines the core resource type by applying any
 delegates to the appropriate ``core_resource_backend`` specialization.
 
 **core_resource_backend**: Specialized backend implementations exist for specific core
-resource types (like ``sycl::queue``). A generic implementation is provided
-for core resources without an explicitly specialized implementation which provides
-a minimal amount of functionality:
+resource types (like ``sycl::queue``). For a resource type without an explicitly specialized
+implementation, a generic implementation provides the minimally necessary functionality:
 
 - Basic resource storage and retrieval
 - Simple work submission without instrumentation (No execution information reporting)

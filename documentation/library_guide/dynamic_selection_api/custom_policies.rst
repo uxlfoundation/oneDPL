@@ -172,7 +172,7 @@ to provide the requested execution information to the policy via
 The following execution information types are available:
 
 .. list-table:: Execution Information Types
-  :widths: 20 20 30 40
+  :widths: 18 17 30 35
   :header-rows: 1
 
   * - Tag Type

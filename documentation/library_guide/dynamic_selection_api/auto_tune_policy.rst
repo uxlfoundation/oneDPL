@@ -136,6 +136,7 @@ to choose the best resource for the given function. A simplified, expository
 implementation of the selection algorithm follows:
  
 .. code:: cpp
+
   //not a public function, for exposition purposes only
   template<typename Function, typename ...Args>
   selection_type auto_tune_policy::select(Function&& f, Args&&...args) {
