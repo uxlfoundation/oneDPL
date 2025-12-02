@@ -25,8 +25,7 @@ A SYCL backend specialization of ``core_resource_backend`` is provided to suppor
 
 The SYCL backend provides:
 
-- Default initialization, which automatically discovers all available SYCL devices
-and creates queues
+- Default initialization, which automatically discovers all available SYCL devices and creates queues
 - Event-based submission and waiting
 - Optional profiling and timing instrumentation
 
