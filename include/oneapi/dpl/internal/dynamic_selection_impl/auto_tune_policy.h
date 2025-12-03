@@ -205,17 +205,25 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
     std::optional<selection_type>
     try_select(Function&& f, Args&&... args)
     {
+        std::cout << "auto_tune: entered try_select\n";
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits<Backend>::lazy_report_v)
         {
+            std::cout << "auto_tune: calling lazy_report\n";
             this->backend_->lazy_report();
         }
+        std::cout << "auto_tune: checking state\n";
         if (state_)
         {
+            std::cout << "auto_tune: entering mutex\n";
             std::lock_guard<std::mutex> l(state_->m_);
+            std::cout << "auto_tune: calling make_task_key\n";
             auto k = make_task_key(std::forward<Function>(f), std::forward<Args>(args)...);
+            std::cout << "auto_tune: accessing tuner_by_key\n";
             auto t = state_->tuner_by_key_[k];
+            std::cout << "auto_tune: getting resource to profile\n";
             auto index = t->get_resource_to_profile();
+            std::cout << "auto_tune: selection made, returning\n";
             if (index == use_best_resource)
             {
                 return std::make_optional<selection_type>(*this, t->best_resource_, t);
