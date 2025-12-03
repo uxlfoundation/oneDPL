@@ -2489,7 +2489,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q,
                                             _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
                                             _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op,
-                                             _InitType __init)
+                                            _InitType __init)
 {
     using _GenReduceInput = __gen_scan_by_seg_reduce_input<_BinaryPredicate>;
     using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
