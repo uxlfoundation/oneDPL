@@ -186,17 +186,23 @@ template <typename Policy, typename Backend, typename UniverseContainer, typenam
 int
 test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
+    std::cout << "test_submit_and_wait_on_event: starting\n";
     using my_policy_t = Policy;
+    std::cout << "test_submit_and_wait_on_event: about to construct policy\n";
     my_policy_t p{u, args...};
+    std::cout << "test_submit_and_wait_on_event: policy constructed\n";
 
     const int N = 100;
     bool pass = true;
 
     std::atomic<int> ecount = 0;
 
+    std::cout << "test_submit_and_wait_on_event: entering loop, N=" << N << "\n";
     for (int i = 1; i <= N; ++i)
     {
+        std::cout << "test_submit_and_wait_on_event: iteration " << i << "\n";
         auto test_resource = f(i);
+        std::cout << "test_submit_and_wait_on_event: about to call submit\n";
         auto w = oneapi::dpl::experimental::submit(
             p, [&pass, test_resource, &ecount,
                 i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {

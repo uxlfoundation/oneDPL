@@ -121,6 +121,7 @@ class policy_base
     auto
     submit(Function&& f, Args&&... args)
     {
+        std::cout << "policy_base::submit called\n";
         return oneapi::dpl::experimental::internal::submit_fallback(
             std::forward<Policy>(static_cast<Policy&>(*this)), std::forward<Function>(f), std::forward<Args>(args)...);
     }
@@ -129,6 +130,7 @@ class policy_base
     void
     submit_and_wait(Function&& f, Args&&... args)
     {
+        std::cout << "policy_base::submit_and_wait called\n";
         oneapi::dpl::experimental::internal::submit_and_wait_fallback(
             std::forward<Policy>(static_cast<Policy&>(*this)), std::forward<Function>(f), std::forward<Args>(args)...);
     }

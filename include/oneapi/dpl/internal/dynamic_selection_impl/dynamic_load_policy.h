@@ -109,17 +109,22 @@ class dynamic_load_policy
     void
     initialize_state()
     {
+        std::cout << "dynamic_load_policy::initialize_state called\n";
         if (!selector_)
         {
+            std::cout << "dynamic_load_policy::initialize_state creating selector\n";
             selector_ = std::make_shared<selector_t>();
         }
+        std::cout << "dynamic_load_policy::initialize_state getting resources\n";
         auto u = base_t::get_resources();
+        std::cout << "dynamic_load_policy::initialize_state got " << u.size() << " resources\n";
         selector_->resources_.clear();
         selector_->resources_.reserve(u.size());
         for (auto& x : u)
         {
             selector_->resources_.push_back(std::make_shared<resource_t>(x));
         }
+        std::cout << "dynamic_load_policy::initialize_state done\n";
     }
 
     template <typename... Args>
@@ -159,11 +164,18 @@ class dynamic_load_policy
     }
 
   public:
-    dynamic_load_policy() { base_t::initialize(); }
-    dynamic_load_policy(deferred_initialization_t) {}
+    dynamic_load_policy() {
+        std::cout << "dynamic_load_policy default constructor\n";
+        base_t::initialize();
+    }
+    dynamic_load_policy(deferred_initialization_t) {
+        std::cout << "dynamic_load_policy deferred constructor\n";
+    }
     dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {})
     {
+        std::cout << "dynamic_load_policy vector constructor, size=" << u.size() << "\n";
         base_t::initialize(u, adapter);
+        std::cout << "dynamic_load_policy vector constructor done\n";
     }
 };
 
