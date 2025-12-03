@@ -185,10 +185,12 @@ void test_empty_list_initialization_for_replace_copy_if()
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
     std::vector<int> dest(v.size());
     std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-    sycl::buffer<int> buf(v);
-    sycl::buffer<int> dest_buf(dest);
-    oneapi::dpl::replace_copy_if(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), [](auto x) { return x == 3; }, {});
-    EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `device_policy` policy");
+    {
+        sycl::buffer<int> buf(v);
+        sycl::buffer<int> dest_buf(dest);
+        oneapi::dpl::replace_copy_if(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), [](auto x) { return x == 3; }, {});
+    }
+    EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `device_policy` policy");
 #endif
 }
 

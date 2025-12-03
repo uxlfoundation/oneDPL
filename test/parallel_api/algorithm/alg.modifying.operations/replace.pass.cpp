@@ -186,8 +186,11 @@ void test_empty_list_initialization_for_replace()
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
     std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-    sycl::buffer<int> buf(v);
-    oneapi::dpl::replace(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), 3, {});
+    {
+        sycl::buffer<int> buf(v);
+        auto policy = TestUtils::make_device_policy<TestUtils::new_kernel_name<oneapi::dpl::execution::device_policy<>, 0>>(oneapi::dpl::execution::dpcpp_default);
+        oneapi::dpl::replace(policy, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), 3, {});
+    }
     EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::replace with empty list-initialized value and with `device_policy` policy");
 #endif
 }
@@ -222,8 +225,11 @@ void test_empty_list_initialization_for_replace_if()
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
     std::vector<int> expected{0,6,0,4,0,7,8,0,0,4};
-    sycl::buffer<int> buf(v);
-    oneapi::dpl::replace_if(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), [](auto x) { return x == 3; }, {});
+    {
+        sycl::buffer<int> buf(v);
+        auto policy = TestUtils::make_device_policy<TestUtils::new_kernel_name<oneapi::dpl::execution::device_policy<>, 1>>(oneapi::dpl::execution::dpcpp_default);
+        oneapi::dpl::replace_if(policy, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), [](auto x) { return x == 3; }, {});
+    }
     EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::replace_if with empty list-initialized value and with `device_policy` policy");
 #endif
 }

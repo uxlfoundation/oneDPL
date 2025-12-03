@@ -143,10 +143,14 @@ void test_empty_list_initialization()
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
     std::vector<int> expected{3,6,4,7,8,3,4};
-    sycl::buffer<int> buf(v);
-    auto it = oneapi::dpl::remove(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
-    EXPECT_TRUE(it.get_idx() == 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `device_policy` policy");
-    v.erase(v.begin() + it.get_idx(), v.end());
+    std::size_t idx = 0;
+    {
+        sycl::buffer<int> buf(v);
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+        idx = it.get_idx();
+        EXPECT_TRUE(idx == 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `device_policy` policy");
+    }
+    v.erase(v.begin() + idx, v.end());
     EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `device_policy` policy");
 #endif
 }
