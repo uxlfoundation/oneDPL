@@ -123,8 +123,10 @@ class dynamic_load_policy
     std::optional<selection_type>
     try_select(Args&&...)
     {
+        std::cout<<"entered try_select\n";
         if constexpr (backend_traits<Backend>::lazy_report_v)
         {
+            std::cout<<"calling lazy_report\n";
             this->backend_->lazy_report();
         }
         if (selector_)
@@ -132,6 +134,7 @@ class dynamic_load_policy
             std::shared_ptr<resource_t> least_loaded;
             int least_load = std::numeric_limits<load_t>::max();
 
+            std::cout<<"entering mutex\n";
             std::lock_guard<std::mutex> l(selector_->m_);
             for (auto r : selector_->resources_)
             {
@@ -142,6 +145,7 @@ class dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
+            std::cout<<"selection made, returning\n"
             return std::make_optional<selection_type>(
                 dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
         }
