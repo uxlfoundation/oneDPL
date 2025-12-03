@@ -23,6 +23,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <optional>
+#include <iostream>
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/policy_base.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"

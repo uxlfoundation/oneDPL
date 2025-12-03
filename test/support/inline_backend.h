@@ -15,6 +15,7 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
+#include <iostream>
 
 namespace TestUtils
 {

@@ -19,7 +19,7 @@
 #if _DS_BACKEND_SYCL
 #    include "oneapi/dpl/internal/dynamic_selection_impl/sycl_backend.h"
 #endif
-
+#include <iostream>
 namespace oneapi
 {
 namespace dpl

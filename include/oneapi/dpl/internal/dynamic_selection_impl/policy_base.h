@@ -18,7 +18,7 @@
 #include "oneapi/dpl/functional"
 #include "oneapi/dpl/internal/dynamic_selection_traits.h"
 #include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
-
+#include <iostream>
 namespace oneapi
 {
 namespace dpl
