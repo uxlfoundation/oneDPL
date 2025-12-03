@@ -68,7 +68,7 @@ void test_simple_copy(size_t buffer_size)
 
     int identity = 0;
     auto& sycl_src_buf = test_base_data.get_buffer(UDTKind::eKeys);
-    auto host_source_begin = TestUtils::get_accessor_ptr(sycl_src_buf.get_host_access(sycl::write_only));
+    auto host_source_begin = sycl_src_buf.get_host_access(sycl::write_only).get_pointer();
     ::std::fill_n(host_source_begin, buffer_size, identity);
 
     test_copy<int> test(test_base_data);
@@ -86,8 +86,8 @@ void test_ignore_copy(size_t buffer_size)
     auto& source_buf = test_base_data.get_buffer(UDTKind::eKeys);
     auto& result_buf = test_base_data.get_buffer(UDTKind::eVals);
 
-    auto host_source_begin = TestUtils::get_accessor_ptr(source_buf.get_host_access(sycl::write_only));
-    auto host_result_begin = TestUtils::get_accessor_ptr(result_buf.get_host_access(sycl::write_only));
+    auto host_source_begin = source_buf.get_host_access(sycl::write_only).get_pointer();
+    auto host_result_begin = result_buf.get_host_access(sycl::write_only).get_pointer();
 
     auto sycl_source_begin = oneapi::dpl::begin(source_buf);
     auto sycl_source_end = oneapi::dpl::end(source_buf);
@@ -118,7 +118,7 @@ void test_multi_transform_copy(size_t buffer_size)
     sycl::buffer<int>& source_buf = test_base_data.get_buffer(UDTKind::eKeys);
     sycl::buffer<int>& result_buf = test_base_data.get_buffer(UDTKind::eVals);
 
-    auto host_source_begin = TestUtils::get_accessor_ptr(source_buf.get_host_access(sycl::write_only));
+    auto host_source_begin = source_buf.get_host_access(sycl::write_only).get_pointer();
 
     auto sycl_source_begin = oneapi::dpl::begin(source_buf);
     auto sycl_source_end = sycl_source_begin + buffer_size;
