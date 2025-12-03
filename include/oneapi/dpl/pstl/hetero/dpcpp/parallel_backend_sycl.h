@@ -2481,12 +2481,23 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 // parallel_scan_by_segment - sync pattern
 //------------------------------------------------------------------------
-template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
+
+// TODO: A bool type may be used here for a smaller footprint in registers / temp storage but results in IGC crashes
+// during JIT time. The same occurs for uint8_t and uint16_t. uint32_t is used as a workaround until the underlying
+// issue is resolved.
+using __parallel_scan_by_segment_reduce_then_scan_flag_t = std::uint32_t;
+
+template <typename _RangeValues>
+using __parallel_scan_by_segment_reduce_then_scan_result_t =
+    oneapi::dpl::__internal::tuple<__parallel_scan_by_segment_reduce_then_scan_flag_t,
+                                   oneapi::dpl::__internal::__value_t<_RangeValues>>;
+
+template <typename _CustomName, bool __is_inclusive,
+          typename _RangeKeys, typename _RangeValues, typename _RangeResults,
           typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-__future<sycl::event, __result_and_scratch_storage<
-                          oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+__future<sycl::event, __result_and_scratch_storage<__parallel_scan_by_segment_reduce_then_scan_result_t<_RangeValues>>>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q,
-                                            _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
+                                            _RangeKeys&& __keys, _RangeValues&& __values, _RangeResults&& __out_values,
                                             _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op,
                                             _InitType __init)
@@ -2495,21 +2506,19 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q,
     using _ReduceOp = __scan_by_seg_op<_BinaryOperator>;
     using _GenScanInput = __gen_scan_by_seg_scan_input<_BinaryPredicate>;
     using _ScanInputTransform = __get_zeroth_element;
-    using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
+
     const std::size_t __n_keys = oneapi::dpl::__ranges::__size(__keys);
-    // TODO: A bool type may be used here for a smaller footprint in registers / temp storage but results in IGC crashes
-    // during JIT time. The same occurs for uint8_t and uint16_t. uint32_t is used as a workaround until the underlying
-    // issue is resolved.
-    using _FlagType = std::uint32_t;
-    using _PackedFlagValueType = oneapi::dpl::__internal::tuple<_FlagType, _ValueType>;
+
+    using _PackedFlagValueType = __parallel_scan_by_segment_reduce_then_scan_result_t<_RangeValues>;
+
     // The init value is manually applied through the write functor in exclusive-scan-by-segment and we always pass
     // __no_init_value to the transform scan call. This is because init handling must occur on a per-segment basis
     // and functions differently than the typical scan init which is only applied once in a single location.
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
     using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator>;
 
-    auto __zip_view_keys_values = oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys),
-                                                                       std::forward<_Range2>(__values));
+    auto __zip_view_keys_values = oneapi::dpl::__ranges::make_zip_view(std::forward<_RangeKeys>(__keys),
+                                                                       std::forward<_RangeValues>(__values));
 
     return __parallel_transform_reduce_then_scan<sizeof(_PackedFlagValueType), _CustomName>(
         __q,
