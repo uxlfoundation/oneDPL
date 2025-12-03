@@ -36,6 +36,7 @@
 #include <cstddef>
 #include <functional>
 #include <type_traits>
+#include <array>
 #endif
 
 namespace oneapi
@@ -654,16 +655,17 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                   _Predicate __pred, _Assign __assign)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1);
-    if (__n == 0)
+    using _Size = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2>;
+    _Size __n = oneapi::dpl::__ranges::__size(__rng1);
+    _Size __n_out = oneapi::dpl::__ranges::__size(__rng2);
+    if (__n == 0 || __n_out == 0)
         return 0;
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    return oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), __n, __pred, __assign);
-
-    return __res.get(); //is a blocking call
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
+        __n, __n_out, __pred, __assign)[0];
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -673,15 +675,28 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
+    using _Size = oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange>;
+    _Size __n = oneapi::dpl::__ranges::__size(__in_r);
+    if (__n == 0)
+        return {std::ranges::begin(__in_r), std::ranges::begin(__out_r)};
+
+    _Size __n_out = oneapi::dpl::__ranges::__size(__out_r);
+    if (__n_out == 0)
+    {
+        auto __found_it = __pattern_find_if(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                            std::forward<_InRange>(__in_r), __pred, __proj);
+        return {__found_it, std::ranges::begin(__out_r)};
+    }
+
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    auto __res_idx = oneapi::dpl::__internal::__ranges::__pattern_copy_if(__tag,
-        std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__in_r),
-        oneapi::dpl::__ranges::views::all_write(__out_r), __pred_1,
-        oneapi::dpl::__internal::__pstl_assign());
+    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)),
+        __n, __n_out, __pred_1, oneapi::dpl::__internal::__pstl_assign());
 
-    return {std::ranges::begin(__in_r) + oneapi::dpl::__ranges::__size(__in_r),
-            std::ranges::begin(__out_r) + __res_idx};
+    return {std::ranges::begin(__in_r) + __stops[1], std::ranges::begin(__out_r) + __stops[0]};
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
