@@ -24,8 +24,12 @@ require reporting.
 
 ``submit`` returns a *submission* object. Passing the *submission* object to the 
 ``wait`` function will block the calling thread until the work offloaded by the
-submission is complete. When using SYCL queues, this behaves as if calling
-``sycl::event::wait`` on the SYCL event returned by the user function.
+submission is complete.
+
+When using the SYCL backend, user-submitted functions ``f`` must return a
+``sycl::event``. Calling the ``wait`` function on the returned *submission*
+object behaves as if calling ``sycl::event::wait`` on the ``sycl::event``
+returned by ``f``.
 
 The following example demonstrates the use of the function ``submit`` and the
 function ``wait``. The use of ``single_task`` is for syntactic demonstration
@@ -158,6 +162,10 @@ require reporting. This function blocks the calling thread until
 the user function and any work that it submits to the selected resource
 are complete.
 
+When using the SYCL backend, user-submitted functions ``f`` must return a
+``sycl::event``. ``submit_and_wait`` calls ``sycl::event::wait`` on the
+``f`` returned event before returning.
+
 The following example demonstrates the use of the function ``submit_and_wait``. 
 The use of ``single_task`` is for syntactic demonstration 
 purposes only; any valid command group or series of command groups can be 
@@ -217,6 +225,17 @@ a resource was available, empty if no resource could be selected.
 
 This function is useful when you want to handle the case where no resources
 are immediately available without blocking.
+
+When using the SYCL backend, user-submitted functions ``f`` must return a
+``sycl::event``. If ``try_submit`` is successful, calling the ``wait`` function
+on the *submission* object contained in the ``std::optional`` behaves as if
+calling ``sycl::event::wait`` on the ``sycl::event`` returned by ``f``.
+
+The following example demonstrates the use of ``try_submit``.
+The use of ``single_task`` is for syntactic demonstration
+purposes only; any valid command group or series of command groups can be
+submitted to the selected queue. Note that the code checks whether the returned
+``std::optional`` has a value before calling ``wait`` on it.
 
 .. code:: cpp
 
