@@ -125,7 +125,7 @@ void test_empty_list_initialization_for_fill()
 #if TEST_DPCPP_BACKEND_PRESENT
     std::vector<int> v{3,6,5,4,3,7,8,0,2,4};
     sycl::buffer<int> buf(v);
-    auto it = oneapi::dpl::fill(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+    oneapi::dpl::fill(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
     EXPECT_TRUE(std::count(v.begin(), v.end(), 0) == v.size(), "a sequence is not filled properly by oneapi::dpl::fill with `device_policy` policy");
 #endif
 }

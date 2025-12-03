@@ -169,7 +169,7 @@ void test_empty_list_initialization()
     sycl::buffer<int> dest_buf(v);
     auto it = oneapi::dpl::remove_copy(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), {});
     EXPECT_TRUE(it.get_idx() == 7, "not all empty list-initialized values are properly remove_copy by oneapi::dpl::remove_copy with `device_policy` policy");
-    dest.erase(it, dest.end());
+    dest.erase(dest.begin() + it.get_idx(), dest.end());
     EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::remove_copy with empty list-initialized value and with `device_policy` policy");
 #endif
 }
