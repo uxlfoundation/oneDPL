@@ -145,7 +145,7 @@ class dynamic_load_policy
                     least_loaded = ::std::move(r);
                 }
             }
-            std::cout<<"selection made, returning\n"
+            std::cout<<"selection made, returning\n";
             return std::make_optional<selection_type>(
                 dynamic_load_policy<ResourceType, ResourceAdapter, Backend>(*this), least_loaded);
         }
