@@ -88,9 +88,22 @@ const_size(const T (&)[N]) noexcept
 inline void
 issue_error_message(::std::stringstream& outstr)
 {
-    outstr << ::std::endl;
-    ::std::cerr << outstr.str();
-    ::std::exit(EXIT_FAILURE);
+    outstr << std::endl;
+#if __INTEL_LLVM_COMPILER
+    outstr << "__INTEL_LLVM_COMPILER = " << __INTEL_LLVM_COMPILER << std::endl;
+#endif 
+#if _MSVC_STL_VERSION
+    outstr << "_MSVC_STL_VERSION = " << _MSVC_STL_VERSION << std::endl;
+#endif 
+#if __GLIBCXX__
+    outstr << "__GLIBCXX__ = " << __GLIBCXX__ << std::endl;
+#endif 
+#if _LIBCPP_VERSION
+    outstr << "_LIBCPP_VERSION = " << _LIBCPP_VERSION << std::endl;
+#endif 
+    std::cerr << outstr.str();
+
+    std::exit(EXIT_FAILURE);
 }
 
 template <typename TStream>
