@@ -63,7 +63,9 @@ class dynamic_load_policy
         std::shared_ptr<resource_t> resource_;
 
       public:
-        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {}
+        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) : policy_(p), resource_(std::move(r)) {
+            std::cout << "dl_selection_handle_t constructor called\n";
+        }
         using scratch_space_t =
             typename backend_traits<Backend>::template selection_scratch_t<execution_info::task_submission_t,
                                                                            execution_info::task_completion_t>;
@@ -72,6 +74,7 @@ class dynamic_load_policy
         auto
         unwrap()
         {
+            std::cout << "dl_selection_handle_t unwrap called\n";
             return ::oneapi::dpl::experimental::unwrap(resource_->e_);
         }
 

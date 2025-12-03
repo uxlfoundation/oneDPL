@@ -179,11 +179,13 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         auto_tune_selection_type(const policy_t& p, resource_with_index_t r, std::shared_ptr<tuner_t> t)
             : policy_(p), resource_(r), tuner_(::std::move(t))
         {
+            std::cout << "auto_tune_selection_type constructor called\n";
         }
 
         auto
         unwrap()
         {
+            std::cout << "auto_tune_selection_type unwrap called\n";
             return ::oneapi::dpl::experimental::unwrap(resource_.r_);
         }
 

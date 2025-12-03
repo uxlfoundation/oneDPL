@@ -92,17 +92,21 @@ class int_inline_backend_t
     auto
     submit(SelectionHandle s, Function&& f, Args&&... args)
     {
+        std::cout << "inline_backend submit called\n";
         std::chrono::steady_clock::time_point t0;
         if constexpr (oneapi::dpl::experimental::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
+            std::cout << "inline_backend: recording start time for task_time_t\n";
             t0 = std::chrono::steady_clock::now();
         }
         if constexpr (oneapi::dpl::experimental::report_info_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_submission_t>)
         {
+            std::cout << "inline_backend: reporting task_submission\n";
             s.report(oneapi::dpl::experimental::execution_info::task_submission);
         }
+        std::cout << "inline_backend: calling unwrap and executing function\n";
         auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
 
         if constexpr (oneapi::dpl::experimental::report_info_v<
