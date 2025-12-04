@@ -779,6 +779,9 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q,
         __is_unique_pattern);
 }
 
+// Data type for temporary mask buffer
+using __mask_buffer_data_t = std::int32_t;
+
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
           typename _CopyByMaskOp>
 std::tuple<sycl::event, __combined_storage<_Size>>
@@ -798,14 +801,13 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
     _MaskAssigner __add_mask_op{};
 
     // temporary buffer to store boolean mask
-    using __buffer_data_t = std::int32_t;
-    oneapi::dpl::__par_backend_hetero::__buffer<__buffer_data_t> __mask_buf(__n);
+    oneapi::dpl::__par_backend_hetero::__buffer<__mask_buffer_data_t> __mask_buf(__n);
 
     return __parallel_transform_scan_base<_CustomName>(
         __q,
         oneapi::dpl::__ranges::zip_view(
             __in_rng, 
-            oneapi::dpl::__ranges::all_view<__buffer_data_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer())),
+            oneapi::dpl::__ranges::all_view<__mask_buffer_data_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer())),
         std::forward<_OutRng>(__out_rng),
         _InitType{},
         // local scan
@@ -1033,15 +1035,13 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     // temporary buffer to store boolean mask
-    using __buffer_data_t = std::int32_t;
     const std::size_t __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    oneapi::dpl::__par_backend_hetero::__buffer<__buffer_data_t> __mask_buf(__n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<__mask_buffer_data_t> __mask_buf(__n1);
 
     auto __zip_view = oneapi::dpl::__ranges::make_zip_view(
         std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<__buffer_data_t, __par_backend_hetero::access_mode::read_write>(
-            __mask_buf.get_buffer()));
+        oneapi::dpl::__ranges::all_view<__mask_buffer_data_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer()));
 
 //#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     // __parallel_transform_reduce_then_scan -> __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
@@ -1199,13 +1199,11 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
         __n1, __n2, __comp, __proj1, __proj2};
 
     // temporary buffer to store boolean mask
-    using __buffer_data_t = std::int32_t;
-    oneapi::dpl::__par_backend_hetero::__buffer<__buffer_data_t> __mask_buf(__n1);
+    oneapi::dpl::__par_backend_hetero::__buffer<__mask_buffer_data_t> __mask_buf(__n1);
 
     auto __zip_view = oneapi::dpl::__ranges::make_zip_view(
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<__buffer_data_t, __par_backend_hetero::access_mode::read_write>(
-            __mask_buf.get_buffer()));
+        oneapi::dpl::__ranges::all_view<__mask_buffer_data_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer()));
 
 //#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
