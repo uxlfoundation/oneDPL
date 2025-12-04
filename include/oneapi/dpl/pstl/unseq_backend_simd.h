@@ -302,20 +302,18 @@ _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
                     _Assigner __assigner) noexcept
 {
-    _DifferenceType __cnt = 0;
-    _ONEDPL_PRAGMA_SIMD
+    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
+        __cnt += __mask[__i];
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
         if (__mask[__i])
         {
-            _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-            {
-                __assigner(__first + __i, __result + __cnt);
-                ++__cnt;
-            }
+            __assigner(__first + __i, __result + __cnt);
         }
     }
-    return __cnt;
+    return __cnt + 1; // accounts for the initial -1
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>

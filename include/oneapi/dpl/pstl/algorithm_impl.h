@@ -1287,11 +1287,7 @@ void
 __brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                      bool* __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
 {
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
     __unseq_backend::__simd_copy_by_mask(__first, __last - __first, __result, __mask, __assigner);
-#else
-    __internal::__brick_copy_by_mask(__first, __last, __result, __mask, __assigner, ::std::false_type());
-#endif
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
