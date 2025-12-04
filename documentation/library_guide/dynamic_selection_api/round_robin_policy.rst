@@ -15,40 +15,30 @@ will achieve a good load balancing.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend> 
-    class round_robin_policy {
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
+    class round_robin_policy
+      : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend>
+    {
       public:
-        round_robin_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-      
-      // constructors
-      round_robin_policy(deferred_initialization_t);
-      round_robin_policy();
-      round_robin_policy(const std::vector<resource_type>& u);
-  
-      // deferred initializer
-      void initialize();
-      void initialize(const std::vector<resource_type>& u);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        round_robin_policy(deferred_initialization_t);
+        round_robin_policy();
+        round_robin_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {});
+
+        // deferred initializer
+        void initialize();
+        void initialize(const std::vector<resource_type>& u);
+        // other implementation defined functions...
     };
   
   }
-  
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
-and ``submit_and_wait``. It can also be used with ``policy_traits``.
+
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`policy traits <policy-traits>`.
 
 Example
 -------
@@ -103,7 +93,7 @@ The key points in this example are:
 
 #. A ``round_robin_policy`` is constructed that rotates between the CPU and GPU queues.
 #. The total number of concurrent offloads, ``submission_group_size``, will be limited to the number of USM arrays or the number of queues, whichever is smaller. 
-#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offload concurrently.
+#. The outer ``i``-loop iterates from 0 to 99, stepping by the ``submission_group_size``. This number of submissions will be offloaded concurrently.
 #. The inner ``j``-loop iterates over ``submission_group_size`` submissions.
 #. ``submit`` is used to select a queue and pass it to the user's function, but does not block until the event returned by that function completes. This provides the opportunity for concurrency across the submissions.
 #. The queue is used in a function to perform an asynchronous offload. The SYCL event returned from the call to ``submit`` is returned. Returning an event is required for functions passed to ``submit`` and ``submit_and_wait``.
@@ -118,6 +108,7 @@ implementation of the selection algorithm follows:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename ...Args>
   selection_type round_robin_policy::select(Args&&...) {
     if (initialized_) {
@@ -138,30 +129,32 @@ Constructors
 
 ``round_robin_policy`` provides three constructors.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
-  * - ``round_round_policy(deferred_initialization_t);``
+  * - ``round_robin_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``round_robin_policy();``
     - Initialized to use the default set of resources.
-  * - ``round_robin_policy(const std::vector<resource_type>& u);``
-    - Overrides the default set of resources.
+  * - | ``round_robin_policy(``
+      |   ``const std::vector<ResourceType>& u,``
+      |   ``ResourceAdapter adapter = {});``
+    - Overrides the default set of resources with an optional resource adapter.
 
 Deferred Initialization
 -----------------------
 
-A ``round_robin_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+A ``round_robin_policy`` that was constructed with deferred initialization must be
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``initialize();``
@@ -172,51 +165,16 @@ to select or submit.
 Queries
 -------
 
-A ``round_robin_policy`` has ``get_resources`` and ``get_submission_group`` 
+A ``round_robin_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``round_robin_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``
     - Returns the set of resources the policy is selecting from.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
-
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. However, the ``round_robin_policy`` 
-does not require any feedback about the system state or the behavior of 
-the workload. Therefore, no explicit reporting of execution information 
-is needed, as is summarized in the table below.
-
-.. list-table:: ``round_robin_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }

@@ -1,0 +1,185 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_DEFAULT_BACKEND_H
+#define _ONEDPL_DEFAULT_BACKEND_H
+
+#include <atomic>
+#include <type_traits>
+#include <vector>
+#include <memory>
+#include <stdexcept>
+#include <limits>
+#include <utility>
+#include <chrono>
+#include "oneapi/dpl/internal/dynamic_selection_traits.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/backend_traits.h"
+#include "oneapi/dpl/functional"
+
+namespace oneapi
+{
+namespace dpl
+{
+namespace experimental
+{
+
+template <typename ResourceType>
+class backend_base
+{
+
+  public:
+    using resource_type = ResourceType;
+    using report_duration = std::chrono::milliseconds;
+
+    template <typename... Req>
+    struct scratch_t : public no_scratch_t<Req...>
+    {
+        // default backend does not support any reporting requirements and has no scratch space needs
+    };
+
+    template <typename... ReportReqs>
+    backend_base(ReportReqs...)
+    {
+        static_assert(sizeof...(ReportReqs) == 0, "Default backend does not support reporting");
+    }
+
+    template <typename... ReportReqs>
+    backend_base(const std::vector<ResourceType>& u, ReportReqs...) : resources_(u.begin(), u.end())
+    {
+        static_assert(sizeof...(ReportReqs) == 0, "Default backend does not support reporting");
+    }
+
+    auto
+    get_submission_group()
+    {
+        return default_submission_group{resources_};
+    }
+
+    auto
+    get_resources() const
+    {
+        return resources_;
+    }
+
+    template <typename SelectionHandle, typename Function, typename... Args>
+    auto
+    submit(SelectionHandle s, Function&& f, Args&&... args)
+    {
+        auto w = std::forward<Function>(f)(oneapi::dpl::experimental::unwrap(s), std::forward<Args>(args)...);
+        return default_submission<decltype(w)>{std::move(w)};
+    }
+
+  protected:
+    std::vector<resource_type> resources_;
+
+    template <typename WaitType>
+    class default_submission
+    {
+        WaitType w_;
+
+      private:
+        template <typename T = WaitType>
+        std::enable_if_t<internal::has_wait<T>::value>
+        wait_impl()
+        {
+            w_.wait();
+        }
+
+        template <typename T = WaitType>
+        std::enable_if_t<!internal::has_wait<T>::value>
+        wait_impl()
+        {
+            // No-op for types without wait()
+        }
+
+      public:
+        default_submission(WaitType&& w) : w_(std::move(w)) {}
+
+        void
+        wait()
+        {
+            wait_impl();
+        }
+
+        WaitType
+        unwrap() const
+        {
+            return w_;
+        }
+    };
+
+    class default_submission_group
+    {
+        std::vector<ResourceType>& r_;
+
+      public:
+        default_submission_group(std::vector<ResourceType>& r) : r_(r) {}
+
+        void
+        wait()
+        {
+            static_assert(internal::has_wait<ResourceType>::value,
+                          "error: wait() called on unsupported submission_group.");
+            for (auto& r : r_)
+                r.wait();
+        }
+    };
+};
+
+template <typename CoreResourceType, typename ResourceType, typename ResourceAdapter>
+class core_resource_backend : public backend_base<ResourceType>
+{
+  public:
+    using resource_type = ResourceType;
+    using my_base = backend_base<ResourceType>;
+
+    template <typename... ReportReqs>
+    core_resource_backend(ReportReqs... reqs) : my_base(reqs...)
+    {
+    }
+    template <typename... ReportReqs>
+    core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapter_, ReportReqs... reqs)
+        : my_base(u, reqs...), adapter(adapter_)
+    {
+    }
+
+  private:
+    ResourceAdapter adapter;
+};
+
+template <typename ResourceType, typename ResourceAdapter = oneapi::dpl::identity>
+class default_backend : public core_resource_backend<
+                            std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+                            ResourceType, ResourceAdapter>
+{
+  public:
+    using base_t =
+        core_resource_backend<std::decay_t<decltype(std::declval<ResourceAdapter>()(std::declval<ResourceType>()))>,
+                              ResourceType, ResourceAdapter>;
+
+  public:
+    template <typename... ReportReqs>
+    default_backend(ReportReqs... reqs) : base_t(reqs...)
+    {
+    }
+    template <typename... ReportReqs>
+    default_backend(const std::vector<ResourceType>& r, ResourceAdapter adapt = {}, ReportReqs... reqs)
+        : base_t(r, adapt, reqs...)
+    {
+    }
+};
+
+} // namespace experimental
+
+} // namespace dpl
+
+} // namespace oneapi
+
+#endif //_ONEDPL_DEFAULT_BACKEND_H

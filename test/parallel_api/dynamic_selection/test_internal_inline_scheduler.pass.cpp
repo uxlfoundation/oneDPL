@@ -31,18 +31,10 @@ class fake_selection_handle_t
 };
 
 int
-test_cout()
-{
-    TestUtils::int_inline_backend_t s;
-    TestUtils::int_inline_backend_t::execution_resource_t e;
-    return 0;
-}
-
-int
 test_submit_and_wait_on_submission_group()
 {
     const int N = 100;
-    TestUtils::int_inline_backend_t s;
+    TestUtils::int_inline_backend_t<> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -67,7 +59,7 @@ int
 test_submit_and_wait_on_submission_group_single_element()
 {
     const int N = 1;
-    TestUtils::int_inline_backend_t s;
+    TestUtils::int_inline_backend_t<> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -91,7 +83,7 @@ test_submit_and_wait_on_submission_group_single_element()
 int
 test_submit_and_wait_on_submission_group_empty()
 {
-    TestUtils::int_inline_backend_t s;
+    TestUtils::int_inline_backend_t<> s;
     std::atomic<int> ecount = 0;
     s.get_submission_group().wait();
     int count = ecount.load();
@@ -104,7 +96,7 @@ int
 test_submit_and_wait_on_submission()
 {
     const int N = 100;
-    TestUtils::int_inline_backend_t s;
+    TestUtils::int_inline_backend_t<> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -129,7 +121,7 @@ int
 test_submit_and_wait_on_submission_single_element()
 {
     const int N = 1;
-    TestUtils::int_inline_backend_t s;
+    TestUtils::int_inline_backend_t<> s;
     fake_selection_handle_t h;
 
     std::atomic<int> ecount = 0;
@@ -154,7 +146,7 @@ int
 test_properties()
 {
     std::vector<int> v = {1, 2};
-    TestUtils::int_inline_backend_t s(v);
+    TestUtils::int_inline_backend_t<> s(v);
     auto v2 = s.get_resources();
     auto v2s = v2.size();
     EXPECT_EQ(v2s, v.size(), "ERROR: universe size inconsistent with queried universe\n");
@@ -171,7 +163,6 @@ test_properties()
 int
 main()
 {
-    EXPECT_EQ(0, (test_cout()), "test_cout failed");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group()), "");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_single_element()), "");
     EXPECT_EQ(0, (test_submit_and_wait_on_submission_group_empty()), "");

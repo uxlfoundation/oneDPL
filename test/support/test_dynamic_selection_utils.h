@@ -15,6 +15,7 @@
 #include <random>
 #include <algorithm>
 #include <iostream>
+#include "support/utils_dynamic_selection.h"
 
 #if TEST_DYNAMIC_SELECTION_AVAILABLE
 #include "utils_sycl_defs.h"
@@ -57,13 +58,13 @@ build_universe(std::vector<sycl::queue>& u)
 }
 
 #endif // TEST_DYNAMIC_SELECTION_AVAILABLE
-template <typename Policy, typename T>
+template <typename Policy, typename T, typename... Args>
 int
-test_initialization(const std::vector<T>& u)
+test_initialization(const std::vector<T>& u, Args... args)
 {
     // initialize
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
     auto u2 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u2), std::end(u2), std::begin(u)))
     {
@@ -85,7 +86,7 @@ test_initialization(const std::vector<T>& u)
     catch (...)
     {
     }
-    p2.initialize(u);
+    p2.initialize(u, args...);
     auto u3 = oneapi::dpl::experimental::get_resources(p);
     if (!std::equal(std::begin(u3), std::end(u3), std::begin(u)))
     {
@@ -97,39 +98,120 @@ test_initialization(const std::vector<T>& u)
     return 0;
 }
 
-template <typename Policy, typename UniverseContainer, typename ResourceFunction, bool AutoTune = false>
+template <typename Policy, typename Backend, typename ResourceAdapter, typename... Args>
 int
-test_select(UniverseContainer u, ResourceFunction&& f)
+test_default_universe_initialization(ResourceAdapter, [[maybe_unused]] Args&&... args)
+{
+    // Default universe initialization only works with identity adapter
+    // Check if Policy has a resource type of a queue or if it has a custom adapter
+    if constexpr (!std::is_same_v<ResourceAdapter, oneapi::dpl::identity>)
+    {
+        std::cout << "default universe initialization: SKIPPED (custom adapter)\n" << std::flush;
+        return 0;
+    }
+    else
+    {
+        // Test default universe initialization (no resource vector provided)
+        Policy p{oneapi::dpl::experimental::deferred_initialization};
+        p.initialize();
+
+        // Verify that we got some resources from default initialization
+        auto u = oneapi::dpl::experimental::get_resources(p);
+        if (u.empty())
+        {
+            std::cout << "ERROR: default universe initialization resulted in empty resources\n";
+            return 1;
+        }
+
+        // Test that we can actually submit to the default universe
+        bool executed = false;
+        oneapi::dpl::experimental::submit_and_wait(p, [&executed](auto e) {
+            executed = true;
+            if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
+                return e;
+            else
+                return typename TestUtils::get_wait_type<Backend>::type{};
+        });
+
+        if (!executed)
+        {
+            std::cout << "ERROR: default universe initialization did not execute task\n";
+            return 1;
+        }
+
+        std::cout << "default universe initialization: OK\n" << std::flush;
+        return 0;
+    }
+}
+
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
+int
+test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
-    const int N = 100;
+    int N = 100;
     std::atomic<int> ecount = 0;
     bool pass = true;
+    for (int i = 1; i <= N; ++i)
+    {
+        auto test_resource = f(i);
+        oneapi::dpl::experimental::submit(
+            p, [&pass, &ecount, test_resource,
+                i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
+                if (e != test_resource)
+                {
+                    pass = false;
+                }
+                ecount += i;
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
+                    return e;
+                else
+                    return typename TestUtils::get_wait_type<Backend>::type{};
+            });
+    }
+    oneapi::dpl::experimental::wait(p.get_submission_group());
+    if (!pass)
+    {
+        std::cout << "ERROR: did not select expected resources\n";
+        return 1;
+    }
+    std::cout << "submit_and_wait_on_group: OK\n";
+    return 0;
+}
 
-    auto function_key = []() {};
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
+int
+test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f, Args... args)
+{
+    using my_policy_t = Policy;
+    my_policy_t p{u, args...};
+
+    const int N = 100;
+    bool pass = true;
+
+    std::atomic<int> ecount = 0;
 
     for (int i = 1; i <= N; ++i)
     {
         auto test_resource = f(i);
-        if constexpr (AutoTune)
-        {
-            auto h = select(p, function_key);
-            if (oneapi::dpl::experimental::unwrap(h) != test_resource)
-            {
-                pass = false;
-            }
-        }
-        else
-        {
-            auto h = select(p);
-            if (oneapi::dpl::experimental::unwrap(h) != test_resource)
-            {
-                pass = false;
-            }
-        }
-        ecount += i;
+        auto w = oneapi::dpl::experimental::submit(
+            p, [&pass, test_resource, &ecount,
+                i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
+                if (e != test_resource)
+                {
+                    pass = false;
+                }
+                ecount += i;
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
+                    return e;
+                else
+                    return typename TestUtils::get_wait_type<Backend>::type{};
+            });
+        oneapi::dpl::experimental::wait(w);
         int count = ecount.load();
         if (count != i * (i + 1) / 2)
         {
@@ -142,211 +224,43 @@ test_select(UniverseContainer u, ResourceFunction&& f)
         std::cout << "ERROR: did not select expected resources\n";
         return 1;
     }
-    std::cout << "select: OK\n";
-    return 0;
-}
-
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
-int
-test_submit_and_wait_on_group(UniverseContainer u, ResourceFunction&& f)
-{
-    using my_policy_t = Policy;
-    my_policy_t p{u};
-
-    int N = 100;
-    std::atomic<int> ecount = 0;
-    bool pass = true;
-    if constexpr (call_select_before_submit)
-    {
-        for (int i = 1; i <= N; i++)
-        {
-            auto test_resource = f(i);
-            auto func = [&](typename Policy::resource_type e) {
-                if (e != test_resource)
-                {
-                    pass = false;
-                }
-                ecount += i;
-                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
-                                             int>)
-                    return e;
-                else
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-            };
-            auto s = oneapi::dpl::experimental::select(p);
-            oneapi::dpl::experimental::submit(s, func);
-        }
-        oneapi::dpl::experimental::wait(p.get_submission_group());
-    }
-    else
-    {
-        for (int i = 1; i <= N; ++i)
-        {
-            auto test_resource = f(i);
-            oneapi::dpl::experimental::submit(
-                p, [&pass, &ecount, test_resource,
-                    i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
-                    if (e != test_resource)
-                    {
-                        pass = false;
-                    }
-                    ecount += i;
-                    if constexpr (std::is_same_v<
-                                      typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
-                        return e;
-                    else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-                });
-        }
-        oneapi::dpl::experimental::wait(p.get_submission_group());
-    }
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
-    std::cout << "submit_and_wait_on_group: OK\n";
-    return 0;
-}
-
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
-int
-test_submit_and_wait_on_event(UniverseContainer u, ResourceFunction&& f)
-{
-    using my_policy_t = Policy;
-    my_policy_t p{u};
-
-    const int N = 100;
-    bool pass = true;
-
-    std::atomic<int> ecount = 0;
-
-    if constexpr (call_select_before_submit)
-    {
-        for (int i = 1; i <= N; ++i)
-        {
-            auto test_resource = f(i);
-            auto func = [&pass, test_resource, &ecount,
-                         i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
-                if (e != test_resource)
-                {
-                    pass = false;
-                }
-                ecount += i;
-                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
-                                             int>)
-                    return e;
-                else
-                    return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-            };
-            auto s = oneapi::dpl::experimental::select(p, func);
-            auto w = oneapi::dpl::experimental::submit(s, func);
-            oneapi::dpl::experimental::wait(w);
-            int count = ecount.load();
-            if (count != i * (i + 1) / 2)
-            {
-                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-                return 1;
-            }
-        }
-    }
-    else
-    {
-        for (int i = 1; i <= N; ++i)
-        {
-            auto test_resource = f(i);
-            auto w = oneapi::dpl::experimental::submit(
-                p, [&pass, test_resource, &ecount,
-                    i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
-                    if (e != test_resource)
-                    {
-                        pass = false;
-                    }
-                    ecount += i;
-                    if constexpr (std::is_same_v<
-                                      typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
-                        return e;
-                    else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-                });
-            oneapi::dpl::experimental::wait(w);
-            int count = ecount.load();
-            if (count != i * (i + 1) / 2)
-            {
-                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-                return 1;
-            }
-        }
-    }
-    if (!pass)
-    {
-        std::cout << "ERROR: did not select expected resources\n";
-        return 1;
-    }
     std::cout << "submit_and_wait_on_sync: OK\n";
     return 0;
 }
 
-template <bool call_select_before_submit, typename Policy, typename UniverseContainer, typename ResourceFunction>
+template <typename Policy, typename Backend, typename UniverseContainer, typename ResourceFunction, typename... Args>
 int
-test_submit_and_wait(UniverseContainer u, ResourceFunction&& f)
+test_submit_and_wait(UniverseContainer u, ResourceFunction&& f, Args... args)
 {
     using my_policy_t = Policy;
-    my_policy_t p{u};
+    my_policy_t p{u, args...};
 
     const int N = 100;
     std::atomic<int> ecount = 0;
     bool pass = true;
 
-    if constexpr (call_select_before_submit)
+    for (int i = 1; i <= N; ++i)
     {
-        for (int i = 1; i <= N; ++i)
-        {
-            auto test_resource = f(i);
-            auto func = [&pass, test_resource, &ecount,
-                         i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
+        auto test_resource = f(i);
+        oneapi::dpl::experimental::submit_and_wait(
+            p, [&pass, &ecount, test_resource,
+                i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
                 if (e != test_resource)
                 {
                     pass = false;
                 }
                 ecount += i;
-                return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-            };
-            auto s = oneapi::dpl::experimental::select(p, func);
-            oneapi::dpl::experimental::submit_and_wait(s, func);
-            int count = ecount.load();
-            if (count != i * (i + 1) / 2)
-            {
-                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-                return 1;
-            }
-        }
-    }
-    else
-    {
-        for (int i = 1; i <= N; ++i)
+                if constexpr (std::is_same_v<typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type,
+                                             int>)
+                    return e;
+                else
+                    return typename TestUtils::get_wait_type<Backend>::type{};
+            });
+        int count = ecount.load();
+        if (count != i * (i + 1) / 2)
         {
-            auto test_resource = f(i);
-            oneapi::dpl::experimental::submit_and_wait(
-                p, [&pass, &ecount, test_resource,
-                    i](typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type e) {
-                    if (e != test_resource)
-                    {
-                        pass = false;
-                    }
-                    ecount += i;
-                    if constexpr (std::is_same_v<
-                                      typename oneapi::dpl::experimental::policy_traits<Policy>::resource_type, int>)
-                        return e;
-                    else
-                        return typename oneapi::dpl::experimental::policy_traits<Policy>::wait_type{};
-                });
-            int count = ecount.load();
-            if (count != i * (i + 1) / 2)
-            {
-                std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
-                return 1;
-            }
+            std::cout << "ERROR: scheduler did not execute all tasks exactly once\n";
+            return 1;
         }
     }
     if (!pass)

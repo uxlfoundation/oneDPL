@@ -18,43 +18,18 @@
 
 namespace TestUtils
 {
+template <typename ResourceType = int, typename ResourceAdapter = oneapi::dpl::identity>
 class int_inline_backend_t
 {
-    template <typename Resource>
-    class basic_execution_resource_t
-    {
-        using resource_t = Resource;
-        resource_t resource_;
-
-      public:
-        basic_execution_resource_t() : resource_(resource_t{}) {}
-        basic_execution_resource_t(resource_t r) : resource_(r) {}
-        resource_t
-        unwrap() const
-        {
-            return resource_;
-        }
-        bool
-        operator==(const basic_execution_resource_t& e) const
-        {
-            return resource_ == e.resource_;
-        }
-        bool
-        operator==(const resource_t& e) const
-        {
-            return resource_ == e;
-        }
-    };
 
   public:
-    using resource_type = int;
+    using resource_type = ResourceType;
     using wait_type = int;
-    using execution_resource_t = basic_execution_resource_t<resource_type>;
-    using resource_container_t = std::vector<execution_resource_t>;
     using report_duration = std::chrono::milliseconds;
+    using resource_adapter_t = ResourceAdapter;
 
   private:
-    using native_resource_container_t = std::vector<resource_type>;
+    ResourceAdapter adapter_;
 
     class async_waiter
     {
@@ -84,16 +59,33 @@ class int_inline_backend_t
     };
 
   public:
-    int_inline_backend_t()
+    template <typename... ReportReqs>
+    int_inline_backend_t(ReportReqs...)
     {
+        static_assert(
+            (oneapi::dpl::experimental::execution_info::contains_reporting_req_v<
+                 ReportReqs, oneapi::dpl::experimental::execution_info::task_submission_t,
+                 oneapi::dpl::experimental::execution_info::task_completion_t,
+                 oneapi::dpl::experimental::execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the inline backend");
+
         for (int i = 1; i < 4; ++i)
-            resources_.push_back(execution_resource_t{i});
+            resources_.push_back(i);
     }
 
-    int_inline_backend_t(const native_resource_container_t& u)
+    template <typename... ReportReqs>
+    int_inline_backend_t(const std::vector<resource_type>& u, ResourceAdapter a = {}, ReportReqs...) : adapter_(a)
     {
+        static_assert(
+            (oneapi::dpl::experimental::execution_info::contains_reporting_req_v<
+                 ReportReqs, oneapi::dpl::experimental::execution_info::task_submission_t,
+                 oneapi::dpl::experimental::execution_info::task_completion_t,
+                 oneapi::dpl::experimental::execution_info::task_time_t> &&
+             ...),
+            "Only reporting for task_submission, task_completion and task_time are supported by the inline backend");
         for (const auto& e : u)
-            resources_.push_back(execution_resource_t{e});
+            resources_.push_back(e);
     }
 
     template <typename SelectionHandle, typename Function, typename... Args>
@@ -121,8 +113,9 @@ class int_inline_backend_t
         if constexpr (oneapi::dpl::experimental::report_value_v<
                           SelectionHandle, oneapi::dpl::experimental::execution_info::task_time_t, report_duration>)
         {
-            report(s, oneapi::dpl::experimental::execution_info::task_time,
-                   std::chrono::duration_cast<report_duration>(std::chrono::steady_clock::now() - t0));
+            oneapi::dpl::experimental::report(
+                s, oneapi::dpl::experimental::execution_info::task_time,
+                std::chrono::duration_cast<report_duration>(std::chrono::steady_clock::now() - t0));
         }
         return async_waiter{w};
     }
@@ -133,18 +126,16 @@ class int_inline_backend_t
         return submission_group{};
     }
 
-    resource_container_t
+    std::vector<resource_type>
     get_resources() const noexcept
     {
         return resources_;
     }
 
   private:
-    resource_container_t resources_;
+    std::vector<resource_type> resources_;
 };
 
-inline int_inline_backend_t int_inline_backend;
-
-} //namespace TestUtils
+} // namespace TestUtils
 
 #endif /* _ONEDPL_INLINE_SCHEDULER_H */

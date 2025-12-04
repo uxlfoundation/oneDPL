@@ -221,13 +221,13 @@ main(int argc, char* argv[])
         std::cout << "Using Static Policy (CPU) to iterate on CPU device with vector length: " << length << std::endl;
         // Add CPUs to the universe of devices.
         universe.push_back(sycl::queue{sycl::cpu_selector_v});
-        invokeDS<ds::fixed_resource_policy<ds::sycl_backend>>(length, universe);
+        invokeDS<ds::fixed_resource_policy<sycl::queue>>(length, universe);
         break;
     case 2:
         std::cout << "Using Static Policy (GPU) to iterate on GPU device with vector length: " << length << std::endl;
         // Add GPUs to the universe of devices.
         universe.push_back(sycl::queue{sycl::gpu_selector_v});
-        invokeDS<ds::fixed_resource_policy<ds::sycl_backend>>(length, universe);
+        invokeDS<ds::fixed_resource_policy<sycl::queue>>(length, universe);
         break;
     case 3:
         std::cout << "Using Round Robin Policy to iterate across available devices with vector length: " << length
@@ -235,19 +235,19 @@ main(int argc, char* argv[])
         // Add CPUs and GPUs to the universe of devices.
         universe.push_back(sycl::queue{sycl::cpu_selector_v});
         universe.push_back(sycl::queue{sycl::gpu_selector_v});
-        invokeDS<ds::round_robin_policy<ds::sycl_backend>>(length, universe);
+        invokeDS<ds::round_robin_policy<sycl::queue>>(length, universe);
         break;
     case 4:
         std::cout << "Using Dynamic Load Policy to pick least loaded device: " << length << std::endl;
         universe.push_back(sycl::queue{sycl::gpu_selector_v});
         universe.push_back(sycl::queue{sycl::cpu_selector_v});
-        invokeDS<ds::dynamic_load_policy<ds::sycl_backend>>(length, universe);
+        invokeDS<ds::dynamic_load_policy<sycl::queue>>(length, universe);
         break;
     case 5:
         std::cout << "Using Auto-Tune to pick the best performing device: " << length << std::endl;
         universe.push_back(sycl::queue{sycl::gpu_selector_v, prop_list});
         universe.push_back(sycl::queue{sycl::cpu_selector_v, prop_list});
-        invokeDS<ds::auto_tune_policy<ds::sycl_backend>>(length, universe);
+        invokeDS<ds::auto_tune_policy<sycl::queue>>(length, universe);
         break;
     default:
         std::cout << "Invalid policy." << std::endl;

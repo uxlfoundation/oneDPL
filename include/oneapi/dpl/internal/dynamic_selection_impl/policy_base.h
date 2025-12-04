@@ -1,0 +1,149 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_POLICY_BASE_H
+#define _ONEDPL_POLICY_BASE_H
+
+#include <memory>
+#include <vector>
+#include <stdexcept>
+#include <utility>
+#include <optional>
+#include "oneapi/dpl/functional"
+#include "oneapi/dpl/internal/dynamic_selection_traits.h"
+#include "oneapi/dpl/internal/dynamic_selection_impl/scoring_policy_defs.h"
+
+namespace oneapi
+{
+namespace dpl
+{
+namespace experimental
+{
+
+template <typename Policy, typename ResourceAdapter, typename Backend, typename... ReportReqs>
+class policy_base
+{
+  public:
+    using backend_type = Backend;
+    using resource_type = typename backend_type::resource_type;
+
+  protected:
+    using selection_type = basic_selection_handle_t<Policy, resource_type>;
+    using report_reqs_t = std::tuple<ReportReqs...>;
+    std::shared_ptr<backend_type> backend_;
+
+  public:
+    auto
+    get_resources() const
+    {
+        if (backend_)
+            return backend_->get_resources();
+        throw std::logic_error("get_resources called before initialization");
+    }
+
+    void
+    initialize()
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_type>(ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_state();
+    }
+
+    template <typename Arg0, typename... Args,
+              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, std::vector<resource_type>>>>
+    void
+    initialize(Arg0&& arg0, Args&&... args)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_type>(ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+    }
+
+    void
+    initialize(const std::vector<resource_type>& u)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_type>(u, oneapi::dpl::identity(), ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_state();
+    }
+
+    template <typename Arg0, typename... Args,
+              typename = std::enable_if_t<!std::is_same_v<std::decay_t<Arg0>, ResourceAdapter>>>
+    void
+    initialize(const std::vector<resource_type>& u, Arg0&& arg0, Args&&... args)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_type>(u, oneapi::dpl::identity(), ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_state(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    void
+    initialize(const std::vector<resource_type>& u, ResourceAdapter adapter, Args... args)
+    {
+        if (!backend_)
+            backend_ = std::make_shared<backend_type>(u, adapter, ReportReqs{}...);
+        static_cast<Policy*>(this)->initialize_state(args...);
+    }
+
+    template <typename Function, typename... Args>
+    auto //std::optional of the "wait type"
+    try_submit(Function&& f, Args&&... args)
+    {
+        using ret_t =
+            decltype(std::declval<Backend>().submit(std::declval<decltype(*std::declval<Policy>().try_select(
+                                                        std::declval<Function>(), std::declval<Args>()...))>(),
+                                                    std::forward<Function>(f), std::forward<Args>(args)...));
+        if (backend_)
+        {
+            auto e = static_cast<Policy*>(this)->try_select(f, args...);
+            if (!e.has_value())
+            {
+                // return an empty std::optional
+                return std::optional<ret_t>{};
+            }
+            else
+            {
+                return std::make_optional<ret_t>(
+                    backend_->submit(e.value(), std::forward<Function>(f), std::forward<Args>(args)...));
+            }
+        }
+        throw std::logic_error("submit called before initialization");
+    }
+
+    template <typename Function, typename... Args>
+    auto
+    submit(Function&& f, Args&&... args)
+    {
+        return oneapi::dpl::experimental::internal::submit_fallback(
+            std::forward<Policy>(static_cast<Policy&>(*this)), std::forward<Function>(f), std::forward<Args>(args)...);
+    }
+
+    template <typename Function, typename... Args>
+    void
+    submit_and_wait(Function&& f, Args&&... args)
+    {
+        oneapi::dpl::experimental::internal::submit_and_wait_fallback(
+            std::forward<Policy>(static_cast<Policy&>(*this)), std::forward<Function>(f), std::forward<Args>(args)...);
+    }
+
+    auto
+    get_submission_group()
+    {
+        if (backend_)
+            return backend_->get_submission_group();
+        throw std::logic_error("get_submission_group called before initialization");
+    }
+};
+
+} // namespace experimental
+} // namespace dpl
+} // namespace oneapi
+
+#endif // _ONEDPL_POLICY_BASE_H

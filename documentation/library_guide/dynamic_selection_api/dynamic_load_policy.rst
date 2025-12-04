@@ -16,40 +16,32 @@ by submitting tasks to a resource that completes work faster.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend> 
-    class dynamic_load_policy {
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>>
+    class dynamic_load_policy
+      : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend, execution_info::task_submission_t,
+                           execution_info::task_completion_t>
+    {
       public:
-        dynamic_load_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-      
-      // constructors
-      dynamic_load_policy(deferred_initialization_t);
-      dynamic_load_policy();
-      dynamic_load_policy(const std::vector<resource_type>& u);  
-  
-      // deferred initializer
-      void initialize();
-      void initialize(const std::vector<resource_type>& u);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        dynamic_load_policy(deferred_initialization_t);
+        dynamic_load_policy();
+        dynamic_load_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {});
+
+        // deferred initializer
+        void initialize();
+        void initialize(const std::vector<resource_type>& u);
+        // other implementation defined functions...
     };
-  
+
   }
-  
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
-and ``submit_and_wait``. It can also be used with ``policy_traits``.
+
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`policy traits <policy-traits>`.
+
 
 Example
 -------
@@ -116,14 +108,15 @@ Selection Algorithm
  
 The selection algorithm for ``dynamic_load_policy`` chooses the resource
 that has the fewest number of unfinished offloads. The number of unfinished
-offloads is the difference between the number of reported task submissions 
-and then number of reported task completions. This value is tracked for each 
+offloads is the difference between the number of reported task submissions
+and the number of reported task completions. This value is tracked for each
 available resource.
 
 Simplified, expository implementation of the selection algorithm:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename... Args>
   selection_type dynamic_load_policy::select(Args&& ...) {
     if (initialized_) {
@@ -144,30 +137,32 @@ Constructors
 
 ``dynamic_load_policy`` provides three constructors.
 
-.. list-table:: ``dynamic_load_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``dynamic_load_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
   * - ``dynamic_load_policy();``
     - Initialized to use the default set of resources.
-  * - ``dynamic_load_policy(const std::vector<resource_type>& u);``
-    - Overrides the default set of resources.
+  * - | ``dynamic_load_policy(``
+      |   ``const std::vector<ResourceType>& u,``
+      |   ``ResourceAdapter adapter = {});``
+    - Overrides the default set of resources with an optional resource adapter.
 
 Deferred Initialization
 -----------------------
 
-A ``dynamic_load_policy`` that was constructed with deferred initialization must be 
+A ``dynamic_load_policy`` that was constructed with deferred initialization must be
 initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``dynamic_load_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``initialize();``
@@ -178,13 +173,13 @@ to select or submit.
 Queries
 -------
 
-A ``dynamic_load_policy`` has ``get_resources`` and ``get_submission_group`` 
+A ``dynamic_load_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``dynamic_load_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``
@@ -192,40 +187,9 @@ member functions.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
 
+
 Reporting Requirements
 ----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. The ``dynamic_load_policy`` tracks the
-number of outstanding submissions on each device via callbacks that report
-when a submission is started, and when it is completed. The instrumentation
-to report these events is included in the implementations of 
-``submit`` and ``submit_and_wait``.  However, if you use ``select`` and then
-submit work directly to the selected resource, it is necessary to explicitly
-report these events.
-
-.. list-table:: ``dynamic_load_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - Yes
-  * - ``task_completion``
-    - Yes
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }
+A ``dynamic_load_policy`` requires the ``task_submission`` and ``task_completion``
+reporting requirements. See the :ref:`Execution Information <execution-information>`
+section for more information about reporting requirements.
