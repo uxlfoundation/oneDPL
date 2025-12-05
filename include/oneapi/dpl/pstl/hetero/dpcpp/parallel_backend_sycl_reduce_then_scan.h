@@ -978,11 +978,15 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
             oneapi::dpl::__ranges::__require_access(__cgh, __in_in_out_rng);
 
             __cgh.parallel_for<_KernelName...>(
-                sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id) {
-                    auto __global_idx = __item_id.get_linear_id();
+                sycl::range</*dim=*/1>(__n), [=, *this](sycl::item</*dim=*/1> __item_id)
+                {
+                    const std::size_t __global_idx = __item_id.get_linear_id();
                     const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
-                    std::size_t __id = (__global_idx * __tile_size < __num_diagonals) ? __global_idx * __tile_size
-                                                                                      : __num_diagonals - 1;
+
+                    const std::size_t __id = (__global_idx * __tile_size < __num_diagonals)
+                        ? __global_idx * __tile_size
+                        : __num_diagonals - 1;
+
                     __gen_input.__calc_partition_bounds(__in_in_out_rng, __id);
                 });
         });
