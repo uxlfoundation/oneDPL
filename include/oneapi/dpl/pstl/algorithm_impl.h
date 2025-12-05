@@ -1314,28 +1314,7 @@ __brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _R
                              _Bound __out_len, bool* __mask, _Assigner __assigner,
                              /*vector=*/std::true_type) noexcept
 {
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    _Bound __n = __in_len, __m = __out_len;
-    while (__m > 0 && __m < __n)
-    {
-        _Bound __copied = __unseq_backend::__simd_copy_by_mask(__first, __m, __result, __mask, __assigner);
-        __n -= __m;
-        __first += __m;
-        __mask += __m;
-        __m -= __copied;
-        __result += __copied;
-    }
-    // The loop above may not decrease __m or __n below 0
-    if (__m >= __n) // enough space left for the rest
-    {
-        __unseq_backend::__simd_copy_by_mask(__first, __n, __result, __mask, __assigner);
-        __n = 0;
-    }
-    return __in_len - __n;
-#else
-    return __internal::__brick_bounded_copy_by_mask(__first, __in_len, __result, __out_len, __mask, __assigner,
-                                                    std::false_type());
-#endif
+    return __unseq_backend::__simd_copy_by_mask<true>(__first, __in_len, __result, __mask, __assigner, __out_len);
 }
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
