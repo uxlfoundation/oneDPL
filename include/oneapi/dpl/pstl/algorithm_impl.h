@@ -1365,7 +1365,7 @@ __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                         __stop_in = __i + __stop; // Since there is only one such position, there is no data race
                 }
             },
-            [&__stop_out](auto __total) { // Apex
+            [&__stop_out](_DifferenceType __total) { // Apex
                 if (__total < __stop_out) // Output size is bigger than needed
                     __stop_out = __total;
             });
@@ -1401,17 +1401,13 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _UnaryPredicate>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
+          class _RandomAccessIterator2, class _UnaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __pattern_bounded_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                          typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
-                          _RandomAccessIterator2 __result,
-                          typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
+                          _DifferenceType __n, _RandomAccessIterator2 __result, _DifferenceType __n_out,
                           _UnaryPredicate __pred)
 {
-    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-
     return __parallel_selective_copy(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,  _DifferenceType{__n_out},
         [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
