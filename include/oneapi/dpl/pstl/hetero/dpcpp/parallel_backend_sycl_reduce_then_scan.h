@@ -541,23 +541,25 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     }
 }
 
-// Set operation generic implementation, used for serial set operation of intersection, difference, union, and
-// symmetric difference.
+// Set operation generic implementation, used for serial set operation
+// of intersection, difference, union, and symmetric difference.
 template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2>
     std::uint16_t
-    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2) const
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2,
+               std::size_t __idx1, std::size_t __idx2,
+               const _SizeType __num_eles_min,
+               _TempOutput& __temp_out,
+               const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
 
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
-        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
+        const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
+        const bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
 
         if (!__can_reach_rng1_end && !__can_reach_rng2_end)
         {
@@ -565,8 +567,9 @@ struct __set_generic_operation
             {
                 // no bounds checking
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
-                    __proj2);
+                    __in_rng1, __in_rng2,
+                    __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count,
+                    __comp, __proj1, __proj2);
             }
         }
         else
@@ -575,10 +578,12 @@ struct __set_generic_operation
             {
                 //bounds check all
                 __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
-                    __proj2);
+                    __in_rng1, __in_rng2,
+                    __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count,
+                    __comp, __proj1, __proj2);
             }
         }
+
         return __count;
     }
 };
