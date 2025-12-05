@@ -930,26 +930,31 @@ struct __gen_set_op_from_known_balanced_path
         // set a temp storage sequence, star value in sign bit
         const auto __rng1_temp_diag = std::get<2>(__tuple);
 
-        using _SizeType =
-            oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
-        _SizeType __i_elem = __id * __diagonal_spacing;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
+
+        const _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
+            return {0, 0};
+
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
+        const std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
             std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                      static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
                                             oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
-                                               __comp, __proj1, __proj2);
+        std::uint16_t __count = __set_op_count(__rng1, __rng2,              // const _InRng1& __in_rng1, const _InRng2& __in_rng2,
+                                               __rng1_idx, __rng2_idx,      // std::size_t __idx1, std::size_t __idx2,
+                                               __eles_to_process,           // const _SizeType __num_eles_min,
+                                               __output_data,               // _TempOutput& __temp_out,
+                                               __comp, __proj1, __proj2);   // const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
 
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
-    _SetOpCount __set_op_count;
+
+    _SetOpCount   __set_op_count;
     std::uint16_t __diagonal_spacing;
     _Compare __comp;
     _Proj1 __proj1;
