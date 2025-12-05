@@ -1907,7 +1907,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __num_remaining -= 1;
         }
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-        return __q.submit([&, this](sycl::handler& __cgh) {
+        return __q.submit([&, this](sycl::handler& __cgh)
+        {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
@@ -1915,8 +1916,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
-            auto __res_acc =
-                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __res_acc  = __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
@@ -1931,27 +1931,24 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local);
 
                 _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                _InitValueType* __res_ptr =
-                    _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
+                _InitValueType* __res_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
+
                 const std::uint32_t __group_id = __ndi.get_group(0);
+
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
 
-                std::size_t __group_start_id =
+                const std::size_t __group_start_id =
                     (__block_num * __max_block_size) + (__group_id * __sub_group_params.__inputs_per_sub_group *
-                                                        __sub_group_params.__num_sub_groups_local);
-                if constexpr (__is_unique_pattern_v)
-                {
+                                                        __sub_group_params.__num_sub_groups_local)
+                    
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
-                    __group_start_id += 1;
-                }
+                    + __is_unique_pattern_v ? 1 : 0;
 
-                std::size_t __max_inputs_in_group =
-                    __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local;
-                std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
-                std::uint32_t __active_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(
-                    __inputs_in_group, __sub_group_params.__inputs_per_sub_group);
+                const std::size_t __max_inputs_in_group = __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local;
+                const std::uint32_t __inputs_in_group = std::min(__n - __group_start_id, __max_inputs_in_group);
+                std::uint32_t __active_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__inputs_in_group, __sub_group_params.__inputs_per_sub_group);
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
@@ -2143,9 +2140,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                 }
 
                 // step 5) apply global carries
-                std::size_t __subgroup_start_id =
-                    __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
-                std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
+                const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
+                const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 if (__sub_group_carry_initialized)
                 {
@@ -2165,6 +2161,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups);
                 }
+
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
