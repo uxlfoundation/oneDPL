@@ -105,6 +105,56 @@ struct test_non_const
     }
 };
 
+void test_empty_list_initialization()
+{
+    {
+        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+        std::vector<int> expected{3,6,4,7,8,3,4};
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::seq, v.begin(), v.end(), {});
+        EXPECT_TRUE(it == v.begin() + 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `seq` policy");
+        v.erase(it, v.end());
+        EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `seq` policy");
+    }
+    {
+        std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+        std::vector<int> expected{3,6,4,7,8,3,4};
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::unseq, v.begin(), v.end(), {});
+        EXPECT_TRUE(it == v.begin() + 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `unseq` policy");
+        v.erase(it, v.end());
+        EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `unseq` policy");
+    }
+
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{1},{3},{1},{8},{2},{0},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{3},{5},{3},{8},{2},{0}};
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::par, v_custom.begin(), v_custom.end(), {});
+        EXPECT_TRUE(it == v_custom.begin() + 6, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `par` policy");
+        v_custom.erase(it, v_custom.end());
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `par` policy");
+    }
+    {
+        std::vector<TestUtils::DefaultInitializedToOne> v_custom{{3},{1},{5},{1},{3},{1},{8},{2},{0},{1}};
+        std::vector<TestUtils::DefaultInitializedToOne> expected_custom{{3},{5},{3},{8},{2},{0}};
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::par_unseq, v_custom.begin(), v_custom.end(), {});
+        EXPECT_TRUE(it == v_custom.begin() + 6, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `par_unseq` policy");
+        v_custom.erase(it, v_custom.end());
+        EXPECT_TRUE(v_custom == expected_custom, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `par_unseq` policy");
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    std::vector<int> v{3,6,0,4,0,7,8,0,3,4};
+    std::vector<int> expected{3,6,4,7,8,3,4};
+    std::size_t idx = 0;
+    {
+        sycl::buffer<int> buf(v);
+        auto it = oneapi::dpl::remove(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+        idx = it.get_idx();
+        EXPECT_TRUE(idx == 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `device_policy` policy");
+    }
+    v.erase(v.begin() + idx, v.end());
+    EXPECT_TRUE(v == expected, "wrong effect from calling oneapi::dpl::remove with empty list-initialized value and with `device_policy` policy");
+#endif
+}
+
 int
 main()
 {
@@ -132,6 +182,8 @@ main()
     );
     EXPECT_TRUE(MemoryChecker::alive_objects() == 0, "wrong effect from remove,remove_if: number of ctor and dtor calls is not equal");
 #endif
+
+    test_empty_list_initialization();
 
     return done();
 }

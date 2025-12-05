@@ -207,6 +207,126 @@ test_uninitialized_fill_destroy_by_type()
     }
 }
 
+void test_empty_list_initialization_for_uninitialized_fill()
+{
+    constexpr std::size_t size = 10;
+    const auto deleter = [](auto ptr) { operator delete(ptr); };
+    using deleter_type = decltype(deleter);
+    {
+        using value_type = TestUtils::Wrapper<int>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr((value_type*)operator new(sizeof(value_type) * size), deleter);
+        oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::seq, ptr.get(), ptr.get() + size, {1});
+        EXPECT_TRUE(std::count_if(ptr.get(), ptr.get() + size, [](auto x) { return (*x.get_my_field()) == 1; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `seq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill with `seq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::seq, ptr.get(), ptr.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `seq` policy");
+    }
+    {
+        using value_type = TestUtils::Wrapper<int>;
+        value_type::SetCount(0);
+        std::unique_ptr<TestUtils::Wrapper<int>, deleter_type> ptr((value_type*)operator new(sizeof(value_type) * size), deleter);
+        oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::unseq, ptr.get(), ptr.get() + size, {1});
+        EXPECT_TRUE(std::count_if(ptr.get(), ptr.get() + size, [](auto x) { return (*x.get_my_field()) == 1; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `unseq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill with `unseq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::unseq, ptr.get(), ptr.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `unseq` policy");
+    }
+
+    {
+        using value_type = TestUtils::Wrapper<TestUtils::DefaultInitializedToOne>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr_custom{(value_type*)operator new(sizeof(value_type) * size), deleter};
+        oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::par, ptr_custom.get(), ptr_custom.get() + size, {});
+        EXPECT_TRUE(std::count_if(ptr_custom.get(), ptr_custom.get() + size, [](auto x) { return (*x.get_my_field()) == TestUtils::DefaultInitializedToOne{1}; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `par` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill with `par` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::par, ptr_custom.get(), ptr_custom.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par` policy");
+    }
+    {
+        using value_type = TestUtils::Wrapper<TestUtils::DefaultInitializedToOne>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr_custom{(value_type*)operator new(sizeof(value_type) * size), deleter};
+        oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::par_unseq, ptr_custom.get(), ptr_custom.get() + size, {});
+        EXPECT_TRUE(std::count_if(ptr_custom.get(), ptr_custom.get() + size, [](auto x) { return (*x.get_my_field()) == TestUtils::DefaultInitializedToOne{1}; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `par_unseq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill with `par_unseq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::par_unseq, ptr_custom.get(), ptr_custom.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par_unseq` policy");
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    auto usm_deleter = [] (auto ptr) { sycl::free(ptr, oneapi::dpl::execution::dpcpp_default.queue()); };
+    using usm_deleter_type = decltype(usm_deleter);
+    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, oneapi::dpl::execution::dpcpp_default.queue()), usm_deleter};
+    oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::dpcpp_default, ptr.get(), ptr.get() + size, {1});
+    EXPECT_TRUE(std::count(ptr.get(), ptr.get() + size, 1) == size, "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `device_policy` policy");
+    // no need to call destroy for a trivial type
+#endif
+}
+
+void test_empty_list_initialization_for_uninitialized_fill_n()
+{
+    constexpr std::size_t size = 10;
+    const auto deleter = [](auto ptr) { operator delete(ptr); };
+    using deleter_type = decltype(deleter);
+    {
+        using value_type = TestUtils::Wrapper<int>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr((value_type*)operator new(sizeof(value_type) * size), deleter);
+        oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::seq, ptr.get(), size, {1});
+        EXPECT_TRUE(std::count_if(ptr.get(), ptr.get() + size, [](auto x) { return (*x.get_my_field()) == 1; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill_n with `seq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill_n with `seq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::seq, ptr.get(), ptr.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `seq` policy");
+    }
+    {
+        using value_type = TestUtils::Wrapper<int>;
+        value_type::SetCount(0);
+        std::unique_ptr<TestUtils::Wrapper<int>, deleter_type> ptr((value_type*)operator new(sizeof(value_type) * size), deleter);
+        oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::unseq, ptr.get(), size, {1});
+        EXPECT_TRUE(std::count_if(ptr.get(), ptr.get() + size, [](auto x) { return (*x.get_my_field()) == 1; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill_n with `unseq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill_n with `unseq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::unseq, ptr.get(), ptr.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `unseq` policy");
+    }
+
+    {
+        using value_type = TestUtils::Wrapper<TestUtils::DefaultInitializedToOne>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr_custom{(value_type*)operator new(sizeof(value_type) * size), deleter};
+        oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::par, ptr_custom.get(), size, {});
+        EXPECT_TRUE(std::count_if(ptr_custom.get(), ptr_custom.get() + size, [](auto x) { return (*x.get_my_field()) == TestUtils::DefaultInitializedToOne{1}; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill_n with `par` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill_n with `par` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::par, ptr_custom.get(), ptr_custom.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par` policy");
+    }
+    {
+        using value_type = TestUtils::Wrapper<TestUtils::DefaultInitializedToOne>;
+        value_type::SetCount(0);
+        std::unique_ptr<value_type, deleter_type> ptr_custom{(value_type*)operator new(sizeof(value_type) * size), deleter};
+        oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::par_unseq, ptr_custom.get(), size, {});
+        EXPECT_TRUE(std::count_if(ptr_custom.get(), ptr_custom.get() + size, [](auto x) { return (*x.get_my_field()) == TestUtils::DefaultInitializedToOne{1}; }) == size,
+                    "a sequence is not filled properly by oneapi::dpl::uninitialized_fill_n with `par_unseq` policy");
+        EXPECT_TRUE(value_type::Count() == 10, "wrong effect of calling `oneapi::dpl::uninitialized_fill_n with `par_unseq` policy");
+        oneapi::dpl::destroy(oneapi::dpl::execution::par_unseq, ptr_custom.get(), ptr_custom.get() + size);
+        EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par_unseq` policy");
+    }
+#if TEST_DPCPP_BACKEND_PRESENT
+    auto usm_deleter = [] (auto ptr) { sycl::free(ptr, oneapi::dpl::execution::dpcpp_default.queue()); };
+    using usm_deleter_type = decltype(usm_deleter);
+    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, oneapi::dpl::execution::dpcpp_default.queue()), usm_deleter};
+    oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::dpcpp_default, ptr.get(), size, {1});
+    EXPECT_TRUE(std::count(ptr.get(), ptr.get() + size, 1) == size, "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `device_policy` policy");
+    // no need to call destroy for a trivial type
+#endif
+}
+
 int
 main()
 {
@@ -219,6 +339,9 @@ main()
     test_uninitialized_fill_destroy_by_type<Wrapper<::std::string>>();
     test_uninitialized_fill_destroy_by_type<Wrapper<std::int8_t*>>();
 #endif
+
+    test_empty_list_initialization_for_uninitialized_fill();
+    test_empty_list_initialization_for_uninitialized_fill_n();
 
     return done();
 }
