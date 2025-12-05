@@ -1078,6 +1078,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
 {
     oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3> __result_init = oneapi::dpl::__ranges::__internal::create_set_operations_result(__rng1, __rng2, __result);
 
+    // Amount of diagonals in balanced path
     using _ReduceThenScanResultT = oneapi::dpl::__ranges::__internal::__rng_set_operations_result_in_offsets<_Range1, _Range2, _Range3>;
 
     constexpr std::uint16_t __diagonal_spacing = 32;
