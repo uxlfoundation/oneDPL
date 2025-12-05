@@ -900,7 +900,8 @@ struct __gen_set_balanced_path
                                                __eles_to_process, __temp_data, __comp, __proj1, __proj2);
         return __count;
     }
-    _SetOpCount __set_op_count;
+
+    _SetOpCount     __set_op_count;
     std::uint16_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
     _Compare __comp;
