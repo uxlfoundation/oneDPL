@@ -1365,29 +1365,48 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group,
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
-          std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
+template <std::uint8_t  __sub_group_size,
+          bool          __is_inclusive,
+          bool          __init_present,
+          bool          __capture_output,
+          std::uint16_t __max_inputs_per_item,
+          typename _GenInput,
+          typename _ScanInputTransform,
+          typename _BinaryOp,
+          typename _WriteOp,
+          typename _LazyValueType,
+          typename _InRng,
+          typename _OutRng>
 void
-__scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
-                               _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
-                               _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
-                               std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
-                               std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                               std::uint32_t __active_subgroups)
+__scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group,
+                               _GenInput            __gen_input,
+                               _ScanInputTransform  __scan_input_transform,
+                               _BinaryOp            __binary_op,
+                               _WriteOp             __write_op,
+                               _LazyValueType&      __sub_group_carry,
+                               const _InRng& __in_rng, _OutRng& __out_rng,
+                               const std::size_t    __start_id,
+                               const std::size_t    __n,
+                               const std::uint32_t  __iters_per_item,
+                               const std::size_t    __subgroup_start_id,
+                               const std::uint32_t  __sub_group_id,
+                               const std::uint32_t  __active_subgroups)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
-
-    bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
-    bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
     using _TempData = typename _GenInput::TempData;
+
+    const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
+    const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
+
     _TempData __temp_data{};
+
     if (__is_full_thread)
     {
-
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
-                                                                           __binary_op, __sub_group_carry);
+        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group,
+                                                                           __scan_input_transform(__v),
+                                                                           __binary_op,
+                                                                           __sub_group_carry);
         if constexpr (__capture_output)
         {
             __write_op(__out_rng, __start_id, __v, __temp_data);
