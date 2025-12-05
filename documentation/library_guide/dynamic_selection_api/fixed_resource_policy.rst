@@ -16,42 +16,31 @@ The fixed-resource policy always returns the same resource selection.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend>
-    class fixed_resource_policy {
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+            typename Backend = default_backend<ResourceType, ResourceAdapter>>
+    class fixed_resource_policy
+      : public policy_base<fixed_resource_policy<ResourceType, ResourceAdapter, Backend>,
+                           ResourceAdapter, Backend>
+    {
       public:
-        fixed_resource_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-      
-      // constructors
-      fixed_resource_policy(deferred_initialization_t);
-      fixed_resource_policy(std::size_t offset = 0);
-      fixed_resource_policy(const std::vector<resource_type>& u,
-                            std::size_t offset = 0);
-  
-      // deferred initializers
-      void initialize(std::size_t offset = 0);
-      void initialize(const std::vector<resource_type>& u,
-                      std::size_t offset = 0);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        fixed_resource_policy(deferred_initialization_t);
+        fixed_resource_policy(std::size_t index = 0);
+        fixed_resource_policy(const std::vector<ResourceType>& u, std::size_t index = 0);
+        fixed_resource_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter,
+                              std::size_t index = 0);
+
+        // deferred initializer
+        void initialize(std::size_t index = 0);
+        void initialize(const std::vector<resource_type>& u, std::size_t index = 0);
     };
-  
+
   }
-  
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
-and ``submit_and_wait``. It can also be used with ``policy_traits``.
+
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`policy traits <policy-traits>`.
 
 
 Example
@@ -140,6 +129,7 @@ Simplified, expository implementation of the selection algorithm:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename... Args>
   selection_type fixed_resource_policy::select(Args&& ...) {
     if (initialized_) {
@@ -158,49 +148,58 @@ and then remain constant.
 Constructors
 ------------
 
-``fixed_resource_policy`` provides three constructors.
+``fixed_resource_policy`` provides four constructors.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``fixed_resource_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
-  * - ``fixed_resource_policy(std::size_t offset = 0);``
+  * - ``fixed_resource_policy(std::size_t index = 0);``
     - Sets the index for the resource to be selected. Uses the default set of resources.
-  * - ``fixed_resource_policy(const std::vector<resource_type>& u, std::size_t offset = 0);``
+  * - | ``fixed_resource_policy(``
+      |   ``const std::vector<resource_type>& u,``
+      |   ``std::size_t index = 0);``
     - Overrides the default set of resources and optionally sets the index for the resource to be selected.
+  * - | ``fixed_resource_policy(``
+      |   ``const std::vector<resource_type>& u,``
+      |   ``ResourceAdapter adapter,``
+      |   ``std::size_t index = 0);``
+    - Overrides the default set of resources with a resource adapter and optionally sets the index for the resource to be selected.
 
 Deferred Initialization
 -----------------------
 
-A ``fixed_resource_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+A ``fixed_resource_policy`` that was constructed with deferred initialization must be
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
-  * - ``initialize(std::size_t offset = 0);``
+  * - ``initialize(std::size_t index = 0);``
     - Sets the index for the resource to be selected. Uses the default set of resources.
-  * - ``initialize(const std::vector<resource_type>& u, std::size_t offset = 0);``
+  * - | ``initialize(``
+      |   ``const std::vector<resource_type>& u,``
+      |   ``std::size_t index = 0);``
     - Overrides the default set of resources and optionally sets the index for the resource to be selected.
 
 Queries
 -------
 
-A ``fixed_resource_policy`` has ``get_resources`` and ``get_submission_group`` 
-member functions. 
+A ``fixed_resource_policy`` has ``get_resources`` and ``get_submission_group``
+member functions.
 
-.. list-table:: ``fixed_resource_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``
@@ -208,37 +207,3 @@ member functions.
   * - ``auto get_submission_group();``
     - Returns an object that can be used to wait for all active submissions.
 
-Reporting Requirements
-----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. However, the ``fixed_resource_policy`` 
-does not require any feedback about the system state or the behavior of 
-the workload. Therefore, no explicit reporting of execution information 
-is needed, as is summarized in the table below.
-
-.. list-table:: ``fixed_resource_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - No
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }

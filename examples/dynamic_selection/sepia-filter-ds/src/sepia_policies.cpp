@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sycl/sycl.hpp>
 #include <oneapi/dpl/dynamic_selection>
+#include <oneapi/dpl/functional>
 
 // dpc_common.hpp can be found in the dev-utilities include folder.
 // e.g., $ONEAPI_ROOT/dev-utilities/<version>/include/dpc_common.hpp
@@ -24,11 +25,6 @@
 using namespace std;
 using namespace sycl;
 namespace ex = oneapi::dpl::experimental;
-
-// Few useful acronyms.
-constexpr auto sycl_read = access::mode::read;
-constexpr auto sycl_write = access::mode::write;
-constexpr auto sycl_device = access::target::device;
 
 int g_num_images = 4;
 
@@ -320,8 +316,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create CPU queue\n";
         }
-        invokeDS<ex::fixed_resource_policy<ex::sycl_backend>>(num_offloads, resources, num_pixels, input_buffers,
-                                                              output_buffers);
+        invokeDS<ex::fixed_resource_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
+                                                         output_buffers);
         break;
     case 2:
         try
@@ -333,8 +329,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create GPU queue\n";
         }
-        invokeDS<ex::fixed_resource_policy<ex::sycl_backend>>(num_offloads, resources, num_pixels, input_buffers,
-                                                              output_buffers);
+        invokeDS<ex::fixed_resource_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
+                                                         output_buffers);
         break;
     case 3:
         try
@@ -347,8 +343,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create queues\n";
         }
-        invokeDS<ex::round_robin_policy<ex::sycl_backend>>(num_offloads, resources, num_pixels, input_buffers,
-                                                           output_buffers);
+        invokeDS<ex::round_robin_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
+                                                      output_buffers);
         break;
     case 4:
         try
@@ -360,8 +356,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create queues\n";
         }
-        invokeDS<ex::dynamic_load_policy<ex::sycl_backend>>(num_offloads, resources, num_pixels, input_buffers,
-                                                            output_buffers);
+        invokeDS<ex::dynamic_load_policy<sycl::queue>>(num_offloads, resources, num_pixels, input_buffers,
+                                                       output_buffers);
         break;
     case 5:
         try
@@ -374,8 +370,8 @@ main(int argc, char* argv[])
         {
             std::cout << "Unable to create queues\n";
         }
-        invokeDS<ex::auto_tune_policy<ex::sycl_backend, std::size_t>>(num_offloads, resources, num_pixels,
-                                                                      input_buffers, output_buffers);
+        invokeDS<ex::auto_tune_policy<sycl::queue, oneapi::dpl::identity, ex::sycl_backend, std::size_t>>(
+            num_offloads, resources, num_pixels, input_buffers, output_buffers);
         break;
     default:
         std::cout << "Invalid policy." << std::endl;

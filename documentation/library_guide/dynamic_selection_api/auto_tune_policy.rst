@@ -20,42 +20,50 @@ the profiling phase periodically.
 .. code:: cpp
 
   namespace oneapi::dpl::experimental {
-  
-    template<typename Backend = sycl_backend> 
-    class auto_tune_policy {
-    public:
-      // useful types
-      using resource_type = typename Backend::resource_type;
-      using wait_type = typename Backend::wait_type;
-      
-      class selection_type {
+  template <typename ResourceType = sycl::queue, typename ResourceAdapter = oneapi::dpl::identity,
+          typename Backend = default_backend<ResourceType, ResourceAdapter>, typename... KeyArgs>
+    class auto_tune_policy
+      : public policy_base<auto_tune_policy<ResourceType, ResourceAdapter, Backend, KeyArgs...>,
+                           ResourceAdapter, Backend, execution_info::task_time_t>
+    {
       public:
-        auto_tune_policy<Backend> get_policy() const;
-        resource_type unwrap() const;
-      };
-      
-      // constructors
-      auto_tune_policy(deferred_initialization_t);
-      auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);
-      auto_tune_policy(const std::vector<resource_type>& u,
-                       uint64_t resample_interval_in_milliseconds = 0);
-  
-      // deferred initializer
-      void initialize(uint64_t resample_interval_in_milliseconds = 0);
-      void initialize(const std::vector<resource_type>& u,
-                      uint64_t resample_interval_in_milliseconds = 0);
-                      
-      // queries
-      auto get_resources() const;
-      auto get_submission_group();
-      
-      // other implementation defined functions...
+        using resource_type = ResourceType;
+        using backend_type = Backend;
+
+        auto_tune_policy(deferred_initialization_t);
+        auto_tune_policy(uint64_t resample_interval_ms = 0);
+        auto_tune_policy(const std::vector<ResourceType>& u, ResourceAdapter adapter = {},
+                         uint64_t resample_interval_ms = 0);
+
+        // deferred initializer
+        void initialize(uint64_t resample_interval_ms = 0);
+        void initialize(const std::vector<resource_type>& u,
+                        uint64_t resample_interval_ms = 0);
+        // other implementation defined functions...
     };
-  
+
   }
-  
-This policy can be used with all the dynamic selection functions, such as ``select``, ``submit``,
-and ``submit_and_wait``. It can also be used with ``policy_traits``.
+
+This policy can be used with all the dynamic selection :doc:`free functions <functions>`,
+as well as with :ref:`policy traits <policy-traits>`.
+
+Task Identification with KeyArgs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The template parameter pack ``KeyArgs`` allows the policy to track performance for submitted jobs.
+By default (empty ``KeyArgs``), all invocations of the same function share performance history.
+When ``KeyArgs`` are specified, the policy uses both the function pointer and the specified
+arguments to create a unique key for tracking performance.
+
+.. Note::
+
+   The number of ``KeyArgs`` types must exactly match the number of extra arguments
+   passed to the user function beyond the resource. This requirement is enforced at compile-time.
+
+For example, ``auto_tune_policy<sycl::queue, oneapi::dpl::identity, default_backend, std::size_t>``
+will track performance separately for each distinct ``std::size_t`` argument value, useful
+when performance varies with problem size. Here, one ``KeyArg`` type corresponds to one extra
+argument passed to the function after the ``sycl::queue``.
 
 Example
 -------
@@ -129,6 +137,7 @@ implementation of the selection algorithm follows:
  
 .. code:: cpp
 
+  //not a public function, for exposition purposes only
   template<typename Function, typename ...Args>
   selection_type auto_tune_policy::select(Function&& f, Args&&...args) {
     if (initialized_) {
@@ -136,7 +145,7 @@ implementation of the selection algorithm follows:
       auto tuner = get_tuner(k);
       auto offset = tuner->get_resource_to_profile();
       if (offset == use_best) {
-        return selection_type {*this, tuner->best_resource_, tuner}; 
+        return selection_type{*this, tuner->best_resource_, tuner}; 
       } else {
         auto r = resources_[offset];
         return selection{*this, r, tuner}; 
@@ -162,18 +171,22 @@ Constructors
 
 ``auto_tune_policy`` provides three constructors.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``auto_tune_policy(deferred_initialization_t);``
     - Defers initialization. An ``initialize`` function must be called prior to use.
-  * - ``auto_tune_policy(uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``auto_tune_policy(``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Initialized to use the default set of resources. An optional resampling interval can be provided.
-  * - ``auto_tune_policy(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
-    - Overrides the default set of resources. An optional resampling interval can be provided.
+  * - | ``auto_tune_policy(``
+      |   ``const std::vector<ResourceType>& u,``
+      |   ``ResourceAdapter adapter = {},``
+      |   ``uint64_t resample_interval_ms = 0);``
+    - Overrides the default set of resources with an optional resource adapter. An optional resampling interval can be provided.
 
 .. Note::
 
@@ -184,19 +197,22 @@ Constructors
 Deferred Initialization
 -----------------------
 
-A ``auto_tune_policy`` that was constructed with deferred initialization must be 
-initialized by calling one its ``initialize`` member functions before it can be used
+An ``auto_tune_policy`` that was constructed with deferred initialization must be
+initialized by calling one of its ``initialize`` member functions before it can be used
 to select or submit.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
-  * - ``initialize(uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``initialize(``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Initialize to use the default set of resources. An optional resampling interval can be provided.
-  * - ``initialize(const std::vector<resource_type>& u, uint64_t resample_interval_in_milliseconds = 0);``
+  * - | ``initialize(``
+      |   ``const std::vector<resource_type>& u,``
+      |   ``uint64_t resample_interval_ms = 0);``
     - Overrides the default set of resources. An optional resampling interval can be provided.
 
 .. Note::
@@ -208,13 +224,13 @@ to select or submit.
 Queries
 -------
 
-A ``auto_tune_policy`` has ``get_resources`` and ``get_submission_group`` 
+An ``auto_tune_policy`` has ``get_resources`` and ``get_submission_group``
 member functions.
 
-.. list-table:: ``auto_tune_policy`` constructors
+.. list-table::
   :widths: 50 50
   :header-rows: 1
-  
+
   * - Signature
     - Description
   * - ``std::vector<resource_type> get_resources();``
@@ -224,37 +240,6 @@ member functions.
 
 Reporting Requirements
 ----------------------
-
-If a resource returned by ``select`` is used directly without calling
-``submit`` or ``submit_and_wait``, it may be necessary to call ``report``
-to provide feedback to the policy. The ``auto_tune_policy`` tracks the
-performance of submissions on each device via callbacks that report
-the execution time. The instrumentation to report these events is included 
-in the implementations of ``submit`` and ``submit_and_wait``.  However, if you 
-use ``select`` and then submit work directly to the selected resource, it 
-is necessary to explicitly report these events.
-
-.. list-table:: ``auto_tune_policy`` reporting requirements
-  :widths: 50 50
-  :header-rows: 1
-  
-  * - ``execution_info``
-    - is reporting required?
-  * - ``task_submission``
-    - No
-  * - ``task_completion``
-    - No
-  * - ``task_time``
-    - Yes
-
-In generic code, it is possible to perform compile-time checks to avoid
-reporting overheads when reporting is not needed, while still writing 
-code that will work with any policy, as demonstrated below:
-
-.. code:: cpp
-
-  auto s = select(my_policy);
-  if constexpr (report_info_v<decltype(s), execution_info::task_submission_t>)
-  {
-    s.report(execution_info::task_submission);
-  }
+A ``auto_tune_policy`` requires the ``task_time`` reporting requirement. See the
+:ref:`Execution Information <execution-information>` section for more information
+about reporting requirements.

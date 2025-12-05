@@ -82,7 +82,6 @@
 #define _ONEDPL_SYCL2020_LOCAL_ACCESSOR_PRESENT               (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60000))
 #define _ONEDPL_SYCL2020_HOST_TARGET_PRESENT                  (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
-#define _ONEDPL_SYCL2020_GET_HOST_ACCESS_PRESENT              (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200))
 #define _ONEDPL_SYCL2020_LOCAL_ACC_GET_MULTI_PTR_PRESENT      (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(70000))
 
 // Feature macros for DPC++ SYCL runtime library alternatives to non-supported SYCL 2020 features
@@ -527,19 +526,6 @@ using __local_accessor =
 #else
 #    error "sycl::local_accessor is not supported, and no alternative is available"
 #endif
-
-template <typename _Buf>
-auto
-__get_host_access(_Buf&& __buf)
-{
-#if _ONEDPL_SYCL2020_GET_HOST_ACCESS_PRESENT
-    return ::std::forward<_Buf>(__buf).get_host_access(sycl::read_only);
-#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200)
-    return ::std::forward<_Buf>(__buf).template get_access<sycl::access::mode::read>();
-#else
-#    error "sycl::buffer::get_host_access is not supported, and no alternative is available"
-#endif
-}
 
 template <typename _Acc>
 auto
