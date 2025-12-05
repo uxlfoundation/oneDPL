@@ -892,20 +892,20 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q,
                                                                          std::forward<_Range4>(__out_values));
     // __gen_red_by_seg_scan_input requires that __n_keys > 1
     assert(__n_keys > 1);
-    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
-                                                 _CustomName>(
-        __q,
-        __n_keys,
-        std::move(__zip_view_keys_vals_in),
-        std::move(__zip_view_keys_vals_out),
-        _GenReduceInput{__binary_pred},
-        _ReduceOp{__binary_op},
-        _GenScanInput{__binary_pred, __n_keys},
-        _ScanInputTransform{},
-        _WriteOp{__binary_pred, __n_keys},
-        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},
-        /*Inclusive*/ std::true_type{},
-    /*_IsUniquePattern=*/std::false_type{});
+    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>), _CustomName>(
+        __q,                                                                                                        // sycl::queue&          __q
+        __n_keys,                                                                                                   // const std::size_t     __n
+        std::move(__zip_view_keys_vals_in),                                                                         // _InRng&&              __in_rng
+        std::move(__zip_view_keys_vals_out),                                                                        // _OutRng&&             __out_rng
+        _GenReduceInput{__binary_pred},                                                                             // _GenReduceInput       __gen_reduce_input
+        _ReduceOp{__binary_op},                                                                                     // _ReduceOp             __reduce_op
+        _GenScanInput{__binary_pred, __n_keys},                                                                     // _GenScanInput         __gen_scan_input
+        _ScanInputTransform{},                                                                                      // _ScanInputTransform   __scan_input_transform
+        _WriteOp{__binary_pred, __n_keys},                                                                          // _WriteOp              __write_op
+        oneapi::dpl::unseq_backend::__no_init_value<oneapi::dpl::__internal::tuple<std::size_t, _ValueType>>{},     // const _InitType       __init
+        /*Inclusive*/ std::true_type{},                                                                             // _Inclusive
+        /*_IsUniquePattern=*/std::false_type{});                                                                    // _IsUniquePattern
+                                                                                                                    // sycl::event __prior_event = {}
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
