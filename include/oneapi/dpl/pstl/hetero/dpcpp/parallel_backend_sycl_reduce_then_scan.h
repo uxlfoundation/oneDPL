@@ -398,57 +398,60 @@ struct __gen_set_mask
 {
     template <typename _InRng>
     bool
-    operator()(const _InRng& __in_rng, std::size_t __id) const
+    operator()(const _InRng& __in_rng, const std::size_t __in_rng_val_idx) const
     {
         // Get tuple from source range
         auto&& __tuple = __in_rng.tuple();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __set_a = std::get<0>(__tuple);    // first sequence, use with __proj1
-        auto __set_b = std::get<1>(__tuple);    // second sequence, use with __proj2
-        auto __set_mask = std::get<2>(__tuple); // mask sequence
+        const auto __set_a = std::get<0>(__tuple);      // first sequence, use with __proj1
+        const auto __set_b = std::get<1>(__tuple);      // second sequence, use with __proj2
+        auto    __set_mask = std::get<2>(__tuple);      // mask sequence
 
-        std::size_t __nb = __set_b.size();
+        const std::size_t __set_b_size = __set_b.size();
 
-        auto __res = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __nb, __set_a, __id,
-                                                                     __comp, __proj2, __proj1);
+        const auto __set_b_lb_idx = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __set_b_size, __set_a, __in_rng_val_idx,
+                                                                                    __comp, __proj2, __proj1);
         constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
 
-        if (__res == __nb ||
-            std::invoke(__comp, std::invoke(__proj1, __set_a[__id]), std::invoke(__proj2, __set_b[__res])))
+        if (__set_b_lb_idx == __set_b_size ||
+            std::invoke(__comp, std::invoke(__proj1, __set_a[__in_rng_val_idx]), std::invoke(__proj2, __set_b[__set_b_lb_idx])))
         {
-            // there is no __set_a[__id] in __set_b, so __set_b in the difference {__set_a}/{__set_b};
+            // there is no __set_a[__in_rng_val_idx] in __set_b, so __set_b in the difference {__set_a}/{__set_b};
         }
         else
         {
-            //Difference operation logic: if number of duplication in __set_a on left side from __id > total number of
+            //Difference operation logic: if number of duplication in __set_a on left side from __in_rng_val_idx > total number of
             //duplication in __set_b then a mask is 1
 
-            //Intersection operation logic: if number of duplication in __set_a on left side from __id <= total number of
+            //Intersection operation logic: if number of duplication in __set_a on left side from __in_rng_val_idx <= total number of
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1;
+                __in_rng_val_idx - oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __in_rng_val_idx, __set_a, __in_rng_val_idx, __comp, __proj1, __proj1) + 1;
 
             const std::size_t __count_b = 
-                oneapi::dpl::__internal::__pstl_right_bound_idx(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
+                oneapi::dpl::__internal::__pstl_right_bound_idx(__set_b, __set_b_lb_idx,   __set_b_size, __set_b, __set_b_lb_idx, __comp, __proj2, __proj2) -
+                oneapi::dpl::__internal::__pstl_left_bound_idx (__set_b, std::size_t{0}, __set_b_lb_idx, __set_b, __set_b_lb_idx, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
             else
                 bres = __count_a_left <= __count_b; /*intersection*/
         }
-        __set_mask[__id] = bres;
+
+        __set_mask[__in_rng_val_idx] = bres;
+
         return bres;
     }
+
     _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _Proj1   __proj1;
+    _Proj2   __proj2;
 };
 
 // __parallel_set_write_a_b_op
