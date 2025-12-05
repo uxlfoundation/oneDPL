@@ -1313,8 +1313,11 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group,
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _MaskOp,
           typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
-__sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
-                        _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
+__sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group,
+                        _MaskOp __mask_fn,
+                        const _InitBroadcastId __init_broadcast_id,
+                        _ValueType& __value,
+                        _BinaryOp __binary_op,
                         _LazyValueType& __init_and_carry)
 {
     if constexpr (__is_inclusive)
