@@ -687,12 +687,12 @@ struct __get_bounds_partitioned
         const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
                                                            oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
 
-        const auto [begin_rng1, begin_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
-        const auto [end_rng1, end_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+        const auto [begin_rng1, begin_rng2] = __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+        const auto [end_rng1,   end_rng2  ] = __decode_balanced_path_temp_data_no_star(__rng_tmp_diag,   __wg_end_idx, __diagonal_spacing);
+
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
+
     std::uint16_t __diagonal_spacing;
     std::size_t __tile_size;
     std::size_t __partition_threshold;
