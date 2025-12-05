@@ -338,12 +338,14 @@ template <typename _GenMask>
 struct __gen_count_mask
 {
     using TempData = __noop_temp_data;
+
     template <typename _InRng, typename _SizeType>
     _SizeType
     operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
+
     _GenMask __gen_mask;
 };
 
