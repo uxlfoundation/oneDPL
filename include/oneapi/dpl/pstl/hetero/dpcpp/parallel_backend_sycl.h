@@ -1049,20 +1049,19 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
     // __parallel_transform_reduce_then_scan -> __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
     //     __result_and_scratch_storage<typename _InitType::__value_type> ===>>> oneapi::dpl::__internal::__difference_t<_Range3>
     const auto __res_of_reduce_then_scan = __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
-        __q,
-        __n1,
-        std::move(__zip_view),
-        std::forward<_Range3>(__result),
-        _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}},
-        _ReduceOp{},
-        _GenScanInput{_GenMaskScan{_MaskPredicateNoOp{}, _MaskRangeTransform{}},
-        _ScanRangeTransform{}},
-        _ScanInputTransform{},
-        _WriteOp{},
-        oneapi::dpl::unseq_backend::__no_init_value<_ReduceThenScanResultT>{},
-        /*_Inclusive=*/std::true_type{},
-        /*__is_unique_pattern=*/std::false_type{}).get();
-
+        __q,                                                                                                // sycl::queue&          __q
+        __n1,                                                                                               // const std::size_t     __n
+        std::move(__zip_view),                                                                              // _InRng&&              __in_rng
+        std::forward<_Range3>(__result),                                                                    // _OutRng&&             __out_rng
+        _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}},                                          // _GenReduceInput       __gen_reduce_input
+        _ReduceOp{},                                                                                        // _ReduceOp             __reduce_op
+        _GenScanInput{_GenMaskScan{_MaskPredicateNoOp{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},    // _GenScanInput         __gen_scan_input
+        _ScanInputTransform{},                                                                              // _ScanInputTransform   __scan_input_transform
+        _WriteOp{},                                                                                         // _WriteOp              __write_op
+        oneapi::dpl::unseq_backend::__no_init_value<_ReduceThenScanResultT>{},                              // const _InitType       __init
+        /*_Inclusive=*/std::true_type{},                                                                    // _Inclusive
+        /*__is_unique_pattern=*/std::false_type{}).get();                                                   // _IsUniquePattern
+                                                                                                            // sycl::event __prior_event = {}
     return __result_init + __res_of_reduce_then_scan;
     //#else
 //    return oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>{};
