@@ -721,14 +721,14 @@ template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT>
 __decode_balanced_path_temp_data_no_star(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
-    return __decode_balanced_path_temp_data_impl<false>(__rng, __id, __diagonal_spacing);
+    return __decode_balanced_path_temp_data_impl</* __return_star */ false>(__rng, __id, __diagonal_spacing);
 }
 
 template <typename _Rng, typename _IdxT>
 std::tuple<_IdxT, _IdxT, decltype(oneapi::dpl::__ranges::__size(std::declval<_Rng>()))>
 __decode_balanced_path_temp_data(const _Rng& __rng, const _IdxT __id, const std::uint16_t __diagonal_spacing)
 {
-    return __decode_balanced_path_temp_data_impl<true>(__rng, __id, __diagonal_spacing);
+    return __decode_balanced_path_temp_data_impl</* __return_star */ true>(__rng, __id, __diagonal_spacing);
 }
 
 template <typename _IdxT>
