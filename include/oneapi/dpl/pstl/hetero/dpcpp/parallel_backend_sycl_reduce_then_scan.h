@@ -36,6 +36,41 @@
 #include "../../utils_ranges.h"
 #include "../../utils.h"
 
+#define CKECK_COMPILE_STACKS 1
+
+#if CKECK_COMPILE_STACKS
+#define CKECK_COMPILE_STACK_TO_EXTRACT_RANGE_FROM_ZIP                       0
+#define CKECK_COMPILE_STACK_TO_GET_ZEROTH_ELEMENT                           0
+#define CKECK_COMPILE_STACK_TO_WRITE_TO_ID_IF                               0
+#define CKECK_COMPILE_STACK_TO_WRITE_MULTIPLE_TO_ID                         0
+#define CKECK_COMPILE_STACK_TO_GEN_MASK                                     0
+#define CKECK_COMPILE_STACK_TO_GEN_COUNT_MASK                               0
+#define CKECK_COMPILE_STACK_TO_GEN_EXPAND_COUNT_MASK                        0
+#define CKECK_COMPILE_STACK_TO_GEN_SET_MASK                                 0
+#define CKECK_COMPILE_STACK_TO_SET_GENERIC_OPERATION                        0
+#define CKECK_COMPILE_STACK_TO_GET_BOUNDS_PARTITIONED                       0
+#define CKECK_COMPILE_STACK_TO_GET_BOUNDS_SIMPLE                            0
+#define CKECK_COMPILE_STACK_TO_GEN_SET_BALANCED_PATH                        0
+#define CKECK_COMPILE_STACK_TO_GEN_SET_OP_FROM_KNOWN_BALANCED_PATH          0
+#define CKECK_COMPILE_STACK_TO_PARALLEL_SET_BALANCED_PATH_SUBMITTER         0
+#define CKECK_COMPILE_STACK_TO_GEN_SCAN_BY_SEG_SCAN_INPUT                   0
+#define CKECK_COMPILE_STACK_TO_PARALLEL_REDUCE_THEN_SCAN_REDUCE_SUBMITTER   0
+#define CKECK_COMPILE_STACK_TO_PARALLEL_REDUCE_THEN_SCAN_SCAN_SUBMITTER     0
+
+// Not make sense for set_union
+//     #define CKECK_COMPILE_STACK_TO_SIMPLE_WRITE_TO_ID                    1
+//     #define CKECK_COMPILE_STACK_TO_WRITE_TO_ID_IF_ELSE                   1
+//     #define CKECK_COMPILE_STACK_TO_WRITE_RED_BY_SEG                      1
+//     #define CKECK_COMPILE_STACK_TO_WRITE_SCAN_BY_SEG                     1
+//     #define CKECK_COMPILE_STACK_TO_GEN_TRANSFORM_INPUT                   1
+//     #define CKECK_COMPILE_STACK_TO_GEN_UNIQUE_MASK                       1
+//     #define CKECK_COMPILE_STACK_TO_GEN_RED_BY_SEG_REDUCE_INPUT           1
+//     #define CKECK_COMPILE_STACK_TO_GEN_SCAN_BY_SEG_REDUCE_INPUT          1
+//     #define CKECK_COMPILE_STACK_TO_GEN_RED_BY_SEG_SCAN_INPUT             1
+//     #define CKECK_COMPILE_STACK_TO_RED_BY_SEG_OP                         1
+//     #define CKECK_COMPILE_STACK_TO_SCAN_BY_SEG_OP                        1
+#endif // CKECK_COMPILE_STACKS
+
 namespace oneapi
 {
 namespace dpl
@@ -88,6 +123,9 @@ struct __extract_range_from_zip
     auto
     operator()(const _InRng& __in_rng) const
     {
+#if CKECK_COMPILE_STACK_TO_EXTRACT_RANGE_FROM_ZIP
+        static_assert(false, "__extract_range_from_zip::operator() called");
+#endif
         return std::get<_EleId>(__in_rng.tuple());
     }
 };
@@ -99,6 +137,9 @@ struct __get_zeroth_element
     auto&
     operator()(_Tp&& __a) const
     {
+#if CKECK_COMPILE_STACK_TO_GET_ZEROTH_ELEMENT
+        static_assert(false, "__get_zeroth_element::operator() called");
+#endif
         return std::get<0>(std::forward<_Tp>(__a));
     }
 };
@@ -114,6 +155,9 @@ struct __simple_write_to_id
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_SIMPLE_WRITE_TO_ID
+        static_assert(false, "__simple_write_to_id::operator() called");
+#endif
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
@@ -135,6 +179,10 @@ struct __write_to_id_if
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_WRITE_TO_ID_IF
+        static_assert(false, "__write_to_id_if::operator() called");
+#endif
+
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
@@ -173,6 +221,9 @@ struct __write_to_id_if_else
     void
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_WRITE_TO_ID_IF_ELSE
+        static_assert(false, "__write_to_id_if_else::operator() called");
+#endif
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
@@ -198,6 +249,9 @@ struct __write_red_by_seg
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_WRITE_RED_BY_SEG
+        static_assert(false, "__write_red_by_seg::operator() called");
+#endif
         using std::get;
 
         // Get source tuple
@@ -241,6 +295,9 @@ struct __write_scan_by_seg
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_WRITE_SCAN_BY_SEG
+        static_assert(false, "__write_scan_by_seg::operator() called");
+#endif
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -278,6 +335,9 @@ struct __write_multiple_to_id
     void
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
+#if CKECK_COMPILE_STACK_TO_WRITE_MULTIPLE_TO_ID
+        static_assert(false, "__write_multiple_to_id::operator() called");
+#endif
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
@@ -308,6 +368,9 @@ struct __gen_transform_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_TRANSFORM_INPUT
+        static_assert(false, "__gen_transform_input::operator() called");
+#endif
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
         // from modifying the input range when altering the return of this functor.
@@ -327,6 +390,9 @@ struct __gen_mask
     bool
     operator()(_InRng&& __in_rng, std::size_t __id) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_MASK
+        static_assert(false, "__gen_mask::operator() called");
+#endif
         return __pred((__rng_transform(std::forward<_InRng>(__in_rng)))[__id]);
     }
     _Predicate __pred;
@@ -343,6 +409,9 @@ struct __gen_count_mask
     _SizeType
     operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_COUNT_MASK
+        static_assert(false, "__gen_count_mask::operator() called");
+#endif
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
 
@@ -359,6 +428,9 @@ struct __gen_expand_count_mask
     auto
     operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_EXPAND_COUNT_MASK
+        static_assert(false, "__gen_expand_count_mask::operator() called");
+#endif
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
@@ -383,6 +455,9 @@ struct __gen_unique_mask
     bool
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_UNIQUE_MASK
+        static_assert(false, "__gen_unique_mask::operator() called");
+#endif
         // Starting index is offset to 1 for "unique" patterns and 0th element
         // copy is handled separately, which allows us to do this without
         // branching each access to protect underflow
@@ -402,6 +477,9 @@ struct __gen_set_mask
     bool
     operator()(const _InRng& __in_rng, const std::size_t __in_rng_val_idx) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_SET_MASK
+        static_assert(false, "__gen_set_mask::operator() called");
+#endif
         // Get tuple from source range
         auto&& __tuple = __in_rng.tuple();
 
@@ -555,7 +633,9 @@ struct __set_generic_operation
                _TempOutput& __temp_out,
                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
-
+#if CKECK_COMPILE_STACK_TO_SET_GENERIC_OPERATION
+        static_assert(false, "__set_generic_operation::operator() called");
+#endif
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
         const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
@@ -670,6 +750,9 @@ struct __get_bounds_partitioned
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, const _IndexT __id) const
     {
+#if CKECK_COMPILE_STACK_TO_GET_BOUNDS_PARTITIONED
+        static_assert(false, "__get_bounds_partitioned::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -705,6 +788,9 @@ struct __get_bounds_simple
     auto // Returns a tuple of the form (start1, end1, start2, end2)
     operator()(const _Rng& __in_rng, const _IndexT) const
     {
+#if CKECK_COMPILE_STACK_TO_GET_BOUNDS_SIMPLE
+        static_assert(false, "__get_bounds_simple::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -847,6 +933,9 @@ struct __gen_set_balanced_path
     std::uint16_t
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_SET_BALANCED_PATH
+        static_assert(false, "__gen_set_balanced_path::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -924,6 +1013,9 @@ struct __gen_set_op_from_known_balanced_path
     std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_SET_OP_FROM_KNOWN_BALANCED_PATH
+        static_assert(false, "__gen_set_op_from_known_balanced_path::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -976,6 +1068,9 @@ struct __partition_set_balanced_path_submitter<_GenInput, __internal::__optional
     sycl::event
     operator()(sycl::queue& __q, _InInOutRng&& __in_in_out_rng, std::size_t __num_diagonals) const
     {
+#if CKECK_COMPILE_STACK_TO_PARALLEL_SET_BALANCED_PATH_SUBMITTER
+        static_assert(false, "__partition_set_balanced_path_submitter::operator() called");
+#endif
         const std::size_t __tile_size = __gen_input.__get_bounds.__tile_size;
         const std::size_t __n =
             oneapi::dpl::__internal::__dpl_ceiling_div(__num_diagonals + __tile_size - 1, __tile_size);
@@ -1014,6 +1109,9 @@ struct __gen_red_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_RED_BY_SEG_REDUCE_INPUT
+        static_assert(false, "__gen_red_by_seg_reduce_input::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -1042,6 +1140,9 @@ struct __gen_scan_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_SCAN_BY_SEG_REDUCE_INPUT
+        static_assert(false, "__gen_scan_by_seg_reduce_input::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -1071,6 +1172,9 @@ struct __gen_red_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_RED_BY_SEG_SCAN_INPUT
+        static_assert(false, "__gen_red_by_seg_scan_input::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -1124,6 +1228,9 @@ struct __gen_scan_by_seg_scan_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
+#if CKECK_COMPILE_STACK_TO_GEN_SCAN_BY_SEG_SCAN_INPUT
+        static_assert(false, "__gen_scan_by_seg_scan_input::operator() called");
+#endif
         // Get source tuple
         auto&& __tuple = __in_rng.tuple();
 
@@ -1195,6 +1302,9 @@ struct __red_by_seg_op
     auto
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
+#if CKECK_COMPILE_STACK_TO_RED_BY_SEG_OP
+        static_assert(false, "__red_by_seg_op::operator() called");
+#endif
         using std::get;
         using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         if (get<0>(__rhs_tup) == 0)
@@ -1219,6 +1329,9 @@ struct __scan_by_seg_op
     auto
     operator()(const _Tup1& __lhs_tup, const _Tup2& __rhs_tup) const
     {
+#if CKECK_COMPILE_STACK_TO_SCAN_BY_SEG_OP
+        static_assert(false, "__scan_by_seg_op::operator() called");
+#endif
         using std::get;
         using _OpReturnType = decltype(__binary_op(get<1>(__lhs_tup), get<1>(__rhs_tup)));
         if (get<0>(__rhs_tup) == 0)
@@ -1597,6 +1710,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                const std::size_t __inputs_remaining,
                const std::size_t __block_num) const
     {
+#if CKECK_COMPILE_STACK_TO_PARALLEL_REDUCE_THEN_SCAN_REDUCE_SUBMITTER
+        static_assert(false, "__parallel_reduce_then_scan_reduce_submitter::operator() called");
+#endif
         using _InitValueType = typename _InitType::__value_type;
         
         return __q.submit([&, this](sycl::handler& __cgh)
@@ -1780,6 +1896,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
+#if CKECK_COMPILE_STACK_TO_PARALLEL_REDUCE_THEN_SCAN_SCAN_SUBMITTER
+        static_assert(false, "__parallel_reduce_then_scan_scan_submitter::operator() called");
+#endif
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
         if constexpr (__is_unique_pattern_v)
