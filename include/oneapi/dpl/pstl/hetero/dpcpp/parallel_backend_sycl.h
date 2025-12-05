@@ -1245,10 +1245,12 @@ struct __set_union_merge_wrapper;
 template <typename _CustomName>
 struct __set_union_copy_wrapper;
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
+template <typename _CustomName, typename _UseReduceThenScan,
+          typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
+                      sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -1269,7 +1271,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     // 1. Calc difference {2} \ {1} (i.e. all items of {2} that are not in {1})
     auto __output_all_view = __diff_buffer_keeper.all_view();
     auto __set_op_impl_res = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __output_all_view, __comp, __proj2, __proj1);
+        oneapi::dpl::unseq_backend::_DifferenceTag{},
+        __q,
+        __rng2, __rng1, __output_all_view,
+        __comp, __proj2, __proj1);
 
     const std::size_t __difference_size = oneapi::dpl::__ranges::__size(__output_all_view);
 
