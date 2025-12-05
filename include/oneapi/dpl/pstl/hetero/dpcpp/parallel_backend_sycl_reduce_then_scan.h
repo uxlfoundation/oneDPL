@@ -897,17 +897,20 @@ struct __gen_set_balanced_path
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
                          _IndexT{__id * __diagonal_spacing - 1});
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
-                                               __eles_to_process, __temp_data, __comp, __proj1, __proj2);
+        std::uint16_t __count = __set_op_count(__rng1, __rng2,
+                                               __rng1_balanced_pos, __rng2_balanced_pos,
+                                               __eles_to_process,
+                                               __temp_data,
+                                               __comp, __proj1, __proj2);
         return __count;
     }
 
     _SetOpCount     __set_op_count;
-    std::uint16_t __diagonal_spacing;
+    std::uint16_t   __diagonal_spacing;
     _BoundsProvider __get_bounds;
-    _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _Compare        __comp;
+    _Proj1          __proj1;
+    _Proj2          __proj2;
 };
 
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
