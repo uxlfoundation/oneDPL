@@ -961,9 +961,9 @@ struct __gen_set_op_from_known_balanced_path
 
     _SetOpCount   __set_op_count;
     std::uint16_t __diagonal_spacing;
-    _Compare __comp;
-    _Proj1 __proj1;
-    _Proj2 __proj2;
+    _Compare      __comp;
+    _Proj1        __proj1;
+    _Proj2        __proj2;
 };
 
 // kernel for balanced path to partition the input into tiles by calculating balanced path on diagonals of tile bounds
