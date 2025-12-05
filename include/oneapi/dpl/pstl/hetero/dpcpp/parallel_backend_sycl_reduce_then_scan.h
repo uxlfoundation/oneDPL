@@ -2269,31 +2269,30 @@ template <std::uint32_t __bytes_per_work_item_iter,
           typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
           typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(sycl::queue& __q,
-                                      const std::size_t __n,
-                                      _InRng&& __in_rng,
-                                      _OutRng&& __out_rng,
-                                      _GenReduceInput __gen_reduce_input,
-                                      _ReduceOp __reduce_op,
-                                      _GenScanInput __gen_scan_input,
-                                      _ScanInputTransform __scan_input_transform,
-                                      _WriteOp __write_op,
-                                      _InitType __init,
+__parallel_transform_reduce_then_scan(sycl::queue&          __q,
+                                      const std::size_t     __n,
+                                      _InRng&&              __in_rng,
+                                      _OutRng&&             __out_rng,
+                                      _GenReduceInput       __gen_reduce_input,
+                                      _ReduceOp             __reduce_op,
+                                      _GenScanInput         __gen_scan_input,
+                                      _ScanInputTransform   __scan_input_transform,
+                                      _WriteOp              __write_op,
+                                      const _InitType       __init,
                                       _Inclusive,
                                       _IsUniquePattern,
                                       sycl::event __prior_event = {})
 {
-    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_reduce_kernel<_CustomName>>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel<_CustomName>>;
+    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_then_scan_reduce_kernel<_CustomName>>;
+    using _ScanKernel   = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__reduce_then_scan_scan_kernel<_CustomName>>;
+
     using _ValueType = typename _InitType::__value_type;
 
     constexpr std::uint8_t __min_sub_group_size = __get_reduce_then_scan_workaround_sg_sz();
     constexpr std::uint8_t __max_sub_group_size = __get_reduce_then_scan_default_sg_sz();
+
     // Empirically determined maximum. May be less for non-full blocks.
-    constexpr std::uint16_t __max_inputs_per_item =
-        std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
+    constexpr std::uint16_t __max_inputs_per_item = std::max(std::uint16_t{1}, std::uint16_t{512 / __bytes_per_work_item_iter});
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
@@ -2304,18 +2303,21 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q,
     // TODO: Investigate potentially basing this on some scale of the number of compute units. 128 work-groups has been
     // found to be reasonable number for most devices.
     constexpr std::uint32_t __num_work_groups = 128;
+
     // We may use a sub-group size of 16 or 32 depending on the compiler optimization level. Allocate sufficient
     // temporary storage to handle both cases.
-    const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
+    const std::uint32_t __max_num_sub_groups_local  = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
     const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
-    const std::uint32_t __max_inputs_per_block = __max_inputs_per_work_group * __num_work_groups;
+    const std::uint32_t __max_inputs_per_block      = __max_inputs_per_work_group * __num_work_groups;
+
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
     {
         // skip scan of zeroth element in unique patterns
         __inputs_remaining -= 1;
     }
+
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
@@ -2331,6 +2333,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q,
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
+
+    // _GenReduceInput -> geterates unsigned long long but be need ...
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
@@ -2365,16 +2369,21 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q,
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
-        std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
-            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
-        std::uint32_t __workitems_in_block_round_up_workgroup =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
-        auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
-        auto __local_range = sycl::range<1>(__work_group_size);
+        const std::uint32_t __workitems_in_block                    = oneapi::dpl::__internal::__dpl_ceiling_div(std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
+        const std::uint32_t __workitems_in_block_round_up_workgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
+
+        auto __global_range    = sycl::range<1>(__workitems_in_block_round_up_workgroup);
+        auto __local_range     = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
+
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b);
+        __prior_event = __reduce_submitter(__q,                         // sycl::queue&            __q
+                                           __kernel_nd_range,           // const sycl::nd_range<1> __nd_range
+                                           __in_rng,                    // _InRng&&                __in_rng
+                                           __result_and_scratch,        // _TmpStorageAcc&         __scratch_container
+                                           __prior_event,               // const sycl::event&      __prior_event
+                                           __inputs_remaining,          // const std::size_t       __inputs_remaining
+                                           __b);                        // const std::size_t       __block_num
 
         // KSATODO at this point we have filled mask generated by __gen_reduce_input
         // which showns which elements are to be included in the scan.
