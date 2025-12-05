@@ -695,8 +695,8 @@ struct __get_bounds_partitioned
     }
 
     std::uint16_t __diagonal_spacing;
-    std::size_t __tile_size;
-    std::size_t __partition_threshold;
+    std::size_t   __tile_size;
+    std::size_t   __partition_threshold;
 };
 
 struct __get_bounds_simple
