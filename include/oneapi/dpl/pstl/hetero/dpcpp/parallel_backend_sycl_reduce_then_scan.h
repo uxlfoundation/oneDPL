@@ -1236,8 +1236,11 @@ struct __scan_by_seg_op
 template <std::uint8_t __sub_group_size, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
           typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
-__exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
-                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
+__exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group,
+                                  _MaskOp __mask_fn,
+                                  const _InitBroadcastId __init_broadcast_id,
+                                  _ValueType& __value, 
+                                  _BinaryOp __binary_op,
                                   _LazyValueType& __init_and_carry)
 {
     const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
