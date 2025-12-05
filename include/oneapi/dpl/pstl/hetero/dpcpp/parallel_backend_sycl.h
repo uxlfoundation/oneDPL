@@ -2532,18 +2532,19 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q,
                                                                        std::forward<_RangeValues>(__values));
 
     return __parallel_transform_reduce_then_scan<sizeof(_PackedFlagValueType), _CustomName>(
-        __q,
-        __n_keys,
-        std::move(__zip_view_keys_values),
-        std::forward<_Range3>(__out_values),
-        _GenReduceInput{__binary_pred},
-        _ReduceOp{__binary_op},
-        _GenScanInput{},
-        _ScanInputTransform{},
-        _WriteOp{__init, __binary_op},
-        __placeholder_no_init,
-        /*Inclusive*/ std::bool_constant<__is_inclusive>{},
-        /*_IsUniquePattern=*/std::false_type{});
+        __q,                                                                            // sycl::queue&          __q
+        __n_keys,                                                                       // const std::size_t     __n
+        std::move(__zip_view_keys_values),                                              // _InRng&&              __in_rng
+        std::forward<_RangeResults>(__out_values),                                      // _OutRng&&             __out_rng
+        _GenReduceInput{__binary_pred},                                                 // _GenReduceInput       __gen_reduce_input
+        _ReduceOp{__binary_op},                                                         // _ReduceOp             __reduce_op
+        _GenScanInput{},                                                                // _GenScanInput         __gen_scan_input
+        _ScanInputTransform{},                                                          // _ScanInputTransform   __scan_input_transform
+        _WriteOp{__init, __binary_op},                                                  // _WriteOp              __write_op
+        __placeholder_no_init,                                                          // const _InitType       __init
+        /*Inclusive*/ std::bool_constant<__is_inclusive>{},                             // _Inclusive
+        /*_IsUniquePattern=*/std::false_type{});                                        // _IsUniquePattern
+                                                                                        // sycl::event __prior_event = {}
 }
 
 template <typename _CustomName>
