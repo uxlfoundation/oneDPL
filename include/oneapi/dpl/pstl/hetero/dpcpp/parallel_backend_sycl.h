@@ -650,7 +650,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                           _Range2&& __out_rng, 
                           const std::size_t __n,
                           _UnaryOperation __unary_op, 
-                          _InitType __init,
+                          const _InitType __init,
                           _BinaryOperation __binary_op,
                           _Inclusive)
 {
