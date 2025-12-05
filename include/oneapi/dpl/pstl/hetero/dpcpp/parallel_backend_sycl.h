@@ -709,18 +709,19 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             const std::size_t __n_in_rng = oneapi::dpl::__ranges::__size(__in_rng);
 
             return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
-                __q_local,
-                __n_in_rng,
-                std::forward<_Range1>(__in_rng),
-                std::forward<_Range2>(__out_rng),
-                __gen_transform,
-                __binary_op,
-                __gen_transform,
-                _ScanInputTransform{},
-                _WriteOp{},
-                __init,
-                _Inclusive{},
-                /*_IsUniquePattern=*/std::false_type{});
+                __q_local,                               // sycl::queue&          __q
+                __n_in_rng,                              // const std::size_t     __n
+                std::forward<_Range1>(__in_rng),         // _InRng&&              __in_rng
+                std::forward<_Range2>(__out_rng),        // _OutRng&&             __out_rng
+                __gen_transform,                         // _GenReduceInput       __gen_reduce_input
+                __binary_op,                             // _ReduceOp             __reduce_op
+                __gen_transform,                         // _GenScanInput         __gen_scan_input
+                _ScanInputTransform{},                   // _ScanInputTransform   __scan_input_transform
+                _WriteOp{},                              // _WriteOp              __write_op
+                __init,                                  // const _InitType       __init
+                _Inclusive{},                            // _Inclusive
+                /*_IsUniquePattern=*/std::false_type{}); // _IsUniquePattern
+                                                         // sycl::event __prior_event = {}
         }
     }
 
