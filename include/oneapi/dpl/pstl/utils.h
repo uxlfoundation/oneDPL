@@ -635,11 +635,12 @@ __pstl_lower_bound_impl(_Size __first, _Size __last, _Comparator&& __comp)
     return __first;
 }
 
-template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2, typename _Compare, typename _Proj1,
-          typename _Proj2>
+template <typename _Rng1, typename _Size1, typename _Size2, typename _Rng2,
+          typename _Compare, typename _Proj1, typename _Proj2>
 _Size1
-__pstl_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1, _Rng2 __rng2, _Size2 __rng2_idx, _Compare __comp,
-                       _Proj1 __proj1, _Proj2 __proj2)
+__pstl_lower_bound_idx(_Rng1 __rng1, _Size1 __first1, _Size1 __last1,
+                       _Rng2 __rng2, _Size2 __rng2_idx,
+                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     return __pstl_lower_bound_impl(__first1, __last1,
                                    [__rng1, __rng2, __rng2_idx, __comp, __proj1, __proj2](_Size1 __rng1_idx) mutable {
