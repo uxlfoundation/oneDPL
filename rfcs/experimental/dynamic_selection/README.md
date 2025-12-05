@@ -18,7 +18,7 @@ a timely manner, for justifying removal of the feature.
 ## Overview of Architecture and Execution Flow
 
 The key components of the Dynamic Selection API are shown below, including the
-[Free Functions](#free_functions_id) (such as `submit`, `select`, `wait`, etc), a
+[Free Functions](#free_functions_id) (such as `submit`, `wait`, etc), a
 [Policy](#policy_req_id) object (such as [fixed_resource_policy](#concrete_policies_id),
 [round_robin_policy](#concrete_policies_id), [dynamic_load_policy](#concrete_policies_id) and
 [auto_tune_policy](#concrete_policies_id)) and a [Backend](#backend_req_id) object (currently only
@@ -106,26 +106,30 @@ The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `s` a selection of a type `selection_t<T>` , which satisfies [Selection](#selection_req_id), and was made by `p`.
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `ret-type fun(resource_t<T>, Args…);`, where *ret-type* is provided by the documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
+| backend_type          | Type alias for the backend type.  |
+| resource_type         | Type alias for the resource type. |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
-| `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
-| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
+| `p.try_select(args…)` | Returns `std::optional<selection_t<T>>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 
-| *Optional* | Description |
+| *Optional*  | Description |
+| `p.select_impl(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
+
+| *Optional* (at least one must be well-formed) | Description |
 | --------------------- | ----------- |
-| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
+| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty `std::optional` if no resource is available for selection |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the `wait_t<T>` it returns to complete. |
+| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the job to complete. |
 
-| Policy Traits* | Description |
+| Policy Traits | Description |
 | ------- | ----------- |
-| `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
-| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend defined resource type that is passed to the user function object. Calling `unwrap` an object of type `selection_t<T>` returns an object of type `resource_t<T>`. |
-| `policy_traits<T>::wait_type`, `wait_type_t<T>` | The backend type that is returned by the user function object. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns on object of type `wait_type_t<T>`. |
+| `policy_traits<T>::backed_type`, `backend_t<T>` | The backend type associated with this policy. |
+| `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
+| `policy_traits<T>::has_wait_type_v`, `has_wait_type_v<T>` | Boolean which determines if explicit wait type has been provided by the backend associated with this policy. 
+| `policy_traits<T>::wait_type`, `wait_type_t<T>` | If `has_wait_type_v<T>` is `true`, contains the type that must returned by the user function object for this policy, otherwise `void`. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
 
 The default implementation of these traits depends on types defined in the Policy:
 
@@ -133,9 +137,7 @@ The default implementation of these traits depends on types defined in the Polic
   template <typename Policy>
   struct policy_traits
   {
-      using selection_type = typename std::decay_t<Policy>::selection_type;
       using resource_type = typename std::decay_t<Policy>::resource_type;
-      using wait_type = typename std::decay_t<Policy>::wait_type;
   };
 ```
 
@@ -181,6 +183,7 @@ The following concrete policies are provided in the experimental implementation.
 | [`dynamic_load_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-load-policy.html) |
 | [`auto_tune_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/auto-tune-policy.html) |
 
+
 <a id="backend_req_id"></a>
 ## Backends
 
@@ -197,16 +200,18 @@ The type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+- `f` a function object with signature `ret-type fun(resource_t<T>, Args…)`  where the required *ret-type* is described by documentation of the individual backend.
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait for the `wait_t<T>` object returned by it. |
+| `resource_type` | Type alias for the resource type. |
+| `b.submit(s, f, args…)` | Returns an object that satisfies *Submission*. The function invokes `f` but does not wait on the type returned by it for the job to complete. |
 | `b.get_submission_group()` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this backend are complete. |
 | `b.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 
 | *Optional* | Description |
 | --------------------- | ----------- |
+| `wait_type` | Type alias specifying the exact type user functions must return. If not defined, user functions may return any *waitable-type* (a type with a `wait()` member function, which waits for submitted work to complete). |
 | `void lazy_report()` | If defined by a backend, this function must be called by a policy before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
 <a id="free_functions_id"></a>
@@ -215,20 +220,36 @@ The type `T` satisfies the *Backend* contract if given,
 | Signature | Description |
 | --------- | ----------- |
 | `vector<typename policy_traits<P>::resource_type> get_resources(P&& p);` | Returns the resources associated with the Policy `p`. |
-| `template<typename P, typename... Args> selection_t<P> select(P&& p, Args&&... args);` | Applies the policy `p` and returns a *Selection*. |
-| `template<Selection S, typename F, typename... Args> auto submit(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `s.get_policy().submit(s, f, args…)`. |
-| `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. May be implemented as `p.submit(p.select(p, f, args…), f, args…)`. |
-| `template<Selection S, typename F, typename... Args> auto submit_and_wait(Selection s, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource from selection `s` and `args`. And then waits on object returned by the `f`.  May be implemented as `wait(s.get_policy().submit(s, f, args…))`. |
-| `template<Policy P, typename F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource returned by `select(p, f, args…)` and `args`.And then waits on object returned by the `f`. May be implemented as `wait(p.submit(p.select(f, args…),f,args…))`. |
+| `template<Policy P, typename F, typename... Args> auto try_submit(P&& p, F&& f, Args&&... args);` | Attempts to select a resource. If successful, invokes `f` with the unwrapped resource selected by `p.try_select(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. Returns a `std::optional` of the submission type if successful, or an empty `std::optional` if unable to select a resource. |
+| `template<Policy P, typename F, typename... Args> auto submit(P&& p, F&& f, Args&&... args);` | Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args`. Implements any instrumentation necessary for the backend to report necessary execution information. If the policy provides `try_submit()` but not `submit()`, this function will retry with backoff until a resource becomes available. |
+| `template<Policy P, typename F, typename... Args> auto submit_and_wait(P&& p, F&& f, Args&&... args);` |  Invokes `f` with the unwrapped resource selected by `p.select_impl(args…)` and `args` and then waits on object returned by the `f`. |
 | `template<typename P> auto get_submission_group(P&& p);` | Returns an object that has a member function `void wait()`. Calling this wait function blocks until all previous submissions to this policy are complete. |
 | `template<typename W> void unwrap(W&& w) noexcept;` | Returns `w.unwrap()` if available, otherwise returns `w`. |
 | `template<typename W> void wait(W&& w);` | Calls `w.wait()`. |
 | `template <typename S, typename Info> void report(S&& s, const Info& i);` | `S` is a *Selection*. Reports that event `i` has occurred if `s.report(i)` is available. |
 | `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | `S` is a *Selection*. Reports a new value `v` for event `i` if `s.report(i, v)` is available. |
 
+| Backend Traits* | Description |
+| ------- | ----------- |
+| `backend_traits<Backend>::has_wait_type_v` | `true` if a *Backend* requires that submission functions return a explicitly specified type. `false` if *Backend* only requires that a *waitable-type* is required.  |
+| `backend_traits<Backend>::wait_type` | if `has_wait_type_v` is `true`, contains the type that the *Backend* explicitly requires submission functions to return, `void` otherwise. |
+| `backend_traits<Backend>::lazy_report_v` | `true` if a *Backend* requires that a *Policy* calls `lazy_report()` before making a selection. |
+| `backend_traits<Backend>::template has_scratch_space_v<Reqs...>` | `true` if a *Backend* has a scratch space requirement for instrumentation and fulfulling reporting requirements with this set of Execution Info `Reqs...`, `false` otherwise. |
+| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space requirements for instrumentation and fulfilling reporting requirements with this set of Execution Info `Reqs...`. |
+
+### Policy Member Functions vs Free Functions
+
+Policies may provide submission operations either as member functions or rely on the free function implementations:
+- **Free functions** (`oneapi::dpl::experimental::submit`, `try_submit`, `submit_and_wait`) are the primary user-facing API
+- **Policy member functions** of the same name are optional customization points that policies can implement
+- When using `policy_base`, the base class provides member function implementations that delegate to fallback mechanisms
+- Custom policies that don't inherit from `policy_base` can implement member functions directly to override default behavior
+
+Both APIs are valid - use free functions when working with policies, and implement member functions when creating custom policy behavior.
+
 ### Deferred Initialization
 
-A call to `get_resources`, `select`, `submit` or `submit_and_wait` may initialize
+A call to `get_resources`, `submit` or `submit_and_wait` may initialize
 underlying state variables, including dynamic allocation. Initialization may throw `std::bad_alloc`.
 If `p` is a policy constructed with deferred initialization, calling these functions before 
 calling `initialize` will throw `std::logic_error`.
@@ -239,7 +260,7 @@ calling `initialize` will throw `std::logic_error`.
 Policies are informed of key events through the reporting of Execution Info.
 Most commonly, this reporting is done by a backend and is not visible to the
 end user.  However, developers that implement custom backends, or that
-manage work submission without using the `submit` or `submit_and_wait` functions,
+manage work submission without using the `try_submit`, `submit` or `submit_and_wait` functions,
 will need to report Execution Info to allow policies to work properly. There
 are currently three kinds of Execution Info that may be required by a Policy:
 
@@ -253,6 +274,10 @@ are currently three kinds of Execution Info that may be required by a Policy:
 | ------- | ----------- |
 | `report_info<S,Info>::value`, `report_info_v<S,Info>` | 'true' if the *Selection* requires the event type to be reported |
 | `report_value<S,Info,V>::value`, `report_info_v<S,Info,V>` | `true` if the *Selection* requires the event value to be reported |
+
+Backends must accept a (possibly empty) variadic list of execution-info reporting requirements in their constructors. At construction the backend should validate and, where possible, filter the available resources to remove those that cannot satisfy the requested reporting features (for example, missing device aspects or queue profiling properties). If filtering leaves no usable resources, the backend must throw a clear runtime error.
+
+Backends must also provide a template `template <typename... ReportingReqs> struct scratch_space_t` which supplies per-selection scratch storage tailored to the requested reporting requirements.
 
 Backend traits can be used to determine what events are need by the *Policy* that provided a *Selection*.
 For example, below is code a function the receives a *Selection* and uses traits to determine if the
@@ -273,17 +298,19 @@ For example, below is code a function the receives a *Selection* and uses traits
     }
 ```
 
-### Lazy Reporting 
+### Lazy Reporting
 
-A backend may choose not to actively report events and instead lazily report them on demand by defining the
-optional `lazy_report` member function. A backend trait is provided to determine if calls to `lazy_report`
-are required.
+Some execution information (like `task_completion` or `task_time`) cannot be reported immediately when a task is submitted, as the task may still be executing asynchronously. Backends may choose to defer reporting of such events until they are needed by the policy.
 
-| Backend Traits* | Description |
-| ------- | ----------- |
-| `lazy_report`<B>::value`, `report_report_v<B>` | `true` if a *Backend* requires that a *Policy* calls to `lazy_report` before making a selection. |
+A backend that uses lazy reporting should:
+1. Store submission handles/events internally when `submit()` is called
+2. Define a `lazy_report()` member function that checks for completed tasks and reports their execution information
+3. The backend trait `backend_traits<Backend>::lazy_report_v` will be `true` for such backends
 
-The example below shows how a `select` function might check this trait and call the function before it 
+Policies that use backends with lazy reporting should call `backend.lazy_report()` before making selection decisions to ensure they have the most recent execution information.
+
+
+The example below shows how a policy's selection function might check this trait and call `lazy_report()` before it
 applies its selection logic.
 
 ```cpp
@@ -291,7 +318,7 @@ applies its selection logic.
     selection_type
     select(Function&& f, Args&&... args)
     {
-        if constexpr (backend_traits::lazy_report_v<Backend>)
+        if constexpr (backend_traits<Backend>::lazy_report_v)
             backend_->lazy_report();
 
         // rest of selection logic ....
