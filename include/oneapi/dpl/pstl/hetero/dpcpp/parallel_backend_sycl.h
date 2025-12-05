@@ -766,18 +766,19 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q,
 
     const std::size_t __n_in_rng = oneapi::dpl::__ranges::__size(__in_rng);
     return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
-        __q,
-        __n_in_rng,
-        std::forward<_InRng>(__in_rng),
-        std::forward<_OutRng>(__out_rng),
-        _GenReduceInput{__generate_mask},
-        _ReduceOp{},
-        _GenScanInput{__generate_mask},
-        _ScanInputTransform{},
-        __write_op,
-        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{},
-        __is_unique_pattern);
+        __q,                                                    // sycl::queue&        __q
+        __n_in_rng,                                             // const std::size_t   __n
+        std::forward<_InRng>(__in_rng),                         // _InRng&&            __in_rng
+        std::forward<_OutRng>(__out_rng),                       // _OutRng&&           __out_rng
+        _GenReduceInput{__generate_mask},                       // _GenReduceInput     __gen_reduce_input
+        _ReduceOp{},                                            // _ReduceOp           __reduce_op
+        _GenScanInput{__generate_mask},                         // _GenScanInput       __gen_scan_input
+        _ScanInputTransform{},                                  // _ScanInputTransform __scan_input_transform
+        __write_op,                                             // _WriteOp            __write_op
+        oneapi::dpl::unseq_backend::__no_init_value<_Size>{},   // const _InitType     __init
+        /*_Inclusive=*/std::true_type{},                        // _Inclusive
+        __is_unique_pattern);                                   // _IsUniquePattern
+                                                                // sycl::event __prior_event = {}
 }
 
 // Data type for temporary mask buffer
