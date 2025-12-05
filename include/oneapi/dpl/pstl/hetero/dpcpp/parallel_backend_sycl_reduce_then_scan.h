@@ -2408,7 +2408,9 @@ __parallel_transform_reduce_then_scan(sycl::queue&          __q,
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
 sycl::event
-__parallel_set_balanced_path_partition(sycl::queue& __q, _InInOutRng&& __in_in_out_rng, std::size_t __num_diagonals,
+__parallel_set_balanced_path_partition(sycl::queue& __q,
+                                       _InInOutRng&& __in_in_out_rng,
+                                       const std::size_t __num_diagonals,
                                        _GenReduceInput __gen_reduce_input)
 {
     using _PartitionKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
