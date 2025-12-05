@@ -1335,10 +1335,13 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group,
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
           typename _ValueType, typename _LazyValueType>
 void
-__sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
+__sub_group_scan(const __dpl_sycl::__sub_group& __sub_group,
+                 _ValueType& __value,
+                 _BinaryOp __binary_op,
                  _LazyValueType& __init_and_carry)
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
+
     constexpr std::uint8_t __init_broadcast_id = __sub_group_size - 1;
     __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
