@@ -474,9 +474,9 @@ __brick_partition_by_mask(_RandomAccessIterator, _RandomAccessIterator, _OutputI
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
           class _RandomAccessIterator2, class _IterPredicate>
-_RandomAccessIterator2
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _DifferenceType,
-                          _RandomAccessIterator2, _IterPredicate);
+                          _RandomAccessIterator2, _DifferenceType, _IterPredicate);
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _UnaryPredicate>
 _OutputIterator
