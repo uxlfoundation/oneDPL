@@ -452,25 +452,15 @@ std::pair<_DifferenceType, _DifferenceType>
 __brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*,
                      /*vector=*/std::true_type) noexcept;
 
-template <class _ForwardIterator, class _OutputIterator>
-void
-__brick_copy_by_mask(_ForwardIterator, _ForwardIterator, _OutputIterator, bool*,
-                     /*vector=*/::std::false_type) noexcept;
-
-template <class _RandomAccessIterator, class _OutputIterator>
-void
-__brick_copy_by_mask(_RandomAccessIterator, _RandomAccessIterator, _OutputIterator, bool*,
-                     /*vector=*/::std::true_type) noexcept;
-
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
-__brick_bounded_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
-                             /*vector=*/std::false_type) noexcept;
+__brick_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
+                     /*vector=*/std::false_type) noexcept;
 
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
-__brick_bounded_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
-                             /*vector=*/std::true_type) noexcept;
+__brick_copy_by_mask(_RandomAccessIterator1, _Bound, _RandomAccessIterator2, _Bound, bool*, _Assigner,
+                     /*vector=*/std::true_type) noexcept;
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
 void

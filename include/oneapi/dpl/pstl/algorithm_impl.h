@@ -1267,56 +1267,32 @@ __brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _Iter
     return std::make_pair(__count_true, __len - __count_true);
 }
 
-template <class _ForwardIterator, class _OutputIterator, class _Assigner>
-void
-__brick_copy_by_mask(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, bool* __mask,
-                     _Assigner __assigner, /*vector=*/::std::false_type) noexcept
-{
-    for (; __first != __last; ++__first, (void)++__mask)
-    {
-        if (*__mask)
-        {
-            __assigner(__first, __result);
-            ++__result;
-        }
-    }
-}
-
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Assigner>
-void
-__brick_copy_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                     bool* __mask, _Assigner __assigner, /*vector=*/::std::true_type) noexcept
-{
-    __unseq_backend::__simd_copy_by_mask(__first, __last - __first, __result, __mask, __assigner);
-}
-
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
-__brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result,
-                             _Bound __out_len, bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
+__brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
+                     bool* __mask, _Assigner __assigner, /*vector=*/std::false_type) noexcept
 {
     _Bound __i = 0, __j = 0;
-    for (; __i < __in_len; ++__i, (void)++__first)
+    for (; __i < __in_len; ++__i)
     {
         if (__mask[__i])
         {
-            if (__j == __out_len)
-                break;
-            __assigner(__first, __result);
-            ++__result;
+            if constexpr (__Bounded)
+                if (__j == __out_len)
+                    break;
+            __assigner(__first + __i, __result + __j);
             ++__j;
         }
     }
     return __i;
 }
 
-template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
+template <bool __Bounded, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
 _Bound
-__brick_bounded_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result,
-                             _Bound __out_len, bool* __mask, _Assigner __assigner,
-                             /*vector=*/std::true_type) noexcept
+__brick_copy_by_mask(_RandomAccessIterator1 __first, _Bound __in_len, _RandomAccessIterator2 __result, _Bound __out_len,
+                     bool* __mask, _Assigner __assigner, /*vector=*/std::true_type) noexcept
 {
-    return __unseq_backend::__simd_copy_by_mask<true>(__first, __in_len, __result, __mask, __assigner, __out_len);
+    return __unseq_backend::__simd_copy_by_mask<__Bounded>(__first, __in_len, __result, __out_len, __mask, __assigner);
 }
 
 template <class _ForwardIterator, class _OutputIterator1, class _OutputIterator2>
@@ -1371,8 +1347,8 @@ __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
             },
             std::plus<_DifferenceType>(), // Combine
             [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
-                __internal::__brick_copy_by_mask(
-                    __first + __i, __first + (__i + __len), __result + __initial, __mask + __i,
+                __internal::__brick_copy_by_mask</*bounded*/ false>(
+                    __first + __i, __len, __result + __initial, __len, __mask + __i,
                     [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
             },
             [&__m](_DifferenceType __total) { __m = __total; }); // Apex
@@ -1437,7 +1413,7 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
             [=, &__res_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
                 if (__initial > __n_out)  // The chunk has neither elements to write nor the stop position
                     return;
-                _DifferenceType __stop = __internal::__brick_bounded_copy_by_mask(
+                _DifferenceType __stop = __internal::__brick_copy_by_mask</*bounded*/ true>(
                     __first + __i, __len, __result + __initial, __n_out - __initial, __mask + __i,
                     [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; }, _IsVector{});
                 if (__stop != __len) // Found the position of the first element that cannot be copied
@@ -1595,8 +1571,8 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             },
             ::std::plus<_DifferenceType>(),
             [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) {
-                __internal::__brick_copy_by_mask(
-                    __first + __i, __first + __i + __len, __result + __initial, __mask + __i,
+                __internal::__brick_copy_by_mask</*bounded*/ false>(
+                    __first + __i, __len, __result + __initial, __len, __mask + __i,
                     [](_RandomAccessIterator __x, _Tp* __z) { ::new (std::addressof(*__z)) _Tp(std::move(*__x)); },
                     _IsVector{});
             },
