@@ -1092,6 +1092,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
     using _ReduceOp = std::plus<_SizeOfRange3>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
+    // Balanced path geterator
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider,
                                                                                        _Compare, _Proj1, _Proj2>;
     using _GenScanInput =
@@ -1121,10 +1122,11 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
     const std::size_t __partition_size =
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
-    _GenReduceInput __gen_reduce_input{_SetOperation{},
-                                       __diagonal_spacing,
-                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},
-                                       __comp, __proj1, __proj2};
+    // Balanced path geterator
+    _GenReduceInput __gen_reduce_input{_SetOperation{},                                                                     // _SetOpCount     __set_op_count
+                                       __diagonal_spacing,                                                                  // std::uint16_t   __diagonal_spacing
+                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},        // _BoundsProvider __get_bounds
+                                       __comp, __proj1, __proj2};                                                           // _Compare        __comp, _Proj1 __proj1, _Proj2 __proj2
 
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
@@ -1132,34 +1134,32 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
     auto __in_in_tmp_rng = oneapi::dpl::__ranges::make_zip_view(
         std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
-            __temp_diags.get_buffer()));
+        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(__temp_diags.get_buffer()));
 
     sycl::event __partition_event;
     if (__total_size >= __partition_threshold)
     {
-        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals,
-                                                                                __gen_reduce_input);
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals, __gen_reduce_input);
     }
 
 //#if NOT_IMPLEMENTED_FUNCTIONALITY_FOR_LIMITED_OUTPUT_RANGE // KSATODO implementation required
     auto __res_of_reduce_then_scan = __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
-        __q,
-        __num_diagonals,
-        std::move(__in_in_tmp_rng),
-        std::forward<_Range3>(__result),
-        __gen_reduce_input,
-        _ReduceOp{},
-        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
-        _ScanInputTransform{},
-        _WriteOp{},
-        oneapi::dpl::unseq_backend::__no_init_value<_SizeOfRange3>{},
-        /*_Inclusive=*/std::true_type{},
-        /*__is_unique_pattern=*/std::false_type{},
-        __partition_event);
+        __q,                                                                                            // sycl::queue&          __q
+        __num_diagonals,                                                                                // const std::size_t     __n
+        std::move(__in_in_tmp_rng),                                                                     // _InRng&&              __in_rng
+        std::forward<_Range3>(__result),                                                                // _OutRng&&             __out_rng
+        __gen_reduce_input,                                                                             // _GenReduceInput       __gen_reduce_input
+        _ReduceOp{},                                                                                    // _ReduceOp             __reduce_op
+        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},                   // _GenScanInput         __gen_scan_input
+        _ScanInputTransform{},                                                                          // _ScanInputTransform   __scan_input_transform
+        _WriteOp{},                                                                                     // _WriteOp              __write_op
+        oneapi::dpl::unseq_backend::__no_init_value<_SizeOfRange3>{},                                   // const _InitType       __init
+        /*_Inclusive=*/std::true_type{},                                                                // _Inclusive
+        /*__is_unique_pattern=*/std::false_type{},                                                      // _IsUniquePattern
+        __partition_event);                                                                             // sycl::event __prior_event = {}
 
     return __result_init + __res_of_reduce_then_scan;
-    //#else
+//#else
 //    return oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>{};
 //#endif
 }
