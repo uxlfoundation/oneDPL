@@ -17,7 +17,6 @@
 #define _ONEDPL_UNSEQ_BACKEND_SIMD_H
 
 #include <type_traits>
-#include <limits>
 
 #include "utils.h"
 
@@ -298,10 +297,10 @@ __simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pre
     return __count;
 }
 
-template <bool __Bounded = false, class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
+template <bool __Bounded, class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 _DifferenceType
-__simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
-                    _Assigner __assign, _DifferenceType __n_out = std::numeric_limits<_DifferenceType>::max()) noexcept
+__simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
+                    bool* __mask, _Assigner __assign) noexcept
 {
     std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
     _DifferenceType __stop = __n;
