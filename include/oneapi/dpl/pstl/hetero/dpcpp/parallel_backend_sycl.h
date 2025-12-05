@@ -1445,10 +1445,12 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
     }
 }
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
+template <typename _CustomName, typename _UseReduceThenScan,
+          typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan, sycl::queue& __q,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan,
+                      sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
