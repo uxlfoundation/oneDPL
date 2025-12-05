@@ -1350,13 +1350,17 @@ __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group,
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, typename _BinaryOp,
           typename _ValueType, typename _LazyValueType, typename _SizeType>
 void
-__sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType& __value, _BinaryOp __binary_op,
-                         _LazyValueType& __init_and_carry, _SizeType __elements_to_process)
+__sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group,
+                         _ValueType& __value,
+                         _BinaryOp __binary_op,
+                         _LazyValueType& __init_and_carry,
+                         _SizeType __elements_to_process)
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
     };
-    std::uint8_t __init_broadcast_id = __elements_to_process - 1;
+
+    const std::uint8_t __init_broadcast_id = __elements_to_process - 1;
     __sub_group_masked_scan<__sub_group_size, __is_inclusive, __init_present>(
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
