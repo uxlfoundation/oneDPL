@@ -589,10 +589,11 @@ struct __set_generic_operation
 };
 
 // Set operation implementations using the generic implementation
-using __set_intersection = __set_generic_operation<true, false, false>;
-using __set_difference = __set_generic_operation<false, true, false>;
-using __set_union = __set_generic_operation<true, true, true>;
-using __set_symmetric_difference = __set_generic_operation<false, true, true>;
+//                                     bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB
+using __set_intersection         = __set_generic_operation< true,  false, false>;
+using __set_difference           = __set_generic_operation<false,   true, false>;
+using __set_union                = __set_generic_operation< true,   true,  true>;
+using __set_symmetric_difference = __set_generic_operation<false,   true,  true>;
 
 template <typename _SetTag>
 struct __get_set_operation;
