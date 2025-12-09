@@ -707,11 +707,7 @@ private:
         }
         else
         {
-            if constexpr (InIdx != 0)
-            {
-                decltype(ret)::dummy;
-            }
-            //static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
+            static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
             return ret;
         }
     }
