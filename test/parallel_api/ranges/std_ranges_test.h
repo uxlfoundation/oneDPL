@@ -633,17 +633,32 @@ private:
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
         if constexpr (check_in<Ret> && InIdx == 0)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for check_in");
             return std::distance(begin, ret.in);
+        }
         else if constexpr (check_in1<Ret> && InIdx == 1)
+        {
             return std::distance(begin, ret.in1);
+        }
         else if constexpr (check_in2<Ret> && InIdx == 2)
+        {
             return std::distance(begin, ret.in2);
+        }
         else if constexpr (is_iterator<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for iterator return type");
             return std::distance(begin, ret);
-        else if constexpr(is_range<Ret>)
+        }
+        else if constexpr (is_range<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for range return type");
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        }
         else if constexpr(check_minmax<Ret>)
         {
+            static_assert(InIdx == 0, "InIdx should be 0 for minmax return type");
+
             const auto& [first, second] = ret;
             if constexpr(std::random_access_iterator<std::remove_cvref_t<decltype(first)>>)
                 return std::pair{std::distance(begin, first), std::ranges::distance(begin, second)};
@@ -651,7 +666,10 @@ private:
                 return std::pair{first, second};
         }
         else
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
             return ret;
+        }
     }
 
     template<typename Ret, typename Begin>
