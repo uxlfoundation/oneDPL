@@ -223,7 +223,7 @@ struct is_in_in_out_result : std::false_type
 {
 };
 
-template < typename I1, typename I2, typename O>
+template <typename I1, typename I2, typename O>
 struct is_in_in_out_result<std::ranges::in_in_out_result<I1, I2, O>> : std::true_type
 {
 };
