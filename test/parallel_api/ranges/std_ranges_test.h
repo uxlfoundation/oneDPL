@@ -208,6 +208,16 @@ int out_size_with_empty_in2(int) { return 0; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
 
+template <typename T>
+struct is_in_in_out_result : std::false_type
+{
+};
+
+template < typename I1, typename I2, typename O>
+struct is_in_in_out_result<std::ranges::in_in_out_result<I1, I2, O>> : std::true_type
+{
+};
+
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
 {
@@ -581,14 +591,24 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                  (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        if constexpr (is_in_in_out_result<decltype(expected_res)>::value)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
-        EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                  (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
-                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                    (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
@@ -667,7 +687,11 @@ private:
         }
         else
         {
-            static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
+            if constexpr (InIdx != 0)
+            {
+                decltype(ret)::dummy;
+            }
+            //static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
             return ret;
         }
     }
