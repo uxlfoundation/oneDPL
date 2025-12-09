@@ -209,6 +209,16 @@ auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
 
 template <typename T>
+struct is_in_in_result : std::false_type
+{
+};
+
+template <typename I1, typename I2>
+struct is_in_in_result<std::ranges::in_in_result<I1, I2>> : std::true_type
+{
+};
+
+template <typename T>
 struct is_in_in_out_result : std::false_type
 {
 };
@@ -537,13 +547,13 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (!std::is_same_v<decltype(res), bool>)
+        if constexpr (is_in_in_result<decltype(expected_res)>::value)
         {
-            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong stop position with ") + typeid(Algo).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
-            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                       (std::string("wrong stop position with ") + typeid(Algo).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
