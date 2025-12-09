@@ -453,11 +453,18 @@ private:
 
         if constexpr (is_in_in_out_result<decltype(expected_res)>::value)
         {
-            // return {__last_in, __stop_in, __stop_out};
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (is_in_in_result<decltype(expected_res)>::value)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
                       (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
         }
         else
