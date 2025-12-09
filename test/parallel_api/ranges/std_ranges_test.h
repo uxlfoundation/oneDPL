@@ -451,8 +451,20 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        if constexpr (is_in_in_out_result<decltype(expected_res)>::value)
+        {
+            // return {__last_in, __stop_in, __stop_out};
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
