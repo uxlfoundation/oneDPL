@@ -625,14 +625,14 @@ public:
     }
 private:
 
-    template<typename Ret, typename Begin>
+    template <std::size_t InIdx = 0, typename Ret, typename Begin>
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
-        if constexpr (check_in<Ret>)
+        if constexpr (check_in<Ret> && InIdx == 0)
             return std::distance(begin, ret.in);
-        else if constexpr (check_in1<Ret>)
+        else if constexpr (check_in1<Ret> && InIdx == 1)
             return std::distance(begin, ret.in1);
-        else if constexpr (check_in2<Ret>)
+        else if constexpr (check_in2<Ret> && InIdx == 2)
             return std::distance(begin, ret.in2);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
