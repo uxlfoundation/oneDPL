@@ -557,6 +557,16 @@ private:
                       (std::string("wrong stop position with ") + typeid(Algo).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
+        else if constexpr (!std::is_same_v<decltype(res), bool>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
         else
         {
             EXPECT_EQ(expected_res, res,
