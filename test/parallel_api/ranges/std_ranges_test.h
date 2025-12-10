@@ -652,7 +652,7 @@ private:
         }
         else
 		{
-			static_assert(std::is_integral_v<std::remove_cvref_t<Ret>>);
+			static_assert(std::is_integral_v<std::remove_cvref_t<Ret>> || std::is_same_v<std::remove_cvref_t<Ret>, P2>);
             return ret;
 		}
     }
