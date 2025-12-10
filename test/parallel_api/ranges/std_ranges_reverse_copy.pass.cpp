@@ -40,7 +40,7 @@ main()
         return ret_type{res.in, std::ranges::begin(r_in) + skipped, res.out};
     };
 
-    test_range_algo<0, int, data_in_out_lim>{big_sz}(dpl_ranges::reverse_copy, reverse_copy_checker);
+    test_range_algo<0, int, data_in_in_out_lim>{big_sz}(dpl_ranges::reverse_copy, reverse_copy_checker);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
