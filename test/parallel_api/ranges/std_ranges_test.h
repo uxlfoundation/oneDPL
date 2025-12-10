@@ -651,7 +651,10 @@ private:
                 return std::pair{first, second};
         }
         else
+		{
+			static_assert(std::is_integral_v<Ret>);
             return ret;
+		}
     }
 
     template<typename Ret, typename Begin>
