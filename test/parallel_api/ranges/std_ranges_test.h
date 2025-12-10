@@ -577,10 +577,10 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+        EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                   (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+        EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                   (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
@@ -625,14 +625,18 @@ public:
     }
 private:
 
-    template<typename Ret, typename Begin>
+	//idx parameter means which input member of Ret should be processed: 0 - Ret::in, 1 - Ret::in1, 2 - Ret::in2.
+    template<int idx = 0, typename Ret, typename Begin>
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
         if constexpr (check_in<Ret>)
+		{
+			static_assert(idx == 0); 
             return std::distance(begin, ret.in);
-        else if constexpr (check_in1<Ret>)
+		}
+        else if constexpr (check_in1<Ret> && idx == 1)
             return std::distance(begin, ret.in1);
-        else if constexpr (check_in2<Ret>)
+        else if constexpr (check_in2<Ret> && idx == 2)
             return std::distance(begin, ret.in2);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
