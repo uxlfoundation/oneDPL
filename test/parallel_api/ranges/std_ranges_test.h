@@ -529,7 +529,7 @@ private:
 
         if constexpr (!std::is_same_v<decltype(res), bool>)
         {
-            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong stop position with ") + typeid(Algo).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
