@@ -154,19 +154,27 @@ template<typename T>
 static constexpr
 bool check_in<T, std::void_t<decltype(std::declval<T>().in)>> = true;
 
+//template<typename, typename = void>
+//static constexpr bool check_in1{};
+
+//template<typename T>
+//static constexpr
+//bool check_in1<T, std::void_t<decltype(std::declval<T>().in1)>> = true;
+
+//template<typename, typename = void>
+//static constexpr bool check_in2{};
+
+//template<typename T>
+//static constexpr
+//bool check_in2<T, std::void_t<decltype(std::declval<T>().in2)>> = true;
+
 template<typename, typename = void>
-static constexpr bool check_in1{};
+static constexpr bool check_in2_in2{};
 
 template<typename T>
 static constexpr
-bool check_in1<T, std::void_t<decltype(std::declval<T>().in1)>> = true;
+bool check_in2_in2<T, std::void_t<decltype(std::declval<T>().in1, std::declval<T>().in2)>> = true;
 
-template<typename, typename = void>
-static constexpr bool check_in2{};
-
-template<typename T>
-static constexpr
-bool check_in2<T, std::void_t<decltype(std::declval<T>().in2)>> = true;
 
 template<typename, typename = void>
 static constexpr bool check_out{};
@@ -634,9 +642,9 @@ private:
 			static_assert(idx == 0); 
             return std::distance(begin, ret.in);
 		}
-        else if constexpr (check_in1<Ret> && idx == 1)
+        else if constexpr (check_in2_in2<Ret>/* && idx == 1*/)
             return std::distance(begin, ret.in1);
-        else if constexpr (check_in2<Ret> && idx == 2)
+        else if constexpr (check_in2_in2<Ret> && idx == 2)
             return std::distance(begin, ret.in2);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
@@ -664,7 +672,7 @@ private:
             return std::distance(begin, ret.out);
         else if constexpr (is_iterator<Ret>)
             return std::distance(begin, ret);
-        else if constexpr (check_in2<Ret>)
+        else if constexpr (check_in2_in2<Ret>)
             return std::distance(begin, ret.in2);
         else if constexpr(is_range<Ret>)
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
