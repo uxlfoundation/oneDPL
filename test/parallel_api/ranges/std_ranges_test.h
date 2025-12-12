@@ -208,13 +208,13 @@ int out_size_with_empty_in2(int) { return 0; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
 
-template <typename T, typename = void>
+template <typename T>
 static constexpr bool check_in_in_result{};
 
 template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
-template <typename T, typename = void>
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
