@@ -683,7 +683,7 @@ private:
     template <std::size_t InIdx = 0, typename Ret, typename Begin>
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
-        if constexpr (check_in<Ret> && InIdx == 0)
+        if constexpr (check_in<Ret>)
         {
             static_assert(InIdx == 0, "InIdx should be 0 for check_in");
             return std::distance(begin, ret.in);
