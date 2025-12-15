@@ -755,7 +755,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 template <typename _T>
 struct __device_storage
 {
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
+    std::shared_ptr<_T> __usm_buf = nullptr;
     sycl::buffer<_T, 1> __sycl_buf =
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
@@ -781,7 +781,7 @@ struct __device_storage
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
-            __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __usm_buf = std::shared_ptr<_T>(__ptr, __internal::__sycl_usm_free{__q});
         else
             __sycl_buf = sycl::buffer<_T, 1>(__n);
     }
@@ -796,7 +796,7 @@ struct __device_storage
         }
         else if (__usm_buf)
         {
-            sycl::queue& __q = __usm_buf.get_deleter().__q;
+            sycl::queue& __q = std::get_deleter<__internal::__sycl_usm_free>(__usm_buf)->__q;
             __q.memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
         }
         else
@@ -829,7 +829,7 @@ struct __result_storage : public __device_storage<_T>
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
-            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            this->__usm_buf = std::shared_ptr<_T>(__ptr, __internal::__sycl_usm_free{__q});
             __kind = sycl::usm::alloc::host;
         }
         else
@@ -853,7 +853,7 @@ struct __combined_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
+    std::shared_ptr<_T> __result_buf = nullptr;
     std::size_t __sz = 0;
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
@@ -865,7 +865,7 @@ struct __combined_storage : public __device_storage<_T>
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __result_buf = std::shared_ptr<_T>(__ptr, __internal::__sycl_usm_free{__q});
             this->__initialize(__q, __sz); // a separate scratch buffer
             __kind = sycl::usm::alloc::host;
         }
