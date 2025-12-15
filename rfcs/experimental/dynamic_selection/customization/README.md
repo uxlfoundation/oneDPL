@@ -26,7 +26,7 @@ For detailed information about backend customization, see [Custom Backends](cust
 ### Policy Customization
 
 There is also the expectation that new selection policies will be implemented. This proposal
-aims to  simplify policy writing by providing a base class that handles the common functionality.
+aims to simplify policy writing by providing a base class that handles the common functionality.
 The approach presents a flexible policy system based on a `policy_base` template class that can
 be used for most selection strategies.
 
