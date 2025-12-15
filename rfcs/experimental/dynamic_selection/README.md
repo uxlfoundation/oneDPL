@@ -229,6 +229,31 @@ The type `T` satisfies the *Backend* contract if given,
 | `wait_type` | Type alias specifying the exact type user functions must return. If not defined, user functions may return any *waitable-type* (a type with a `wait()` member function, which waits for submitted work to complete). |
 | `void lazy_report()` | If defined by a backend, this function must be called by a policy before each new selection. It triggers reporting of the necessary execution info back to the policy. |
 
+### Resource Adapters
+
+Resource adapters allow backends to work with resources that require transformation before use. An adapter is a callable object that transforms a resource from the stored type (`ResourceType`) to the type expected by the backend's core operations (`CoreResourceType`). The default adapter is `oneapi::dpl::identity`, which performs no transformation.
+
+Common use cases for resource adapters include storing resources as pointers (e.g., `sycl::queue*`) while the backend operates on the dereferenced type (e.g., `sycl::queue`), unwrapping resource containers or smart pointers, and pairing a context or side information with a core resource while relying on existing backend implementations. Custom adapters enable reuse of existing backend implementations for new resource types without duplicating backend code.
+
+The following example demonstrates using a pointer-dereferencing adapter to reuse the SYCL backend with `sycl::queue*` resources:
+
+```cpp
+auto deref_op = [](auto* pointer) { return *pointer; };
+
+using policy_t = oneapi::dpl::experimental::round_robin_policy<
+    sycl::queue*,
+    decltype(deref_op),
+    oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>
+>;
+
+std::vector<sycl::queue*> queue_ptrs = { /* ... */ };
+policy_t p(queue_ptrs, deref_op);
+```
+
+Note that user-provided functions receive the unadapted `ResourceType` (e.g., `sycl::queue*`), not the `CoreResourceType`. The adapter is only used internally by the backend.
+
+For detailed information on resource adapters, including implementation requirements and additional examples, see the [Custom Backends](customization/custom_backends.md#adapter-support-for-resource-transformation) documentation.
+
 <a id="free_functions_id"></a>
 ## Free Functions
 
