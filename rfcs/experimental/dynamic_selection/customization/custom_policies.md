@@ -126,9 +126,6 @@ This would be a breaking change, but since dynamic selection is an experimental 
 
 Beyond simplifying the public interface and requirements, these changes may provide inherent benefits for existing policies by enforcing a specific usage pattern. With the removal of select interfaces, implicit selections and submissions must be paired 1-to-1, and implicit selection will occur very close to submission time. For Dynamic Load Policy and Autotune Policy, which dynamically use statistics about resource load and job performance, this means the implicit selection will be more accurate and up-to-date for the submission.
 
-### Removal of Wait Type
-For further simplification of the contract, we also propose to remove the wait_type trait. It is not necessary and can always be obtained with `decltype`, and `submit` with a valid user function. Of course, policies can provide a `wait_type` if they so choose, but it is not required. Requiring policies to provide this wait type increases complexity of customization and we have not seen a use for the public trait in use cases thus far.
-
 ## Proposed Design to Enable Easier Customization of Policies
 
 This proposal presents a flexible policy system based on a `policy_base` template class that can be used 
