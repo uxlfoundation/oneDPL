@@ -74,7 +74,7 @@ core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapte
 
 - Resource filtering: Some reporting requirements imply properties of the underlying resource or device (for example, timing via `task_time_t` may require device support for profiling tags and queues created with profiling enabled). Backends must examine the provided resources (or query devices when default-initializing resources) and filter out any resources that do not support all requested reporting requirements. Any special resource properties required to implement a reporting requirement must be checked here (for instance, checking `device.has(sycl::aspect::ext_oneapi_queue_profiling_tag)` in addition to creating queues with `sycl::property::queue::enable_profiling()` when `task_time_t` is requested). If after filtering the set of candidate resources there are no resources left that satisfy all requested reporting requirements, the backend must throw a `std::runtime_error` documenting that the requested reporting requirements cannot be satisfied on the available resources.
 
-- Scratch space requirement: Backends must provide a nested template struct that allocates whatever per-selection scratch space is necessary for the requested reporting requirements. The required name and form are:
+- Scratch space requirement: Backends need storage space within selection handles to implement instrumentation and fulfill reporting requirements. Backends must provide a nested template struct that allocates whatever per-selection scratch space is necessary for the requested reporting requirements. The required name and form are:
 
 ```cpp
 template <typename... ReportingReqs>
@@ -83,9 +83,25 @@ struct scratch_space_t {
 };
 ```
 
-For example, the SYCL backend must provide `scratch_space_t<execution_info::task_time_t>` that includes an extra `sycl::event` to store the "start" profiling tag. Policies will use the backend trait `backend_traits<Backend>::template selection_scratch_t<ReportingReqs...>` (or equivalent) to declare the `scratch_space` member inside selection handle types.
+When a policy tracks execution information (like task timing or completion), the backend needs to store temporary data with each selection. For example, the SYCL backend's `scratch_space_t<execution_info::task_time_t>` includes an extra `sycl::event` to store the "start" profiling tag needed to measure elapsed time. For policies without reporting requirements, `scratch_space_t<>` should be empty (or inherit from `no_scratch_t<>`), adding no overhead.
 
-Policy selection handles must declare a member `scratch_space` of the appropriate `scratch_space_t` instantiation in their selection handles when they require reporting.
+Policy selection handles must declare a member named `scratch_space` of the appropriate type when they require execution information reporting:
+
+```cpp
+template <typename Policy, typename Backend>
+class custom_selection_handle_t {
+    // Required scratch space for the backend to implement instrumentation
+    // with submission and completion reporting requirements
+    using scratch_space_t =
+        typename backend_traits<Backend>::template selection_scratch_t<
+            execution_info::task_submission_t, execution_info::task_completion_t>;
+    scratch_space_t scratch_space;
+
+    // Note: this is not a full implementation of a selection handle
+};
+```
+
+The backend populates and uses this scratch space during work submission and reporting.
 
 - Wait type (optional): Backends may define a `wait_type` type alias to specify the exact type that user-submitted functions must return. If not defined, user functions may return any waitable-type (a type with a `wait()` member function). Defining a `wait_type` may be necessary to properly instrument jobs to support some reporting requirements. The sycl backend defines a `using wait_type = sycl::event` as it is required for checking completion of submitted asynchronous work for instrumentation.
 
