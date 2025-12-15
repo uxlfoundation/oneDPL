@@ -126,19 +126,36 @@ The type `T` satisfies *Policy* if given,
 
 | Policy Traits | Description |
 | ------- | ----------- |
-| `policy_traits<T>::backed_type`, `backend_t<T>` | The backend type associated with this policy. |
+| `policy_traits<T>::backend_type`, `backend_t<T>` | The backend type associated with this policy. |
 | `policy_traits<T>::resource_type`, `resource_t<T>` | The backend-defined resource type that is passed to the user function object. |
-| `policy_traits<T>::has_wait_type_v`, `has_wait_type_v<T>` | Boolean which determines if explicit wait type has been provided by the backend associated with this policy. 
-| `policy_traits<T>::wait_type`, `wait_type_t<T>` | If `has_wait_type_v<T>` is `true`, contains the type that must returned by the user function object for this policy, otherwise `void`. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_type_t<T>`. |
+| `policy_traits<T>::has_wait_type_v`, `has_wait_type_v<T>` | Boolean which determines if explicit wait type has been provided by the backend associated with this policy. Derived from the backend's `backend_traits<Backend>::has_wait_type_v`. |
+| `policy_traits<T>::wait_type`, `wait_t<T>` | If `has_wait_type_v<T>` is `true`, contains the type that must be returned by the user function object for this policy, otherwise `void`. Derived from the backend's `backend_traits<Backend>::wait_type`. Calling `unwrap` on an object that satisfies [Submission](#submission_req_id) returns an object of type `wait_t<T>`. |
 
-The default implementation of these traits depends on types defined in the Policy:
+The default implementation of these traits depends on types and traits defined in the Policy and its Backend:
 
 ```cpp
   template <typename Policy>
   struct policy_traits
   {
+      using backend_type = typename std::decay_t<Policy>::backend_type;
       using resource_type = typename std::decay_t<Policy>::resource_type;
+      static constexpr bool has_wait_type_v =
+          oneapi::dpl::experimental::backend_traits<backend_type>::has_wait_type_v;
+      using wait_type =
+          typename oneapi::dpl::experimental::backend_traits<backend_type>::wait_type;
   };
+
+  template <typename Policy>
+  using backend_t = typename policy_traits<Policy>::backend_type;
+
+  template <typename Policy>
+  using resource_t = typename policy_traits<Policy>::resource_type;
+
+  template <typename Policy>
+  inline constexpr bool has_wait_type_v = policy_traits<Policy>::has_wait_type_v;
+
+  template <typename Policy>
+  using wait_t = typename policy_traits<Policy>::wait_type;
 ```
 
 <a id="selection_req_id"></a>
