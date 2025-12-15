@@ -110,19 +110,17 @@ The type `T` satisfies *Policy* if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| backend_type          | Type alias for the backend type.  |
-| resource_type         | Type alias for the resource type. |
+| `T::backend_type`     | Type alias for the backend type.  |
+| `T::resource_type`    | Type alias for the resource type. |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
-| `p.try_select(args…)` | Returns `std::optional<selection_t<T>>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
 
-| *Optional*  | Description |
-| `p.select_impl(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
-
-| *Optional* (at least one must be well-formed) | Description |
+| *At least one must be well-formed* | Description |
 | --------------------- | ----------- |
-| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty `std::optional` if no resource is available for selection |
+| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty `std::optional` if no resource is available for selection. |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 | `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits for the job to complete. |
+
+**Note:** Policies do not expose a public selection API (e.g., `select()` or `try_select()`). Selection is always implicit within the submission methods. Policy implementers may use `try_select()` as an internal/protected method to implement their selection logic, which is then called by the submission methods provided by `policy_base` or by custom submission implementations.
 
 | Policy Traits | Description |
 | ------- | ----------- |
