@@ -276,19 +276,31 @@ Policies are informed of key events through the reporting of Execution Info.
 Most commonly, this reporting is done by a backend and is not visible to the
 end user.  However, developers that implement custom backends, or that
 manage work submission without using the `try_submit`, `submit` or `submit_and_wait` functions,
-will need to report Execution Info to allow policies to work properly. There
-are currently three kinds of Execution Info that may be required by a Policy:
+will need to report Execution Info to allow policies to work properly.
 
-| Execution Info    | Value Type | Description |
-| ----------------- | ---------- | ----------- |
-| `task_time`       | `uint64_t` | Clock ticks that elapsed between task submission and completion. |
-| `task_submission` | void       | The task has been submitted. |
-| `task_completion` | void       | The task is complete |
+Execution information is specified using tag types and tag objects from the `oneapi::dpl::experimental::execution_info` namespace:
 
-| Info Traits* | Description |
+| Tag Type | Tag Object | Value Type | Description |
+| ----------------- | ---------- | ---------- | ----------- |
+| `task_submission_t` | `task_submission` | void       | Signals when a task is submitted. |
+| `task_completion_t` | `task_completion` | void       | Signals when a task completes. |
+| `task_time_t`     | `task_time`       | `uint64_t` | Clock ticks that elapsed between task submission and completion. |
+
+The following table shows which reporting requirements are needed by each provided policy:
+
+| Policy | Reporting Requirements |
+| ------ | ---------------------- |
+| `fixed_resource_policy` | None |
+| `round_robin_policy` | None |
+| `dynamic_load_policy` | `task_submission_t`, `task_completion_t` |
+| `auto_tune_policy` | `task_time_t` |
+
+Policies with no reporting requirements can work with any backend, including backends without specialized instrumentation support. Policies with reporting requirements need a backend that supports those specific types of execution information.
+
+| Info Traits | Description |
 | ------- | ----------- |
-| `report_info<S,Info>::value`, `report_info_v<S,Info>` | 'true' if the *Selection* requires the event type to be reported |
-| `report_value<S,Info,V>::value`, `report_info_v<S,Info,V>` | `true` if the *Selection* requires the event value to be reported |
+| `report_info<S,Info>::value`, `report_info_v<S,Info>` | `true` if the *Selection* requires the event type to be reported, `false` otherwise. |
+| `report_value<S,Info,V>::value`, `report_info_v<S,Info,V>` | `true` if the *Selection* requires the event value to be reported, `false` otherwise. |
 
 Backends must accept a (possibly empty) variadic list of execution-info reporting requirements in their constructors. At construction the backend should validate and, where possible, filter the available resources to remove those that cannot satisfy the requested reporting features (for example, missing device aspects or queue profiling properties). If filtering leaves no usable resources, the backend must throw a clear runtime error.
 
