@@ -378,7 +378,7 @@ To implement a custom policy using this design:
 
 1. **Inherit from `policy_base`**: Use CRTP pattern with appropriate template parameters
 2. **Implement `initialize_state()`**: Set up any policy-specific state after backend initialization
-3. **Implement `select_impl()`**: Implement the core selection strategy
+3. **Implement `try_select()`**: Implement the core selection strategy
 4. **Optional: Custom selection handle**: For policies requiring specialized reporting or state tracking
 5. **Constructors**: Provide constructors for immediate and deferred initialization
 
@@ -415,7 +415,7 @@ class random_policy : public policy_base<random_policy<ResourceType, ResourceAda
     }
 
     template <typename... Args>
-    std::optional<selection_type> select_impl(Args&&...) {
+    std::optional<selection_type> try_select(Args&&...) {
         if (!resources_.empty()) {
             std::uniform_int_distribution<> dis(0, resources_.size() - 1);
             auto index = dis(gen_);
