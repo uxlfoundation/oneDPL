@@ -246,13 +246,13 @@ The type `T` satisfies the *Backend* contract if given,
 | `template <typename S, typename Info> void report(S&& s, const Info& i);` | `S` is a *Selection*. Reports that event `i` has occurred if `s.report(i)` is available. |
 | `template <typename S, typename Info, typename Value> void report(S&& s, const Info& i, const Value& v); ` | `S` is a *Selection*. Reports a new value `v` for event `i` if `s.report(i, v)` is available. |
 
-| Backend Traits* | Description |
+| Backend Traits | Description |
 | ------- | ----------- |
-| `backend_traits<Backend>::has_wait_type_v` | `true` if a *Backend* requires that submission functions return a explicitly specified type. `false` if *Backend* only requires that a *waitable-type* is required.  |
-| `backend_traits<Backend>::wait_type` | if `has_wait_type_v` is `true`, contains the type that the *Backend* explicitly requires submission functions to return, `void` otherwise. |
-| `backend_traits<Backend>::lazy_report_v` | `true` if a *Backend* requires that a *Policy* calls `lazy_report()` before making a selection. |
-| `backend_traits<Backend>::template has_scratch_space_v<Reqs...>` | `true` if a *Backend* has a scratch space requirement for instrumentation and fulfulling reporting requirements with this set of Execution Info `Reqs...`, `false` otherwise. |
-| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space requirements for instrumentation and fulfilling reporting requirements with this set of Execution Info `Reqs...`. |
+| `backend_traits<Backend>::has_wait_type_v` | Boolean indicating whether the backend defines an explicit wait type. `true` if the backend requires that user-submitted functions return a specific type. `false` if the backend allows any *waitable-type* (a type with a `wait()` member function). |
+| `backend_traits<Backend>::wait_type` | If `has_wait_type_v` is `true`, contains the explicit type that user-submitted functions must return. If `has_wait_type_v` is `false`, this is `void`. |
+| `backend_traits<Backend>::lazy_report_v` | Boolean indicating whether the backend uses lazy reporting. `true` if the backend requires that a policy calls `lazy_report()` before each selection to update execution information. `false` otherwise. |
+| `backend_traits<Backend>::template has_scratch_space_v<Reqs...>` | Boolean indicating whether the backend requires scratch space for the given set of execution info reporting requirements `Reqs...`. `true` if scratch space is needed for instrumentation, `false` otherwise. |
+| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space storage needed by the backend for instrumentation and fulfilling the reporting requirements `Reqs...`. If `has_scratch_space_v<Reqs...>` is `false`, this is `no_scratch_t<Reqs...>` (an empty type). |
 
 ### Policy Member Functions vs Free Functions
 
