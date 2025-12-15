@@ -4,10 +4,10 @@ This document provides detailed information about customizing selection policies
 Dynamic Selection. For an overview of both backend and policy customization approaches,
 see the main [README](README.md).
 
-## Current Policy Design
+## Previous Policy Design
 
-As described in [the current design](https://github.com/uxlfoundation/oneDPL/tree/main/rfcs/experimental/dynamic_selection),
-type `T` satisfies the *Policy* contract if given,
+Previous to this proposal, the following contract existed for policies.
+Type `T` satisfies the *Policy* contract if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
@@ -16,15 +16,14 @@ type `T` satisfies the *Policy* contract if given,
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
 | `resource_t<T>` | Policy trait for the resource type. |
-| `p.try_select(args…)` | Returns selection within `std::optional` if available. The selected resource must be within the set of resources returned by `p.get_resources()`, or returns empty `std::optional`. |
-| `p.select_impl(args...)` | Loops calling `try_select(args...)` until a selection is returned. |
-| `p.try_submit(f, args...)` |  Selects a resource and invokes `f` with the selected resource and `args...`, returning a `std::optional` holding the submission object. Returns empty `std::optional` if no resource is available for selection. |
+| `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
+| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
 | `p.submit(f, args…)` | Calls `select()` then `submit(s, f, args…)` |
 | `p.submit_and_wait(f, args…)` | Calls `select()` then `submit_and_wait(s, f, args…)` |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. Delegates to backend. |
 | `p.get_submission_group()` | Returns an object that can wait for all submissions. Delegates to backend. |
 
-Currently, these functions must be implemented in each policy, along with proper resource management,
+These functions had to be implemented in each policy, along with proper resource management,
 backend integration, and selection logic. This proposal aims to simplify policy writing by providing
 a base class that handles the common functionality.
 
