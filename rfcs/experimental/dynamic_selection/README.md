@@ -106,7 +106,7 @@ The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `ret-type fun(resource_t<T>, Args…);`, where *ret-type* is provided by the documentation of the individual backend.
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`, where `wait_t<T>` is the wait type for the policy. If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -215,7 +215,7 @@ The type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `ret-type fun(resource_t<T>, Args…)`  where the required *ret-type* is described by documentation of the individual backend.
+- `f` a function object with signature `backend_traits<T>::wait_type fun(resource_t<T>, Args…)`. If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
