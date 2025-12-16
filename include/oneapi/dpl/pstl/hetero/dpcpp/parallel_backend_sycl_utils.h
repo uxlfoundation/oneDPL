@@ -22,6 +22,8 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <optional>
+#include <cassert>
 
 #include "../../iterator_impl.h"
 
@@ -399,12 +401,13 @@ class __buffer_impl
 
 struct __sycl_usm_free
 {
-    sycl::queue __q;
+    std::optional<sycl::queue> __q;
 
     void
     operator()(void* __memory) const
     {
-        sycl::free(__memory, __q);
+        assert(__q.has_value());
+        sycl::free(__memory, *__q);
     }
 };
 
@@ -699,12 +702,12 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         else if (__supports_USM_device)
         {
             auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
-            assert(__q_proxy != nullptr);
+            assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
             // Avoid default constructor for _T. Since _T is device copyable, copy construction
             // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
             // There is no need to destroy it afterwards, as the destructor must have no effect.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q_proxy->__q.memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+            __q_proxy->__q->memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
             return __space.__v;
         }
         else
@@ -796,8 +799,9 @@ struct __device_storage
         }
         else if (__usm_buf)
         {
-            sycl::queue& __q = __usm_buf.get_deleter().__q;
-            __q.memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
+            auto& __q_proxy = __usm_buf.get_deleter();
+            assert(__q_proxy.__q.has_value());
+            __q_proxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
         }
         else
         {
