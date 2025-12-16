@@ -799,9 +799,9 @@ struct __device_storage
         }
         else if (__usm_buf)
         {
-            auto& __qproxy = __usm_buf.get_deleter();
-            assert(__qproxy.__q.has_value());
-            __qproxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
+            auto& __q_proxy = __usm_buf.get_deleter();
+            assert(__q_proxy.__q.has_value());
+            __q_proxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
         }
         else
         {
