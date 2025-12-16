@@ -16,7 +16,7 @@ type `T` satisfies the *Backend* contract if given,
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
-| `T::resource_type` | Type alias for the resource type. |
+| `resource_type` | Type alias for the resource type. |
 | `resource_t<T>` | Backend trait for the resource type. |
 | `b.submit(s, f, args…)` | Invokes `f` with the resource from the *Selection* and the `args`. Does not wait for the return object returned by `f`. Returns an object that satisfies *Submission*. |
 | *Submission* type | `b.submit(s, f, args…)` returns a type that must define two member functions, `wait()` and `unwrap`. |
