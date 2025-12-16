@@ -97,7 +97,7 @@ classDiagram
         -adapter: ResourceAdapter
         +core_resource_backend(ReportReqs...)
         +core_resource_backend(vector~ResourceType~, adapter, ReportReqs...)
-        +submit(s, f, args...) //to override default
+        +submit(s, f, args...)
     }
 
     class default_backend~ResourceType, ResourceAdapter~ {
@@ -115,9 +115,9 @@ classDiagram
 
 
     %% Relationships - Dependencies
-    FreeFunctions ..> policy_base : calls methods
+    FreeFunctions ..> round_robin_policy : calls methods
     FreeFunctions ..> InternalFallbacks : delegates
-    InternalFallbacks ..> FreeFunctions : calls (recursive)
+    InternalFallbacks ..> FreeFunctions : calls
     policy_base ..> InternalFallbacks : delegates submit/submit_and_wait
     policy_base ..> default_backend : submit(selection, f, args)
     round_robin_policy ..> default_backend : default template param
