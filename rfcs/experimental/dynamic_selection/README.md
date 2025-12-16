@@ -110,8 +110,8 @@ The type `T` satisfies *Policy* if given,
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
-| `T::backend_type`     | Type alias for the backend type.  |
-| `T::resource_type`    | Type alias for the resource type. |
+| `backend_type`        | Type alias for the backend type.  |
+| `resource_type`       | Type alias for the resource type. |
 | `p.get_resources()` | Returns a `std::vector<resource_t<T>>`. |
 
 | *At least one must be well-formed* | Description |
