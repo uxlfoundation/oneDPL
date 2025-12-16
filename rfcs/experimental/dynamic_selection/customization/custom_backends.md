@@ -175,17 +175,10 @@ The `backend_base` provides **minimal** default implementations for the core bac
 - The default `scratch_t` template is empty (provides `no_scratch_t`)
 - Resource-specific features (timing, profiling, etc.) require specializing `core_resource_backend` for your `CoreResourceType`
 
-To create a backend with reporting support, you must create a partial specialization of `core_resource_backend` for your specific `CoreResourceType` (e.g., `sycl::queue`). The specialization should:
-1. Accept reporting requirements in the constructor
-2. Implement `scratch_t<ReportingReqs...>` with appropriate storage
-3. Override `submit()` to perform instrumentation
-4. Filter resources based on reporting capabilities
-
-The `backend_base` provides default implementations for the core backend methods:
+To create a backend with reporting support, specialize `core_resource_backend` for your specific `CoreResourceType` (e.g., `sycl::queue`).
 
 #### `submit` Implementation
-The default `submit` method calls then the user-provided function with the 
-unwrapped resource, and returns a waitable submission type which wraps the return from the user-provided function.
+The default `submit` method calls the user-provided function with the unwrapped resource and returns a waitable submission type which wraps the return from the user-provided function.
 
 ```cpp
 template <typename T>
@@ -210,62 +203,19 @@ reuse a `sycl::queue` with `sycl::queue *` resources, the user's function is sti
 `sycl::queue *`.
 
 #### Instrumentation Support
-Where instrumentation is required, the customizer will need to override `submit` with their own code which performs instrumentation
-for the `CoreResourceType`. The overload must call the user function as is done in the default, and return an object which wraps the return from the user function and supports `wait()` which blocks until the user's job has completed and `unwrap()` which returns the user's returned object.
+Where instrumentation is required, the customizer will need to override `submit` with code that performs instrumentation for the `CoreResourceType`. The overload must call the user function and return an object which supports `wait()` (blocks until the job completes) and `unwrap()` (returns the user's returned object).
 
-**Rationale**: It is not possible to define a general mechanism for instrumenting code execution for arbitrary custom resource types. Each resource type has different characteristics for timing, profiling, and performance measurement. Specialized backends (like the SYCL backend) can override these methods to provide resource-specific instrumentation.
+Each resource type has different characteristics for timing, profiling, and performance measurement, making a general instrumentation mechanism impossible.
 
 #### `get_resources()` Implementation
-Returns the vector of resources stored during construction:
-```cpp
-auto get_resources() const noexcept {
-    return resources_;
-}
-```
-**Assumptions**: Resources can be copied or moved into a `std::vector` and remain valid throughout the backend's lifetime.
+Returns the vector of resources stored during construction. Resources must be copyable/movable into a `std::vector` and remain valid throughout the backend's lifetime.
 
 #### `get_submission_group()` Implementation
-Returns a group object that can wait on all resources if they provide a `wait()` method:
-```cpp
-auto get_submission_group() {
-    return default_submission_group{resources_, adapter};
-}
-```
-The `default_submission_group` attempts to call `wait()` on the `CoreResourceType` by applying
-`adapter` to the `ResourceType` object.
-:
-```cpp
-class default_submission_group {
-    void wait() {
-        if constexpr (has_wait_method_v<CoreResourceType>) {
-            for (auto& resource : resources_) {
-                adapter(resource).wait();
-            }
-        } else {
-            throw std::logic_error("wait() not supported by resource type");
-        }
-    }
-};
-```
-**Assumptions**: For group waiting to work, the `CoreResourceType` must provide a `wait()` method
-that blocks until all work on that resource is complete. Note that the default implementation does
-not wait on each submission, but instead waits on each resource. This works for some resource types,
-such as SYCL queues or oneTBB `task_group` objects, but may not be applicable to all types. Using
-an adapter may allow types that do not provide a `wait` function to be used if they have a `wait` function
-when adapted.  For example, an adapter `[](auto pointer){ return *pointer; }`, would allow `sycl::queue *`
-or `tbb::task_group *` to be used as a `ResourceType`, because when adapted to their `CoreResourceType`
-of `sycl::queue` or `tbb::task_group`, they define `wait` methods.
-
-For SYCL resources, the proposed specialization provides:
-- Event-based waiting with `sycl::event` as the wait type
-- Profiling support for performance reporting
-- Asynchronous submission handling
-- SYCL-specific error handling
+Returns a group object that waits on all resources. The `default_submission_group` attempts to call `wait()` on the `CoreResourceType` by applying `adapter` to the `ResourceType` object. The `CoreResourceType` must provide a `wait()` method that blocks until all work on that resource is complete. Note that the default implementation waits on each resource, not each submission (works for SYCL queues, oneTBB `task_group` objects, etc.). Adapters can enable types without a `wait()` method; for example, `[](auto pointer){ return *pointer; }` allows `sycl::queue*` to work by adapting to `sycl::queue`.
 
 ## Support for Custom Resource Types
 
-A primary goal of this proposal is to enable easy use of custom resource types with Dynamic Selection. The default backend can work many resource types, making it straightforward to integrate new kinds of compute resources without writing complex backend code. If the defaults are not sufficient, a custom backend can be written by 
-partially specializing `core_resource_backend`. 
+A primary goal of this proposal is to enable easy use of custom resource types with Dynamic Selection. The default backend works with many resource types, making it straightforward to integrate new compute resources without complex backend code. If the defaults are insufficient, specialize `core_resource_backend`. 
 
 ### Custom Resource Example: TBB Task Groups and Arenas
 
@@ -310,49 +260,31 @@ for (auto i : numa_nodes) {
 ex::wait(rr.get_submission_group());
 ```
 
-If `ArenaAndGroup` will be used with policies that require instrumentation, then
-a custom backend that provides `submit` with the appropriate instrumentation
-will be needed. This can be done by partially specializing `core_resource_backend`.
+If `ArenaAndGroup` will be used with policies that require instrumentation, specialize `core_resource_backend` to provide an instrumented `submit` method.
 
 ## Adapter Support for Resource Transformation
 
-For some cases a backend may be reused if a custom resource `ResourceType` can be transformed
-into a resource `CoreResourceType` that already has a well defined backed. This proposal
-includes support for **resource adapters**. Adapters allow backends to work with resources that
-require transformation before use.
-
-### Adapter Concept
-
-An adapter is a callable object that transforms a resource from the stored type to the type
-expected by the backend functions. The default adapter is `oneapi::dpl::identity`, which performs
-no transformation.
+Adapters allow backends to work with resources that require transformation before use. An adapter is a callable object that transforms a resource from the stored `ResourceType` to the `CoreResourceType` expected by backend functions.
 
 **Adapter Requirements**:
-- Must be callable with `ResourceType` and return `CoreResourceType`
-- Is stored in the backend and applied during submission operations
-- The user function still receives the **unadapted** `ResourceType` (not the `CoreResourceType`)
+- Callable with `ResourceType` and returns `CoreResourceType`
+- Stored in the backend and applied during submission operations
+- User functions still receive the **unadapted** `ResourceType` (not the `CoreResourceType`)
+- Default adapter is `oneapi::dpl::identity` (no transformation)
 
-For example, with an adapter that dereferences pointers (`[](auto* p) { return *p; }`):
-- Resources are stored as `sycl::queue*` (the `ResourceType`)
-- Backend internally works with `sycl::queue` (the `CoreResourceType`)
-- User-provided functions receive `sycl::queue*` as their argument
-
-Custom backends must support a resource and resource adapter as the first two arguments of a constructor, respectively.
-This is built in if using `core_resource_backend`, but custom backends must provide their own custom support for resource
-adapters.
+For example, with `[](auto* p) { return *p; }`:
+- Resources stored as `sycl::queue*` (`ResourceType`)
+- Backend works with `sycl::queue` (`CoreResourceType`)
+- User functions receive `sycl::queue*`
 
 ### Example: Pointer Dereferencing
 
-A common use case is working with pointers to resources:
-
 ```cpp
-// Adapter to dereference a pointer
 auto deref_op = [](auto pointer){ return *pointer; };
 
-// Policy using pointer resources with dereferencing adapter
 using policy_pointer_t = oneapi::dpl::experimental::round_robin_policy<
-    sycl::queue*, 
-    decltype(deref_op), 
+    sycl::queue*,
+    decltype(deref_op),
     oneapi::dpl::experimental::default_backend<sycl::queue*, decltype(deref_op)>
 >;
 
@@ -362,11 +294,9 @@ policy_pointer_t p(u_ptrs, deref_op);
 
 ### Adapter Usage Patterns
 
-Adapters enable a few useful patterns:
-
-1. **Pointer Resources**: Store / copy around pointers but have a single implementation for the decayed type backend
+1. **Pointer Resources**: Store/copy pointers but reuse backend implementation for the decayed type
 2. **Wrapper Types**: Unwrap resource containers or smart pointers
-3. **Ownership Management**: Pair a context (memory space, side information, etc.) with a core resource, but rely on the implementation of the core resource without extra backend implementation.
+3. **Ownership Management**: Pair context (memory space, side information) with a core resource while reusing core resource backend
 
 ## Testing
 Testing for these changes should include:
@@ -378,16 +308,7 @@ Testing for these changes should include:
 ## Explored Alternatives
 
 ### Extra Resource (alternative to resource adapter)
- As an alternative to the resource adapter idea, we explored adding an optional "extra resource" universe which would
- be paired 1-to-1 with execution resources if provided, and if specified, passed to user-submitted workloads alongside the
- execution resource. This extra resource would be user-defined and would exist to provide freedom to the user to attach
- other information to a resource while still relying upon a defined backend since the execution resource would not be changed.
-#### Advantages:
-* Slightly more straightforward to use than the resource adapter idea
-#### Disadvantages:
-* Much more complex impact on dynamic selection code (less elegant)
-* More overhead in copying around extra resources and/or requiring users to provide extra resources which can be copied around with minimal overhead
-* Less freedom in stored execution resource type
+We explored adding an optional "extra resource" universe paired 1-to-1 with execution resources and passed to user workloads alongside the execution resource. While slightly more straightforward to use, this approach has more complex implementation, copying overhead, and less freedom in stored execution resource type.
 
 ## Open questions
 * What other backends would make sense as examples / descriptive tests for dynamic selection?
