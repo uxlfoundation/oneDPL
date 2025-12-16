@@ -801,7 +801,7 @@ struct __device_storage
         }
         else if (__usm_buf)
         {
-            auto __qproxy = std::get_deleter<__internal::__sycl_usm_free>(__usm_buf);
+            auto __qproxy = __usm_buf.get_deleter();
             assert(__qproxy.__q);
             __qproxy.__q->memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
         }
