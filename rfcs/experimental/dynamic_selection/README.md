@@ -198,7 +198,6 @@ The following concrete policies are provided in the experimental implementation.
 | [`dynamic_load_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/dynamic-load-policy.html) |
 | [`auto_tune_policy`](https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-8/auto-tune-policy.html) |
 
-
 <a id="backend_req_id"></a>
 ## Backends
 
