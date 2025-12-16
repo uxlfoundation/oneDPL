@@ -16,10 +16,12 @@ This RFC presents two complementary proposals to simplify Dynamic Selection cust
 ### Backend Customization
 
 When applying Dynamic Selection, there is often the desire to add a new backend for
-different resource types. With sensible defaults, this proposal aims to simplify 
-backend writing to open up Dynamic Selection to more use cases. The approach presents a flexible 
-backend system based on a `backend_base` template class and a `default_backend` template that 
-can be used for most resource types.
+different resource types. With sensible defaults, this proposal aims to simplify
+backend writing to open up Dynamic Selection to more use cases. The approach presents a flexible
+backend system based on a `backend_base` template class and a `core_resource_backend` template that
+can be used for simple resource types with policies which don't have reporting requirements.
+For more complex resources or to serve policies with reporting requirements, specialization of
+`core_resource_backend` is required.
 
 For detailed information about backend customization, see [Custom Backends](custom_backends.md).
 

@@ -41,7 +41,7 @@ The SYCL backend defines `wait_type = sycl::event`, requiring user functions to 
 
 ## Proposed Design to Enable Easier Customization of Backends
 
-This proposal presents a flexible backend system based on a `backend_base` template class and a `core_resource_backend` template that can be used for most resource types.
+This proposal presents a flexible backend system based on a `backend_base` template class and a `core_resource_backend` template that can be used for most resource types. For resource backends supporting reporting requirements, explicit specialization of the `core_resource_backend` for that resource. This is not possible to be done generically. For simple types serving policies without reporting requirements, use of the generically written `core_resource_backend` may be possible.
 
 ### Key Components
 
