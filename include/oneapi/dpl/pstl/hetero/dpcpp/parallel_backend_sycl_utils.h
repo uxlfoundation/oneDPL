@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <optional>
 
 #include "../../iterator_impl.h"
 
@@ -399,12 +400,12 @@ class __buffer_impl
 
 struct __sycl_usm_free
 {
-    sycl::queue __q;
+    std::optional<sycl::queue> __q;
 
     void
     operator()(void* __memory) const
     {
-        sycl::free(__memory, __q);
+        sycl::free(__memory, __q.value());
     }
 };
 
@@ -704,7 +705,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
             // There is no need to destroy it afterwards, as the destructor must have no effect.
             oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q_proxy->__q.memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+            __q_proxy->__q.value().memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
             return __space.__v;
         }
         else
@@ -796,7 +797,7 @@ struct __device_storage
         }
         else if (__usm_buf)
         {
-            sycl::queue& __q = __usm_buf.get_deleter().__q;
+            sycl::queue& __q = __usm_buf.get_deleter().__q.value();
             __q.memcpy(__dst, __usm_buf.get() + __offset, __n * sizeof(_T)).wait();
         }
         else
