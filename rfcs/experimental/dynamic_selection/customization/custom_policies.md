@@ -84,24 +84,15 @@ The default implementation of these traits depends on types defined in the Polic
   };
 ```
 
-**Note:** Policies inheriting from `policy_base` automatically have `backend_type` and `resource_type` type aliases provided by the base class, satisfying these requirements without additional code.
-
-With this contract, if `p.submit(f, args…)` is well-formed, a generic implementation of `submit_and_wait` that uses `submit` is available and waits on the result unless overridden. If `p.try_submit(f,args...)` is well-formed, then a generic implementation of `submit` which uses `try_submit` is available unless overridden. Therefore, providing `try_submit` is enough to have implementations for all three submit variants automatically.
+**Note:** Policies inheriting from `policy_base` automatically have `backend_type` and `resource_type` type aliases provided. Generic implementations exist: `submit_and_wait` uses `submit` if available, and `submit` uses `try_submit` if available. Therefore, implementing `try_submit` provides all three variants automatically.
 
 #### Internal Selection Primitive for Policy Authors
 
-While the **public API** no longer exposes `select()`, policy authors still need a way to implement selection logic. The `policy_base` class provides generic implementations of the submission methods, but delegates the actual selection decision to a protected method that derived policies must implement:
+Policy authors implement a protected **`try_select(args...)`** method that encodes their selection strategy. It returns `std::optional<selection_type>` containing the selected resource, or empty if no resource is available. The `policy_base` class provides generic submission methods that call `try_select()` internally and forward to the backend.
 
-**`try_select(args...)`** - Protected method that policy authors implement to encode their selection strategy. Returns `std::optional<selection_type>` containing the selected resource, or an empty `std::optional` if no resource is available.
+Since dynamic selection is an experimental API, we can modify the API in this way, but this is a breaking change for users using the public selection functions.
 
-This separation means:
-- **Users** only call `ex::submit()`, `ex::submit_and_wait()`, or `ex::try_submit()` (never `select()`)
-- **Policy authors** implement `try_select()` as the internal primitive
-- **`policy_base`** provides generic submission methods that call `try_select()` internally and forward to the backend
-
-This would be a breaking change, but since dynamic selection is an experimental API, we can modify the API in this way. However, we will want to consider this fully and perhaps investigate if there is any usage that we may break with these changes.
-
-Beyond simplifying the public interface and requirements, these changes may provide inherent benefits for existing policies by enforcing a specific usage pattern. With the removal of select interfaces, implicit selections and submissions must be paired 1-to-1, and implicit selection will occur very close to submission time. For Dynamic Load Policy and Autotune Policy, which dynamically use statistics about resource load and job performance, this means the implicit selection will be more accurate and up-to-date for the submission.
+An additional benefit of pairing selection and submission 1-to-1 with implicit selection is that selection must occur close to submission time, which improves accuracy for policies like Dynamic Load and Autotune that use runtime statistics.
 
 ## Proposed Design to Enable Easier Customization of Policies
 
@@ -190,15 +181,9 @@ via generic implementations depending only on the selection logic.
 
 #### Task Reporting Requirements
 
-Policies must also specify what reporting requirements the background is required to support to serve this policy. These
-requirements are specified as objects of the following structs: `task_time_t`, `task_submission_t`, `task_completion_t`
-in the namespace `oneapi::dpl::experimental::execution_info` and passed to the `policy_base` constructor. They will then
-be passed to the backend constructor when initialization occurs, and devices will be filtered based upon the
-availability of features required for these reporting requirements.
+Policies specify reporting requirements (`task_time_t`, `task_submission_t`, `task_completion_t` from `oneapi::dpl::experimental::execution_info`) via the `policy_base` constructor. These are passed to the backend constructor, which filters devices based on feature availability. Examples: `auto_tune_policy` requires `task_time_t`; `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
 
-`auto_tune_policy` requires `task_time_t`, and `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
-
-When creating a selection handle for your policy, you must include a member variable `scratch_space` of type `backend_traits<Backend>::template selection_scratch_t<reqs...>` where `Backend` is your backend and `reqs` is a variadic pack of reporting requirements needed for your policy. This allows the backend to have the storage it needs allocated alongside each selection handle to implement instrumentation for the reporting requirements.
+Selection handles must include a `scratch_space` member of type `backend_traits<Backend>::template selection_scratch_t<reqs...>` to provide backend storage for instrumentation.
 
 ## Examples of Policy Implementation
 
@@ -342,22 +327,17 @@ class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType,
 };
 ```
 
-## Benefits of the Proposed Design
-
-The main benefit of the proposed design is simplification of the policy customization experience, and reduction of
-individual policy implementations to only their unique elements, selection and initialization. This reduces redundancy
-and boiler-plate code, and improves maintainability.  It also makes it easier on customizers to implement new policy
-ideas.
-
 ## Implementation Requirements
 
-To implement a custom policy using this design:
+To implement a custom policy:
 
-1. **Inherit from `policy_base`**: Use CRTP pattern with appropriate template parameters
-2. **Implement `initialize_state()`**: Set up any policy-specific state after backend initialization
-3. **Implement `try_select()`**: Implement the core selection strategy
-4. **Optional: Custom selection handle**: For policies requiring specialized reporting or state tracking
-5. **Constructors**: Provide constructors for immediate and deferred initialization
+1. Inherit from `policy_base` using CRTP pattern
+2. Implement `initialize_state()` for policy-specific initialization
+3. Implement `try_select()` for selection strategy
+4. Optionally provide custom selection handle for specialized reporting
+5. Provide constructors for immediate and deferred initialization
+
+These changes reduce policy implementations to only their unique elements (selection and initialization), eliminating redundancy and boilerplate while improving maintainability.
 
 ### Minimal Custom Policy Example
 
