@@ -20,7 +20,7 @@ New Features
   documentation for more details.
 - Simplified public submission API for experimental dynamic selection feature,  removing
   ``oneapi::dpl::experimental::select`` and adding ``oneapi::dpl::experimental::try_submit``.
-- Enabled list-initialization for algorithms. This is a C++26 feature that oneDPL supports for C++17.
+- Enabled list-initialization for algorithms. This aligns the API with C++26 but is supported for C++17 and above.
 
 Fixed Issues
 ------------
