@@ -399,12 +399,17 @@ class __buffer_impl
 
 struct __sycl_usm_free
 {
-    sycl::queue __q;
+    std::unique_ptr<sycl::queue> __q;
+
+    __sycl_usm_free() = default;
+
+    __sycl_usm_free(const sycl::queue& __queue) : __q(std::make_unique<sycl::queue>(std::move(__queue))) {}
 
     void
     operator()(void* __memory) const
     {
-        sycl::free(__memory, __q);
+        if (__q)
+            sycl::free(__memory, *__q);
     }
 };
 
