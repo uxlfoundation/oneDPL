@@ -25,19 +25,9 @@ type `T` satisfies the *Backend* contract if given,
 | `lazy_report_v<T>` | `true` if the backend requires a call to `lazy_report()` to trigger reporting of `execution_info` back to the policy |
 | `b.lazy_report()` | An optional function, only needed if `lazy_report_v<T>` is `true`. Is invoked by the policy before making a selection. |
 
-Currently, these functions and traits (except the `lazy_report` function) must be implemented 
-in each backend. The experimental backend for SYCL queues is a bit more than 250 lines of code. 
+Currently, these functions and traits (except the `lazy_report` function) must be implemented
+in each backend. The experimental backend for SYCL queues is a bit more than 250 lines of code.
 With sensible defaults, this proposal aims to simplify backend writing to open up Dynamic Selection to more use cases.
-
-### Wait Type Requirements
-
-Backends specify return type requirements for user-submitted functions through an optional `wait_type` type alias:
-
-**Explicit wait_type**: If a backend defines a `wait_type` alias (e.g., `using wait_type = sycl::event;`), user functions **must** return that specific type. This is typically required when the backend needs to instrument or track asynchronous operations.
-
-**No explicit wait_type**: If a backend does not define a `wait_type` alias, user functions may return any *waitable-type*. A waitable-type is any type with a `wait()` member function that can be called to synchronize with the operation's completion.
-
-The SYCL backend defines `wait_type = sycl::event`, requiring user functions to return `sycl::event` for proper instrumentation and synchronization. This requirement allows the SYCL backend to properly track dependencies and collect profiling information.
 
 ## Proposed Design to Enable Easier Customization of Backends
 
@@ -103,7 +93,7 @@ class custom_selection_handle_t {
 
 The backend populates and uses this scratch space during work submission and reporting.
 
-- Wait type (optional): Backends may define a `wait_type` type alias to specify the exact type that user-submitted functions must return. If not defined, user functions may return any waitable-type (a type with a `wait()` member function). Defining a `wait_type` may be necessary to properly instrument jobs to support some reporting requirements. The sycl backend defines a `using wait_type = sycl::event` as it is required for checking completion of submitted asynchronous work for instrumentation.
+- Wait type (optional): Backends may define a `wait_type` type alias to specify the exact type that user-submitted functions must return. If not defined, user functions may return any *waitable-type* (a type with a `wait()` member function). Defining a `wait_type` is typically necessary when the backend needs to instrument or track asynchronous operations. For example, the SYCL backend defines `using wait_type = sycl::event` to properly track dependencies and collect profiling information.
 
 
 ### Implementation Details
