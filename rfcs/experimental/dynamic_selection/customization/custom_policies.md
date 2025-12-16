@@ -30,45 +30,22 @@ a base class that handles the common functionality.
 ## Proposed Changes to Policy Contract
 
 ### Removal of Public Selection API
-We propose to remove the public selection API from policies. In the previous design, users could call `select()` to get a selection handle, then separately call `submit()` with that handle. This API has been removed in favor of a simplified model where **selection is always implicit within submission**.
+We propose removing the public selection API from policies. Previously, users could call `select()` to get a selection handle, then separately call `submit()` with that handle. This is replaced with a simplified model where **selection is always implicit within submission**.
 
-The following functions and traits are removed from the public policy contract:
-
-| *Must* be well-formed | Description |
-| --------------------- | ----------- |
-| `p.select(args…)` | Returns `selection_t<T>` that satisfies [Selection](#selection_req_id). The selected resource must be within the set of resources returned by `p.get_resources()`. |
-| `p.submit(s, f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function invokes `f` with the selected resource `s` and the arguments `args...`. |
-
-| *Optional* | Description |
-| ---------- | ----------- |
-| `p.submit_and_wait(s, f, args…)` | Returns `void`. The function invokes `f` with `s` and `args...` and waits for the `wait_t<T>` it returns to complete. |
-
-- `p` an arbitrary identifier of type `T`
-- `args` an arbitrary parameter pack of types `typename… Args`
-- `s` a selection of a type `selection_t<T>` , which satisfies [Selection](#selection_req_id), and was made by `p`.
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
-
-| Policy Traits* | Description |
-| -------------- | ----------- |
-| `policy_traits<T>::selection_type`, `selection_t<T>` | The wrapped select type returned by `T`. Must satisfy [Selection](#selection_req_id). |
+The following are removed from the public policy contract:
+- `p.select(args…)` - Explicit selection
+- `p.submit(s, f, args…)` - Submission with explicit selection handle
+- `p.submit_and_wait(s, f, args…)` - Wait with explicit selection handle
+- `selection_t<T>` trait
 
 #### New Public API Contract
 
-Instead of exposing `select()` publicly, policies now provide **only submission methods**. Users interact exclusively through the following free functions (which delegate to policy member functions):
-
+Users interact exclusively through free functions that perform implicit selection:
 - `ex::submit(policy, function, args...)` - Submit work with implicit selection
 - `ex::submit_and_wait(policy, function, args...)` - Submit and wait with implicit selection
 - `ex::try_submit(policy, function, args...)` - Attempt submission, returns null if no resource available
 
-Policies must implement at least one of the following member functions to support these APIs:
-
-| at least one *Must* be well-formed | Description |
-| ---------------------------------- | ----------- |
-| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. Returns empty `std::optional` if no resource is available for selection |
-| `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
-| `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
-
-This results in a greatly simplified contract for policies:
+This results in a simplified contract for policies:
 
 A Policy is an object with a valid dynamic selection heuristic.
 
@@ -86,6 +63,7 @@ The type `T` satisfies *Policy* if given,
 
 | One of the following *must* be well-formed | Description |
 | ------------------------------------------ | ----------- |
+| `p.try_submit(f, args…)` | Returns `std::optional<submission_t<T>>`. Selects a resource and invokes `f`, or returns empty if no resource is available. |
 | `p.submit(f, args…)` | Returns `submission_t<T>` that satisfies [Submission](#submission_req_id). The function selects a resource and invokes `f` with the selected resource and `args...`. |
 | `p.submit_and_wait(f, args…)` | Returns `void`. The function selects a resource, invokes `f` and waits on the return value of the submission to complete. |
 
