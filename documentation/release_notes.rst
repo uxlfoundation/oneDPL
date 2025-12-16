@@ -11,9 +11,24 @@ creating efficient heterogeneous applications.
 New in the next release
 =======================
 
+New in 2022.11.0
+=======================
+
+New Features
+------------
+- Added tools for easier customization of policies and backends for experimental dynamic selection feature, see
+  documentation for more details.
+- Simplified public submission API for experimental dynamic selection feature,  removing
+  ``oneapi::dpl::experimental::select`` and adding ``oneapi::dpl::experimental::try_submit``.
+- Enabled list-initialization for algorithms. This is a C++26 feature that oneDPL supports for C++17.
+
 Fixed Issues
 ------------
 - Fixed ``ranges::copy_if`` to allow output ranges of any size.
+- Fixed a compilation error that occurs with device policies when calling ``oneapi::dpl::reduce`` multiple times with
+  differing parameter types.
+- Removed the requirement that ranges passed to range-based algorithms support the subscipt operator. This did not
+  comply with the requirement of the C++ standard.
 
 Known Issues and Limitations
 ----------------------------
