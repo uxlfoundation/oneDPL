@@ -251,7 +251,7 @@ policy_t p(queue_ptrs, deref_op);
 
 Note that user-provided functions receive the unadapted `ResourceType` (e.g., `sycl::queue*`), not the `CoreResourceType`. The adapter is only used internally by the backend.
 
-For detailed information on resource adapters, including implementation requirements and additional examples, see the [Custom Backends](customization/custom_backends.md#adapter-support-for-resource-transformation) documentation.
+For detailed information on resource adapters, including implementation requirements and additional examples, see the [Custom Backends](customization/custom_backends.md#adapter-support-for-resource-transformation) RFC.
 
 <a id="free_functions_id"></a>
 ## Free Functions
@@ -284,7 +284,7 @@ Policies may provide submission operations either as member functions or rely on
 - When using `policy_base`, the base class provides member function implementations that delegate to fallback mechanisms
 - Custom policies that don't inherit from `policy_base` can implement member functions directly to override default behavior
 
-Both APIs are valid - use free functions when working with policies, and implement member functions when creating custom policy behavior.
+Both APIs are valid - use free functions when working with policies, and implementing member functions when creating custom policy behavior.
 
 ### Deferred Initialization
 
@@ -328,7 +328,7 @@ Policies with no reporting requirements can work with any backend, including bac
 
 Backends must accept a (possibly empty) variadic list of execution-info reporting requirements in their constructors. At construction the backend should validate and, where possible, filter the available resources to remove those that cannot satisfy the requested reporting features (for example, missing device aspects or queue profiling properties). If filtering leaves no usable resources, the backend must throw a clear runtime error.
 
-Backends must also provide a template `template <typename... ReportingReqs> struct scratch_space_t` which supplies per-selection scratch storage tailored to the requested reporting requirements.
+Backends must also provide `template <typename... ReportingReqs> struct scratch_space_t` which supplies per-selection scratch storage tailored to the requested reporting requirements.
 
 Backend traits can be used to determine what events are need by the *Policy* that provided a *Selection*.
 For example, below is code a function the receives a *Selection* and uses traits to determine if the
