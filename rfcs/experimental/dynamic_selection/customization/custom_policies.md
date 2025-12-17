@@ -186,13 +186,13 @@ Selection handles must include a `scratch_space` member of type `backend_traits<
 
 The `round_robin_policy` demonstrates a simple stateful selection strategy. See the full implementation at:
 
-https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/round_robin_policy.h#L36-L100
+https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/round_robin_policy.h#L36-L102
 
 ### Dynamic Load Policy
 
 The `dynamic_load_policy` demonstrates a more complex selection strategy with load tracking. See the full implementation at:
 
-https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/dynamic_load_policy.h#L37-L152
+https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/dynamic_load_policy.h#L37-L161
 
 ## Implementation Requirements
 
