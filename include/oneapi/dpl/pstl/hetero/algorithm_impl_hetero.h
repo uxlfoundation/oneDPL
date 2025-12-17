@@ -84,18 +84,9 @@ __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 // TODO: A tag _WaitMode is used for provide a patterns call pipeline, where the last one should be synchronous
 // Probably it should be re-designed by a pipeline approach, when a pattern returns some sync objects
 // and ones are combined into a "pipeline" (probably like Range pipeline)
-//
-// A note on access mode types below: the __vector_path_impl in unseq_backend::walk_n_vectors_or_scalars only respects
-// the default template arguments:
-// __acc_mode1 = __par_backend_hetero::access_mode::read
-// __acc_mode2 = __par_backend_hetero::access_mode::write
-// For any provided _Function object, the default access modes should be respected even if other access modes are
-// required due to dependency / synchronization issues. For a detailed explanation, see:
-// https://github.com/uxlfoundation/oneDPL/issues/1272
 template <typename _WaitMode = __par_backend_hetero::__deferrable_mode,
-          __par_backend_hetero::access_mode __acc_mode1 = __par_backend_hetero::access_mode::read,
-          __par_backend_hetero::access_mode __acc_mode2 = __par_backend_hetero::access_mode::write,
-          bool _NoInit1 = false, bool _NoInit2 = true,
+          __par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
+          bool _OutNoInit = true,
           typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _Function>
 _ForwardIterator2
@@ -106,10 +97,10 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return __first2;
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _NoInit1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
 
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _NoInit2>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__output_acc_mode, _OutNoInit>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
     auto __future = oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -164,18 +155,9 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 // walk3
 //------------------------------------------------------------------------
 
-// A note on access mode types below: the __vector_path_impl in unseq_backend::walk_n_vectors_or_scalars only respects
-// the default template arguments:
-// __acc_mode1 = __par_backend_hetero::access_mode::read
-// __acc_mode2 = __par_backend_hetero::access_mode::read
-// __acc_mode3 __par_backend_hetero::access_mode::write
-// For any provided _Function object, the default access modes should be respected even if other access modes are
-// required due to dependency / synchronization issues. For a detailed explanation, see:
-// https://github.com/uxlfoundation/oneDPL/issues/1272
-template <typename _BackendTag, __par_backend_hetero::access_mode __acc_mode1 = __par_backend_hetero::access_mode::read,
-          __par_backend_hetero::access_mode __acc_mode2 = __par_backend_hetero::access_mode::read,
-          __par_backend_hetero::access_mode __acc_mode3 = __par_backend_hetero::access_mode::write,
-          bool _NoInit1 = false, bool _NoInit2 = false, bool _NoInit3 = true,
+template <typename _BackendTag,
+          __par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
+          bool _OutNoInit = true,
           typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2, typename _ForwardIterator3,
           typename _Function>
 _ForwardIterator3
@@ -186,11 +168,11 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     if (__n <= 0)
         return __first3;
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode1, _NoInit1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
-    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode2, _NoInit2>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
-    auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode3, _NoInit3>();
+    auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__output_acc_mode, _OutNoInit>();
     auto __buf3 = __keep3(__first3, __first3 + __n);
 
     oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -289,8 +271,8 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
     // the predicate is false. This preserves non-transformed elements in the output.
     return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
-                           __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::write,
-                           /*_NoInit1=*/false, /*_NoInit2=*/false>(
+                           __par_backend_hetero::access_mode::write,
+                           /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
@@ -309,9 +291,8 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
     // the predicate is false. This preserves non-transformed elements in the output.
-    return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read,
-                           __par_backend_hetero::access_mode::read, __par_backend_hetero::access_mode::write,
-                           /*_NoInit1=*/false, /*_NoInit2=*/false, /*_NoInit3=*/false>(
+    return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::write,
+                           /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
