@@ -380,7 +380,7 @@ private:
     void
     process_data_in(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, auto... args)
     {
-        std::string sizes{"for "};
+        std::string sizes{" for "};
         sizes += std::to_string(max_n) + " elements";
 
         Container cont_in(exec, max_n, DataGen1{});
@@ -419,7 +419,7 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
-        std::string sizes{"for "};
+        std::string sizes{" for "};
         sizes += std::to_string(n_in) + " elements and " + std::to_string(n_out) + " space";
 
         Container cont_in(exec, n_in, DataGen1{});
@@ -537,7 +537,7 @@ private:
     process_data_in_in(int max_n, int n_in1, int n_in2, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                        auto... args)
     {
-        std::string sizes{"for "};
+        std::string sizes{" for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements";
 
         assert(n_in1 <= max_n);
@@ -596,7 +596,7 @@ private:
                            TransIn tr_in, TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
-        std::string sizes{"for "};
+        std::string sizes{" for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements and " + std::to_string(n_out) + " space";
 
         Container cont_in1(exec, n_in1, DataGen1{});

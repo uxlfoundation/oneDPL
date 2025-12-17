@@ -282,31 +282,16 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
     return __cnt;
 }
 
-template <class _InputIterator, class _DifferenceType, class _BinaryPredicate>
+template <typename _Iterator, typename _DifferenceType, typename _IterPredicate>
 _DifferenceType
-__simd_calc_mask_2(_InputIterator __first, _DifferenceType __n, bool* __mask, _BinaryPredicate __pred) noexcept
+__simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pred, bool* __mask) noexcept
 {
     _DifferenceType __count = 0;
 
     _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __mask[__i] = !__pred(__first[__i], __first[__i - 1]);
-        __count += __mask[__i];
-    }
-    return __count;
-}
-
-template <class _InputIterator, class _DifferenceType, class _UnaryPredicate>
-_DifferenceType
-__simd_calc_mask_1(_InputIterator __first, _DifferenceType __n, bool* __mask, _UnaryPredicate __pred) noexcept
-{
-    _DifferenceType __count = 0;
-
-    _ONEDPL_PRAGMA_SIMD_REDUCTION(+ : __count)
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-    {
-        __mask[__i] = __pred(__first[__i]);
+        __mask[__i] = __pred(__first, __i);
         __count += __mask[__i];
     }
     return __count;
@@ -317,20 +302,18 @@ _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
                     _Assigner __assigner) noexcept
 {
-    _DifferenceType __cnt = 0;
-    _ONEDPL_PRAGMA_SIMD
+    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
+        __cnt += __mask[__i];
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
         if (__mask[__i])
         {
-            _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-            {
-                __assigner(__first + __i, __result + __cnt);
-                ++__cnt;
-            }
+            __assigner(__first + __i, __result + __cnt);
         }
     }
-    return __cnt;
+    return __cnt + 1; // accounts for the initial -1
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
