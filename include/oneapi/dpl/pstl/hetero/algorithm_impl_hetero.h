@@ -86,9 +86,8 @@ __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 // and ones are combined into a "pipeline" (probably like Range pipeline)
 template <typename _WaitMode = __par_backend_hetero::__deferrable_mode,
           __par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
-          bool _OutNoInit = true,
-          typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _Function>
+          bool _OutNoInit = true, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
+          typename _ForwardIterator2, typename _Function>
 _ForwardIterator2
 __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                 _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
@@ -157,9 +156,8 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 
 template <typename _BackendTag,
           __par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
-          bool _OutNoInit = true,
-          typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2, typename _ForwardIterator3,
-          typename _Function>
+          bool _OutNoInit = true, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _ForwardIterator3, typename _Function>
 _ForwardIterator3
 __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                 _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f)
