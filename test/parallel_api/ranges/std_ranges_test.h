@@ -208,6 +208,18 @@ int out_size_with_empty_in2(int) { return 0; }
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
 
+template <typename T>
+static constexpr bool check_in_in_result{};
+
+template <typename I1, typename I2>
+static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
+
+template <typename T>
+static constexpr bool check_in_in_out_result{};
+
+template <typename I1, typename I2, typename O>
+static constexpr bool check_in_in_out_result<std::ranges::in_in_out_result<I1, I2, O>> = true;
+
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
 {
@@ -431,8 +443,27 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else if constexpr (check_in_in_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
@@ -527,9 +558,23 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (!std::is_same_v<decltype(res), bool>)
+        if constexpr (check_in_in_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
+        else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
                       (std::string("wrong stop position with ") + typeid(Algo).name() +
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
@@ -577,14 +622,24 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                  (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
-                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                    (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
@@ -625,21 +680,36 @@ public:
     }
 private:
 
-    template<typename Ret, typename Begin>
+    template <std::size_t InIdx = 0, typename Ret, typename Begin>
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
         if constexpr (check_in<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for check_in");
             return std::distance(begin, ret.in);
-        else if constexpr (check_in1<Ret>)
+        }
+        else if constexpr (check_in1<Ret> && InIdx == 1)
+        {
             return std::distance(begin, ret.in1);
-        else if constexpr (check_in2<Ret>)
+        }
+        else if constexpr (check_in2<Ret> && InIdx == 2)
+        {
             return std::distance(begin, ret.in2);
+        }
         else if constexpr (is_iterator<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for iterator return type");
             return std::distance(begin, ret);
-        else if constexpr(is_range<Ret>)
+        }
+        else if constexpr (is_range<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for range return type");
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        }
         else if constexpr(check_minmax<Ret>)
         {
+            static_assert(InIdx == 0, "InIdx should be 0 for minmax return type");
+
             const auto& [first, second] = ret;
             if constexpr(std::random_access_iterator<std::remove_cvref_t<decltype(first)>>)
                 return std::pair{std::distance(begin, first), std::ranges::distance(begin, second)};
@@ -647,7 +717,10 @@ private:
                 return std::pair{first, second};
         }
         else
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
             return ret;
+        }
     }
 
     template<typename Ret, typename Begin>
