@@ -184,143 +184,15 @@ Selection handles must include a `scratch_space` member of type `backend_traits<
 
 ### Round Robin Policy
 
-The `round_robin_policy` demonstrates a simple stateful selection strategy:
+The `round_robin_policy` demonstrates a simple stateful selection strategy. See the full implementation at:
 
-```cpp
-template <typename ResourceType, typename ResourceAdapter, typename Backend>
-class round_robin_policy : public policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>
-{
-  protected:
-    using base_t = policy_base<round_robin_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend>;
-    using resource_container_size_t = typename std::vector<resource_type>::size_type;
-    
-    struct selector_t {
-        std::vector<std::shared_ptr<resource_t>> resources_;
-        resource_container_size_t num_contexts_;
-        std::atomic<resource_container_size_t> next_context_;
-    };
-    std::shared_ptr<selector_t> selector_;
-    using selection_type = base_t::selection_type;
-
-  public:
-    // Required type aliases (provided by policy_base)
-    using backend_type = typename base_t::backend_type;
-    using resource_type = typename base_t::resource_type;
-
-    // Constructors
-    round_robin_policy() { base_t::initialize(); }
-    round_robin_policy(deferred_initialization_t) {}
-    round_robin_policy(const std::vector<resource_type>& u, ResourceAdapter adapter = {}) { 
-        base_t::initialize(u, adapter); 
-    }
-
-    // Policy-specific initialization
-    void initialize_state() {
-        if (!selector_) {
-            selector_ = std::make_shared<selector_t>();
-        }
-        auto u = base_t::get_resources();
-        selector_->resources_ = u;
-        selector_->num_contexts_ = u.size();
-        selector_->next_context_ = 0;
-    }
-
-    // Round-robin selection strategy
-    template <typename... Args>
-    std::optional<selection_type> try_select(Args&&...) {
-        if (selector_) {
-            resource_container_size_t current;
-            // Atomic round-robin selection
-            while (true) {
-                current = selector_->next_context_.load();
-                auto next = (current + 1) % selector_->num_contexts_;
-                if (selector_->next_context_.compare_exchange_strong(current, next)) 
-                    break;
-            }
-            return std::make_optional<selection_type>(*this, selector_->resources_[current]);
-        } else {
-            throw std::logic_error("select called before initialization");
-        }
-    }
-};
-```
+https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/round_robin_policy.h#L36-L100
 
 ### Dynamic Load Policy
 
-The `dynamic_load_policy` demonstrates a more complex selection strategy with load tracking:
+The `dynamic_load_policy` demonstrates a more complex selection strategy with load tracking. See the full implementation at:
 
-```cpp
-template <typename ResourceType, typename ResourceAdapter, typename Backend>
-class dynamic_load_policy : public policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
-                                               execution_info::task_submission_t, execution_info::task_completion_t>
-{
-  protected:
-    using base_t = policy_base<dynamic_load_policy<ResourceType, ResourceAdapter, Backend>, ResourceAdapter, Backend,
-                               execution_info::task_submission_t, execution_info::task_completion_t>;
-    using load_t = int;
-
-    // Resource wrapper with load tracking
-    struct resource_t {
-        resource_type e_;
-        std::atomic<load_t> load_;
-        resource_t(resource_type e) : e_(e), load_(0) {}
-    };
-    using resource_container_t = std::vector<std::shared_ptr<resource_t>>;
-
-    // Custom selection handle with load reporting
-    template <typename Policy>
-    class dl_selection_handle_t {
-        Policy policy_;
-        std::shared_ptr<resource_t> resource_;
-        
-      public:
-        dl_selection_handle_t(const Policy& p, std::shared_ptr<resource_t> r) 
-            : policy_(p), resource_(std::move(r)) {}
-
-        auto unwrap() {
-            return ::oneapi::dpl::experimental::unwrap(resource_->e_);
-        }
-
-        void report(const execution_info::task_submission_t&) const {
-            resource_->load_.fetch_add(1);
-        }
-
-        void report(const execution_info::task_completion_t&) const {
-            resource_->load_.fetch_sub(1);
-        }
-    };
-
-    resource_container_t resources_;
-
-    using selection_type = dl_selection_handle_t<dynamic_load_policy>;
-  public:
-
-    // Initialization with load tracking setup
-    void initialize_state() {
-        auto u = base_t::get_resources();
-        resources_.clear();
-        resources_.reserve(u.size());
-        for (auto& resource : u) {
-            resources_.emplace_back(std::make_shared<resource_t>(resource));
-        }
-    }
-
-    // Load-based selection strategy
-    template <typename... Args>
-    std::optional<selection_type> try_select(Args&&...) {
-        if (!resources_.empty()) {
-            // Find resource with minimum load
-            auto min_resource = std::min_element(resources_.begin(), resources_.end(),
-                [](const auto& a, const auto& b) {
-                    return a->load_.load() < b->load_.load();
-                });
-            return std::make_optional<selection_type>(*this, *min_resource);
-        } else {
-            throw std::logic_error("select called before initialization");
-        }
-    }
-};
-```
+https://github.com/uxlfoundation/oneDPL/blob/38c94b0bf58b4cde2431085180893bc957e6d07c/include/oneapi/dpl/internal/dynamic_selection_impl/dynamic_load_policy.h#L37-L152
 
 ## Implementation Requirements
 
