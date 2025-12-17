@@ -100,15 +100,10 @@ This proposal presents a flexible policy system based on a `policy_base` templat
 for most selection strategies. The design uses CRTP (Curiously Recurring Template Pattern) to allow 
 customization while providing sensible defaults for resource management and backend integration.
 
-### Key Components
-
-1. **`policy_base<Policy, ResourceAdapter, Backend, ReportReqs...>`**: A proposed base class template that implements the core policy functionality using CRTP.
-2. **Selection Strategy Implementation**: Derived policies only need to implement `try_select()` and `initialize_state()` methods.
-3. **Backend Integration**: The base class handles all backend interactions, resource management, and submission delegation.
 
 ### Implementation Details
 
-The proposed `policy_base` class provides core functionality that derived policies can customize:
+The proposed `policy_base` class provides core functionality using CRTP that derived policies can customize:
 
 ```cpp
 template <typename Policy, typename ResourceAdapter, typename Backend, typename... ReportReqs>
