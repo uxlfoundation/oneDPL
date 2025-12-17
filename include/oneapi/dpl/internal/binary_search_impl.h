@@ -200,7 +200,7 @@ lower_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
+    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::write, /*_NoInit=*/true>();
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
@@ -232,7 +232,7 @@ upper_bound_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, InputIt
     auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
+    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::write, /*_NoInit=*/true>();
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
@@ -264,7 +264,7 @@ binary_search_impl(__internal::__hetero_tag<_BackendTag>, Policy&& policy, Input
     auto keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
     auto value_buf = keep_values(value_start, value_end);
 
-    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
+    auto keep_result = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::write, /*_NoInit=*/true>();
     auto result_buf = keep_result(result, result + value_size);
     auto zip_vw = make_zip_view(input_buf.all_view(), value_buf.all_view(), result_buf.all_view());
     const bool use_32bit_indexing = size <= std::numeric_limits<std::uint32_t>::max();
