@@ -492,8 +492,8 @@ __pattern_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIt
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
           class _RandomAccessIterator2, class _UnaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
-__pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1,
-                          _DifferenceType, _RandomAccessIterator2, _DifferenceType, _UnaryPredicate);
+__pattern_bounded_copy_if(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _DifferenceType,
+                          _RandomAccessIterator2, _DifferenceType, _UnaryPredicate);
 
 //------------------------------------------------------------------------
 // count

@@ -1348,7 +1348,7 @@ __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
             },
             std::plus<_DifferenceType>(), // Combine
             [=, &__stop_in](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) { // Scan
-                if (__initial > __n_out)  // The chunk has neither elements to write nor the stop position
+                if (__initial > __n_out) // The chunk has neither elements to write nor the stop position
                     return;
                 auto __assign = [](_RandomAccessIterator1 __x, _RandomAccessIterator2 __z) { *__z = *__x; };
                 _DifferenceType __space = __n_out - __initial;
@@ -1361,7 +1361,7 @@ __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, 
                 {
                     _DifferenceType __stop = __internal::__brick_copy_by_mask</*bounded =*/ true>(
                         __first + __i, __len, __result + __initial, __space, __mask + __i, __assign, _IsVector{});
-                    if (__stop != __len) // Found the position of the first element that cannot be copied
+                    if (__stop != __len)          // Found the position of the first element that cannot be copied
                         __stop_in = __i + __stop; // Since there is only one such position, there is no data race
                 }
             },
@@ -1409,7 +1409,7 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __
                           _UnaryPredicate __pred)
 {
     return __parallel_selective_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,  _DifferenceType{__n_out},
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, _DifferenceType{__n_out},
         [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
 }
 
