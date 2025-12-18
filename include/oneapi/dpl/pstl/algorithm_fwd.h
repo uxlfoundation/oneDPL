@@ -411,6 +411,9 @@ struct __brick_copy;
 template <class _Tag, typename = void>
 struct __brick_move;
 
+template <class _Tag, typename = void>
+struct __brick_bounded_move;
+
 //------------------------------------------------------------------------
 // swap_ranges
 //------------------------------------------------------------------------
