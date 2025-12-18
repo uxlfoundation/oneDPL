@@ -1227,6 +1227,45 @@ using __set_symmetric_difference_return_t =
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
+__serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
+                                  std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
+                                  std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
+                                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__out_it;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+            ++__out_it;
+        }
+        else
+        {
+            ++__it1;
+            ++__it2;
+        }
+    }
+
+    auto __remaining_capacity1 = __out_end - __out_it;
+    auto __copy_n1 = __end1 - __it1;
+    auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
+
+    auto __remaining_capacity2 = __out_end - __copy1.out;
+    auto __copy_n2 = __end2 - __it2;
+    auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
+
+    return {__copy1.in, __copy2.in, __copy2.out};
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                  _Proj2 __proj2,
                                  /*__is_vector=*/std::false_type) noexcept
