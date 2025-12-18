@@ -1767,9 +1767,10 @@ template <typename _BackendTag, typename _SetTag, typename _ExecutionPolicy, typ
           typename _ForwardIterator2, typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _ExecutionPolicy&& __exec,
-                        _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                        _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
-                        _Proj2 __proj2)
+                        _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                        _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                        _OutputIterator __result,
+                        _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _SizeType = std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
                                          typename std::iterator_traits<_ForwardIterator2>::difference_type>;
@@ -1796,26 +1797,31 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(
-        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
-        __buf3.all_view(), __comp, __proj1, __proj2);
-
-    return __result + __result_size;
+    return __par_backend_hetero::__parallel_set_op<_SetTag>(
+        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec),
+        __buf1.all_view(), __buf2.all_view(), __buf3.all_view(),
+        __comp, __proj1, __proj2)
+        .__get_reached_out();
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare>
 _OutputIterator
-__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                           _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                           _OutputIterator __result, _Compare __comp)
+__pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                           _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                           _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                           _OutputIterator __result,
+                           _Compare __comp)
 {
     // intersection is empty
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
+
     return __pattern_hetero_set_op(__tag, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
-                                   __first1, __last1, __first2, __last2, __result, __comp, oneapi::dpl::identity{},
-                                   oneapi::dpl::identity{});
+                                   __first1, __last1,
+                                   __first2, __last2,
+                                   __result,
+                                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1827,9 +1833,11 @@ struct __set_difference_copy_case_1
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare>
 _OutputIterator
-__pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                         _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                         _OutputIterator __result, _Compare __comp)
+__pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                         _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                         _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                         _OutputIterator __result,
+                         _Compare __comp)
 {
     // {} \ {2}: the difference is empty
     if (__first1 == __last1)
@@ -1863,9 +1871,11 @@ struct __set_union_copy_case_2
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Compare>
 _OutputIterator
-__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                    _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                    _OutputIterator __result, _Compare __comp)
+__pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
+                    _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                    _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                    _OutputIterator __result,
+                    _Compare __comp)
 {
     if (__first1 == __last1 && __first2 == __last2)
         return __result;
@@ -1891,8 +1901,11 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
 
     return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_UnionTag{},
-                                   std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-                                   __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                                   std::forward<_ExecutionPolicy>(__exec),
+                                   __first1, __last1,
+                                   __first2, __last2,
+                                   __result,
+                                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
 
 //Dummy names to avoid kernel problems
@@ -1917,8 +1930,10 @@ template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIter
           typename _OutputIterator, typename _Compare>
 _OutputIterator
 __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
-                                   _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                   _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp)
+                                   _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                                   _OutputIterator __result,
+                                   _Compare __comp)
 {
     if (__first1 == __last1 && __first2 == __last2)
         return __result;
