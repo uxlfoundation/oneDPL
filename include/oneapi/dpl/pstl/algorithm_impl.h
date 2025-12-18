@@ -3336,6 +3336,72 @@ __is_great_that_set_algo_cut_off(auto size)
     return true;
 }
 
+#define DUMP_PARALLEL_SET_OP_WORK 1
+
+// _ReachedOffset - desrcibes reached offset in input range
+//  - the first field contains the amount of processed items
+//  - the second field contains the amount of processed (i.e. skipped) items in the end
+template <typename _DifferenceTypeCommon>
+using _ReachedOffset = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+static std::size_t _s_SetRangeImplCounter = 0;
+
+// Describes a data window in the temporary buffer and corresponding positions in the output range
+template <typename _DifferenceTypeCommon>
+struct _SetRangeImpl
+{
+    std::size_t __counter = _s_SetRangeImplCounter++; // For debug purposes only
+
+    //                                       [.........................)
+    // Temporary buffer:              TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    //                                       ^                         ^
+    //                                       +<-(buf_pos)              +<-(buf_pos + __len)
+    //                                       |                         |
+    //                                        \                         \
+    //                                         \                         \
+    //                                          |<-(__pos)                |<-(__pos + __len)
+    //                                          V                         V
+    // Output range (long):        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+    // Output range (limited):     OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO......................
+
+    _DifferenceTypeCommon __pos{};            // Offset in output range w/o limitation to output data size
+    _DifferenceTypeCommon __len{};            // Length in temporary buffer w/o limitation to output data size
+    _DifferenceTypeCommon __buf_pos{};        // Position in temporary buffer w/o limitation to output data size
+
+    _SetRangeImpl() = default;
+
+    /*
+     * @param __pos            - position in output range
+     * @param __len            - length of data in temporary buffer w/o limitation to output data size
+     * @param __buf_pos        - position in temporary buffer w/o limitation to output data size
+     */
+    _SetRangeImpl(_DifferenceTypeCommon __pos, _DifferenceTypeCommon __len, _DifferenceTypeCommon __buf_pos)
+        : __pos(__pos), __len(__len), __buf_pos(__buf_pos)
+    {
+    }
+
+    bool
+    empty() const
+    {
+        return __len == 0;
+    }
+
+    template <typename OStream>
+    friend OStream&
+    operator<<(OStream& os, const _SetRangeImpl& data)
+    {
+        os << "__counter = "   << data.__counter
+           << ", __pos = "     << std::setw(2) << data.__pos
+           << ", __len = "     << std::setw(2) << data.__len
+           << ", __buf_pos = " << std::setw(2) << data.__buf_pos;
+        return os;
+    }
+};
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
+using __parallel_set_op_return_t =
+    oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
 _OutputIterator
@@ -3778,9 +3844,11 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                         _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                         _RandomAccessIterator3 __result,
+                         _Compare __comp)
 {
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
