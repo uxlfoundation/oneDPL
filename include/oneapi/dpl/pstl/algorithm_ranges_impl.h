@@ -1126,6 +1126,17 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
+std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>
+__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+
+    return __serial_set_difference<_R1, _R2, _OutRange>(__it1, __end1, __it2, __end2, __out_it, __out_end, __comp, __proj1, __proj2);
+}
+
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
