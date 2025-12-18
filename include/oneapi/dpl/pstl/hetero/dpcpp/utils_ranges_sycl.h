@@ -79,7 +79,11 @@ class all_view
     {
         return begin() + size();
     }
-    __return_t& operator[](__diff_type i) const { return begin()[i]; }
+    __return_t&
+    operator[](__diff_type i) const
+    {
+        return begin()[i];
+    }
 
     __diff_type
     size() const
@@ -506,7 +510,8 @@ struct __get_sycl_range
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
         //For permutation iterator, the Map iterator is always read (only) without no_init
-        auto view_map = __process_input_iter<sycl::access_mode::read, /*_LocalNoInit=*/false>(__m, __m + __s).all_view();
+        auto view_map =
+            __process_input_iter<sycl::access_mode::read, /*_LocalNoInit=*/false>(__m, __m + __s).all_view();
         return oneapi::dpl::__ranges::permutation_view_simple<_R, decltype(view_map)>{__r, view_map};
     }
 
@@ -529,8 +534,8 @@ struct __get_sycl_range
         //   offset, and use that to recurse as a sycl_iterator over the __base_buffer.
         auto __base_iter = __first.base();
         auto __base_buffer = __base_iter.get_buffer();
-        auto res_src = __process_input_iter<_LocalAccMode, _LocalNoInit>(oneapi::dpl::begin(__base_buffer) + __base_iter.get_idx(),
-                                                           oneapi::dpl::end(__base_buffer));
+        auto res_src = __process_input_iter<_LocalAccMode, _LocalNoInit>(
+            oneapi::dpl::begin(__base_buffer) + __base_iter.get_idx(), oneapi::dpl::end(__base_buffer));
 
         //_Map is handled by recursively calling __get_sycl_range() in __get_permutation_view.
         auto rng = __get_permutation_view(res_src.all_view(), __first.map(), __n);
@@ -759,7 +764,8 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 #if _ONEDPL_CPP20_RANGES_PRESENT
 //A specialization for enable_view to true because oneapi::dpl::__ranges::all_view models a view (see C++ standard)
 template <typename _T, sycl::access::mode _AccMode, sycl::target _Target, sycl::access::placeholder _Placeholder>
-inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> = true;
+inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> =
+    true;
 #endif
 
 #endif // _ONEDPL_UTILS_RANGES_SYCL_H
