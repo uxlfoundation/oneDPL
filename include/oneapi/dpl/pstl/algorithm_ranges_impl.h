@@ -689,17 +689,13 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 {
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
 
+    // TODO wht this code absent in __pattern_includes + __parallel_tag for iterators?
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
-        return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
+    // if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    //    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 
     using _DifferenceType1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
