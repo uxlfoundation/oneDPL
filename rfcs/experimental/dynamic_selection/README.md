@@ -106,7 +106,9 @@ The type `T` satisfies *Policy* if given,
 
 - `p` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
-- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`, where `wait_t<T>` is the wait type for the policy. If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
+- `f` a function object with signature `wait_t<T> fun(resource_t<T>, Args…);`
+
+**Note:** If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -214,7 +216,9 @@ The type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `backend_traits<T>::wait_type fun(resource_t<T>, Args…)`. If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
+- `f` a function object with signature `backend_traits<T>::wait_type fun(resource_t<T>, Args…)`
+
+**Note:** If the backend defines an explicit `wait_type`, user functions must return that specific type. If the backend does not define an explicit `wait_type`, user functions may return any *waitable-type* (a type with a `wait()` member function that blocks until the submitted work is complete).
 
 | *Must* be well-formed | Description |
 | --------------------- | ----------- |
@@ -274,7 +278,9 @@ For detailed information on resource adapters, including implementation requirem
 | `backend_traits<Backend>::wait_type` | If `has_wait_type_v` is `true`, contains the explicit type that user-submitted functions must return. If `has_wait_type_v` is `false`, this is `void`. |
 | `backend_traits<Backend>::lazy_report_v` | Boolean indicating whether the backend uses lazy reporting. `true` if the backend requires that a policy calls `lazy_report()` before each selection to update execution information. `false` otherwise. |
 | `backend_traits<Backend>::template has_scratch_space_v<Reqs...>` | Boolean indicating whether the backend requires scratch space for the given set of execution info reporting requirements `Reqs...`. `true` if scratch space is needed for instrumentation, `false` otherwise. |
-| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space storage needed by the backend for instrumentation and fulfilling the reporting requirements `Reqs...`. If `has_scratch_space_v<Reqs...>` is `false`, this is `no_scratch_t<Reqs...>` (an empty type). |
+| `backend_traits<Backend>::template selection_scratch_t<Reqs...>` | Type of the scratch space storage needed by the backend for instrumentation and fulfilling the reporting requirements `Reqs...`. |
+
+**Note:** If `has_scratch_space_v<Reqs...>` is `false`, `selection_scratch_t<Reqs...>` will automatically be set to `no_scratch_t<Reqs...>` (an empty type).
 
 ### Policy Member Functions vs Free Functions
 
