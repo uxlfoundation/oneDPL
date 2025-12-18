@@ -27,6 +27,7 @@
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
+#include "utils_ranges.h" // KSATODO does this include really needed?
 
 namespace oneapi
 {
