@@ -3888,10 +3888,17 @@ template <typename _IsVector>
 struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyConstructRange __cc_range
 {
     template <typename _ForwardIterator, typename _OutputIterator>
-    _OutputIterator
+    std::tuple<_ForwardIterator, _OutputIterator>
     operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
     {
         return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+    }
+
+    template <typename _ForwardIterator, typename _OutputIterator>
+    std::tuple<_ForwardIterator, _OutputIterator>
+    operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result1, _OutputIterator __result2)
+    {
+        return __brick_uninitialized_bounded_copy(__first, __last, __result1, __result2, _IsVector());
     }
 };
 
