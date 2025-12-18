@@ -835,6 +835,47 @@ __get_subscription_view(_View&& __view)
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
+// Returns begin and end of the range
+template <typename T>
+auto
+__get_range_bounds(std::vector<T>&& __rng)
+{
+    return std::make_tuple(__rng.begin(), __rng.end());
+}
+
+
+// Returns begin, end and size of the range
+template <typename T>
+auto
+__get_range_bounds_n(std::vector<T>&& __rng)
+{
+    return std::make_tuple(__rng.begin(), __rng.end(), __rng.size());
+}
+
+// Returns begin and end of the range
+template <typename _Range>
+auto
+__get_range_bounds(_Range&& __rng)
+{
+    const auto __size = oneapi::dpl::__ranges::__size(__rng);
+
+    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
+
+    return std::make_tuple(__begin, __begin + __size);
+}
+
+// Returns begin, end and size of the range
+template <typename _Range>
+auto
+__get_range_bounds_n(_Range&& __rng)
+{
+    const auto __size = oneapi::dpl::__ranges::__size(__rng);
+
+    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
+
+    return std::make_tuple(__begin, __begin + __size, __size);
+}
+
 } // namespace __ranges
 } // namespace dpl
 } // namespace oneapi
