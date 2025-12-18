@@ -80,7 +80,12 @@ The default implementation of these traits depends on types defined in the Polic
   template <typename Policy>
   struct policy_traits
   {
+      using backend_type = typename std::decay_t<Policy>::backend_type;
       using resource_type = typename std::decay_t<Policy>::resource_type;
+      static constexpr bool has_wait_type_v =
+          oneapi::dpl::experimental::backend_traits<backend_type>::has_wait_type_v;
+      using wait_type =
+          typename oneapi::dpl::experimental::backend_traits<backend_type>::wait_type;
   };
 ```
 
