@@ -767,6 +767,54 @@ using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
+// Bounded set union: performs set_union with output range capacity checking.
+// Truncates result if output range is too small.
+template<std::ranges::random_access_range _R1,
+         std::ranges::random_access_range _R2,
+         std::ranges::random_access_range _OutRange,
+         typename _Comp, typename _Proj1, typename _Proj2>
+__set_union_return_t<_R1, _R2, _OutRange>
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
+
+    // 1. Main set_union operation
+    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+        }
+        else
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__it2;
+        }
+        ++__out_it;
+    }
+
+    // 2. Copying the residual elements if one of the input sequences is exhausted
+    const auto __remaining_capacity1 = __out_end - __out_it;
+    const auto __copy_n1 = __end1 - __it1;
+    const auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
+
+    const auto __remaining_capacity2 = __out_end - __copy1.out;
+    const auto __copy_n2 = __end2 - __it2;
+    const auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
+
+    return {__copy1.in, __copy2.in, __copy2.out};
+}
+
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
 __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
