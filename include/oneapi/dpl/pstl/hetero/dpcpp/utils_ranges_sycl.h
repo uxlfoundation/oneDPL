@@ -505,9 +505,8 @@ struct __get_sycl_range
     auto
     __get_permutation_view(_R __r, _Map __m, _Size __s)
     {
-        //For permutation iterator, the Map iterator is always read (only), so use a __get_sycl_range with read mode and no_init=false
-        __get_sycl_range<sycl::access_mode::read, false> __map_range;
-        auto view_map = __map_range(__m, __m + __s).all_view();
+        //For permutation iterator, the Map iterator is always read (only)
+        auto view_map = __process_input_iter<sycl::access_mode::read>(__m, __m + __s).all_view();
         return oneapi::dpl::__ranges::permutation_view_simple<_R, decltype(view_map)>{__r, view_map};
     }
 
