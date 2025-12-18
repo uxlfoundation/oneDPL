@@ -386,12 +386,6 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
     const auto __n2 = std::distance(__first2, __last2);
     const auto __n_out = std::distance(__result1, __result2);
 
-    // If we have enough space in the output range, use the simpler version of __set_intersection_construct
-    // to preserve performance
-    if (__n_out >= std::max(__n1, __n2))
-        return __set_intersection_construct(__first1, __last1, __first2, __last2, __result1, _copy, _CopyFromFirstSet{},
-                                            __comp, __proj1, __proj2);
-
     // This implementation should be aligned with https://eel.is/c++draft/set.intersection
 
     bool __output_full = false;
