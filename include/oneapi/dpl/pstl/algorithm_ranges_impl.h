@@ -675,7 +675,7 @@ bool
 __pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
                    _Proj2 __proj2)
 {
-    static_assert(__is_serial_tag_v<_Tag>);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2,
                             typename _Tag::__is_vector{});
@@ -840,7 +840,7 @@ __set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                     _Proj1 __proj1, _Proj2 __proj2)
 {
-    static_assert(__is_serial_tag_v<_Tag>);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                              __comp, __proj1, __proj2,
@@ -971,7 +971,7 @@ __set_intersection_return_t<_R1, _R2, _OutRange>
 __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    static_assert(__is_serial_tag_v<_Tag>);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                     __comp, __proj1, __proj2, typename _Tag::__is_vector{});
@@ -1161,7 +1161,7 @@ __set_difference_return_t<_R1, _OutRange>
 __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    static_assert(__is_serial_tag_v<_Tag>);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2, typename _Tag::__is_vector{});
@@ -1349,7 +1349,7 @@ __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    static_assert(__is_serial_tag_v<_Tag>);
+    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
     return __brick_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
                                             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2,
