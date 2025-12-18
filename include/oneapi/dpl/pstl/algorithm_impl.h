@@ -3328,7 +3328,13 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     });
 }
 
-inline constexpr auto __set_algo_cut_off = 1000;
+constexpr bool
+__is_great_that_set_algo_cut_off(auto size)
+{
+    //constexpr auto __set_algo_cut_off = 1000;
+    //return size > __set_algo_cut_off;
+    return true;
+}
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
