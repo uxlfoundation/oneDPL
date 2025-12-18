@@ -273,6 +273,72 @@ __set_iterator_mask(_IteratorMask& __mask, _State __state, _Size __count)
         __set_iterator_mask(__mask, __state);
 }
 
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _IteratorMask,
+          typename _CopyConstructRange,
+          typename _Compare, typename _Proj1, typename _Proj2>
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
+                              _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
+                              _OutputIterator __result1, _OutputIterator __result2,     // bounds for results
+                              _IteratorMask __mask1, _IteratorMask __mask2,             // itrator usage masks
+                              _CopyConstructRange __cc_range,
+                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    assert(__first1 <= __last1);
+    assert(__first2 <= __last2);
+    assert(__result1 <= __result2);
+
+    const auto __n1 = std::distance(__first1, __last1);
+    const auto __n2 = std::distance(__first2, __last2);
+    const auto __n_out = std::distance(__result1, __result2);
+
+    //// If we have enough space in the output range, use the simpler version of __set_union_construct
+    //// to preserve performance
+    //if (__n_out >= __n1 + __n2)
+    //    return __set_union_construct(__first1, __last1, __first2, __last2, __result1, __cc_range, __comp, __proj1,
+    //                                 __proj2);
+
+    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+
+    // This implementation should be aligned with https://eel.is/c++draft/set.union
+
+    // 1. Main set_union operation
+    while (__first1 != __last1 && __first2 != __last2 && __result1 != __result2)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        {
+            new (std::addressof(*__result1++)) _Tp(*__first1++);
+            __set_iterator_mask(__mask1, true);
+            __set_iterator_mask(__mask2, false);
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        {
+            new (std::addressof(*__result1++)) _Tp(*__first2++);
+            __set_iterator_mask(__mask1, false);
+            __set_iterator_mask(__mask2, true);
+        }
+        else
+        {
+            new (std::addressof(*__result1++)) _Tp(*__first1++);
+            ++__first2;
+            __set_iterator_mask(__mask1, true);
+            __set_iterator_mask(__mask2, true);
+        }
+    }
+
+    // 2. Copying the residual elements if one of the input sequences is exhausted
+    auto [__first1_res, __result1_res] = __cc_range(__first1, __last1, __result1, __result2);
+    __set_iterator_mask(__mask1, true,  __first1_res - __first1);
+    __set_iterator_mask(__mask2, false, __first1_res - __first1);
+
+    auto [__first2_res, __result2_res] = __cc_range(__first2, __last2, __result1_res, __result2);
+    __set_iterator_mask(__mask1, false, __first2_res - __first2);
+    __set_iterator_mask(__mask2, true,  __first2_res - __first2);
+
+    return {__first1_res, __first2_res, __result2_res};
+}
+
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
           typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
