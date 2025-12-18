@@ -3344,13 +3344,17 @@ __is_great_that_set_algo_cut_off(auto size)
 template <typename _DifferenceTypeCommon>
 using _ReachedOffset = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
 
+#if DUMP_PARALLEL_SET_OP_WORK
 static std::size_t _s_SetRangeImplCounter = 0;
+#endif
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <typename _DifferenceTypeCommon>
 struct _SetRangeImpl
 {
+#if DUMP_PARALLEL_SET_OP_WORK
     std::size_t __counter = _s_SetRangeImplCounter++; // For debug purposes only
+#endif
 
     //                                       [.........................)
     // Temporary buffer:              TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
@@ -3368,16 +3372,27 @@ struct _SetRangeImpl
     _DifferenceTypeCommon __len{};            // Length in temporary buffer w/o limitation to output data size
     _DifferenceTypeCommon __buf_pos{};        // Position in temporary buffer w/o limitation to output data size
 
-    _SetRangeImpl() = default;
-
     /*
      * @param __pos            - position in output range
      * @param __len            - length of data in temporary buffer w/o limitation to output data size
      * @param __buf_pos        - position in temporary buffer w/o limitation to output data size
      */
-    _SetRangeImpl(_DifferenceTypeCommon __pos, _DifferenceTypeCommon __len, _DifferenceTypeCommon __buf_pos)
+    _SetRangeImpl(_DifferenceTypeCommon __pos = 0, _DifferenceTypeCommon __len = 0, _DifferenceTypeCommon __buf_pos = 0)
         : __pos(__pos), __len(__len), __buf_pos(__buf_pos)
     {
+    }
+
+    _SetRangeImpl&
+    operator=(const _SetRangeImpl& other)
+    {
+        if (this != &other)
+        {
+            __pos     = other.__pos;
+            __len     = other.__len;
+            __buf_pos = other.__buf_pos;
+        }
+
+        return *this;
     }
 
     bool
@@ -3386,6 +3401,7 @@ struct _SetRangeImpl
         return __len == 0;
     }
 
+#if DUMP_PARALLEL_SET_OP_WORK
     template <typename OStream>
     friend OStream&
     operator<<(OStream& os, const _SetRangeImpl& data)
@@ -3396,6 +3412,7 @@ struct _SetRangeImpl
            << ", __buf_pos = " << std::setw(2) << data.__buf_pos;
         return os;
     }
+#endif
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
