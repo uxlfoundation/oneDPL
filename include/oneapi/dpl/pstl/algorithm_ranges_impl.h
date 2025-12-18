@@ -705,7 +705,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     const auto __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
         return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 
     auto __first1 = std::ranges::begin(__r1);
@@ -828,7 +828,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const auto __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
         return std::ranges::set_union(__r1, __r2, std::begin(__out_r), __comp, __proj1, __proj2);
 
     auto __first1 = std::ranges::begin(__r1);
@@ -934,7 +934,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return {__last1, __last2, __result};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
+    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
@@ -954,7 +954,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (__m2 > oneapi::dpl::__internal::__set_algo_cut_off)
+    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m2))
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
@@ -1077,7 +1077,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return {__last1, __out_last};
     }
 
-    if (__n1 + __n2 > __set_algo_cut_off)
+    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
     {
         auto __out_last = __parallel_set_op(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
@@ -1155,7 +1155,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const auto __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
-    if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
+    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
         return std::ranges::set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
                                                      std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 
