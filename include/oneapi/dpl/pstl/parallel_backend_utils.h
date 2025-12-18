@@ -531,7 +531,9 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
             ++__first2;
         }
     }
-    return __cc_range(__first2, __last2, __result);
+    
+    auto __res = __cc_range(__first2, __last2, __result);
+    return std::get<2>(__res);
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
