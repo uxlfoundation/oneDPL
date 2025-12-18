@@ -4175,17 +4175,28 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                                                  __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    {
         return __parallel_set_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+            __tag, std::forward<_ExecutionPolicy>(__exec),
+            __first1, __last1,                              // bounds for data1
+            __first2, __last2,                              // bounds for data2
+            __result, __result + __n1 + __n2,               // bounds for results w/o limitation
             [](_DifferenceType __n, _DifferenceType) { return __n; },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-               oneapi::dpl::identity) {
-                return oneapi::dpl::__utils::__set_difference_construct(
-                    __first1, __last1, __first2, __last2, __result, __BrickCopyConstruct<_IsVector>(), __comp,
-                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+               _T* __result1, _T* __result2,
+               _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
+            {
+                return oneapi::dpl::__utils::__set_difference_bounded_construct(
+                    __first1, __last1,                                              // bounds for data1
+                    __first2, __last2,                                              // bounds for data2
+                    __result1, __result2           ,                                // bounds for results
+                    __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
+                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+            .__get_reached_out();
+    }
 
     // use serial algorithm
     return std::set_difference(__first1, __last1, __first2, __last2, __result, __comp);
