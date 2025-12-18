@@ -1944,19 +1944,25 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
-                                                  __b, __e, __result + (__b - __first), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __result + (__b - __first), __result + (__b - __first) + (__e - __b),     // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __first + (__b - __middle), _IsVector{});
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __first + (__b - __middle), __first + (__b - __middle) + (__e - __b),     // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
+                                                  __b, __e,                                                                                             // bounds for data1
+                                                  __first + ((__n - __m) + (__b - __result)), __first + ((__n - __m) + (__b - __result)) + (__e - __b), // bounds for results w/o limit
+                                                  _IsVector{}); 
                                           });
 
             return __first + (__last - __middle);
