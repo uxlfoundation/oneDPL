@@ -4857,7 +4857,9 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
                                           [__first, __n](_DiffType __i, _DiffType __j) {
                                               __brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                                  __first + __i, __first + __j,                                                     // bounds for data1
+                                                  __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                  _IsVector{});
                                           });
         }
         else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
@@ -4869,7 +4871,9 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                 __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
                                               [__first, __n](_DiffType __i, _DiffType __j) {
                                                   __brick_move<__parallel_tag<_IsVector>>{}(
-                                                      __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                                      __first + __i, __first + __j,                                                     // bounds for data1
+                                                      __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                      _IsVector{});
                                               });
             }
         }
