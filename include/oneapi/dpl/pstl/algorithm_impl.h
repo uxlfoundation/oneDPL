@@ -3941,15 +3941,26 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-           _RandomAccessIterator2 __last2, _Tp* __result, _Compare __comp, oneapi::dpl::identity,
-           oneapi::dpl::identity) {
-            return oneapi::dpl::__utils::__set_union_construct(__first1, __last1, __first2, __last2, __result,
-                                                               __BrickCopyConstruct<_IsVector>(), __comp,
-                                                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        __tag, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1,                                      // bounds for data1
+        __first2, __last2,                                      // bounds for data2
+        __result + __n1 + __n2,                                 // bounds for results w/o limitation
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
+           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+            _Tp* __result1, _Tp* __result2,
+            auto __mask1, auto __mask2,
+            _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
+        {
+            return oneapi::dpl::__utils::__set_union_bounded_construct(
+                __first1, __last1,                              // bounds for data1
+                __first2, __last2,                              // bounds for data2
+                __result1, __result2,                           // bounds for results
+                __mask1, __mask2,                               // itrator usage masks
+                __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
+                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
-        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+        .__get_reached_out();
 }
 
 //------------------------------------------------------------------------
