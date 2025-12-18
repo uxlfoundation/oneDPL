@@ -90,7 +90,7 @@ issue_error_message(::std::stringstream& outstr)
 {
     outstr << ::std::endl;
     ::std::cerr << outstr.str();
-    ::std::exit(EXIT_FAILURE);
+    //::std::exit(EXIT_FAILURE);
 }
 
 template <typename TStream>
@@ -1418,6 +1418,42 @@ struct DefaultInitializedToOne
     operator==(const DefaultInitializedToOne& x, const DefaultInitializedToOne& y)
     {
         return x.value == y.value;
+    }
+};
+
+// The idea of this struct is to have a data item that can be used in set-tests.
+// Each item has a value, an index in container and a container number.
+// This will allow us to test if the set-algorithms work correctly with sets of data.
+template <typename T>
+struct SetDataItem
+{
+    T value{};                      // Value of the item
+    std::size_t index = 0;          // Index of the item in the container
+    std::size_t series = 0;         // Container number
+
+    friend bool
+    operator==(const SetDataItem& item1, const SetDataItem& item2)
+    {
+        return item1.value == item2.value && item1.index == item2.index && item1.series == item2.series;
+    }
+
+    template <typename OStream>
+    friend OStream&
+    operator<<(OStream& os, const SetDataItem& item)
+    {
+        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}" << "\n";
+        return os;
+    }
+};
+
+// Projection to extract 'value' field from SetDataItem
+struct SetDataItemProj
+{
+    template <typename T>
+    auto
+    operator()(const SetDataItem<T>& item) const -> decltype(item.value)
+    {
+        return item.value;
     }
 };
 

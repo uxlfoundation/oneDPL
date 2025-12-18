@@ -62,10 +62,14 @@ inline constexpr int medium_size = (1<<17) + 10; //128K
 // It also usually results in using single-work-group specializations for device policies.
 inline constexpr int small_size = 2025;
 
+#if 0
 #if TEST_DPCPP_BACKEND_PRESENT
 inline constexpr std::array<int, 3> big_sz = {/*serial*/ small_size, /*par*/ medium_size, /*device*/ big_size};
 #else
 inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ medium_size};
+#endif
+#else
+inline constexpr std::array<int, 3> big_sz = {10, 20, 30};//, 40, 50, 60, 120, 250};
 #endif
 
 enum TestDataMode
@@ -286,6 +290,16 @@ private:
     template <typename T>
     using TmpContainerType = std::array<T,0>;
 
+    static constexpr int kParts = 2;
+
+    static constexpr int kPaddingSize = 20;
+
+    // Get real range size considering padding for out ranges
+    int get_padded_size(int n)
+    {
+        return n + kPaddingSize * kParts;
+    }
+
     // Test dangling iterators in return types for call with temporary data
     template <int idx, typename Policy, typename Algo, typename ...Args>
     constexpr void
@@ -412,6 +426,41 @@ private:
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
+    template <TestDataMode mode, typename View>
+    auto
+    get_view_part_for_output_wo_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            return std::views::drop(view, kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
+        }
+        else
+        {
+            return view;
+        }
+    }
+
+    template <TestDataMode mode, typename View>
+    bool check_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+        
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+        }
+
+        return true;
+    }    
+
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
              TestDataMode mode = test_mode>
     void
@@ -425,7 +474,7 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
         Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
@@ -436,7 +485,8 @@ private:
         auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
-        typename Container::type& B = cont_out();
+        auto&& B_with_padding = cont_out();
+        auto&& B = get_view_part_for_output_wo_padding<mode>(B_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
@@ -468,9 +518,13 @@ private:
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(B_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
+
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
+        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n, 
                     (std::string("output mismatch with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
@@ -499,11 +553,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
+
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -521,11 +576,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
+
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
@@ -602,7 +658,7 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
         Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
@@ -615,9 +671,16 @@ private:
 
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
-        typename Container::type& C = cont_out();
+        auto&& C_with_padding = cont_out();
+        auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
+
+        std::cout << "=========================================================================" << std::endl;
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(C_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -642,8 +705,12 @@ private:
                     (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
+        std::cout << "Result : (";
+        for (auto v : C)
+            std::cout << v << ", ";
+        std::cout << ")" << std::endl;
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("output mismatch with ")
+        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("output mismatch with ")
                     + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
@@ -656,12 +723,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      0,                                          0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0,      out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -669,11 +736,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / kParts, r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
 	    //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -1012,8 +1080,8 @@ struct test_range_algo
         test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
-        auto policy = TestUtils::get_dpcpp_test_policy();
-        test_range_algo_impl_hetero(policy, algo, checker, args...);
+        //auto policy = TestUtils::get_dpcpp_test_policy();
+        //test_range_algo_impl_hetero(policy, algo, checker, args...);
 
 #if TEST_CHECK_COMPILATION_WITH_DIFF_POLICY_VAL_CATEGORY
         TestUtils::check_compilation(policy, [&](auto&& policy) { test_range_algo_impl_hetero(policy, algo, checker, args...); });

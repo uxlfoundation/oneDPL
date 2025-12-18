@@ -71,6 +71,54 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
+
+struct
+{
+    template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
+              typename Proj2 = std::identity>
+    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                         std::ranges::borrowed_iterator_t<_ROut>>
+    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    {
+        auto in1 = std::ranges::begin(r_1);
+        auto in2 = std::ranges::begin(r_2);
+        auto out = std::ranges::begin(r_out);
+
+        std::size_t idx1 = 0;
+        std::size_t idx2 = 0;
+        std::size_t idxOut = 0;
+
+        bool output_full = false;
+
+        while (idx1 < std::ranges::size(r_1) && idx2 < std::ranges::size(r_2))
+        {
+            if (std::invoke(__comp, std::invoke(__proj1, in1[idx1]), std::invoke(__proj2, in2[idx2])))
+                ++idx1;
+            else if (std::invoke(__comp, std::invoke(__proj2, in2[idx2]), std::invoke(__proj1, in1[idx1])))
+                ++idx2;
+            else
+            {
+                if (idxOut < std::ranges::size(r_out))
+                {
+                    out[idxOut] = in1[idx1];
+                    ++idx1;
+                    ++idx2;
+                    ++idxOut;
+                }
+                else
+                {
+                    if (!output_full)
+                        output_full = true;
+                    else
+                        break;
+                }
+            }
+        }
+
+        return {in1 + idx1, in2 + idx2, out + idxOut};
+    }
+} set_intersection_checker;
 #endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
 int
@@ -81,19 +129,6 @@ main()
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
-
-    auto set_intersection_checker = [](std::ranges::random_access_range auto&& r1,
-                                       std::ranges::random_access_range auto&& r2,
-                                       std::ranges::random_access_range auto&& r_out, auto&&... args)
-    {
-        auto res = std::ranges::set_intersection(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                                 std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                              std::ranges::borrowed_iterator_t<decltype(r2)>,
-                                                              std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in1, res.in2, res.out};
-    };
 
     test_range_algo<0, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker);
     test_range_algo<1, int, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj);
