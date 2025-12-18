@@ -1061,8 +1061,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return std::ranges::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2,
-                                         std::ranges::begin(__out_r), __comp, __proj1, __proj2);
+    return __serial_set_intersection(__left_bound_seq_1, __last1,
+                                     __left_bound_seq_2, __last2,
+                                     std::ranges::begin(__out_r), std::ranges::end(__out_r),
+                                     __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
