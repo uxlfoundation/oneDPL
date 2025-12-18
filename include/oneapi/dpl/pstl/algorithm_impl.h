@@ -3336,6 +3336,7 @@ __is_great_that_set_algo_cut_off(auto size)
     return true;
 }
 
+// KSATODO required to remove in the end of development all debug code linked with this macro
 #define DUMP_PARALLEL_SET_OP_WORK 1
 
 // _ReachedOffset - desrcibes reached offset in input range
@@ -3454,12 +3455,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
               << "\t__buf_size = "  << __buf_size << std::endl;
 #endif
 
-    __par_backend::__buffer<_T>   __buf          (__buf_size);    // Temporary buffer for result preparation
+    __par_backend::__buffer<_T>   __buf             (__buf_size);   // Temporary (windowed) buffer for result preparation
 
-    __par_backend::__buffer<int> __buf_mask_rng1    (__buf_size); // Temporary buffer for the input range1 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng2    (__buf_size); // Temporary buffer for the input range2 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng1_res(__buf_size); // Temporary buffer for the input range1 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng2_res(__buf_size); // Temporary buffer for the input range2 item usage mask
+    __par_backend::__buffer<int> __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
+    __par_backend::__buffer<int> __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
+    __par_backend::__buffer<int> __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
+    __par_backend::__buffer<int> __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
 
     return __internal::__except_handler([&__exec,
                                         __n1, __n2, __n_out,
@@ -3482,16 +3483,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         const auto __buf_mask_rng1_res_raw_data_begin = __buf_mask_rng1_res.get();
         const auto __buf_mask_rng2_res_raw_data_begin = __buf_mask_rng2_res.get();
 
-        //std::fill(__buf_mask_rng1_raw_data_begin,     __buf_mask_rng1_raw_data_begin     + __buf_size, 9);
-        //std::fill(__buf_mask_rng2_raw_data_begin,     __buf_mask_rng2_raw_data_begin     + __buf_size, 9);
-        //std::fill(__buf_mask_rng1_res_raw_data_begin, __buf_mask_rng1_res_raw_data_begin + __buf_size, 9);
-        //std::fill(__buf_mask_rng2_res_raw_data_begin, __buf_mask_rng2_res_raw_data_begin + __buf_size, 9);
-
         // End of buffer raw data
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-        _DifferenceTypeCommon __res_reachedOffset1   = 0;   // offset to the first unprocessed item from range1
-        _DifferenceTypeCommon __res_reachedOffset2   = 0;   // offset to the first unprocessed item from range2
         _DifferenceTypeCommon __res_reachedOffsetOut = 0;   // offset to the first unprocessed item from output range
 
         // Scan predicate
@@ -3566,7 +3560,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
         __par_backend::__parallel_strict_scan(
             __backend_tag{},
-            std::forward<_ExecutionPolicy>(__exec),
+            __exec,
             __n1,                                                                                                           // _Index __n
             _SetRange(),                                                                                                    // _Tp __initial
 /* ST.1 */  [=](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange                                                  // _Rp __reduce     step 1 : __reduce(0, __n)
@@ -3654,11 +3648,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                             //  |                     +-- result of step(1)
                             //  +-- __initial <--_SetRange state
 
-                _SetRange __sr_result2;
+                const bool cond = __b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty());
 
-                if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-                    __sr_result2 =  _SetRange{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
-                __sr_result2 = _SetRange{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+                _SetRange __sr_result2;
+                __sr_result2.__pos     = cond ? (__a.__pos + __a.__len + __b.__pos)
+                                              : (__b.__pos + __b.__len + __a.__pos);
+                __sr_result2.__len     = cond ? __b.__len     : __a.__len;
+                __sr_result2.__buf_pos = cond ? __b.__buf_pos : __a.__buf_pos;
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.2:\n"
@@ -3671,7 +3667,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
              __buf_mask_rng1_raw_data_begin, __buf_mask_rng2_raw_data_begin,
-             &__res_reachedOffset1, &__res_reachedOffset2, &__res_reachedOffsetOut, &__scan](const _SetRange& __total)
+             &__res_reachedOffsetOut, &__scan](const _SetRange& __total)
             {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
@@ -3682,16 +3678,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __res_reachedOffsetOut = std::min(__n_out, __total.__pos + __total.__len);
             });
 
-        std::cout << "mask1 tmp: (";
-        for (auto i1 = 0; i1 < __buf_size; ++i1)
-            std::cout << __buf_mask_rng1_raw_data_begin[i1] << ", ";
-        std::cout << ")" << std::endl;
-
-        std::cout << "mask2 tmp: (";
-        for (auto i2 = 0; i2 < __buf_size; ++i2)
-            std::cout << __buf_mask_rng2_raw_data_begin[i2] << ", ";
-        std::cout << ")" << std::endl;
-
+#if DUMP_PARALLEL_SET_OP_WORK
+        // Dump mask into std::cout for debug purposes
         std::cout << "mask1: (";
         for (auto i1 = 0; i1 < __buf_size; ++i1)
             std::cout << __buf_mask_rng1_res_raw_data_begin[i1] << ", ";
@@ -3701,6 +3689,30 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         for (auto i2 = 0; i2 < __buf_size; ++i2)
             std::cout << __buf_mask_rng2_res_raw_data_begin[i2] << ", ";
         std::cout << ")" << std::endl;
+#endif
+
+        // By default we thinks we reached the end of both input ranges
+        _DifferenceTypeCommon __res_reachedOffset1 = __n1;  // offset to the first unprocessed item from range1
+        _DifferenceTypeCommon __res_reachedOffset2 = __n2;  // offset to the first unprocessed item from range2
+
+        // Evaluate reached offsets in input ranges if output range is limited
+        if (__n_out < __size_func(__n1, __n2))
+        {
+            auto count_pred = [](bool __state) -> _DifferenceTypeCommon { return __state ? 1 : 0; };
+
+            // Summarize used items in range1
+            __res_reachedOffset1 = __pattern_count(__parallel_tag<_IsVector>{}, __exec,
+                                                   __buf_mask_rng1_res_raw_data_begin,
+                                                   __buf_mask_rng1_res_raw_data_begin + __n_out, count_pred);
+
+            // Summarize used items in range2
+            __res_reachedOffset2 = __pattern_count(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
+                                                   __buf_mask_rng2_res_raw_data_begin,
+                                                   __buf_mask_rng2_res_raw_data_begin + __n_out, count_pred);
+
+            // KSATODO we should calculate here the end unused items in the first range
+            // KSATODO we should calculate here the end unused items in the second range
+        }
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             { __first1 + __res_reachedOffset1,
