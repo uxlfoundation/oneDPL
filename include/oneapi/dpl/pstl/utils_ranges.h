@@ -140,6 +140,8 @@ __empty(_Range&& __rng)
 
 namespace __internal
 {
+template <typename _R>
+using __iterator_t = decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()));
 
 template <typename _R>
 auto
