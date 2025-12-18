@@ -362,10 +362,12 @@ Some execution information (like `task_completion` or `task_time`) cannot be rep
 A backend that uses lazy reporting should:
 1. Store submission handles/events internally when `submit()` is called
 2. Define a `lazy_report()` member function that checks for completed tasks and reports their execution information
-3. The backend trait `backend_traits<Backend>::lazy_report_v` will be `true` for such backends
 
 Policies that use backends with lazy reporting should call `backend.lazy_report()` before making selection decisions to ensure they have the most recent execution information.
 
+If `lazy_report()` is defined within a `Backend`, the trait
+`backend_traits<Backend>::lazy_report_v` will automatically be set to
+`true`.
 
 The example below shows how a policy's selection function might check this trait and call `lazy_report()` before it
 applies its selection logic.
