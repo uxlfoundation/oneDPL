@@ -810,6 +810,40 @@ struct __device_storage
     }
 };
 
+// A pack of device storages
+template <typename... _TPack>
+struct __device_storage_tuple_pack : std::tuple<__device_storage<_TPack>...>
+{
+    static constexpr std::size_t __TPackSize = sizeof...(_TPack);
+    static_assert(__TPackSize > 2, "The device storage pack must contain at least two types.");
+
+    __device_storage_tuple_pack() = default;
+    __device_storage_tuple_pack(const sycl::queue& __q, const std::array<std::size_t, __TPackSize>& __n_array)
+    {
+        __initialize(__q, __n_array);
+    }
+
+protected:
+
+    void
+    __initialize(const sycl::queue& __q, const std::array<std::size_t, __TPackSize>& __n_array)
+    {
+        __tuple_for_each(
+            [&](auto& __device_storage, std::size_t __idx)
+            {
+                __device_storage.__initialize(__q, __n_array[__idx]);
+            },
+            std::make_index_sequence<__TPackSize>{});
+    }
+
+    template <typename _Callable, std::size_t... _Is>
+    void
+    __tuple_for_each(_Callable&& __op, std::index_sequence<_Is...>)
+    {
+        (__op(std::get<_Is>(*this), _Is), ...);
+    }
+};
+
 using oneapi::dpl::__internal::__access_mode_resolver_v;
 
 template <typename _ModeTagT, typename _T>
@@ -852,12 +886,17 @@ struct __result_storage : public __device_storage<_T>
     }
 };
 
-template <typename _T>
-struct __combined_storage : public __device_storage<_T>
-{
-    static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
+template <typename _TResult, typename _TScratch>
+using __combined_storage_base_t = std::conditional_t<std::is_same_v<_TResult, _TScratch>, __device_storage<_TResult>,
+                                                     __device_storage_tuple_pack<_TScratch, _TResult>>; 
 
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
+template <typename _TResult, typename _TScratch = _TResult>
+struct __combined_storage : public __combined_storage_base_t<_TResult, _TScratch>
+{
+    static_assert(sycl::is_device_copyable_v<_TResult>, "The type _TResult must be device copyable to use __combined_storage.");
+    static_assert(sycl::is_device_copyable_v<_TScratch>, "The type _TScratch must be device copyable to use __combined_storage.");
+
+    std::unique_ptr<_TResult, __internal::__sycl_usm_free> __result_buf = nullptr;
     std::size_t __sz = 0;
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
@@ -866,23 +905,32 @@ struct __combined_storage : public __device_storage<_T>
         : __sz(__scratch_n), __result_sz(__result_n)
     {
         assert(__sz > 0 && __result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+        _TResult* __ptr = __internal::__allocate_usm<_TResult, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __result_buf = std::unique_ptr<_TResult, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
             this->__initialize(__q, __sz); // a separate scratch buffer
             __kind = sycl::usm::alloc::host;
         }
         else
         {
-            this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
+            if constexpr (std::is_same_v<_TResult, _TScratch>)
+            {
+                // a combined buffer, starting with scratch
+                this->__initialize(__q, __sz + __result_sz);
+            }
+            else
+            {
+                // a combined buffer, starting with scratch
+                this->__initialize(__q, std::array<std::size_t, 2>{/*scratch size*/ __result_sz, /*result size*/ __sz});
+            }
             __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
         }
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
     void
-    __copy_result(_T* __dst, std::size_t __n)
+    __copy_result(_TResult* __dst, std::size_t __n)
     {
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? __result_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ __sz);
@@ -895,25 +943,53 @@ struct __combined_storage : public __device_storage<_T>
     {
         if (__st.__kind == sycl::usm::alloc::host)
         {
-            return __combi_accessor<_T, __access_mode_resolver_v<_ModeTagT>>(
+            return __combi_accessor<_TResult, __access_mode_resolver_v<_ModeTagT>>(
                 __cgh, __st.__sycl_buf, __st.__result_buf.get(), __prop_list);
         }
         else
         {
-            return __combi_accessor<_T, __access_mode_resolver_v<_ModeTagT>>(
-                __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
+            if constexpr (std::is_same_v<_TResult, _TScratch>)
+            {
+                return __combi_accessor<_TResult, __access_mode_resolver_v<_ModeTagT>>(
+                    __cgh, __st.__sycl_buf, __st.__usm_buf.get(), /*offset*/ __st.__sz, __st.__result_sz, __prop_list);
+            }
+            else
+            {
+                auto&& __res_st = std::get<1>(__st);
+
+                // Offset is 0 because if _TResult and _TScratch are different types, we save result in the separate device storage without scratch data
+                return __combi_accessor<_TResult, __access_mode_resolver_v<_ModeTagT>>(
+                    __cgh, __res_st.__sycl_buf, __res_st.__usm_buf.get(),
+                    /*offset*/ 0, __st.__result_sz, __prop_list);
+            }
         }
     }
 
     template <typename _Forwarding>
     friend
-    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
+    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_TResult, _TScratch>>, __copyable_storage_state<_TResult>>
     __move_state_from(_Forwarding&& __src)
     {
         return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
                 __src.__sz, __src.__kind};
     }
 };
+
+template <typename _ModeTagT, typename _TResult, typename _TScratch>
+auto
+__get_accessor(_ModeTagT, __combined_storage<_TResult, _TScratch>& __st, sycl::handler& __cgh, const sycl::property_list& __prop_list = {})
+{
+    if constexpr (std::is_same_v<_TResult, _TScratch>)
+    {
+        __device_storage<_TResult>& __res_st = __st;
+        return __get_accessor(_ModeTagT{}, __res_st, __cgh, __prop_list);
+    }
+    else
+    {
+        __device_storage<_TResult>& __res_st = std::get<0>(__st);
+        return __get_accessor(_ModeTagT{}, __res_st, __cgh, __prop_list);
+    }
+}
 
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
