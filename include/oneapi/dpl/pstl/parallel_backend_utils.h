@@ -686,6 +686,47 @@ struct __enumerable_thread_local_storage_base
     const std::tuple<_Args...> __args;
 };
 
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessOutputIterator>
+struct __set_operations_result
+{
+    _RandomAccessIterator1 __in1;
+    _RandomAccessIterator2 __in2;
+    _RandomAccessOutputIterator __it_out;
+
+    // Get reached input1 and output iterators
+    template <typename TResult>
+    TResult
+    __get_reached_in1_out() const
+    {
+        return {__in1, __it_out};
+    }
+
+    // Get reached input1, input2 and output iterators
+    template <typename TResult>
+    TResult
+    __get_reached_in1_in2_out() const
+    {
+        return {__in1, __in2, __it_out};
+    }
+
+    // Get reached output iterator
+    _RandomAccessOutputIterator
+    __get_reached_out() const
+    {
+        return __it_out;
+    }
+
+    __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
+    operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
+                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
+                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type> __offsets) const
+    {
+        return {__in1 + std::get<0>(__offsets),
+                __in2 + std::get<1>(__offsets),
+                __it_out + std::get<2>(__offsets)};
+    }
+};
+
 } // namespace __utils
 } // namespace dpl
 } // namespace oneapi
