@@ -30,7 +30,7 @@ summ(const Container& container)
     return std::accumulate(std::begin(container), std::end(container), 0, std::plus{});
 }
 
-using MaskContainer = std::vector<int>;
+using MaskContainer = std::vector<bool>;
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
 void
@@ -44,15 +44,15 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container        cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container        cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         1,         1                      };
-        const MaskContainer mask2Exp = {                              1,         1,         1,         1,         1};
+        const MaskContainer mask1Exp = {        1,         1,         1,         1,         1,         0,         0};
+        const MaskContainer mask2Exp = {        0,         0,         1,         1,         1,         1,         1};
         const Container   contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
         Container contOut(cont1.size() + cont2.size());
 
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -60,15 +60,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -85,7 +85,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -93,15 +93,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -119,7 +119,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -127,15 +127,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -153,7 +153,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -161,15 +161,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -187,7 +187,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -195,15 +195,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -221,7 +221,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -229,15 +229,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -255,7 +255,7 @@ test_set_union_construct()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -263,15 +263,15 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 }
@@ -295,7 +295,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -303,15 +303,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -328,7 +328,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -336,15 +336,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -361,7 +361,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -369,15 +369,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -393,7 +393,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -401,15 +401,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -425,7 +425,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -433,15 +433,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -458,7 +458,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -466,15 +466,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -491,7 +491,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -499,15 +499,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -524,7 +524,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -532,15 +532,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -558,7 +558,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -566,15 +566,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -592,7 +592,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -600,15 +600,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 
@@ -625,7 +625,7 @@ test_set_union_construct_edge_cases()
         std::vector<int> mask1(cont1.size());
         std::vector<int> mask2(cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -633,15 +633,15 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_union_bounded_construct");
-        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_union_bounded_construct");
-        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask1Exp),    std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_union_bounded_construct");
+        EXPECT_EQ(summ(mask2Exp),    std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_union_bounded_construct");
+        EXPECT_EQ(contOutExp.size(), std::distance(contOut.begin(), out), "incorrect state of out for __set_union_bounded_construct");
 
         EXPECT_EQ_RANGES(mask1Exp, mask1, "Incorrect mask1 state");
         EXPECT_EQ_RANGES(mask2Exp, mask2, "Incorrect mask2 state");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_union_bounded_construct");
     }
 }
@@ -664,7 +664,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -672,12 +672,12 @@ test_set_intersection_construct()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -689,7 +689,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -699,12 +699,12 @@ test_set_intersection_construct()
 
         // Here we have 3 but not 5 because we testing __set_intersection_bounded_construct
         // and iterators moved to the end in __pattern_set_intersection for __hetero_tag
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -716,7 +716,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 2, 1}                                            };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -724,12 +724,12 @@ test_set_intersection_construct()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -741,7 +741,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 0, 1}, {4, 1, 1}                                 };
         Container contOut(2);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -749,12 +749,12 @@ test_set_intersection_construct()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(2, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(4, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(2, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -766,7 +766,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 0, 1}                                            };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -774,12 +774,12 @@ test_set_intersection_construct()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -791,7 +791,7 @@ test_set_intersection_construct()
         const Container contOutExp = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                                 };
         Container contOut(3);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -799,12 +799,12 @@ test_set_intersection_construct()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 }
@@ -826,7 +826,7 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp = { };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -834,12 +834,12 @@ test_set_intersection_construct_edge_cases()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -851,7 +851,7 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp = {                               };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -859,14 +859,14 @@ test_set_intersection_construct_edge_cases()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
         // Here we have 3 but not 5 because we testing __set_intersection_bounded_construct
         // and iterators moved to the end in __pattern_set_intersection for __hetero_tag
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -878,7 +878,7 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp = {                               };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -886,12 +886,12 @@ test_set_intersection_construct_edge_cases()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
@@ -902,7 +902,7 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp = {           {2, 0, 1}           };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
@@ -910,12 +910,12 @@ test_set_intersection_construct_edge_cases()
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
+        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 }
@@ -937,19 +937,19 @@ test_set_difference_construct()
         const Container contOutExp = {{1, 0, 1}, {2, 1, 1}                                                       };
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -961,19 +961,19 @@ test_set_difference_construct()
         const Container contOutExp = {                                                       {6, 3, 1}, {7, 4, 1}};
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -985,19 +985,19 @@ test_set_difference_construct()
         const Container contOutExp = {{1, 0, 1}                                                                  };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1009,19 +1009,19 @@ test_set_difference_construct()
         const Container contOutExp = {                                                       {6, 3, 1}           };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1033,19 +1033,19 @@ test_set_difference_construct()
         const Container contOutExp = {                                                       {6, 3, 1}, {7, 4, 1}};
         Container contOut(2);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1057,19 +1057,19 @@ test_set_difference_construct()
         const Container contOutExp = {                                                       {6, 3, 1}, {7, 4, 1}           };
         Container contOut(2);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(6, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(6, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(6, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(6, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1081,19 +1081,19 @@ test_set_difference_construct()
         const Container contOutExp = {                                                       {6, 3, 1}                      };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 }
@@ -1112,19 +1112,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = { };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1136,19 +1136,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                               };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1160,19 +1160,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1183,19 +1183,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                               };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1206,19 +1206,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {{1, 0, 1},            {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1230,19 +1230,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                                 {3, 3, 1}};
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1254,19 +1254,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                               };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1278,19 +1278,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1302,19 +1302,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                                                     };
         Container contOut(0);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1326,19 +1326,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {{1, 0, 1}                                            };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1350,19 +1350,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {{1, 0, 1},            {2, 2, 1}                      };
         Container contOut(kOutputSize);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1374,19 +1374,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp = {                                                     };
         Container contOut(0);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 }
@@ -1408,19 +1408,19 @@ test_set_symmetric_difference_construct()
         const Container contOutExp = {{1, 0, 1}, {2, 1, 1},                                  {6, 3, 2}, {7, 4, 2}};
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(4, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
@@ -1432,19 +1432,19 @@ test_set_symmetric_difference_construct()
         const Container contOutExp = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}, {7, 4, 1}};
         Container contOut(cont1.size() + cont2.size());
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(4, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
@@ -1456,19 +1456,19 @@ test_set_symmetric_difference_construct()
         const Container contOutExp = {{1, 0, 1}                                                                  };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
@@ -1480,19 +1480,19 @@ test_set_symmetric_difference_construct()
         const Container contOutExp = {{1, 0, 2}                                                                  };
         Container contOut(1);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
@@ -1504,19 +1504,19 @@ test_set_symmetric_difference_construct()
         const Container contOutExp = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}           };
         Container contOut(3);
 
-        auto [resIt1, resIt2, resItOut] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),     resIt1), "incorrect state of resIt1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),     resIt2), "incorrect state of resIt2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), resItOut), "incorrect state of resItOut for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
 
-        // Truncate output from resItOut till the end to avoid compare error
-        contOut.erase(resItOut, contOut.end());
+        // Truncate output from out till the end to avoid compare error
+        contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 }
