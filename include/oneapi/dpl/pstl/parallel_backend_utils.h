@@ -456,6 +456,61 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
+                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
+                                   _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
+                                   _CopyConstructRange __cc_range,
+                                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    assert(__first1 <= __last1);
+    assert(__first2 <= __last2);
+    assert(__result1 <= __result2);
+
+    const auto __n1 = std::distance(__first1, __last1);
+    //const auto __n2 = std::distance(__first2, __last2);
+    const auto __n_out = std::distance(__result1, __result2);
+
+    // If we have enough space in the output range, use the simpler version of __set_difference_construct
+    // to preserve performance
+    if (__n_out >= __n1)
+        return __set_difference_construct(__first1, __last1, __first2, __last2, __result1, __cc_range, __comp, __proj1, __proj2);
+
+    // This implementation should be aligned with https://eel.is/c++draft/set.difference
+
+    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+
+    bool __output_full = false;
+
+    while (__first1 != __last1 && __first2 != __last2)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        {
+            if (__result1 != __result2)
+            {
+                new (std::addressof(*__result1)) _Tp(*__first1);
+                ++__result1;
+                ++__first1;
+            }
+            else if (!__output_full)
+                __output_full = true;
+            else
+                break;
+        }
+        else
+        {
+            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+                ++__first1;
+            ++__first2;
+        }
+    }
+
+    auto [__first1_res, __result_res] = __cc_range(__first1, __last1, __result1, __result2);
+    return {__first1_res, __first2, __result_res};
+}
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                                      _ForwardIterator2 __last2, _OutputIterator __result,
