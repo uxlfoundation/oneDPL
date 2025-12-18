@@ -1181,24 +1181,22 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result = std::ranges::begin(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
-        return {__first1, __result};
+        return {__first1, __result1};
 
     // {1} \ {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                __first1, __first1 + __n,
+                                                __result1,
+                                                __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
@@ -1209,8 +1207,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, parallel copying just first sequence
     if (__left_bound_seq_1 == __last1)
     {
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                __result, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
+        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                __first1, __first1 + __n,       
+                                                __result1,
+                                                __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
@@ -1221,30 +1222,42 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, parallel copying just first sequence
     if (__left_bound_seq_2 == __last2)
     {
+        const auto __n = std::min(__last1 - __first1, __result2 - __result1);
         auto __out_last =
-            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                              __result, __brick_copy<__parallel_tag<_IsVector>>{});
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                              __first1, __first1 + __n,
+                                              __result1,
+                                              __brick_copy<__parallel_tag<_IsVector>>{});
         return {__last1, __out_last};
     }
 
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
     {
-        auto __out_last = __parallel_set_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+        return __parallel_set_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec),
+            __first1, __last1,                              // bounds for data1
+            __first2, __last2,                              // bounds for data2
+            __result1, __result2,                           // bounds for results
             [](_DifferenceType __n, _DifferenceType) { return __n; },
-            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-               _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                return oneapi::dpl::__utils::__set_difference_construct(__first1, __last1, __first2, __last2, __result,
-                                                                        __BrickCopyConstruct<_IsVector>(), __comp,
-                                                                        __proj1, __proj2);
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+               _T* __result1, _T* __result2,
+               _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+            {
+                return oneapi::dpl::__utils::__set_difference_bounded_construct(
+                    __first1, __last1,                      // bounds for data1
+                    __first2, __last2,                      // bounds for data2
+                    __result1, __result2,                   // bounds for results
+                    __BrickCopyConstruct<_IsVector>(),      // _CopyConstructRange __cc_range
+                    __comp, __proj1, __proj2);
             },
-            __comp, __proj1, __proj2);
-        return {__last1, __result + (__out_last - __result)};
+            __comp, __proj1, __proj2)
+            .template __get_reached_in1_out<__set_difference_return_t<_R1, _OutRange>>();
     }
 
     // use serial algorithm
-    return std::ranges::set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::ranges::begin(__out_r),
-                                       __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
+                                   __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
