@@ -246,6 +246,33 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return __cc_range(__first2, __last2, __result);
 }
 
+template <typename _State>
+void
+__set_iterator_mask(std::nullptr_t, _State)
+{
+}
+
+template <typename _IteratorMask, typename _State>
+void
+__set_iterator_mask(_IteratorMask& __mask, _State __state)
+{
+    *__mask++ = __state;
+}
+
+template <typename _State, typename _Size>
+void
+__set_iterator_mask(std::nullptr_t, _State, _Size)
+{
+}
+
+template <typename _IteratorMask, typename _State, typename _Size>
+void
+__set_iterator_mask(_IteratorMask& __mask, _State __state, _Size __count)
+{
+    for (_Size __idx = 0; __idx < __count; ++__idx)
+        __set_iterator_mask(__mask, __state);
+}
+
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
           typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
