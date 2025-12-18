@@ -985,24 +985,19 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _T = std::ranges::range_value_t<_OutRange>;
+    using _Tp = std::ranges::range_value_t<_OutRange>;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
-
-    auto __first1 = std::ranges::begin(__r1);
-    auto __last1 = __first1 + __n1;
-    auto __first2 = std::ranges::begin(__r2);
-    auto __last2 = __first2 + __n2;
-    auto __result = std::ranges::begin(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
@@ -1010,7 +1005,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first2, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
@@ -1018,25 +1013,37 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first1, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
-        return {__last1, __last2, __result};
+        return {__last1, __last2, __result1};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            auto __out_last = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
+            return __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec),
+                __left_bound_seq_1, __last1,                    // bounds for data1
+                __first2, __last2,                              // bounds for data2
+                __result1, __result2,                           // bounds for results
+                [](_DifferenceType __n, _DifferenceType __m)                                                            // _SizeFunction __size_func
+                {
+                    return std::min(__n, __m);
                 },
-                __comp, __proj1, __proj2);
-            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _Tp* __result1, _Tp* __result2,
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                {
+                    return oneapi::dpl::__utils::__set_intersection_bounded_construct(
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
+                        __result1, __result2,                                                   // bounds for results
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        /*CopyFromFirstSet = */ std::true_type{},
+                        __comp, __proj1, __proj2);
+                },
+                __comp, __proj1, __proj2)
+                .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
     }
 
@@ -1045,18 +1052,30 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            auto __out_last = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2, __first1, __last1, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
+            return __internal::__parallel_set_op(
+                __tag, std::forward<_ExecutionPolicy>(__exec),
+                __first1, __last1,                              // bounds for data1
+                __left_bound_seq_2, __last2,                    // bounds for data2
+                __result1, __result2,                           // bounds for results
+                [](_DifferenceType __n, _DifferenceType __m)                                                            // _SizeFunction __size_func
+                {
+                    return std::min(__n, __m);
                 },
-                __comp, __proj1, __proj2);
-            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                    _Tp* __result1, _Tp* __result2,
+                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                {
+                    return oneapi::dpl::__utils::__set_intersection_bounded_construct(
+                        __first2, __last2,                                                      // bounds for data1
+                        __first1, __last1,                                                      // bounds for data2
+                        __result1, __result2,                                                   // bounds for results
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        /*CopyFromFirstSet = */ std::false_type{},
+                        __comp, __proj2, __proj1);
+                },
+                __comp, __proj1, __proj2)
+                .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
     }
 
