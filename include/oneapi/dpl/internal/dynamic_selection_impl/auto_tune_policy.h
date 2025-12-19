@@ -210,6 +210,8 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         {
             if (this->backend_)
                 this->backend_->lazy_report();
+            else
+                throw std::logic_error("selection called before initialization");
         }
         if (state_)
         {

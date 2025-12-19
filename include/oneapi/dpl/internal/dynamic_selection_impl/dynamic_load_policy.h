@@ -127,6 +127,8 @@ class dynamic_load_policy
         {
             if (this->backend_)
                 this->backend_->lazy_report();
+            else
+                throw std::logic_error("selection called before initialization");
         }
         if (selector_)
         {
