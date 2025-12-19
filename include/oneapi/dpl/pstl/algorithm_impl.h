@@ -428,8 +428,8 @@ __pattern_walk2_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
           class _Brick>
 _ForwardIterator2
-__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n,
-                        _ForwardIterator2 __first2, _Brick __brick) noexcept
+__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2,
+                        _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -3417,11 +3417,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1,
+                                                          __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1,
+                                                          __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
