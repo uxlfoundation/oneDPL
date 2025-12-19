@@ -3337,7 +3337,7 @@ __is_great_that_set_algo_cut_off(auto size)
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
-#define DUMP_PARALLEL_SET_OP_WORK 1
+#define DUMP_PARALLEL_SET_OP_WORK 0
 
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
@@ -3592,7 +3592,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                            0,          // length of data in temporary buffer
                                            __buf_pos); // position in temporary buffer
 
+#if DUMP_PARALLEL_SET_OP_WORK                                           
                     std::cout << "ST.1.1:\n" << "\t\t -> (" << __sr_result1 << ")" << std::endl;
+#endif
 
                     return __sr_result1;
                 }
