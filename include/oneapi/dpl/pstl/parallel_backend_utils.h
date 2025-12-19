@@ -279,10 +279,6 @@ __set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __la
     assert(__first2 <= __last2);
     assert(__result1 <= __result2);
 
-    const auto __n1 = std::distance(__first1, __last1);
-    const auto __n2 = std::distance(__first2, __last2);
-    const auto __n_out = std::distance(__result1, __result2);
-
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     // This implementation should be aligned with https://eel.is/c++draft/set.union
@@ -365,10 +361,6 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
     assert(__first2 <= __last2);
     assert(__result1 <= __result2);
 
-    const auto __n1 = std::distance(__first1, __last1);
-    const auto __n2 = std::distance(__first2, __last2);
-    const auto __n_out = std::distance(__result1, __result2);
-
     // This implementation should be aligned with https://eel.is/c++draft/set.intersection
 
     bool __output_full = false;
@@ -444,10 +436,6 @@ __set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1
     assert(__first1 <= __last1);
     assert(__first2 <= __last2);
     assert(__result1 <= __result2);
-
-    const auto __n1 = std::distance(__first1, __last1);
-    //const auto __n2 = std::distance(__first2, __last2);
-    const auto __n_out = std::distance(__result1, __result2);
 
     // This implementation should be aligned with https://eel.is/c++draft/set.difference
 
@@ -531,10 +519,6 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
     assert(__first1 <= __last1);
     assert(__first2 <= __last2);
     assert(__result1 <= __result2);
-
-    const auto __n1 = std::distance(__first1, __last1);
-    const auto __n2 = std::distance(__first2, __last2);
-    const auto __n_out = std::distance(__result1, __result2);
 
     // This implementation should be aligned with https://eel.is/c++draft/set.symmetric.difference
 
