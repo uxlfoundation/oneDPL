@@ -12,7 +12,7 @@ type `T` satisfies the *Backend* contract if given,
 - `b` an arbitrary identifier of type `T`
 - `args` an arbitrary parameter pack of types `typename… Args`
 - `s` is of type `S` and satisfies *Selection* and `is_same_v<resource_t<S>, resource_t<T>>` is `true`
-- `f` a function object with signature `/*ret_type*/ fun(resource_t<T>, Args…);`
+- `f` a function object with signature `wait_t<T> f(resource_t<T>, Args…);`
 
 | Functions and Traits  | Description |
 | --------------------- | ----------- |
