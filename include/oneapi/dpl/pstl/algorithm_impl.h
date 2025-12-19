@@ -3373,29 +3373,6 @@ struct _SetRangeImpl
     _DifferenceTypeCommon __len{};            // Length in temporary buffer w/o limitation to output data size
     _DifferenceTypeCommon __buf_pos{};        // Position in temporary buffer w/o limitation to output data size
 
-    /*
-     * @param __pos            - position in output range
-     * @param __len            - length of data in temporary buffer w/o limitation to output data size
-     * @param __buf_pos        - position in temporary buffer w/o limitation to output data size
-     */
-    _SetRangeImpl(_DifferenceTypeCommon __pos = 0, _DifferenceTypeCommon __len = 0, _DifferenceTypeCommon __buf_pos = 0)
-        : __pos(__pos), __len(__len), __buf_pos(__buf_pos)
-    {
-    }
-
-    _SetRangeImpl&
-    operator=(const _SetRangeImpl& other)
-    {
-        if (this != &other)
-        {
-            __pos     = other.__pos;
-            __len     = other.__len;
-            __buf_pos = other.__buf_pos;
-        }
-
-        return *this;
-    }
-
     bool
     empty() const
     {
@@ -3588,9 +3565,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                                                       __b, __comp, __proj2, __proj1);
 
                     const _DifferenceTypeCommon __buf_pos = __size_func((__b - __first1), (__bb - __first2));
-                    _SetRange __sr_result1(0,          // position in output range
+                    _SetRange __sr_result1{0,          // position in output range
                                            0,          // length of data in temporary buffer
-                                           __buf_pos); // position in temporary buffer
+                                           __buf_pos}; // position in temporary buffer
 
 #if DUMP_PARALLEL_SET_OP_WORK                                           
                     std::cout << "ST.1.1:\n" << "\t\t -> (" << __sr_result1 << ")" << std::endl;
@@ -3631,9 +3608,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 auto __res_sz = __res - __buffer_b;
 
-                _SetRange __sr_result1(0,                  // position in output range
+                _SetRange __sr_result1{0,                  // position in output range
                                        __res - __buffer_b, // length of data in temporary buffer
-                                       __buf_pos);         // position in temporary buffer
+                                       __buf_pos};         // position in temporary buffer
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.1.2:\n" << "\t\t <- (" << __sr_result1 << ")" << std::endl;
@@ -3652,11 +3629,10 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 const bool cond = __b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty());
 
-                _SetRange __sr_result2;
-                __sr_result2.__pos     = cond ? (__a.__pos + __a.__len + __b.__pos)
-                                              : (__b.__pos + __b.__len + __a.__pos);
-                __sr_result2.__len     = cond ? __b.__len     : __a.__len;
-                __sr_result2.__buf_pos = cond ? __b.__buf_pos : __a.__buf_pos;
+                _SetRange __sr_result2 {cond ? (__a.__pos + __a.__len + __b.__pos)
+                                             : (__b.__pos + __b.__len + __a.__pos),
+                                        cond ? __b.__len     : __a.__len,
+                                        cond ? __b.__buf_pos : __a.__buf_pos};
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.2:\n"
