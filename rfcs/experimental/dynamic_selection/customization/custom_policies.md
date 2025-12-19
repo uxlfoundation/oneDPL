@@ -179,6 +179,33 @@ std::optional<selection_type> try_select(Args&&... args) {
 Providing `try_select()` results in `try_submit()`, `submit()`, and `submit_and_wait()` functions to be supported
 via generic implementations depending only on the selection logic.
 
+#### Selection Handles
+
+A **selection handle** is the concrete type that satisfies the [*Selection*](../README.md#selection_req_id) named requirements. Selection handles are created by policies when a resource is selected and serve as the communication mechanism between the policy and the backend during work submission.
+
+A selection handle must provide:
+
+| Requirement | Description |
+| ----------- | ----------- |
+| `unwrap()` | Return the selected resource (`resource_t<Policy>`). |
+| `get_policy()` | Return a reference to the policy that created the selection. |
+
+For policies that require execution information reporting, selection handles must additionally provide:
+
+| Requirement | Description |
+| ----------- | ----------- |
+| `report(i)` / `report(i, v)` | Forward execution information back to the policy. |
+| `scratch_space` | A member of type `backend_traits<Backend>::selection_scratch_t<ReportingReqs...>` that provides storage for backend instrumentation. |
+
+Selection handles are passed to the backend's `submit()` method, which uses the handle to:
+1. Extract the selected resource via `unwrap()`
+2. Store instrumentation data in `scratch_space` (e.g., timing events) if reporting is required
+3. Report execution information back to the policy via `report()` if reporting is required
+
+For policies without reporting requirements (such as `fixed_resource_policy` or `round_robin_policy`), a simple `basic_selection_handle_t` is provided.
+
+For policies that need execution information (like `dynamic_load_policy` or `auto_tune_policy`), define a custom selection handle with `report()` methods which forward the report to the policy and `scratch_space`. The backend populates and uses `scratch_space` during work submission and calls `report()` when execution events occur.
+
 #### Task Reporting Requirements
 
 Policies specify reporting requirements (`task_time_t`, `task_submission_t`, `task_completion_t` from `oneapi::dpl::experimental::execution_info`) via the `policy_base` constructor. These are passed to the backend constructor, which filters devices based on feature availability. Examples: `auto_tune_policy` requires `task_time_t`; `dynamic_load_policy` requires `task_submission_t` and `task_completion_t`.
