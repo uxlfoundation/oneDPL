@@ -104,8 +104,7 @@ auto
 __make_binhash_manager(oneapi::dpl::__internal::__custom_boundary_binhash<_RandomAccessIterator>&& __bin_hash)
 {
     auto __buffer_lifetime_holder =
-        oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read,
-                                                _RandomAccessIterator>();
+        oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
     auto __range_holder = __buffer_lifetime_holder(__bin_hash.__boundary_first, __bin_hash.__boundary_last);
     auto __bin_hash_range =
         oneapi::dpl::__par_backend_hetero::__custom_boundary_range_binhash{__range_holder.all_view()};
@@ -128,13 +127,10 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         using _global_histogram_type = typename ::std::iterator_traits<_RandomAccessIterator2>::value_type;
         const auto __n = __last - __first;
 
-        // The access mode we we want here is "read_write" + no_init property to cover the reads required by the main
-        //  kernel, but also to avoid copying the data in unnecessarily.  In practice, this "write" access mode should
-        //  accomplish this as write implies read, and we avoid a copy-in from the host for "write" access mode.
-        // TODO: Add no_init property to get_sycl_range to allow expressivity we need here.
+        // Use read_write with no_init to avoid copying data in unnecessarily while still allowing kernel reads.
         auto __keep_bins =
-            oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::write,
-                                                    _RandomAccessIterator2>();
+            oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read_write,
+                                                    /*_NoInit=*/true>();
         auto __bins_buf = __keep_bins(__histogram_first, __histogram_first + __num_bins);
         auto __bins = __bins_buf.all_view();
 
@@ -153,8 +149,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
             // __make_binhash_manager will call __get_sycl_range for any data which requires it within __func
             auto __binhash_manager = __make_binhash_manager(::std::forward<_BinHash>(__func));
             auto __keep_input =
-                oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read,
-                                                        _RandomAccessIterator1>();
+                oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read>();
             auto __input_buf = __keep_input(__first, __last);
 
             oneapi::dpl::__par_backend_hetero::__parallel_histogram(
