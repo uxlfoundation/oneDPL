@@ -3569,7 +3569,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                            0,          // length of data in temporary buffer
                                            __buf_pos}; // position in temporary buffer
 
-#if DUMP_PARALLEL_SET_OP_WORK                                           
+#if DUMP_PARALLEL_SET_OP_WORK
                     std::cout << "ST.1.1:\n" << "\t\t -> (" << __sr_result1 << ")" << std::endl;
 #endif
 
