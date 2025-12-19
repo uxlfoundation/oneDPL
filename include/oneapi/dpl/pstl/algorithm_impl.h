@@ -3434,10 +3434,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
     __par_backend::__buffer<_T>   __buf             (__buf_size);   // Temporary (windowed) buffer for result preparation
 
-    __par_backend::__buffer<int> __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
-    __par_backend::__buffer<int> __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
+    using _MaskBuffer = __par_backend::__buffer<bool>;
+    _MaskBuffer __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
+    _MaskBuffer __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
+    _MaskBuffer __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
+    _MaskBuffer __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
 
     return __internal::__except_handler([&__exec,
                                         __n1, __n2, __n_out,
@@ -3455,10 +3456,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         // Buffer raw data pointers
         const auto __buf_raw_data_begin = __buf.get();
 
-        const auto __buf_mask_rng1_raw_data_begin     = __buf_mask_rng1.get();
-        const auto __buf_mask_rng2_raw_data_begin     = __buf_mask_rng2.get();
-        const auto __buf_mask_rng1_res_raw_data_begin = __buf_mask_rng1_res.get();
-        const auto __buf_mask_rng2_res_raw_data_begin = __buf_mask_rng2_res.get();
+        // Temporary "window"-organized mask of used items in input ranges
+        bool* __buf_mask_rng1_raw_data_begin     = __buf_mask_rng1.get();
+        bool* __buf_mask_rng2_raw_data_begin     = __buf_mask_rng2.get();
+
+        // Final  mask of used items in input ranges
+        bool* __buf_mask_rng1_res_raw_data_begin = __buf_mask_rng1_res.get();
+        bool* __buf_mask_rng2_res_raw_data_begin = __buf_mask_rng2_res.get();
 
         // End of buffer raw data
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
@@ -3955,7 +3959,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result1, _Tp* __result2,
-            auto __mask1, auto __mask2,
+            bool* __mask1, bool* __mask2,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
             return oneapi::dpl::__utils::__set_union_bounded_construct(

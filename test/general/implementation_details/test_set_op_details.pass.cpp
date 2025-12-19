@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <functional>
+#include <array>
 
 constexpr std::size_t kOutputSize = 10;
 
@@ -30,7 +31,8 @@ summ(const Container& container)
     return std::accumulate(std::begin(container), std::end(container), 0, std::plus{});
 }
 
-using MaskContainer = std::vector<bool>;
+template <std::size_t Size>
+using MaskContainer = std::array<bool, Size>;
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
 void
@@ -42,21 +44,20 @@ test_set_union_construct()
     // the first case - output range has enough capacity
     {
         // {<Value>, <item index>, <container no>}
-        const Container        cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container        cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         1,         1,         0,         0};
-        const MaskContainer mask2Exp = {        0,         0,         1,         1,         1,         1,         1};
-        const Container   contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
+        const Container           cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container           cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer<7> mask1Exp = {        1,         1,         1,         1,         1,         0,         0};
+        const MaskContainer<7> mask2Exp = {        0,         0,         1,         1,         1,         1,         1};
+        const Container      contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
         Container contOut(cont1.size() + cont2.size());
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<7> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -75,21 +76,20 @@ test_set_union_construct()
     // the first case - output range has enough capacity - SWAP input ranges data
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {        0,         0,         1,         1,         1,         1,         1};
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         1,         0,         0};
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer<7> mask1Exp = {        0,         0,         1,         1,         1,         1,         1};
+        const MaskContainer<7> mask2Exp = {        1,         1,         1,         1,         1,         0,         0};
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         Container contOut(cont1.size() + cont2.size());
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<7> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -108,22 +108,21 @@ test_set_union_construct()
     // the first case - output range hasn't enough capacity
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         1,         1                      };
-        const MaskContainer mask2Exp = {        0,         0,         1,         1,         1                      };
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        Container contOut(5);        // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
-        //                                                                                     {6, 3, 2}, {7, 4, 2}
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container cont2           = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer<5> mask1Exp = {        1,         1,         1,         1,         1                      };
+        const MaskContainer<5> mask2Exp = {        0,         0,         1,         1,         1                      };
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        Container contOut(5);           // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
+        //                                                                                        {6, 3, 2}, {7, 4, 2}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<5> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -142,22 +141,21 @@ test_set_union_construct()
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {        0,         0,         1,         1,         1                      };
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         1                      };
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
-        Container contOut(5);        // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
-        //                                                                                     {6, 3, 1}, {7, 4, 1}
+        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer<5> mask1Exp = {        0,         0,         1,         1,         1                      };
+        const MaskContainer<5> mask2Exp = {        1,         1,         1,         1,         1                      };
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
+        Container contOut(5);           // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
+        //                                                                                        {6, 3, 1}, {7, 4, 1}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<5> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -176,22 +174,21 @@ test_set_union_construct()
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {        0,         0,         1,         1                                 };
-        const MaskContainer mask2Exp = {        1,         1,         1,         1                                 };
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                 };
-        Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------- out of range ------>
-        //                                                                          {5, 2, 1}, {6, 3, 1}, {7, 4, 1}
+        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer<4> mask1Exp = {        0,         0,         1,         1                                 };
+        const MaskContainer<4> mask2Exp = {        1,         1,         1,         1                                 };
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                 };
+        Container contOut(4);           // +++++++++  +++++++++  +++++++++  +++++++++  <--------- out of range ------>
+        //                                                                             {5, 2, 1}, {6, 3, 1}, {7, 4, 1}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<4> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -210,22 +207,21 @@ test_set_union_construct()
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}           };
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer mask1Exp = {        0,         0,         1,         1                                            };
-        const MaskContainer mask2Exp = {        1,         1,         1,         1                                            };
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
-        Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
-        //                                                                          {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 2}
+        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}           };
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
+        const MaskContainer<4> mask1Exp = {        0,         0,         1,         1                                            };
+        const MaskContainer<4> mask2Exp = {        1,         1,         1,         1                                            };
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
+        Container contOut(4);           // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
+        //                                                                             {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 2}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<4> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -244,22 +240,21 @@ test_set_union_construct()
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1},                       {8, 5, 1}};
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}, {6, 3, 2}, {7, 4, 2}           };
-        const MaskContainer mask1Exp = {        0,         0,         1,         1                                            };
-        const MaskContainer mask2Exp = {        1,         1,         1,         1                                            };
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
-        Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
-        //                                                                          {5, 2, 1}, {6, 3, 2}, {7, 4, 2}, {8, 5, 1}
+        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1},                       {8, 5, 1}};
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}, {6, 3, 2}, {7, 4, 2}           };
+        const MaskContainer<4> mask1Exp = {        0,         0,         1,         1                                            };
+        const MaskContainer<4> mask2Exp = {        1,         1,         1,         1                                            };
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
+        Container contOut(4);           // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
+        //                                                                             {5, 2, 1}, {6, 3, 2}, {7, 4, 2}, {8, 5, 1}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<4> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -285,21 +280,20 @@ test_set_union_construct_edge_cases()
     // The case: both containers are empty
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = { };
-        const Container cont2        = { };
-        const MaskContainer mask1Exp = { };
-        const MaskContainer mask2Exp = { };
-        const Container contOutExp   = { };
+        const Container cont1           = { };
+        const Container cont2           = { };
+        const MaskContainer<0> mask1Exp = { };
+        const MaskContainer<0> mask2Exp = { };
+        const Container contOutExp      = { };
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<0> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -318,21 +312,20 @@ test_set_union_construct_edge_cases()
     // The case: the first container is empty
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {                               };
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer mask1Exp = {        0,         0,         0};
-        const MaskContainer mask2Exp = {        1,         1,         1};
-        const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const Container cont1           = {                               };
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer<4> mask1Exp = {        0,         0,         0};
+        const MaskContainer<4> mask2Exp = {        1,         1,         1};
+        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<4> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -351,21 +344,20 @@ test_set_union_construct_edge_cases()
     // The case: the second container is empty
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
-        const Container cont2        = {                               };
-        const MaskContainer mask1Exp = {        1,         1,         1};
-        const MaskContainer mask2Exp = {        0,         0,         0};
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2           = {                               };
+        const MaskContainer<3> mask1Exp = {        1,         1,         1};
+        const MaskContainer<3> mask2Exp = {        0,         0,         0};
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<3> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -383,21 +375,20 @@ test_set_union_construct_edge_cases()
 
     // The case: one item in the first container
     {    // {<Value>, <item index>, <container no>}
-        const Container cont1        = {           {2, 0, 1}           };
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer mask1Exp = {        0,         1,         0};
-        const MaskContainer mask2Exp = {        1,         1,         1};
-        const Container contOutExp   = {{1, 0, 2}, {2, 0, 1}, {3, 2, 2}};
+        const Container cont1           = {           {2, 0, 1}           };
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer<3> mask1Exp = {        0,         1,         0};
+        const MaskContainer<3> mask2Exp = {        1,         1,         1};
+        const Container contOutExp      = {{1, 0, 2}, {2, 0, 1}, {3, 2, 2}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<3> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -415,21 +406,20 @@ test_set_union_construct_edge_cases()
 
     // The case: one item in the second container
     {    // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
-        const Container cont2        = {           {2, 0, 2}           };
-        const MaskContainer mask1Exp = {        1,         1,         1};
-        const MaskContainer mask2Exp = {        0,         1,         0};
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2           = {           {2, 0, 2}           };
+        const MaskContainer<3> mask1Exp = {        1,         1,         1};
+        const MaskContainer<3> mask2Exp = {        0,         1,         0};
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<3> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -448,21 +438,20 @@ test_set_union_construct_edge_cases()
     // The case: all items are equal but the last item in the first container is unique
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
-        const Container cont2        = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
-        const MaskContainer mask1Exp = {        1,         1,         1,         1};
-        const MaskContainer mask2Exp = {        1,         1,         1,         0};
-        const Container contOutExp   = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        const Container cont1           = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        const Container cont2           = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
+        const MaskContainer<4> mask1Exp = {        1,         1,         1,         1};
+        const MaskContainer<4> mask2Exp = {        1,         1,         1,         0};
+        const Container contOutExp      = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<4> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -481,21 +470,20 @@ test_set_union_construct_edge_cases()
     // The case: both containers have the same items
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
-        const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1};
-        const MaskContainer mask2Exp = {        1,         1,         1};
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer<3> mask1Exp = {        1,         1,         1};
+        const MaskContainer<3> mask2Exp = {        1,         1,         1};
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<3> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -514,21 +502,20 @@ test_set_union_construct_edge_cases()
     // The case: all items in the first container less then in the second one
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
-        const Container cont2        = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         0,         0,         0};
-        const MaskContainer mask2Exp = {        0,         0,         0,         1,         1,         1};
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
+        const Container cont2           = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        const MaskContainer<6> mask1Exp = {        1,         1,         1,         0,         0,      0};
+        const MaskContainer<6> mask2Exp = {        0,         0,         0,         1,         1,      1};
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<6> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -547,22 +534,21 @@ test_set_union_construct_edge_cases()
     // The case: output container has zero capacity
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer mask1Exp = {                                                     };
-        const MaskContainer mask2Exp = {                                                     };
-        const Container contOutExp   = {                                                     };
-        //                             {<-------------------- out of range ----------------->}
-        Container contOut(0); //       {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
+        const Container cont2           = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
+        const MaskContainer<0> mask1Exp = {                                                     };
+        const MaskContainer<0> mask2Exp = {                                                     };
+        const Container contOutExp      = {                                                     };
+        //                                {<-------------------- out of range ----------------->}
+        Container contOut(0); //           {1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<0> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -581,22 +567,21 @@ test_set_union_construct_edge_cases()
     // The case: output container has one element capacity
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer mask1Exp = {        1                                            };
-        const MaskContainer mask2Exp = {        0                                            };
-        const Container contOutExp   = {{1, 0, 1}                                            };
-        //                             {+++++++++  <---------------- out of range ---------->}
-        Container contOut(1);   //     {           {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
+        const Container cont2           = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
+        const MaskContainer<1> mask1Exp = {        1                                            };
+        const MaskContainer<1> mask2Exp = {        0                                            };
+        const Container contOutExp      = {{1, 0, 1}                                            };
+        //                                {+++++++++  <---------------- out of range ---------->}
+        Container contOut(1);   //                    {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<1> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
@@ -615,21 +600,20 @@ test_set_union_construct_edge_cases()
     // The case: the first container has duplicated items
     {
         // {<Value>, <item index>, <container no>}
-        const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
-        const Container cont2        = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         1,         0};
-        const MaskContainer mask2Exp = {        0,         1,         0,         1,         1};
-        const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 2, 2}};
+        const Container cont1           = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
+        const Container cont2           = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
+        const MaskContainer<5> mask1Exp = {        1,         1,         1,         1,         0};
+        const MaskContainer<5> mask2Exp = {        0,         1,         0,         1,         1};
+        const Container contOutExp      = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 2, 2}};
         Container contOut(kOutputSize);
 
-        MaskContainer mask1(contOutExp.size());
-        MaskContainer mask2(contOutExp.size());
+        MaskContainer<5> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(), contOut.end(),
-            mask1.begin(), mask2.begin(),
+            mask1.data(), mask2.data(),
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
