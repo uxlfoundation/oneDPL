@@ -208,7 +208,8 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         static_assert(sizeof...(KeyArgs) == sizeof...(Args));
         if constexpr (backend_traits<Backend>::lazy_report_v)
         {
-            this->backend_->lazy_report();
+            if (this->backend_)
+              this->backend_->lazy_report();
         }
         if (state_)
         {
