@@ -49,8 +49,8 @@ test_set_union_construct()
         const Container   contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
         Container contOut(cont1.size() + cont2.size());
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -77,13 +77,13 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {                              1,         1,         1,         1,         1};
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         1                      };
+        const MaskContainer mask1Exp = {        0,         0,         1,         1,         1,         1,         1};
+        const MaskContainer mask2Exp = {        1,         1,         1,         1,         1,         0,         0};
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         Container contOut(cont1.size() + cont2.size());
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -111,13 +111,13 @@ test_set_union_construct()
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer mask1Exp = {        1,         1,         1,         1,         1                      };
-        const MaskContainer mask2Exp = {                              1,         1,         1,         0,         0};
+        const MaskContainer mask2Exp = {        0,         0,         1,         1,         1                      };
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         Container contOut(5);        // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
         //                                                                                     {6, 3, 2}, {7, 4, 2}
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -144,14 +144,14 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {                              1,         1,         1,         0,         0};
+        const MaskContainer mask1Exp = {        0,         0,         1,         1,         1                      };
         const MaskContainer mask2Exp = {        1,         1,         1,         1,         1                      };
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
         Container contOut(5);        // +++++++++  +++++++++  +++++++++  +++++++++  +++++++++  <-- out of range -->
         //                                                                                     {6, 3, 1}, {7, 4, 1}
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -178,14 +178,14 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer mask1Exp = {                              1,         1,         0,         0,         0};
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         0                      };
+        const MaskContainer mask1Exp = {        0,         0,         1,         1                                 };
+        const MaskContainer mask2Exp = {        1,         1,         1,         1                                 };
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                 };
         Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------- out of range ------>
         //                                                                          {5, 2, 1}, {6, 3, 1}, {7, 4, 1}
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -212,14 +212,14 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}           };
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer mask1Exp = {                              1,         1,         0,         0,         0           };
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         0,                               0};
+        const MaskContainer mask1Exp = {        0,         0,         1,         1                                            };
+        const MaskContainer mask2Exp = {        1,         1,         1,         1                                            };
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
         Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
-        //                                                                        {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 2}
+        //                                                                          {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 2}
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -246,14 +246,14 @@ test_set_union_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1},                       {8, 5, 1}};
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}, {6, 3, 2}, {7, 4, 2}           };
-        const MaskContainer mask1Exp = {                              1,         1,         0,                               0};
-        const MaskContainer mask2Exp = {        1,         1,         1,         1,         0,         0,         0           };
+        const MaskContainer mask1Exp = {        0,         0,         1,         1                                            };
+        const MaskContainer mask2Exp = {        1,         1,         1,         1                                            };
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
         Container contOut(4);        // +++++++++  +++++++++  +++++++++  +++++++++  <--------------- out of range ----------->
-        //                                                                        {5, 2, 1}, {6, 3, 2}, {7, 4, 2}, {8, 5, 1}
+        //                                                                          {5, 2, 1}, {6, 3, 2}, {7, 4, 2}, {8, 5, 1}
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -292,8 +292,8 @@ test_set_union_construct_edge_cases()
         const Container contOutExp   = { };
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -320,13 +320,13 @@ test_set_union_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {                               };
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer mask1Exp = {                               };
+        const MaskContainer mask1Exp = {        0,         0,         0};
         const MaskContainer mask2Exp = {        1,         1,         1};
         const Container contOutExp   = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -354,12 +354,12 @@ test_set_union_construct_edge_cases()
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2        = {                               };
         const MaskContainer mask1Exp = {        1,         1,         1};
-        const MaskContainer mask2Exp = {                               };
+        const MaskContainer mask2Exp = {        0,         0,         0};
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -385,13 +385,13 @@ test_set_union_construct_edge_cases()
     {    // {<Value>, <item index>, <container no>}
         const Container cont1        = {           {2, 0, 1}           };
         const Container cont2        = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer mask1Exp = {                   1           };
+        const MaskContainer mask1Exp = {        0,         1,         0};
         const MaskContainer mask2Exp = {        1,         1,         1};
         const Container contOutExp   = {{1, 0, 2}, {2, 0, 1}, {3, 2, 2}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -418,12 +418,12 @@ test_set_union_construct_edge_cases()
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2        = {           {2, 0, 2}           };
         const MaskContainer mask1Exp = {        1,         1,         1};
-        const MaskContainer mask2Exp = {                   1           };
+        const MaskContainer mask2Exp = {        0,         1,         0};
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -451,12 +451,12 @@ test_set_union_construct_edge_cases()
         const Container cont1        = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         const Container cont2        = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
         const MaskContainer mask1Exp = {        1,         1,         1,         1};
-        const MaskContainer mask2Exp = {        1,         1,         1           };
+        const MaskContainer mask2Exp = {        1,         1,         1,         0};
         const Container contOutExp   = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -488,8 +488,8 @@ test_set_union_construct_edge_cases()
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -516,13 +516,13 @@ test_set_union_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2        = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1                                 };
-        const MaskContainer mask2Exp = {                                         1,         1,         1};
+        const MaskContainer mask1Exp = {        1,         1,         1,         0,         0,         0};
+        const MaskContainer mask2Exp = {        0,         0,         0,         1,         1,         1};
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -549,14 +549,14 @@ test_set_union_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer mask1Exp = {        0,         0,         0                      };
-        const MaskContainer mask2Exp = {                              0,         0,         0};
+        const MaskContainer mask1Exp = {                                                     };
+        const MaskContainer mask2Exp = {                                                     };
         const Container contOutExp   = {                                                     };
         //                             {<-------------------- out of range ----------------->}
         Container contOut(0); //       {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}};
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -583,14 +583,14 @@ test_set_union_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2        = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         0,         0                      };
-        const MaskContainer mask2Exp = {                              0,         0,         0};
+        const MaskContainer mask1Exp = {        1                                            };
+        const MaskContainer mask2Exp = {        0                                            };
         const Container contOutExp   = {{1, 0, 1}                                            };
         //                             {+++++++++  <---------------- out of range ---------->}
         Container contOut(1);   //     {           {2, 1, 1}, {3, 2, 1}, {4, 1, 2}, {5, 2, 2}};
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -616,14 +616,14 @@ test_set_union_construct_edge_cases()
     {
         // {<Value>, <item index>, <container no>}
         const Container cont1        = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
-        const Container cont2        = {                      {2, 0, 2}, {3, 1, 2}, {4, 2, 2}};
-        const MaskContainer mask1Exp = {        1,         1,         1,         1           };
-        const MaskContainer mask2Exp = {                              1,         1,         1};
+        const Container cont2        = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
+        const MaskContainer mask1Exp = {        1,         1,         1,         1,         0};
+        const MaskContainer mask2Exp = {        0,         1,         0,         1,         1};
         const Container contOutExp   = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 2, 2}};
         Container contOut(kOutputSize);
 
-        std::vector<int> mask1(cont1.size());
-        std::vector<int> mask2(cont2.size());
+        MaskContainer mask1(contOutExp.size());
+        MaskContainer mask2(contOutExp.size());
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
