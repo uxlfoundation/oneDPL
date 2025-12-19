@@ -31,11 +31,11 @@ With sensible defaults, this proposal aims to simplify backend writing to open u
 
 ## Proposed Design to Enable Easier Customization of Backends
 
-This proposal presents a flexible backend system based on a `backend_base` template class and a `core_resource_backend` template that can be used for most resource types. For resource backends supporting reporting requirements, explicit specialization of the `core_resource_backend` should exist for that resource. This is not possible to be done generically. For simple types serving policies without reporting requirements, use of the generically written `core_resource_backend` may be possible.
+This proposal presents a flexible backend system that can be used for most resource types. It is based on two template classes: `backend_base` and `core_resource_backend`. For resource backends supporting reporting requirements, explicit specialization of the `core_resource_backend` is necessary since reporting cannot be done generically. For simple types serving policies without reporting requirements, use of the generically written `core_resource_backend` may be possible.
 
 ### Key Components
 
-1. **`backend_base<ResourceType>`**: A proposed base class template that implements core backend functionality to inherit from.
+1. **`backend_base<ResourceType>`**: A proposed base class template that implements common backend functionality to inherit from.
 2. **`core_resource_backend<CoreResourceType, ResourceType, ResourceAdapter>`**: A proposed template that backend developers partially specialize to implement a backend for a specific `CoreResourceType`. The implementation provides instrumentation and resource management for that core resource type. A `ResourceAdapter` can be used to transform a `ResourceType` into a `CoreResourceType`, allowing reuse of an existing `core_resource_backend` specialization.
 
    The `CoreResourceType` is the fundamental resource type that a backend knows how to instrument and submit work to. For example, `sycl::queue` is the core resource type for the SYCL backend. When using adapters, the `ResourceType` may differ from the `CoreResourceType` (e.g., storing `sycl::queue*` while the backend operates on `sycl::queue`).
@@ -47,7 +47,7 @@ This proposal presents a flexible backend system based on a `backend_base` templ
 
 ### Reporting Requirements and Scratch Space Contract
 
-Backends must now explicitly accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
+Backends must accept a (possibly empty) variadic list of reporting requirements describing the execution information the Policy will need. These reporting requirements are the same `execution_info` tag types used elsewhere in the Dynamic Selection API (for example `execution_info::task_time_t`, `execution_info::task_submission_t`, `execution_info::task_completion_t`).
 
 #### Requirements for Backend Implementers
 
@@ -62,7 +62,7 @@ core_resource_backend(const std::vector<ResourceType>& u, ResourceAdapter adapte
 
 - Compile-time checks: The backend implementation should `static_assert` if any type in `ReportingReqs...` is not a supported reporting requirement for that backend. This makes unsupported combinations a hard error at compile time.
 
-- Resource filtering: Some reporting requirements imply properties of the underlying resource or device (for example, timing via `task_time_t` may require device support for profiling tags and queues created with profiling enabled). Backends must examine the provided resources (or query devices when default-initializing resources) and filter out any resources that do not support all requested reporting requirements. Any special resource properties required to implement a reporting requirement must be checked here (for instance, checking `device.has(sycl::aspect::ext_oneapi_queue_profiling_tag)` in addition to creating queues with `sycl::property::queue::enable_profiling()` when `task_time_t` is requested). If after filtering the set of candidate resources there are no resources left that satisfy all requested reporting requirements, the backend must throw a `std::runtime_error` documenting that the requested reporting requirements cannot be satisfied on the available resources.
+- Resource filtering: Some reporting requirements imply properties of the underlying resource or device (for example, timing via `task_time_t` may require specific device support to enable profiling of work). Backends must examine the provided resources (or query devices when default-initializing resources) and filter out any resources that do not support all requested reporting requirements. Any special resource properties required to implement a reporting requirement must be checked here (for instance in the SYCL backend, checking `device.has(sycl::aspect::ext_oneapi_queue_profiling_tag)` in addition to creating queues with `sycl::property::queue::enable_profiling()` when `task_time_t` is requested). If after filtering the set of candidate resources there are no resources left that satisfy all requested reporting requirements, the backend must throw a `std::runtime_error` documenting that the requested reporting requirements cannot be satisfied on the available resources.
 
 - Scratch space requirement: Backends need storage space within selection handles to implement instrumentation and fulfill reporting requirements. Backends must provide a nested template struct that allocates whatever per-selection scratch space is necessary for the requested reporting requirements. The required name and form are:
 
@@ -73,7 +73,7 @@ struct scratch_space_t {
 };
 ```
 
-When a policy tracks execution information (like task timing or completion), the backend needs to store temporary data with each selection. For example, the SYCL backend's `scratch_space_t<execution_info::task_time_t>` includes an extra `sycl::event` to store the "start" profiling tag needed to measure elapsed time. For policies without reporting requirements, `scratch_space_t<>` should be empty (or inherit from `no_scratch_t<>`), adding no overhead.
+When a policy tracks execution information (like task timing or completion), the backend may need to store temporary data with each selection. For example, the SYCL backend's `scratch_space_t<execution_info::task_time_t>` includes an extra `sycl::event` to store the "start" profiling tag needed to measure elapsed time. For policies without reporting requirements, `scratch_space_t<>` should be empty (or inherit from `no_scratch_t<>`), adding no overhead.
 
 Policy selection handles must declare a member named `scratch_space` of the appropriate type when they require execution information reporting:
 
@@ -98,7 +98,7 @@ The backend populates and uses this scratch space during work submission and rep
 
 ### Implementation Details
 
-The `backend_base` class provides core functionality that can be customized by derived classes:
+The `backend_base` class provides common functionality that can be customized by derived classes:
 
 ```cpp
 template<typename ResourceType>
@@ -170,7 +170,7 @@ resource type `CoreResourceType` with an already existing `core_resource_backend
 
 ### Default Implementation Details
 
-The `backend_base` provides **minimal** default implementations for the core backend methods. Importantly:
+The `backend_base` provides **minimal** default implementations for the common backend methods. Importantly:
 - `backend_base` does **not** support any reporting requirements by default
 - The default `scratch_t` template is empty (provides `no_scratch_t`)
 - Resource-specific features (timing, profiling, etc.) require specializing `core_resource_backend` for your `CoreResourceType`
