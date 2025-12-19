@@ -162,6 +162,14 @@ __pattern_walk1(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
     });
 }
 
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_uninitialized_walk1(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+                              _Function __f)
+{
+    oneapi::dpl::__internal::__pattern_walk1(tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Function>
 void
 __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
@@ -174,30 +182,6 @@ __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
                                       [__f](_RandomAccessIterator __i, _RandomAccessIterator __j) {
                                           __internal::__brick_walk1(__i, __j, __f, _IsVector{});
                                       });
-    });
-}
-
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Brick>
-void
-__pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
-                     _Brick __brick) noexcept
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    __brick(__first, __last, typename _Tag::__is_vector{});
-}
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
-void
-__pattern_walk_brick(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
-                     _RandomAccessIterator __last, _Brick __brick)
-{
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
-    __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j, _IsVector{}); });
     });
 }
 
@@ -239,28 +223,11 @@ __pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     return __first + __n;
 }
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
 _ForwardIterator
-__pattern_walk_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Brick __brick) noexcept
+__pattern_uninitialized_walk1_n(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Function __f)
 {
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return __brick(__first, __n, typename _Tag::__is_vector{});
-}
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Brick>
-_RandomAccessIterator
-__pattern_walk_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n,
-                       _Brick __brick)
-{
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
-    return __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
-            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j - __i, _IsVector{}); });
-        return __first + __n;
-    });
+    return __pattern_walk1_n(tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __f);
 }
 
 //------------------------------------------------------------------------
@@ -461,8 +428,8 @@ __pattern_walk2_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator1, class _Size, class _ForwardIterator2,
           class _Brick>
 _ForwardIterator2
-__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n,
-                        _ForwardIterator2 __first2, _Brick __brick) noexcept
+__pattern_walk2_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Size __n, _ForwardIterator2 __first2,
+                        _Brick __brick) noexcept
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -3450,11 +3417,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1,
+                                                          __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1,
+                                                          __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)

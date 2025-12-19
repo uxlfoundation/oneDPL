@@ -74,14 +74,9 @@ template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, 
 void
 __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator, _Function);
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Brick>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
 void
-__pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Brick) noexcept;
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
-void
-__pattern_walk_brick(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _RandomAccessIterator,
-                     _Brick);
+__pattern_uninitialized_walk1(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Function);
 
 //------------------------------------------------------------------------
 // walk1_n
@@ -103,13 +98,9 @@ template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, 
 _RandomAccessIterator
 __pattern_walk1_n(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _Size, _Function);
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
 _ForwardIterator
-__pattern_walk_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator, _Size, _Brick) noexcept;
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Brick>
-_RandomAccessIterator
-__pattern_walk_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator, _Size, _Brick);
+__pattern_uninitialized_walk1_n(_Tag, _ExecutionPolicy&&, _ForwardIterator, _Size, _Function);
 
 //------------------------------------------------------------------------
 // walk2 (pseudo)
