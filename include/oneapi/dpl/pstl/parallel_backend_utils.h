@@ -271,7 +271,7 @@ std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
                               _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
                               _OutputIterator __result1, _OutputIterator __result2,     // bounds for results
-                              bool* __mask1, bool* __mask2,                             // itrator usage masks
+                              bool* __mask1, bool* __mask2,                             // source data usage masks
                               _CopyConstructRange __cc_range,
                               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {

@@ -881,7 +881,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 __first1, __last1,                                          // bounds for data1
                 __first2, __last2,                                          // bounds for data2
                 __result1, __result2,                                       // bounds for results
-                __mask1, __mask2,                                           // itrator usage masks
+                __mask1, __mask2,                                           // source data usage masks
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },
