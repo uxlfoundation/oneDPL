@@ -136,7 +136,8 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         auto __bins_buf = __keep_bins(__histogram_first, __histogram_first + __num_bins);
         auto __bins = __bins_buf.all_view();
 
-        auto __fill_func = oneapi::dpl::__internal::fill_functor<_global_histogram_type>{_global_histogram_type{0}};
+        auto __fill_func = oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _global_histogram_type>{
+            _global_histogram_type{0}};
         //fill histogram bins with zeros
 
         auto __init_event = oneapi::dpl::__par_backend_hetero::__parallel_for(
