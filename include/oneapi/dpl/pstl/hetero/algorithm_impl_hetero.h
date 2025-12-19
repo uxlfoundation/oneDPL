@@ -106,6 +106,17 @@ __pattern_uninitialized_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolic
     return __first + __n;
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Size,
+          typename _Function>
+_ForwardIterator
+__pattern_uninitialized_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                                _Size __n, _Function __f)
+{
+    __pattern_walk1<sycl::access_mode::write, /*_NoInit=*/false>(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
+                                                                 __first + __n, __f);
+    return __first + __n;
+}
+
 //------------------------------------------------------------------------
 // walk2
 //------------------------------------------------------------------------
