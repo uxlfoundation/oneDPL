@@ -126,7 +126,7 @@ class dynamic_load_policy
         if constexpr (backend_traits<Backend>::lazy_report_v)
         {
             if (this->backend_)
-              this->backend_->lazy_report();
+                this->backend_->lazy_report();
         }
         if (selector_)
         {

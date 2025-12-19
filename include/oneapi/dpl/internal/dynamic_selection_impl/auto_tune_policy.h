@@ -209,7 +209,7 @@ class auto_tune_policy : public policy_base<auto_tune_policy<ResourceType, Resou
         if constexpr (backend_traits<Backend>::lazy_report_v)
         {
             if (this->backend_)
-              this->backend_->lazy_report();
+                this->backend_->lazy_report();
         }
         if (state_)
         {
