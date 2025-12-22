@@ -297,12 +297,13 @@ __simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pre
     return __count;
 }
 
-template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
+template <bool __Bounded, class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 _DifferenceType
-__simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, bool* __mask,
-                    _Assigner __assigner) noexcept
+__simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
+                    bool* __mask, _Assigner __assign) noexcept
 {
     std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    _DifferenceType __stop = __n;
     _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
@@ -310,10 +311,18 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
         _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
         if (__mask[__i])
         {
-            __assigner(__first + __i, __result + __cnt);
+            if constexpr (__Bounded)
+            {
+                if (__cnt < __n_out)
+                    __assign(__first + __i, __result + __cnt);
+                if (__cnt == __n_out) // together with the mask, the conditions are true for only one index
+                    __stop = __i;
+            }
+            else
+                __assign(__first + __i, __result + __cnt);
         }
     }
-    return __cnt + 1; // accounts for the initial -1
+    return __stop;
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
