@@ -418,17 +418,18 @@ struct __get_sycl_range
         m_buffers.reserve(4); //4 - due to a number of arguments(host iterators) cannot be too big.
     }
 
-  private:
-    // We have to keep sycl buffer(s) instance here by sync reasons;
-    std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
-
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit>
     static constexpr bool __is_copy_direct_v =
         !_LocalNoInit && (_LocalAccMode == sycl::access::mode::read_write ||
-                          _LocalAccMode == sycl::access::mode::read || _LocalAccMode == sycl::access::mode::write);
+                            _LocalAccMode == sycl::access::mode::read || _LocalAccMode == sycl::access::mode::write);
+
     template <sycl::access::mode _LocalAccMode>
     static constexpr bool __is_copy_back_v =
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
+
+  private:
+    // We have to keep sycl buffer(s) instance here by sync reasons;
+    std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
 
     //SFINAE iterator type checks
     template <typename It>
