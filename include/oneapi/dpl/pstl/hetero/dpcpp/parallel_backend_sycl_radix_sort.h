@@ -563,30 +563,30 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 }
 
                 // item info
-                const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-                const ::std::size_t __segment_idx = __self_item.get_group(0); //SYCL work group ID
-                const ::std::size_t __seg_start = __elem_per_segment * __segment_idx;
+                const std::size_t __self_lidx = __self_item.get_local_id(0);
+                const std::size_t __segment_idx = __self_item.get_group(0); //SYCL work group ID
+                const std::size_t __seg_start = __elem_per_segment * __segment_idx;
 
                 // subgroup info for multi-subgroup coordination
                 auto __sub_group = __self_item.get_sub_group();
-                const ::std::uint32_t __sg_id = __sub_group.get_group_linear_id();
-                const ::std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
-                const ::std::uint32_t __sg_size = __sub_group.get_local_range()[0];
+                const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
+                const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
+                const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
 
                 // Phase 1: Count elements per bucket within each subgroup
                 // Track local counts per radix state for this work-item (contiguous elements)
                 _OffsetT __local_counts_arr[__radix_states] = {0};
 
-                ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
+                std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
                 // Compute segment bounds for this subgroup
-                const ::std::size_t __elems_per_subgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
-                const ::std::size_t __sg_seg_start = __seg_start + __sg_id * __elems_per_subgroup;
-                const ::std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_end);
+                const std::size_t __elems_per_subgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
+                const std::size_t __sg_seg_start = __seg_start + __sg_id * __elems_per_subgroup;
+                const std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_end);
 
                 // Compute contiguous element range for this work-item
-                const ::std::size_t __sg_elems = __sg_seg_end - __sg_seg_start;
-                const ::std::size_t __elems_per_wi = __sg_elems / __sg_size;
-                const ::std::size_t __wi_seg_start = __sg_seg_start + __sg_local_id * __elems_per_wi;
+                const std::size_t __sg_elems = __sg_seg_end - __sg_seg_start;
+                const std::size_t __elems_per_wi = __sg_elems / __sg_size;
+                const std::size_t __wi_seg_start = __sg_seg_start + __sg_local_id * __elems_per_wi;
                 // Last work-item gets any remaining elements
                 const ::std::size_t __wi_seg_end = (__sg_local_id == __sg_size - 1) 
                     ? __sg_seg_end 
@@ -596,7 +596,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 for (::std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
                     auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input_rng[__val_idx]));
-                    ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                    std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                     ++__local_counts_arr[__bucket];
                 }
 
@@ -619,7 +619,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 // Write subgroup totals to local memory (only work-item 0 of each subgroup)
                 if (__sg_local_id == 0)
                 {
-                    for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                    for (std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                     {
                         __local_counts[__sg_id * __radix_states + __radix_state_idx] = __subgroup_totals[__radix_state_idx];
                     }
@@ -629,16 +629,24 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 __dpl_sycl::__group_barrier(__self_item);
 
                 // Phase 3: Hierarchical scan - only subgroup 0 participates
-                // Each work-item in subgroup 0 scans one radix state across all subgroups
-                if (__sg_id == 0 && __sg_local_id < __radix_states)
+                // Each work-item in subgroup 0 scans radix states across all subgroups
+                // Loop in case __radix_states > subgroup size
+                if (__sg_id == 0)
                 {
-                    _OffsetT __running_sum = 0;
-                    for (::std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
+                    for (std::uint32_t __radix_base = 0; __radix_base < __radix_states; __radix_base += __sg_size)
                     {
-                        const ::std::size_t __idx = __sg * __radix_states + __sg_local_id;
-                        // Write exclusive prefix to second half of local memory
-                        __local_counts[__num_subgroups * __radix_states + __idx] = __running_sum;
-                        __running_sum += __local_counts[__idx];
+                        std::uint32_t __radix_state = __radix_base + __sg_local_id;
+                        if (__radix_state < __radix_states)
+                        {
+                            _OffsetT __running_sum = 0;
+                            for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
+                            {
+                                const std::size_t __idx = __sg * __radix_states + __radix_state;
+                                // Write exclusive prefix to second half of local memory
+                                __local_counts[__num_subgroups * __radix_states + __idx] = __running_sum;
+                                __running_sum += __local_counts[__idx];
+                            }
+                        }
                     }
                 }
 
@@ -647,22 +655,22 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 // Phase 5: Load base offsets from global memory and add scanned local offsets
                 _OffsetT __offset_arr[__radix_states];
-                const ::std::size_t __scan_size = __segments + 1;
+                const std::size_t __scan_size = __segments + 1;
                 _OffsetT __scanned_bin = 0;
                 __offset_arr[0] = __offset_rng[__segment_idx];
-                for (::std::uint32_t __radix_state_idx = 1; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                for (std::uint32_t __radix_state_idx = 1; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
-                    const ::std::uint32_t __local_offset_idx = __segment_idx + (__segments + 1) * __radix_state_idx;
+                    const std::uint32_t __local_offset_idx = __segment_idx + (__segments + 1) * __radix_state_idx;
 
                     //scan bins (serial)
-                    ::std::size_t __last_segment_bucket_idx = __radix_state_idx * __scan_size - 1;
+                    std::size_t __last_segment_bucket_idx = __radix_state_idx * __scan_size - 1;
                     __scanned_bin += __offset_rng[__last_segment_bucket_idx];
 
                     __offset_arr[__radix_state_idx] = __scanned_bin + __offset_rng[__local_offset_idx];
                 }
 
                 // Add scanned local offsets to base offsets, plus this work-item's exclusive prefix within subgroup
-                for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                for (std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
                     __offset_arr[__radix_state_idx] +=
                         __local_counts[__num_subgroups * __radix_states + __sg_id * __radix_states + __radix_state_idx]
@@ -670,11 +678,11 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 }
 
                 // Phase 6: Reorder pass - scatter elements to output (contiguous per work-item)
-                for (::std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
+                for (std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
                     _ValueT __in_val = std::move(__input_rng[__val_idx]);
                     // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
-                    ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
+                    std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
                         __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
 
                     // Simple post-increment: each work-item processes contiguous elements
