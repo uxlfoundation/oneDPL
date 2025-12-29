@@ -149,6 +149,49 @@ test_default_template_parameter()
                   "default _IsNoInitRequested should be false");
 }
 
+void
+test_is_iter_mode_compatible_v()
+{
+    using oneapi::dpl::__ranges::__is_iter_mode_compatible_v;
+    namespace sa = sycl::access;
+
+    // Standard modes are always compatible regardless of _AlgoNoInit
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read, sa::mode::read, false>,
+                  "read/read should be compatible");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read, sa::mode::read, true>,
+                  "read/read should be compatible with no_init");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::write, sa::mode::write, false>,
+                  "write/write should be compatible");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::write, sa::mode::write, true>,
+                  "write/write should be compatible with no_init");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read_write, false>,
+                  "read_write/read_write should be compatible");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read_write, true>,
+                  "read_write/read_write should be compatible with no_init");
+
+    // read_write iterator can be downgraded to satisfy read or write requirements
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read, false>,
+                  "read_write can satisfy read");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::write, false>,
+                  "read_write can satisfy write");
+
+    // Discard modes are compatible with write when algorithm allows no_init
+    static_assert(__is_iter_mode_compatible_v<sa::mode::discard_write, sa::mode::write, true>,
+                  "discard_write compatible with write when algo allows no_init");
+    static_assert(__is_iter_mode_compatible_v<sa::mode::discard_read_write, sa::mode::write, true>,
+                  "discard_read_write compatible with write when algo allows no_init");
+
+    // Discard modes are NOT compatible when algorithm requires initialization
+    //TODO: Fix the trait to enable testing of this but keep good error message for user
+    //static_assert(!__is_iter_mode_compatible_v<sa::mode::discard_write, sa::mode::write, false>,
+    //              "discard_write incompatible with write when algo requires init");
+    //static_assert(!__is_iter_mode_compatible_v<sa::mode::discard_read_write, sa::mode::write, false>,
+    //              "discard_read_write incompatible with write when algo requires init");
+
+    // NOTE: discard_* + read_write would fail at iter_mode_resolver level (static_assert)
+    // because user says "don't copy data" but algorithm needs to read it
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -159,6 +202,7 @@ main()
     test_is_copy_back_v();
     test_traits_use_local_parameters();
     test_default_template_parameter();
+    test_is_iter_mode_compatible_v();
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);

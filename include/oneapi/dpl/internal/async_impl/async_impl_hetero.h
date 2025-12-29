@@ -169,9 +169,7 @@ __pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
                      _ForwardIterator __last, const _T& __value)
 {
     return __pattern_walk1_async<__par_backend_hetero::access_mode::read_write, /*_IsNoInitRequested=*/false>(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
+        __tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
         oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _T>{__value});
 }
 
