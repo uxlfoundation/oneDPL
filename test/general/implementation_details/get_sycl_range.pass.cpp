@@ -150,46 +150,58 @@ test_default_template_parameter()
 }
 
 void
-test_is_iter_mode_compatible_v()
+test_is_iter_mode_resolvable_v()
 {
-    using oneapi::dpl::__ranges::__is_iter_mode_compatible_v;
+    using oneapi::dpl::__ranges::__is_iter_mode_resolvable_v;
     namespace sa = sycl::access;
 
-    // Standard modes are always compatible regardless of _AlgoNoInit
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read, sa::mode::read, false>,
-                  "read/read should be compatible");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read, sa::mode::read, true>,
-                  "read/read should be compatible with no_init");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::write, sa::mode::write, false>,
-                  "write/write should be compatible");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::write, sa::mode::write, true>,
-                  "write/write should be compatible with no_init");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read_write, false>,
-                  "read_write/read_write should be compatible");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read_write, true>,
-                  "read_write/read_write should be compatible with no_init");
+    // Standard modes are always resolvable regardless of noInit
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, false>,
+                  "read/read should be resolvable");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, true>,
+                  "read/read should be resolvable with no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, false>,
+                  "write/write should be resolvable");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, true>,
+                  "write/write should be resolvable with no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, false>,
+                  "read_write/read_write should be resolvable");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, true>,
+                  "read_write/read_write should be resolvable with no_init");
 
     // read_write iterator can be downgraded to satisfy read or write requirements
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::read, false>,
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read, false>,
                   "read_write can satisfy read");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::read_write, sa::mode::write, false>,
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::write, false>,
                   "read_write can satisfy write");
 
-    // Discard modes are compatible with write when algorithm allows no_init
-    static_assert(__is_iter_mode_compatible_v<sa::mode::discard_write, sa::mode::write, true>,
-                  "discard_write compatible with write when algo allows no_init");
-    static_assert(__is_iter_mode_compatible_v<sa::mode::discard_read_write, sa::mode::write, true>,
-                  "discard_read_write compatible with write when algo allows no_init");
+    // Incompatible: read iterator cannot satisfy write or read_write
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::write, false>,
+                  "read cannot satisfy write");
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read_write, false>,
+                  "read cannot satisfy read_write");
 
-    // Discard modes are NOT compatible when algorithm requires initialization
-    //TODO: Fix the trait to enable testing of this but keep good error message for user
-    //static_assert(!__is_iter_mode_compatible_v<sa::mode::discard_write, sa::mode::write, false>,
-    //              "discard_write incompatible with write when algo requires init");
-    //static_assert(!__is_iter_mode_compatible_v<sa::mode::discard_read_write, sa::mode::write, false>,
-    //              "discard_read_write incompatible with write when algo requires init");
+    // Incompatible: write iterator cannot satisfy read or read_write
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::read, false>,
+                  "write cannot satisfy read");
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::read_write, false>,
+                  "write cannot satisfy read_write");
 
-    // NOTE: discard_* + read_write would fail at iter_mode_resolver level (static_assert)
-    // because user says "don't copy data" but algorithm needs to read it
+    // Discard modes are resolvable with write when algorithm allows no_init
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, true>,
+                  "discard_write resolvable with write when algo allows no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, true>,
+                  "discard_read_write resolvable with write when algo allows no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, true>,
+                  "discard_read_write resolvable with read_write when algo allows no_init");
+
+    // Discard modes are NOT resolvable when algorithm requires initialization (noInit=false)
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, false>,
+                  "discard_write not resolvable with write when algo requires init");
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, false>,
+                  "discard_read_write not resolvable with write when algo requires init");
+    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, false>,
+                  "discard_read_write not resolvable with read_write when algo requires init");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
@@ -202,7 +214,7 @@ main()
     test_is_copy_back_v();
     test_traits_use_local_parameters();
     test_default_template_parameter();
-    test_is_iter_mode_compatible_v();
+    test_is_iter_mode_resolvable_v();
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);
