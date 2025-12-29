@@ -210,6 +210,78 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 {
 };
 
+// Trait to check if mode is a "discard" mode (deprecated SYCL 2020 modes)
+template <sycl::access_mode _Mode>
+inline constexpr bool __is_discard_mode_v =
+    _Mode == sycl::access_mode::discard_write || _Mode == sycl::access_mode::discard_read_write;
+
+//-----------------------------------------------------------------------------
+// iter_mode_resolver
+//-----------------------------------------------------------------------------
+// Resolves conflicts between user-specified access mode (inMode, from sycl_iterator)
+// and algorithm-required access mode (outMode).
+// In general case, inMode must equal outMode.
+// Specializations handle specific compatible combinations.
+// Also tracks whether no_init semantics should be applied (from discard_* modes).
+
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool _LocalNoInit = false>
+struct iter_mode_resolver
+{
+    static_assert(inMode == outMode,
+                  "Access mode provided by user conflicts with the one required by the algorithm");
+    static constexpr sycl::access_mode value = inMode;
+    static constexpr bool no_init = _LocalNoInit;
+};
+
+// NOTE: read + read_write and write + read_write are NOT compatible.
+// If algorithm needs read_write, a read-only or write-only iterator cannot satisfy it.
+
+// read_write can satisfy read requirement (downgrade to read)
+template <bool _LocalNoInit>
+struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::read, _LocalNoInit>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::read;
+    static constexpr bool no_init = _LocalNoInit;
+};
+
+// read_write can satisfy write requirement (downgrade to write)
+template <bool _LocalNoInit>
+struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::write, _LocalNoInit>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::write;
+    static constexpr bool no_init = _LocalNoInit;
+};
+
+// discard_write can satisfy write requirement with no_init
+template <>
+struct iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, true>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::write;
+    static constexpr bool no_init = true;
+};
+
+// discard_read_write can satisfy any requirement with no_init
+template <sycl::access_mode outMode>
+struct iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, true>
+{
+    static constexpr sycl::access_mode value = outMode;
+    static constexpr bool no_init = true;
+};
+
+// NOTE: discard_read_write + read_write is NOT compatible.
+// User says "don't copy original data" but algorithm needs to read it!
+
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+inline constexpr sycl::access_mode iter_mode_resolver_v = iter_mode_resolver<inMode, outMode, noInit>::value;
+
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+inline constexpr bool iter_mode_resolver_no_init_v = iter_mode_resolver<inMode, outMode, noInit>::no_init;
+
+// Checks if iterator mode is compatible with algorithm mode.
+// Returns false if user specified a discard mode (no_init) but algorithm requires initialization.
+template <sycl::access_mode _IterMode, sycl::access_mode _AlgoMode, bool _AlgoNoInit>
+inline constexpr bool __is_iter_mode_compatible_v = _AlgoNoInit || !iter_mode_resolver_no_init_v<_IterMode, _AlgoMode, _AlgoNoInit>;
+
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
 {
@@ -608,11 +680,40 @@ struct __get_sycl_range
             oneapi::dpl::__ranges::guard_view<_Iter>{__first, __last - __first}};
     }
 
-    //specialization for hetero iterator
+    //specialization for sycl_iterator (applies access mode resolution)
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
+        -> std::enable_if_t<
+            is_sycl_iterator<_Iter>::value,
+            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>,
+                                                           iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>>>>
+    {
+        assert(__first < __last);
+        using value_type = val_t<_Iter>;
+
+        // Resolve the access mode: iterator's embedded mode vs. algorithm's required mode
+        static constexpr sycl::access_mode _ResolvedMode = iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
+
+        // If user specified a discard mode (no_init), algorithm must also allow no_init
+        static_assert(__is_iter_mode_compatible_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
+                      "User specified discard mode (no_init) but algorithm requires initialization");
+
+        const auto __offset = __first.get_idx();
+        const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
+        const auto __n = ::std::min(decltype(__size)(__last - __first), __size);
+        assert(__offset + __n <= __size);
+
+        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode>>{
+            oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode>(__first.get_buffer() /* buffer */,
+                                                                       __offset /* offset*/, __n /* size*/)};
+    }
+
+    //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    auto
+    __process_input_iter(_Iter __first, _Iter __last)
+        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> && !is_sycl_iterator<_Iter>::value,
                             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
