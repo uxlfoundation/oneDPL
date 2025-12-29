@@ -521,7 +521,6 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
     // typedefs
     using _OffsetT = typename _OffsetBuf::value_type;
     using _ValueT = oneapi::dpl::__internal::__value_t<_InRange>;
-    using _PeerHelper = __peer_prefix_helper<__radix_states, _OffsetT, _PeerAlgo>;
 
     assert(oneapi::dpl::__ranges::__size(__input_rng) == oneapi::dpl::__ranges::__size(__output_rng));
 
@@ -543,7 +542,6 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // access the input and output data
         oneapi::dpl::__ranges::__require_access(__hdl, __input_rng, __output_rng);
 
-        typename _PeerHelper::_TempStorageT __peer_temp(1, __hdl);
         // Local memory for multi-subgroup coordination:
         // First half: subgroup counts, Second half: scanned offsets
         auto __local_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2, __hdl);
@@ -575,12 +573,11 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 auto __sub_group = __self_item.get_sub_group();
                 const ::std::uint32_t __sg_id = __sub_group.get_group_linear_id();
                 const ::std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
-
-                _PeerHelper __peer_prefix_hlp(__self_item, __peer_temp);
+                const ::std::uint32_t __sg_size = __sub_group.get_local_range()[0];
 
                 // Phase 1: Count elements per bucket within each subgroup
-                // Track local counts per radix state for this subgroup
-                _OffsetT __local_subgroup_counts[__radix_states] = {0};
+                // Track local counts per radix state for this work-item (contiguous elements)
+                _OffsetT __local_counts_arr[__radix_states] = {0};
 
                 ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
                 // Compute segment bounds for this subgroup
@@ -588,34 +585,38 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const ::std::size_t __sg_seg_start = __seg_start + __sg_id * __elems_per_subgroup;
                 const ::std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_end);
 
-                // ensure that each work item in a subgroup does the same number of loop iterations
-                const ::std::uint16_t __residual = (__sg_seg_end - __sg_seg_start) % __sg_size;
-                ::std::size_t __sg_seg_end_aligned = __sg_seg_end - __residual;
+                // Compute contiguous element range for this work-item
+                const ::std::size_t __sg_elems = __sg_seg_end - __sg_seg_start;
+                const ::std::size_t __elems_per_wi = __sg_elems / __sg_size;
+                const ::std::size_t __wi_seg_start = __sg_seg_start + __sg_local_id * __elems_per_wi;
+                // Last work-item gets any remaining elements
+                const ::std::size_t __wi_seg_end = (__sg_local_id == __sg_size - 1) 
+                    ? __sg_seg_end 
+                    : __wi_seg_start + __elems_per_wi;
 
-                // Count pass: determine bucket counts for this subgroup using private counting
-                for (::std::size_t __val_idx = __sg_seg_start + __sg_local_id; __val_idx < __sg_seg_end_aligned; __val_idx += __sg_size)
+                // Count pass: each work-item counts its contiguous block of elements
+                for (::std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
                     auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input_rng[__val_idx]));
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                    ++__local_subgroup_counts[__bucket];
-                }
-                // Handle residual elements in count pass
-                if (__sg_local_id < __residual)
-                {
-                    auto __val = __order_preserving_cast<__is_ascending>(
-                        std::invoke(__proj, __input_rng[__sg_seg_end_aligned + __sg_local_id]));
-                    ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                    ++__local_subgroup_counts[__bucket];
+                    ++__local_counts_arr[__bucket];
                 }
 
-                // Reduce counts within subgroup using the peer helper's reduction capabilities
-                // Each work-item now has private counts, we need to aggregate across the subgroup
+                // Exclusive scan within subgroup to get each work-item's starting offset
+                // and broadcast total to get subgroup totals
                 _OffsetT __subgroup_totals[__radix_states];
+                _OffsetT __wi_exclusive_prefix[__radix_states];
                 for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
+                    // Exclusive scan gives each work-item's starting position within subgroup
+                    __wi_exclusive_prefix[__radix_state_idx] =
+                        __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
+                                                                __dpl_sycl::__plus<_OffsetT>());
+                    // Get total from last work-item (its exclusive prefix + its count)
                     __subgroup_totals[__radix_state_idx] =
-                        __dpl_sycl::__reduce_over_group(__sub_group, __local_subgroup_counts[__radix_state_idx],
-                                                        __dpl_sycl::__plus<_OffsetT>());
+                        __dpl_sycl::__group_broadcast(__sub_group, 
+                            __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
+                            __sg_size - 1);
                 }
 
                 // Write subgroup totals to local memory (only work-item 0 of each subgroup)
@@ -663,45 +664,24 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     __offset_arr[__radix_state_idx] = __scanned_bin + __offset_rng[__local_offset_idx];
                 }
 
-                // Add scanned local offsets to base offsets
+                // Add scanned local offsets to base offsets, plus this work-item's exclusive prefix within subgroup
                 for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
                     __offset_arr[__radix_state_idx] +=
-                        __local_counts[__num_subgroups * __radix_states + __sg_id * __radix_states + __radix_state_idx];
+                        __local_counts[__num_subgroups * __radix_states + __sg_id * __radix_states + __radix_state_idx]
+                        + __wi_exclusive_prefix[__radix_state_idx];
                 }
 
-                // Phase 6: Reorder pass - scatter elements to output
-                for (::std::size_t __val_idx = __sg_seg_start + __sg_local_id; __val_idx < __sg_seg_end_aligned; __val_idx += __sg_size)
+                // Phase 6: Reorder pass - scatter elements to output (contiguous per work-item)
+                for (::std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
                     _ValueT __in_val = std::move(__input_rng[__val_idx]);
                     // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
                         __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
 
-                    const auto __new_offset_idx = __peer_prefix_hlp.__peer_contribution(__bucket, __offset_arr);
-                    __output_rng[__new_offset_idx] = std::move(__in_val);
-                }
-                // Handle residual elements in reorder pass
-                if (__residual > 0)
-                {
-                    //_ValueT may not have a default constructor, so we create just a storage via union type
-                    union __storage { _ValueT __v; __storage(){} } __in_val;
-
-                    ::std::uint32_t __bucket = __radix_states; // greater than any actual radix state
-                    if (__sg_local_id < __residual)
-                    {
-                        //initialize the storage via move constructor for _ValueT type
-                        new (&__in_val.__v) _ValueT(std::move(__input_rng[__sg_seg_end_aligned + __sg_local_id]));
-
-                        __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-                            __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val.__v)), __radix_offset);
-                    }
-                    const auto __new_offset_idx = __peer_prefix_hlp.__peer_contribution(__bucket, __offset_arr);
-                    if (__sg_local_id < __residual)
-                    {
-                        __output_rng[__new_offset_idx] = std::move(__in_val.__v);
-                        __in_val.__v.~_ValueT();
-                    }
+                    // Simple post-increment: each work-item processes contiguous elements
+                    __output_rng[__offset_arr[__bucket]++] = std::move(__in_val);
                 }
             });
     });
