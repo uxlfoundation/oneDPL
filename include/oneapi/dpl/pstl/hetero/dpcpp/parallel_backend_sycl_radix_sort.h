@@ -628,25 +628,18 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 // Phase 2: Workgroup barrier - synchronize all subgroups
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 3: Hierarchical scan - only subgroup 0 participates
-                // Each work-item in subgroup 0 scans radix states across all subgroups
+                // Phase 3: Hierarchical scan - only subgroup first __radix_states work-items participate
+                // Each work-item scans radix states across all subgroups
                 // Loop in case __radix_states > subgroup size
-                if (__sg_id == 0)
+                if (__self_lidx <= __radix_states)
                 {
-                    for (std::uint32_t __radix_base = 0; __radix_base < __radix_states; __radix_base += __sg_size)
+                    _OffsetT __running_sum = 0;
+                    for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
                     {
-                        std::uint32_t __radix_state = __radix_base + __sg_local_id;
-                        if (__radix_state < __radix_states)
-                        {
-                            _OffsetT __running_sum = 0;
-                            for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
-                            {
-                                const std::size_t __idx = __sg * __radix_states + __radix_state;
-                                // Write exclusive prefix to second half of local memory
-                                __local_counts[__num_subgroups * __radix_states + __idx] = __running_sum;
-                                __running_sum += __local_counts[__idx];
-                            }
-                        }
+                        const std::size_t __idx = __sg * __radix_states + __self_lidx;
+                        // Write exclusive prefix to second half of local memory
+                        __local_counts[__num_subgroups * __radix_states + __idx] = __running_sum;
+                        __running_sum += __local_counts[__idx];
                     }
                 }
 
