@@ -220,21 +220,18 @@ inline constexpr bool __is_discard_mode_v =
 //-----------------------------------------------------------------------------
 // Resolves conflicts between user-specified access mode (inMode, from sycl_iterator)
 // and algorithm-required access mode (outMode).
-// In general case, inMode must equal outMode.
-// Specializations handle specific compatible combinations.
-// Also tracks whether no_init semantics should be applied (from discard_* modes).
 
+// Primary template - undefined (invalid combinations fail to compile)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool _LocalNoInit = false>
-struct iter_mode_resolver
+struct iter_mode_resolver;
+
+// Partial specialization when modes match exactly
+template <sycl::access_mode _Mode, bool _LocalNoInit>
+struct iter_mode_resolver<_Mode, _Mode, _LocalNoInit>
 {
-    static_assert(inMode == outMode,
-                  "Access mode provided by user conflicts with the one required by the algorithm");
-    static constexpr sycl::access_mode value = inMode;
+    static constexpr sycl::access_mode value = _Mode;
     static constexpr bool no_init = _LocalNoInit;
 };
-
-// NOTE: read + read_write and write + read_write are NOT compatible.
-// If algorithm needs read_write, a read-only or write-only iterator cannot satisfy it.
 
 // read_write can satisfy read requirement (downgrade to read)
 template <bool _LocalNoInit>
@@ -268,19 +265,23 @@ struct iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, true>
     static constexpr bool no_init = true;
 };
 
-// NOTE: discard_read_write + read_write is NOT compatible.
-// User says "don't copy original data" but algorithm needs to read it!
+// Helper to check if a mode combination is resolvable
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit, typename = void>
+struct __is_iter_mode_resolvable : std::false_type {};
 
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+struct __is_iter_mode_resolvable<inMode, outMode, noInit,
+    std::void_t<decltype(iter_mode_resolver<inMode, outMode, noInit>::value)>> : std::true_type {};
+
+template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+inline constexpr bool __is_iter_mode_resolvable_v = __is_iter_mode_resolvable<inMode, outMode, noInit>::value;
+
+// Access helpers (only valid when resolvable)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 inline constexpr sycl::access_mode iter_mode_resolver_v = iter_mode_resolver<inMode, outMode, noInit>::value;
 
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 inline constexpr bool iter_mode_resolver_no_init_v = iter_mode_resolver<inMode, outMode, noInit>::no_init;
-
-// Checks if iterator mode is compatible with algorithm mode.
-// Returns false if user specified a discard mode (no_init) but algorithm requires initialization.
-template <sycl::access_mode _IterMode, sycl::access_mode _AlgoMode, bool _AlgoNoInit>
-inline constexpr bool __is_iter_mode_compatible_v = _AlgoNoInit || !iter_mode_resolver_no_init_v<_IterMode, _AlgoMode, _AlgoNoInit>;
 
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
@@ -689,15 +690,15 @@ struct __get_sycl_range
             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>,
                                                            iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>>>>
     {
+        // Check mode compatibility with a clear error message
+        static_assert(__is_iter_mode_resolvable_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
+                      "Access mode provided by user conflicts with the one required by the algorithm");
+
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
         // Resolve the access mode: iterator's embedded mode vs. algorithm's required mode
         static constexpr sycl::access_mode _ResolvedMode = iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
-
-        // If user specified a discard mode (no_init), algorithm must also allow no_init
-        static_assert(__is_iter_mode_compatible_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
-                      "User specified discard mode (no_init) but algorithm requires initialization");
 
         const auto __offset = __first.get_idx();
         const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
