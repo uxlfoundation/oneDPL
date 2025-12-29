@@ -26,6 +26,7 @@
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
+#include "parallel_backend_sycl_reduce_then_scan.h" // for __sub_group_scan
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -151,9 +152,6 @@ class __radix_sort_count_kernel;
 
 template <::std::uint32_t, typename... _Name>
 class __radix_sort_scan_kernel;
-
-template <::std::uint32_t, bool, bool, typename... _Name>
-class __radix_sort_reorder_peer_kernel;
 
 template <::std::uint32_t, bool, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
@@ -501,7 +499,7 @@ __copy_kernel_for_radix_sort(const std::size_t __elem_per_segment, std::size_t _
 //-----------------------------------------------------------------------
 // radix sort: reorder kernel (per iteration)
 //-----------------------------------------------------------------------
-template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascending, __peer_prefix_algo _PeerAlgo,
+template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascending,
           typename _InRange, typename _OutRange, typename _OffsetBuf, typename _Proj
 #if _ONEDPL_COMPILE_KERNEL
           , typename _Kernel
@@ -603,20 +601,46 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 }
 
                 // Exclusive scan within subgroup to get each work-item's starting offset
-                // and broadcast total to get subgroup totals
+                // and total to get subgroup totals. Single branch for entire scan loop.
                 _OffsetT __subgroup_totals[__radix_states];
                 _OffsetT __wi_exclusive_prefix[__radix_states];
-                for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                if (__sg_size == 32)
                 {
-                    // Exclusive scan gives each work-item's starting position within subgroup
-                    __wi_exclusive_prefix[__radix_state_idx] =
-                        __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
-                                                                __dpl_sycl::__plus<_OffsetT>());
-                    // Get total from last work-item (its exclusive prefix + its count)
-                    __subgroup_totals[__radix_state_idx] =
-                        __dpl_sycl::__group_broadcast(__sub_group, 
-                            __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
-                            __sg_size - 1);
+                    for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                    {
+                        __wi_exclusive_prefix[__radix_state_idx] = __local_counts_arr[__radix_state_idx];
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_OffsetT> __carry;
+                        __carry.__setup(_OffsetT{0});
+                        __sub_group_scan<32, /*__is_inclusive=*/false, /*__init_present=*/true>(
+                            __sub_group, __wi_exclusive_prefix[__radix_state_idx], __dpl_sycl::__plus<_OffsetT>(), __carry);
+                        __subgroup_totals[__radix_state_idx] = __carry.__v;
+                    }
+                }
+                else if (__sg_size == 16)
+                {
+                    for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                    {
+                        __wi_exclusive_prefix[__radix_state_idx] = __local_counts_arr[__radix_state_idx];
+                        oneapi::dpl::__internal::__lazy_ctor_storage<_OffsetT> __carry;
+                        __carry.__setup(_OffsetT{0});
+                        __sub_group_scan<16, /*__is_inclusive=*/false, /*__init_present=*/true>(
+                            __sub_group, __wi_exclusive_prefix[__radix_state_idx], __dpl_sycl::__plus<_OffsetT>(), __carry);
+                        __subgroup_totals[__radix_state_idx] = __carry.__v;
+                    }
+                }
+                else
+                {
+                    // Fallback to SYCL built-in for other subgroup sizes
+                    for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                    {
+                        __wi_exclusive_prefix[__radix_state_idx] =
+                            __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
+                                                                    __dpl_sycl::__plus<_OffsetT>());
+                        __subgroup_totals[__radix_state_idx] =
+                            __dpl_sycl::__group_broadcast(__sub_group, 
+                                __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
+                                __sg_size - 1);
+                    }
                 }
 
                 // Write subgroup totals to local memory (only work-item 0 of each subgroup)
@@ -701,8 +725,6 @@ struct __parallel_radix_sort_iteration
     template <typename... _Name>
     using __local_scan_phase = __radix_sort_scan_kernel<__radix_bits, _Name...>;
     template <typename... _Name>
-    using __reorder_peer_phase = __radix_sort_reorder_peer_kernel<__radix_bits, __is_ascending, __even, _Name...>;
-    template <typename... _Name>
     using __reorder_phase = __radix_sort_reorder_kernel<__radix_bits, __is_ascending, __even, _Name...>;
 
     template <typename _InRange, typename _OutRange, typename _TmpBuf, typename _Proj>
@@ -715,9 +737,6 @@ struct __parallel_radix_sort_iteration
                                                 ::std::decay_t<_TmpBuf>, _Proj>;
         using _RadixLocalScanKernel =
             __internal::__kernel_name_generator<__local_scan_phase, _CustomName, std::decay_t<_TmpBuf>>;
-        using _RadixReorderPeerKernel =
-            __internal::__kernel_name_generator<__reorder_peer_phase, _CustomName, std::decay_t<_InRange>,
-                                                std::decay_t<_OutRange>, _Proj>;
         using _RadixReorderKernel =
             __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>,
                                                 std::decay_t<_OutRange>, _Proj>;
@@ -736,11 +755,10 @@ struct __parallel_radix_sort_iteration
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
         auto __kernels = __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel,
-                                                       _RadixReorderPeerKernel, _RadixReorderKernel>::__compile(__q);
+                                                       _RadixReorderKernel>::__compile(__q);
         auto __count_kernel = __kernels[0];
         auto __local_scan_kernel = __kernels[1];
-        auto __reorder_peer_kernel = __kernels[2];
-        auto __reorder_kernel = __kernels[3];
+        auto __reorder_kernel = __kernels[2];
         std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __count_kernel);
         __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __reorder_kernel);
         __scan_wg_size =
@@ -796,37 +814,14 @@ struct __parallel_radix_sort_iteration
         );
 
         // 3. Reorder Phase
-        sycl::event __reorder_event;
-        if (__reorder_sg_size == 8 || __reorder_sg_size == 16 || __reorder_sg_size == 32)
-        {
-#if _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
-            constexpr auto __peer_algorithm = __peer_prefix_algo::subgroup_ballot;
-#elif _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT
-            constexpr auto __peer_algorithm = __peer_prefix_algo::atomic_fetch_or;
-#else
-            constexpr auto __peer_algorithm = __peer_prefix_algo::scan_then_broadcast;
-#endif // _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
-
-            __reorder_event =
-                __radix_sort_reorder_submit<_RadixReorderPeerKernel, __radix_bits, __is_ascending, __peer_algorithm>(
-                    __q, __segments, __count_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
-                    std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
-#if _ONEDPL_COMPILE_KERNEL
-                    , __reorder_peer_kernel
-#endif
-                );
-        }
-        else
-        {
-            __reorder_event = __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending,
-                                                          __peer_prefix_algo::scan_then_broadcast>(
+        sycl::event __reorder_event =
+            __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
                 __q, __segments, __count_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
-                ::std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
+                std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
 #if _ONEDPL_COMPILE_KERNEL
                 , __reorder_kernel
 #endif
             );
-        }
 
         return __reorder_event;
     }
