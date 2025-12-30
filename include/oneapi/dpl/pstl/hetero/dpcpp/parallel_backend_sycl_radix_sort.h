@@ -720,11 +720,13 @@ struct __parallel_radix_sort_iteration
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
         std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
-#if _ONEDPL_RADIX_WORKLOAD_TUNING
-        ::std::size_t __count_wg_size = (oneapi::dpl::__ranges::__size(__in_rng) > (1 << 21) /*2M*/ ? 128 : __max_sg_size);
-#else
-        ::std::size_t __count_wg_size = __max_sg_size;
-#endif
+// #if _ONEDPL_RADIX_WORKLOAD_TUNING
+//         ::std::size_t __count_wg_size = (oneapi::dpl::__ranges::__size(__in_rng) > (1 << 21) /*2M*/ ? 128 : __max_sg_size);
+// #else
+//         ::std::size_t __count_wg_size = __max_sg_size;
+// #endif
+
+        std::size_t __count_wg_size = __scan_wg_size;
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
