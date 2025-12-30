@@ -719,12 +719,12 @@ struct __parallel_radix_sort_iteration
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
         std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)1024);
-// #if _ONEDPL_RADIX_WORKLOAD_TUNING
-//         ::std::size_t __count_wg_size = (oneapi::dpl::__ranges::__size(__in_rng) > (1 << 21) /*2M*/ ? 128 : __max_sg_size);
-// #else
-//         ::std::size_t __count_wg_size = __max_sg_size;
-// #endif
-        std::size_t __count_wg_size = __scan_wg_size;
+#if _ONEDPL_RADIX_WORKLOAD_TUNING
+        ::std::size_t __count_wg_size = (oneapi::dpl::__ranges::__size(__in_rng) > (1 << 21) /*2M*/ ? 128 : __max_sg_size);
+#else
+        ::std::size_t __count_wg_size = __max_sg_size;
+#endif
+        std::size_t __reorder_wg_size = __scan_wg_size;
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
@@ -768,6 +768,13 @@ struct __parallel_radix_sort_iteration
         __count_wg_size =
             sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__count_wg_size), ::std::size_t(__radix_states));
 
+
+        std::cout<<"Radix sort iteration parameters: "
+                 << "__count_wg_size=" << __count_wg_size
+                 << ", __scan_wg_size=" << __scan_wg_size
+                 << ", __reorder_wg_size=" << __reorder_wg_size
+                 << ", __reorder_sg_size=" << __reorder_sg_size
+                 << std::endl;
         // Compute the radix position for the given iteration
         ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
 
@@ -790,7 +797,7 @@ struct __parallel_radix_sort_iteration
         // 3. Reorder Phase
         sycl::event __reorder_event =
             __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
-                __q, __segments, __count_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
+                __q, __segments, __reorder_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
                 std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
 #if _ONEDPL_COMPILE_KERNEL
                 , __reorder_kernel
@@ -882,7 +889,9 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 #else
         ::std::size_t __wg_size = __max_wg_size;
 #endif
+        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
+        std::cout<<"using segments: "<<__segments<<"\n";
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
         // 'No operation' flag specifies whether to skip re-order phase if the all keys are the same (lie in one bin)
