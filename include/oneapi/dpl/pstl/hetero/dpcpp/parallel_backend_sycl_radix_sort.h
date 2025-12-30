@@ -738,6 +738,8 @@ struct __parallel_radix_sort_iteration
         __scan_wg_size =
             sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __local_scan_kernel));
         __count_wg_size = sycl::max(__count_sg_size, __reorder_sg_size);
+        std::cout << "__count_wg_size: " << __count_wg_size << ", __scan_wg_size: " << __scan_wg_size
+                  << ", __reorder_sg_size: " << __reorder_sg_size << "\n";
 #else
         // When kernel compilation is disabled, use conservative fallback values
         // Get device sub-group sizes and pick a suitable one for radix sort
