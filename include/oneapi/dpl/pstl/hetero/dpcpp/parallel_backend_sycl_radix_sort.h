@@ -610,7 +610,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
-                    __carry.__v = __OffsetT{0};
+                    __carry.__v = _OffsetT{0};
                     __wi_exclusive_prefix[__radix_state_idx] = __local_counts_arr[__radix_state_idx];
                     __sub_group_scan<32, /*__is_inclusive=*/false, /*__init_present=*/true>(
                         __sub_group, __wi_exclusive_prefix[__radix_state_idx], __dpl_sycl::__plus<_OffsetT>(), __carry);
