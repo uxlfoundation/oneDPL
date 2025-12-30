@@ -640,35 +640,18 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 // Phase 2: Workgroup barrier - synchronize all subgroups
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 3: Hierarchical scan - subgroups cooperatively processes each radix state
-                // using subgroup scan to parallelize within each subgroup
-                for (std::uint32_t __radix_id = __sg_id; __radix_id < __radix_states; __radix_id += __num_subgroups)
+                // Phase 3: Hierarchical scan - only subgroup first __radix_states work-items participate
+                // Each work-item scans radix states across all subgroups
+                // Loop in case __radix_states > subgroup size
+                if (__self_lidx <= __radix_states)
                 {
-                    _OffsetT __carry = 0;
-                    // Process source subgroups in chunks of __sg_size
-                    for (std::uint32_t __sg_base = 0; __sg_base < __num_subgroups; __sg_base += __sg_size)
+                    _OffsetT __running_sum = 0;
+                    for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
                     {
-                        std::uint32_t __src_sg = __sg_base + __sg_local_id;
-                        // Each work-item loads count from a different source subgroup
-                        _OffsetT __count = 0;
-                        if (__src_sg < __num_subgroups)
-                        {
-                            __count = __local_counts[__src_sg * __radix_states + __radix_id];
-                        }
-
-                        // Exclusive scan within subgroup
-                        _OffsetT __scanned = __dpl_sycl::__exclusive_scan_over_group(
-                            __sub_group, __count, __dpl_sycl::__plus<_OffsetT>());
-
-                        // Add carry from previous chunk and store result
-                        if (__src_sg < __num_subgroups)
-                        {
-                            __local_counts[__num_subgroups * __radix_states + __src_sg * __radix_states + __radix_id] =
-                                __scanned + __carry;
-                        }
-
-                        // Update carry for next chunk: broadcast (last scanned value + last count)
-                        __carry += __dpl_sycl::__group_broadcast(__sub_group, __scanned + __count, __sg_size - 1);
+                        const std::size_t __idx = __sg * __radix_states + __self_lidx;
+                        // Write exclusive prefix to second half of local memory
+                        __local_counts[__num_subgroups * __radix_states + __idx] = __running_sum;
+                        __running_sum += __local_counts[__idx];
                     }
                 }
 
