@@ -580,7 +580,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
                 // Compute segment bounds for this subgroup
                 const std::size_t __elems_per_subgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
-                const std::size_t __sg_seg_start = __seg_start + __sg_id * __elems_per_subgroup;
+                const std::size_t __sg_seg_start = sycl::min(__seg_start + __sg_id * __elems_per_subgroup, __seg_end);
                 const std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_end);
 
                 // Compute contiguous element range for this work-item
@@ -628,10 +628,9 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 // Phase 2: Workgroup barrier - synchronize all subgroups
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 3: Hierarchical scan - only subgroup first __radix_states work-items participate
-                // Each work-item scans radix states across all subgroups
-                // Loop in case __radix_states > subgroup size
-                if (__self_lidx <= __radix_states)
+                // Phase 3: Hierarchical scan - only first __radix_states work-items participate
+                // Each work-item scans one radix state across all subgroups
+                if (__self_lidx < __radix_states)
                 {
                     _OffsetT __running_sum = 0;
                     for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
