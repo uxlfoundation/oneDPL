@@ -605,28 +605,16 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 _OffsetT __subgroup_totals[__radix_states];
                 _OffsetT __wi_exclusive_prefix[__radix_states];
 
-                oneapi::dpl::__internal::__lazy_ctor_storage<_OffsetT> __carry;
-                __carry.__setup(_OffsetT{0});
-
                 for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
                 {
-                    __carry.__v = _OffsetT{0};
-                    __wi_exclusive_prefix[__radix_state_idx] = __local_counts_arr[__radix_state_idx];
-                    __sub_group_scan<32, /*__is_inclusive=*/false, /*__init_present=*/true>(
-                        __sub_group, __wi_exclusive_prefix[__radix_state_idx], __dpl_sycl::__plus<_OffsetT>(), __carry);
-                    __subgroup_totals[__radix_state_idx] = __carry.__v;
+                    __wi_exclusive_prefix[__radix_state_idx] =
+                        __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
+                                                                __dpl_sycl::__plus<_OffsetT>());
+                    __subgroup_totals[__radix_state_idx] =
+                        __dpl_sycl::__group_broadcast(__sub_group, 
+                            __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
+                            __sg_size - 1);
                 }
-                __carry.__destroy();
-                // for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
-                // {
-                //     __wi_exclusive_prefix[__radix_state_idx] =
-                //         __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
-                //                                                 __dpl_sycl::__plus<_OffsetT>());
-                //     __subgroup_totals[__radix_state_idx] =
-                //         __dpl_sycl::__group_broadcast(__sub_group, 
-                //             __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
-                //             __sg_size - 1);
-                // }
 
                 // Write subgroup totals to local memory (only work-item 0 of each subgroup)
                 if (__sg_local_id == 0)
