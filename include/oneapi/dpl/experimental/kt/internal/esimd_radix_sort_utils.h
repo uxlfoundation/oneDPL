@@ -256,9 +256,9 @@ __rng_data(const _Rng& __rng)
 //      sycl::accessor::operator[] are supported only with -fsycl-esimd-force-stateless-mem.
 //      Otherwise, all memory accesses through an accessor are done via explicit APIs
 // TODO: rely on begin() once -fsycl-esimd-force-stateless-mem has been enabled by default
-template <typename _T, sycl::access::mode _M>
+template <typename _T, sycl::access::mode _M, bool _NoInit>
 auto
-__rng_data(const oneapi::dpl::__ranges::all_view<_T, _M>& __view)
+__rng_data(const oneapi::dpl::__ranges::all_view<_T, _M, _NoInit>& __view)
 {
     return __view.accessor();
 }

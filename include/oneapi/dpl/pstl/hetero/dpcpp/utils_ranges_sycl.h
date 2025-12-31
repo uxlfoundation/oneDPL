@@ -36,7 +36,7 @@ namespace __internal
 {
 template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
-__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n)
+__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, sycl::property_list __properties = {})
 {
     auto __n_buf = __dpl_sycl::__get_buffer_size(__buf);
     auto __n_acc = (__n > 0 ? __n : __n_buf);
@@ -44,12 +44,12 @@ __create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n)
     assert(__offset + __n_acc <= __n_buf &&
            "The sum of accessRange and accessOffset should not exceed the range of buffer");
 
-    return {__buf, sycl::range<1>(__n_acc), __offset};
+    return {__buf, sycl::range<1>(__n_acc), __offset, __properties};
 }
 } // namespace __internal
 
 //A SYCL range over SYCL buffer
-template <typename _T, sycl::access::mode _AccMode = sycl::access::mode::read,
+template <typename _T, sycl::access::mode _AccMode = sycl::access::mode::read, bool _NoInit = false,
           __dpl_sycl::__target _Target = __dpl_sycl::__target_device,
           sycl::access::placeholder _Placeholder = sycl::access::placeholder::true_t>
 class all_view
@@ -62,7 +62,7 @@ class all_view
     using value_type = _T;
 
     all_view(sycl::buffer<_T, 1> __buf = sycl::buffer<_T, 1>(0), __diff_type __offset = 0, __diff_type __n = 0)
-        : __m_acc(__internal::__create_accessor<__accessor_t>(__buf, __offset, __n))
+        : __m_acc(__internal::__create_accessor<__accessor_t>(__buf, __offset, __n, _NoInit ? sycl::property_list{sycl::property::no_init{}} : sycl::property_list{}))
     {
     }
 
@@ -108,17 +108,17 @@ class all_view
     __accessor_t __m_acc;
 };
 
-template <sycl::access::mode AccMode = sycl::access::mode::read_write,
+template <sycl::access::mode AccMode = sycl::access::mode::read_write, bool _NoInit = false,
           __dpl_sycl::__target _Target = __dpl_sycl::__target_device,
           sycl::access::placeholder _Placeholder = sycl::access::placeholder::true_t>
 struct all_view_fn
 {
     template <typename _T>
-    constexpr oneapi::dpl::__ranges::all_view<_T, AccMode, _Target, _Placeholder>
+    constexpr oneapi::dpl::__ranges::all_view<_T, AccMode, _NoInit, _Target, _Placeholder>
     operator()(sycl::buffer<_T, 1> __buf, typename ::std::iterator_traits<_T*>::difference_type __offset = 0,
                typename ::std::iterator_traits<_T*>::difference_type __n = 0) const
     {
-        return oneapi::dpl::__ranges::all_view<_T, AccMode, _Target, _Placeholder>(__buf, __offset, __n);
+        return oneapi::dpl::__ranges::all_view<_T, AccMode, _NoInit, _Target, _Placeholder>(__buf, __offset, __n);
     }
 
     template <typename _R>
@@ -155,20 +155,20 @@ struct all_host_view_fn
 
 namespace views
 {
-inline constexpr all_view_fn<sycl::access::mode::read_write, __dpl_sycl::__target_device,
+inline constexpr all_view_fn<sycl::access::mode::read_write, /*_NoInit=*/ false, __dpl_sycl::__target_device,
                              sycl::access::placeholder::true_t>
     all;
 
-inline constexpr all_view_fn<sycl::access::mode::read, __dpl_sycl::__target_device, sycl::access::placeholder::true_t>
+inline constexpr all_view_fn<sycl::access::mode::read, /*_NoInit=*/ false, __dpl_sycl::__target_device, sycl::access::placeholder::true_t>
     all_read;
 
-inline constexpr all_view_fn<sycl::access::mode::write, __dpl_sycl::__target_device, sycl::access::placeholder::true_t>
+inline constexpr all_view_fn<sycl::access::mode::write, /*_NoInit=*/ false, __dpl_sycl::__target_device, sycl::access::placeholder::true_t>
     all_write;
 
 #if _ONEDPL_SYCL2020_HOST_ACCESSOR_PRESENT
 inline constexpr all_host_view_fn
 #elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(60200)
-inline constexpr all_view_fn<sycl::access::mode::read_write, __dpl_sycl::__host_target,
+inline constexpr all_view_fn<sycl::access::mode::read_write, /*_NoInit=*/ false, __dpl_sycl::__host_target,
                              sycl::access::placeholder::false_t>
 #else
 #    error "sycl::host_accessor is not supported, and no alternative is available"
@@ -214,11 +214,11 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 // and algorithm-required access mode (outMode).
 // Primary template - undefined (invalid combinations fail to compile)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool _LocalNoInit = false>
-struct iter_mode_resolver;
+struct __iter_mode_resolver;
 
 // Partial specialization when modes match exactly
 template <sycl::access_mode _Mode, bool _LocalNoInit>
-struct iter_mode_resolver<_Mode, _Mode, _LocalNoInit>
+struct __iter_mode_resolver<_Mode, _Mode, _LocalNoInit>
 {
     static constexpr sycl::access_mode value = _Mode;
     static constexpr bool no_init = _LocalNoInit;
@@ -226,7 +226,7 @@ struct iter_mode_resolver<_Mode, _Mode, _LocalNoInit>
 
 // read_write can satisfy read requirement (downgrade to read)
 template <bool _LocalNoInit>
-struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::read, _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::read, _LocalNoInit>
 {
     static constexpr sycl::access_mode value = sycl::access_mode::read;
     static constexpr bool no_init = _LocalNoInit;
@@ -234,7 +234,7 @@ struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::read
 
 // read_write can satisfy write requirement (downgrade to write)
 template <bool _LocalNoInit>
-struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::write, _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::write, _LocalNoInit>
 {
     static constexpr sycl::access_mode value = sycl::access_mode::write;
     static constexpr bool no_init = _LocalNoInit;
@@ -242,7 +242,7 @@ struct iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::writ
 
 // discard_write can satisfy write requirement with no_init
 template <>
-struct iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, true>
+struct __iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, true>
 {
     static constexpr sycl::access_mode value = sycl::access_mode::write;
     static constexpr bool no_init = true;
@@ -250,7 +250,7 @@ struct iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::w
 
 // discard_read_write can satisfy any requirement with no_init
 template <sycl::access_mode outMode>
-struct iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, true>
+struct __iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, true>
 {
     static constexpr sycl::access_mode value = outMode;
     static constexpr bool no_init = true;
@@ -262,17 +262,17 @@ struct __is_iter_mode_resolvable : std::false_type {};
 
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 struct __is_iter_mode_resolvable<inMode, outMode, noInit,
-    std::void_t<decltype(iter_mode_resolver<inMode, outMode, noInit>::value)>> : std::true_type {};
+    std::void_t<decltype(__iter_mode_resolver<inMode, outMode, noInit>::value)>> : std::true_type {};
 
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 inline constexpr bool __is_iter_mode_resolvable_v = __is_iter_mode_resolvable<inMode, outMode, noInit>::value;
 
 // Access helpers (only valid when resolvable)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
-inline constexpr sycl::access_mode iter_mode_resolver_v = iter_mode_resolver<inMode, outMode, noInit>::value;
+inline constexpr sycl::access_mode __iter_mode_resolver_v = __iter_mode_resolver<inMode, outMode, noInit>::value;
 
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
-inline constexpr bool iter_mode_resolver_no_init_v = iter_mode_resolver<inMode, outMode, noInit>::no_init;
+inline constexpr bool __iter_mode_resolver_no_init_v = __iter_mode_resolver<inMode, outMode, noInit>::no_init;
 
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
@@ -350,9 +350,9 @@ __require_access(sycl::handler&)
 {
 }
 
-template <typename T, sycl::access::mode M>
+template <typename T, sycl::access::mode M, bool _NoInit>
 void
-__require_access_range(sycl::handler& __cgh, oneapi::dpl::__ranges::all_view<T, M>& sycl_view)
+__require_access_range(sycl::handler& __cgh, oneapi::dpl::__ranges::all_view<T, M, _NoInit>& sycl_view)
 {
     sycl_view.require_access(__cgh);
 }
@@ -678,8 +678,10 @@ struct __get_sycl_range
     __process_input_iter(_Iter __first, _Iter __last)
         -> std::enable_if_t<
             is_sycl_iterator<_Iter>::value,
-            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>,
-                                                           iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>>>>
+            __range_holder<oneapi::dpl::__ranges::all_view<
+                val_t<_Iter>, __iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
+                __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
+                __dpl_sycl::__target_device, sycl::access::placeholder::true_t>>>
     {
         // Check mode compatibility with a clear error message
         static_assert(__is_iter_mode_resolvable_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
@@ -688,17 +690,20 @@ struct __get_sycl_range
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
-        // Resolve the access mode: iterator's embedded mode vs. algorithm's required mode
-        static constexpr sycl::access_mode _ResolvedMode = iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
+        // Resolve the access mode and no_init: iterator's embedded mode vs. algorithm's required mode
+        static constexpr sycl::access_mode _ResolvedMode = __iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
+        static constexpr bool _ResolvedNoInit = __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
 
         const auto __offset = __first.get_idx();
         const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
         const auto __n = ::std::min(decltype(__size)(__last - __first), __size);
         assert(__offset + __n <= __size);
 
-        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode>>{
-            oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode>(__first.get_buffer() /* buffer */,
-                                                                       __offset /* offset*/, __n /* size*/)};
+        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit, __dpl_sycl::__target_device,
+                                                               sycl::access::placeholder::true_t>>{
+            oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit, __dpl_sycl::__target_device,
+                                            sycl::access::placeholder::true_t>(
+                __first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
     }
 
     //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
@@ -706,7 +711,7 @@ struct __get_sycl_range
     auto
     __process_input_iter(_Iter __first, _Iter __last)
         -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> && !is_sycl_iterator<_Iter>::value,
-                            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+                            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
@@ -725,8 +730,8 @@ struct __get_sycl_range
         const auto __n = ::std::min(decltype(__size)(__last - __first), __size);
         assert(__offset + __n <= __size);
 
-        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode>>{
-            oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode>(__first.get_buffer() /* buffer */,
+        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>>{
+            oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>(__first.get_buffer() /* buffer */,
                                                                        __offset /* offset*/, __n /* size*/)};
     }
 
@@ -736,7 +741,7 @@ struct __get_sycl_range
     __process_input_iter(_Iter __first, _Iter __last)
         -> ::std::enable_if_t<is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                                   !is_permutation<_Iter>::value,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
@@ -767,7 +772,7 @@ struct __get_sycl_range
     __process_input_iter(_Iter __first, _Iter __last)
         -> ::std::enable_if_t<is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                                   !is_permutation<_Iter>::value,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         using _T = val_t<_Iter>;
 
@@ -811,8 +816,8 @@ struct __get_sycl_range
         m_buffers.push_back(std::make_unique<BufferType>(__buf));
 
         using _T = val_t<_Iter>;
-        return __range_holder<oneapi::dpl::__ranges::all_view<_T, _LocalAccMode>>{
-            oneapi::dpl::__ranges::all_view<_T, _LocalAccMode>(__buf)};
+        return __range_holder<oneapi::dpl::__ranges::all_view<_T, _LocalAccMode, _LocalNoInit>>{
+            oneapi::dpl::__ranges::all_view<_T, _LocalAccMode, _LocalNoInit>(__buf)};
     }
 
   public:
@@ -857,8 +862,9 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 //A specialization for enable_view to true because oneapi::dpl::__ranges::all_view models a view (see C++ standard)
-template <typename _T, sycl::access::mode _AccMode, sycl::target _Target, sycl::access::placeholder _Placeholder>
-inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _Target, _Placeholder>> = true;
+template <typename _T, sycl::access::mode _AccMode, bool _NoInit, sycl::target _Target, sycl::access::placeholder _Placeholder>
+inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> =
+    true;
 #endif
 
 #endif // _ONEDPL_UTILS_RANGES_SYCL_H
