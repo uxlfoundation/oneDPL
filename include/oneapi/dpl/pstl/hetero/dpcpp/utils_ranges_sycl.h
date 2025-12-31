@@ -210,17 +210,8 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 {
 };
 
-// Trait to check if mode is a "discard" mode (deprecated SYCL 2020 modes)
-template <sycl::access_mode _Mode>
-inline constexpr bool __is_discard_mode_v =
-    _Mode == sycl::access_mode::discard_write || _Mode == sycl::access_mode::discard_read_write;
-
-//-----------------------------------------------------------------------------
-// iter_mode_resolver
-//-----------------------------------------------------------------------------
 // Resolves conflicts between user-specified access mode (inMode, from sycl_iterator)
 // and algorithm-required access mode (outMode).
-
 // Primary template - undefined (invalid combinations fail to compile)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool _LocalNoInit = false>
 struct iter_mode_resolver;
