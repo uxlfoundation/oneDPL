@@ -326,7 +326,7 @@ _ForwardIterator
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
-    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first,__last,
                     generate_functor<_Generator>{__g});
     return __last;
 }
@@ -1443,8 +1443,8 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
     if (__last - __first < 2)
         return;
 
-    __par_backend_hetero::__parallel_partial_sort(
-        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __mid, __last, __comp)
+    __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __first,
+                                                  __mid, __last, __comp)
         .__checked_deferrable_wait();
 }
 
@@ -1537,8 +1537,8 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         // the patterns: __pattern_walk2, __parallel_partial_sort and __pattern_walk2.
 
         __par_backend_hetero::__parallel_partial_sort(
-            _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec),
-            __buf_first, __buf_mid, __buf_last, __comp);
+            _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec), __buf_first, __buf_mid,
+            __buf_last, __comp);
 
         return __pattern_walk2(
             __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
