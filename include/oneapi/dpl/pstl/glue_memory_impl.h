@@ -284,7 +284,7 @@ uninitialized_value_construct(_ExecutionPolicy&& __exec, _ForwardIterator __firs
     }
     else
     {
-        oneapi::dpl::__internal::__pattern_uninitialized_walk1_n(
+        oneapi::dpl::__internal::__pattern_uninitialized_walk1(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{});
     }
