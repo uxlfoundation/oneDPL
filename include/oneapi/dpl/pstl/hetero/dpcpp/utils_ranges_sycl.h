@@ -275,7 +275,6 @@ struct __is_iter_mode_resolvable<inMode, outMode, noInit,
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 inline constexpr bool __is_iter_mode_resolvable_v = __is_iter_mode_resolvable<inMode, outMode, noInit>::value;
 
-// Access helpers (only valid when resolvable)
 template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
 inline constexpr sycl::access_mode __iter_mode_resolver_v = __iter_mode_resolver<inMode, outMode, noInit>::value;
 
