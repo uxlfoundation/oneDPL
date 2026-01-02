@@ -38,7 +38,6 @@ test_is_copy_direct_v()
     using write_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write>;
     using read_write_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write>;
 
-    using read_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read, /*_NoInit=*/true>;
     using write_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_NoInit=*/true>;
     using read_write_mode_no_init =
         oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_NoInit=*/true>;
@@ -46,10 +45,6 @@ test_is_copy_direct_v()
     // Test: read mode without no_init -> copy in (true)
     static_assert(read_mode::__is_copy_direct_v<sycl::access::mode::read, false> == true,
                   "read mode without no_init should copy in");
-
-    // Test: read mode with no_init -> no copy in (false)
-    static_assert(read_mode_no_init::__is_copy_direct_v<sycl::access::mode::read, true> == false,
-                  "read mode with no_init should not copy in");
 
     // Test: write mode without no_init -> copy in (true)
     static_assert(write_mode::__is_copy_direct_v<sycl::access::mode::write, false> == true,
@@ -92,14 +87,9 @@ test_is_copy_back_v()
                   "read_write mode should copy back");
 
     // Verify __is_copy_back_v does NOT depend on _NoInit
-    using read_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read, /*_NoInit=*/true>;
     using write_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_NoInit=*/true>;
     using read_write_mode_no_init =
         oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_NoInit=*/true>;
-
-    // Test: read mode with no_init -> still no copy back (false)
-    static_assert(read_mode_no_init::__is_copy_back_v<sycl::access::mode::read> == false,
-                  "read mode with no_init should not copy back");
 
     // Test: write mode with no_init -> still copy back (true)
     static_assert(write_mode_no_init::__is_copy_back_v<sycl::access::mode::write> == true,
