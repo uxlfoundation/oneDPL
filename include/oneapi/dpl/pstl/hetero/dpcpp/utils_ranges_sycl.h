@@ -79,11 +79,7 @@ class all_view
     {
         return begin() + size();
     }
-    __return_t&
-    operator[](__diff_type i) const
-    {
-        return begin()[i];
-    }
+    __return_t& operator[](__diff_type i) const { return begin()[i]; }
 
     __diff_type
     size() const
