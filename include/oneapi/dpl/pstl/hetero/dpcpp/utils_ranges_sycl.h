@@ -615,6 +615,8 @@ struct __get_sycl_range
         -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
                             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
+        static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
+                      "Read mode cannot be used with no_init property.");
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
@@ -643,6 +645,8 @@ struct __get_sycl_range
                                   !is_permutation<_Iter>::value,
                               __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
+        static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
+                      "Read mode cannot be used with no_init property.");
         using _T = val_t<_Iter>;
 
         return __process_host_iter_impl<_LocalAccMode, _LocalNoInit>(__first, __last, [&]() {
