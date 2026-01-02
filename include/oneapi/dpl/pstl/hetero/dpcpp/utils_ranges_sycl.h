@@ -689,6 +689,8 @@ struct __get_sycl_range
                                 __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
                                 __dpl_sycl::__target_device, sycl::access::placeholder::true_t>>>
     {
+        static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
+                      "Read mode cannot be used with no_init property.");
         // Check mode compatibility with a clear error message
         static_assert(__is_iter_mode_resolvable_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
                       "Access mode provided by user conflicts with the one required by the algorithm");
