@@ -90,7 +90,7 @@ __ns::simd<_T, _N>
 __gather(sycl::accessor<_T, 1, _Mode, sycl::target::device, _P> __input, __ns::simd<::std::uint32_t, _N> __offsets,
          ::std::uint32_t __base_offset, __ns::simd_mask<_N> __mask = 1)
 {
-    return __ns::gather<_T>(__input, __offsets * __size32<_T>, __base_offset * __size32<_T>, __mask);
+    return __gather(&__input[0], __offsets * __size32<_T>, __base_offset * __size32<_T>, __mask);
 }
 
 template <typename _T, int _N, sycl::access_mode _Mode, sycl::access::placeholder _P,
