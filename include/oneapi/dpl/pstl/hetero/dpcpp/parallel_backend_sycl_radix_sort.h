@@ -724,7 +724,7 @@ struct __parallel_radix_sort_iteration
 #else
         ::std::size_t __count_wg_size = __max_sg_size;
 #endif
-        std::size_t __reorder_wg_size = __scan_wg_size;
+        std::size_t __reorder_wg_size = 256;//__scan_wg_size;
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
@@ -769,12 +769,12 @@ struct __parallel_radix_sort_iteration
             sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__count_wg_size), ::std::size_t(__radix_states));
 
 
-        std::cout<<"Radix sort iteration parameters: "
-                 << "__count_wg_size=" << __count_wg_size
-                 << ", __scan_wg_size=" << __scan_wg_size
-                 << ", __reorder_wg_size=" << __reorder_wg_size
-                 << ", __reorder_sg_size=" << __reorder_sg_size
-                 << std::endl;
+        //std::cout<<"Radix sort iteration parameters: "
+        //         << "__count_wg_size=" << __count_wg_size
+        //         << ", __scan_wg_size=" << __scan_wg_size
+        //         << ", __reorder_wg_size=" << __reorder_wg_size
+        //         << ", __reorder_sg_size=" << __reorder_sg_size
+        //         << std::endl;
         // Compute the radix position for the given iteration
         ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
 
@@ -885,12 +885,13 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
         const auto __wg_sz_k = __n >= (1 << 15)/*32K*/ && __n < (1 << 19)/*512K*/ ? 8 : __n <= (1 << 21)/*2M*/ ? 4 : 1;
-        const ::std::size_t __wg_size = __max_wg_size / __wg_sz_k;
+        ::std::size_t __wg_size = __max_wg_size / __wg_sz_k;
 #else
         ::std::size_t __wg_size = __max_wg_size;
 #endif
         std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
+	constexpr std::size_t __keys_per_workitem = 8;
+	const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size * __keys_per_workitem);
         std::cout<<"using segments: "<<__segments<<"\n";
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
