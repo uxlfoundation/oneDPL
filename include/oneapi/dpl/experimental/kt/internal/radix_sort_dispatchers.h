@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- esimd_radix_sort_dispatchers.h --------------------------------===//
+//===-- radix_sort_dispatchers.h --------------------------------===//
 //
 // Copyright (C) 2023 Intel Corporation
 //
@@ -7,8 +7,8 @@
 //
 //===------------------------------------------------------===//
 
-#ifndef _ONEDPL_KT_ESIMD_RADIX_SORT_DISPATCHERS_H
-#define _ONEDPL_KT_ESIMD_RADIX_SORT_DISPATCHERS_H
+#ifndef _ONEDPL_KT_RADIX_SORT_DISPATCHERS_H
+#define _ONEDPL_KT_RADIX_SORT_DISPATCHERS_H
 
 #include <new>
 #include <memory>
@@ -21,57 +21,55 @@
 
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
-#include "esimd_radix_sort_utils.h"
-#include "esimd_radix_sort_kernels.h"
-#include "esimd_radix_sort_submitters.h"
+#include "radix_sort_submitters.h"
 
-namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
-template <typename... _Name>
-class __esimd_radix_sort_one_wg;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_one_wg;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep_histogram;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_histogram;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep_scan;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_scan;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep_copyback;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_copyback;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep_by_key;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_by_key;
 
-template <typename... _Name>
-class __esimd_radix_sort_onesweep_copyback_by_key;
+template <typename _KtTag, typename... _Name>
+class __radix_sort_onesweep_copyback_by_key;
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _RngPack>
+          ::std::uint16_t __work_group_size, typename _KtTag, typename _RngPack>
 sycl::event
-__one_wg(sycl::queue __q, _RngPack&& __pack, ::std::size_t __n)
+__one_wg(_KtTag __kt_tag, sycl::queue __q, _RngPack&& __pack, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack>::_KeyT;
-    using _EsimRadixSortKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__esimd_radix_sort_one_wg<_KernelName>>;
+    using _RadixSortKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg<_KtTag, _KernelName>>;
 
     return __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
-                                         _EsimRadixSortKernel>()(__q, __pack, __pack, __n);
+                                         _RadixSortKernel>()(__kt_tag, __q, __pack, __pack, __n);
 }
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _RngPack1, typename _RngPack2>
+          ::std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2>
 sycl::event
-__one_wg(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n)
+__one_wg(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
-    using _EsimRadixSortKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__esimd_radix_sort_one_wg<_KernelName>>;
+    using _RadixSortKernel =
+        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg<_KtTag, _KernelName>>;
 
     return __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
-                                         _EsimRadixSortKernel>()(__q, std::forward<_RngPack1>(__pack_in),
+                                         _RadixSortKernel>()(__kt_tag, __q, std::forward<_RngPack1>(__pack_in),
                                                                  std::forward<_RngPack2>(__pack_out), __n);
 }
 
@@ -204,35 +202,34 @@ class __onesweep_memory_holder
 };
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _RngPack1, typename _RngPack2, typename _RngPack3,
+          ::std::uint16_t __work_group_size, typename _KtTag, typename _RngPack1, typename _RngPack2, typename _RngPack3,
           typename _MemHolder>
 sycl::event
-__onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1, _RngPack3&& __virt_pack2,
+__onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1, _RngPack3&& __virt_pack2,
                 const _MemHolder& __mem_holder, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
 
-    using _EsimdRadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __esimd_radix_sort_onesweep_histogram<_KernelName>>;
-    using _EsimdRadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __esimd_radix_sort_onesweep_scan<_KernelName>>;
-    using _EsimdRadixSortSweepInitial =
+    using _RadixSortHistogram = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep_histogram<_KtTag, _KernelName>>;
+    using _RadixSortScan = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __radix_sort_onesweep_scan<_KtTag, _KernelName>>;
+    using _RadixSortSweepInitial =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __esimd_radix_sort_onesweep_by_key<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>,
-            __esimd_radix_sort_onesweep<std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>>;
-    using _EsimdRadixSortSweepEven =
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack1>, std::decay_t<_RngPack2>, _KernelName>>>;
+    using _RadixSortSweepEven =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __esimd_radix_sort_onesweep_by_key<std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>,
-            __esimd_radix_sort_onesweep<std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>>;
-    using _EsimdRadixSortSweepOdd =
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack3>, std::decay_t<_RngPack2>, _KernelName>>>;
+    using _RadixSortSweepOdd =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<::std::conditional_t<
             __has_values,
-            __esimd_radix_sort_onesweep_by_key<std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>,
-            __esimd_radix_sort_onesweep<std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>>;
-
+            __radix_sort_onesweep_by_key<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>,
+            __radix_sort_onesweep<_KtTag, std::decay_t<_RngPack2>, std::decay_t<_RngPack3>, _KernelName>>>;
     using _GlobalHistT = ::std::uint32_t;
     constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
 
@@ -253,15 +250,15 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
     constexpr ::std::uint32_t __hist_work_group_count = 64;
     constexpr ::std::uint32_t __hist_work_group_size = 64;
     __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
-                                                     __hist_work_group_size, _EsimdRadixSortHistogram>()(
-        __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+                                                     __hist_work_group_size, _RadixSortHistogram>()(
+         __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
 
-    __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _EsimdRadixSortScan>()(
-        __q, __mem_holder.__global_hist_ptr(), __event_chain);
+    __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _RadixSortScan>()(
+        __kt_tag, __q, __mem_holder.__global_hist_ptr(), __event_chain);
 
     __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
-                                                    __work_group_size, _EsimdRadixSortSweepInitial>()(
-        __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(),
+                                                    __work_group_size, _RadixSortSweepInitial>()(
+        __kt_tag, __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(),
         __sweep_work_group_count, __n, 0, __event_chain);
 
     for (::std::uint32_t __stage = 1; __stage < __stage_count; __stage++)
@@ -273,15 +270,15 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
         if (__stage % 2 != 0)
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
-                                                            __work_group_size, _EsimdRadixSortSweepOdd>()(
-                __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
+                                                            __work_group_size, _RadixSortSweepOdd>()(
+                __kt_tag, __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
                 __stage, __event_chain);
         }
         else
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
-                                                            __work_group_size, _EsimdRadixSortSweepEven>()(
-                __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
+                                                            __work_group_size, _RadixSortSweepEven>()(
+                __kt_tag, __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
                 __stage, __event_chain);
         }
     }
@@ -290,17 +287,17 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
 }
 
 template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, bool __in_place, typename _RngPack1, typename _RngPack2>
+          ::std::uint16_t __work_group_size, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2>
 sycl::event
-__onesweep(sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, ::std::size_t __n)
+__onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, ::std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     using _ValT = typename ::std::decay_t<_RngPack1>::_ValT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
 
-    using _EsimdRadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        ::std::conditional_t<__has_values, __esimd_radix_sort_onesweep_copyback_by_key<_KernelName>,
-                             __esimd_radix_sort_onesweep_copyback<_KernelName>>>;
+    using _RadixSortCopyback = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        ::std::conditional_t<__has_values, __radix_sort_onesweep_copyback_by_key<_KtTag, _KernelName>,
+                             __radix_sort_onesweep_copyback<_KtTag, _KernelName>>>;
 
     using _GlobalHistT = ::std::uint32_t;
 
@@ -356,22 +353,22 @@ __onesweep(sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __pack_out, ::std::s
     const auto& __virt_pack2 = __select_pack(__pack_out, __tmp_pack);
     sycl::event __event_chain =
         __onesweep_impl<_KernelName, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size>(
-            __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n);
+            __kt_tag, __q, __pack, __virt_pack1, __virt_pack2, __mem_holder, __n);
 
     if constexpr (__in_place && (__stage_count % 2 != 0))
     {
         __event_chain =
-            __radix_sort_copyback_submitter<_EsimdRadixSortCopyback>()(__q, __tmp_pack, __pack, __n, __event_chain);
+            __radix_sort_copyback_submitter<_RadixSortCopyback>()(__kt_tag, __q, __tmp_pack, __pack, __n, __event_chain);
     }
 
     return __mem_holder.__async_deallocate(__event_chain);
 }
 
 // TODO: allow calling it only for all_view (accessor) and guard_view (USM) ranges, views::subrange and sycl_iterator
-template <bool __is_ascending, ::std::uint8_t __radix_bits, bool __in_place, typename _RngPack1, typename _RngPack2,
+template <bool __is_ascending, ::std::uint8_t __radix_bits, bool __in_place, typename _KtTag, typename _RngPack1, typename _RngPack2,
           typename _KernelParam>
 sycl::event
-__radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam)
+__radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _KernelParam)
 {
     const auto __n = __pack_in.__keys_rng().size();
     assert(__n > 0);
@@ -385,7 +382,7 @@ __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _Ke
     if constexpr (::std::decay_t<_RngPack1>::__has_values)
     {
         return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
+            __kt_tag, __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
     }
     else
     {
@@ -396,7 +393,7 @@ __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _Ke
             // TODO: support more granular DataPerWorkItem and WorkGroupSize
 
             return __one_wg<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size>(
-                __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
+                __kt_tag, __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
         }
         else
         {
@@ -404,12 +401,12 @@ __radix_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, _Ke
             // TODO: support different RadixBits
             // TODO: support more granular DataPerWorkItem and WorkGroupSize
             return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size,
-                              __in_place>(__q, ::std::forward<_RngPack1>(__pack_in),
+                              __in_place>(__kt_tag, __q, ::std::forward<_RngPack1>(__pack_in),
                                           ::std::forward<_RngPack2>(__pack_out), __n);
         }
     }
 }
 
-} // namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+} // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
-#endif // _ONEDPL_KT_ESIMD_RADIX_SORT_DISPATCHERS_H
+#endif // _ONEDPL_KT_RADIX_SORT_DISPATCHERS_H

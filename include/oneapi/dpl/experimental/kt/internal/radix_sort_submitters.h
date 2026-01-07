@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- esimd_radix_sort_submitters.h --------------------------------===//
+//===-- radix_sort_submitters.h --------------------------------===//
 //
 // Copyright (C) 2023 Intel Corporation
 //
@@ -7,8 +7,8 @@
 //
 //===------------------------------------------------------===//
 
-#ifndef _ONEDPL_KT_ESIMD_RADIX_SORT_SUBMITTERS_H
-#define _ONEDPL_KT_ESIMD_RADIX_SORT_SUBMITTERS_H
+#ifndef _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
+#define _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
 
 #include <cstdint>
 #include <utility>
@@ -23,7 +23,7 @@
 #include "esimd_radix_sort_kernels.h"
 #include "esimd_defs.h"
 
-namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
 //------------------------------------------------------------------------
@@ -39,18 +39,18 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
 struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
                                      oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _RngPack1, typename _RngPack2>
+    template <typename _KtTag, typename _RngPack1, typename _RngPack2>
     sycl::event
-    operator()(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n) const
+    operator()(_KtTag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n) const
     {
         sycl::nd_range<1> __nd_range{__work_group_size, __work_group_size};
         return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __pack_in.__keys_rng());
             oneapi::dpl::__ranges::__require_access(__cgh, __pack_out.__keys_rng());
-            __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[intel::sycl_explicit_simd]] {
-                __one_wg_kernel<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT>(
-                    __nd_item, __n, __pack_in, __pack_out);
-            });
+            __one_wg_kernel<_KtTag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT, std::decay_t<_RngPack1>,
+                             std::decay_t<_RngPack2>>
+                __kernel(__n, __pack_in, __pack_out);
+            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
 };
@@ -64,19 +64,19 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hi
 struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size,
                                         oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _KeysRng, typename _GlobalOffsetData>
+    template <typename _KtTag, typename _KeysRng, typename _GlobalOffsetData>
     sycl::event
-    operator()(sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
+    operator()(_KtTag, sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
                ::std::size_t __n, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
             __cgh.depends_on(__e);
-            __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[intel::sycl_explicit_simd]] {
-                __global_histogram<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size>(
-                    __nd_item, __n, __keys_rng, __global_offset_data);
-            });
+            __global_histogram<_KtTag, __is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size, std::decay_t<_KeysRng>>
+                __kernel(__n, __keys_rng, __global_offset_data);
+            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
+            
         });
     }
 };
@@ -88,10 +88,11 @@ template <::std::uint32_t __stage_count, ::std::uint32_t __bin_count, typename..
 struct __radix_sort_onesweep_scan_submitter<
     __stage_count, __bin_count, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _GlobalOffsetData>
+    template <typename _KtTag, typename _GlobalOffsetData>
     sycl::event
-    operator()(sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, const sycl::event& __e) const
+    operator()(_KtTag, sycl::queue& __q, const _GlobalOffsetData& __global_offset_data, const sycl::event& __e) const
     {
+        //scan kernel is pure sycl for esimd_sort, so no need to dispatch from tag
         sycl::nd_range<1> __nd_range(__stage_count * __bin_count, __bin_count);
         return __q.submit([&](sycl::handler& __cgh) {
             __cgh.depends_on(__e);
@@ -116,9 +117,9 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
 struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                        oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
+    template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
     sycl::event
-    operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
+    operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
                _GlobalHistT* __p_group_hists, ::std::uint32_t __sweep_work_group_count, ::std::size_t __n,
                ::std::uint32_t __stage, const sycl::event& __e) const
     {
@@ -130,7 +131,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                 oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
             }
             __cgh.depends_on(__e);
-            __radix_sort_onesweep_kernel<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
+            __radix_sort_onesweep_kernel<_KtTag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                          ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>
                 __kernel(__n, __stage, __p_global_hist, __p_group_hists, ::std::forward<_InRngPack>(__in_pack),
                          ::std::forward<_OutRngPack>(__out_pack));
@@ -145,11 +146,12 @@ struct __radix_sort_copyback_submitter;
 template <typename... _Name>
 struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _InRngPack, typename _OutRngPack>
+    template <typename _KtTag, typename _InRngPack, typename _OutRngPack>
     sycl::event
-    operator()(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, ::std::uint32_t __n,
+    operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, ::std::uint32_t __n,
                const sycl::event& __e) const
     {
+        //copyback kernel is pure sycl for esimd_sort, so no need to dispatch from tag
         return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (::std::decay_t<_InRngPack>::__has_values)
@@ -170,6 +172,6 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
     }
 };
 
-} // namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+} // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
-#endif // _ONEDPL_KT_ESIMD_RADIX_SORT_SUBMITTERS_H
+#endif // _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
