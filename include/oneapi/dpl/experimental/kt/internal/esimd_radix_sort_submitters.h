@@ -69,13 +69,21 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
     operator()(sycl::queue& __q, const _KeysRng& __keys_rng, const _GlobalOffsetData& __global_offset_data,
                ::std::size_t __n, const sycl::event& __e) const
     {
+        // TODO experiment with 32
+        using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
+        constexpr std::uint32_t __sub_group_size = 16;
+        constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+        constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
+        constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
+        constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
+            sycl::local_accessor<std::uint32_t, 1> __slm_accessor(__hist_buffer_size, __cgh);
             oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
             __cgh.depends_on(__e);
-            __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[intel::sycl_explicit_simd]] {
-                __global_histogram<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size>(
-                    __nd_item, __n, __keys_rng, __global_offset_data);
+            __cgh.parallel_for<_Name...>(__nd_range, [=](sycl::nd_item<1> __nd_item) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+                __global_histogram<__is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size, __sub_group_size>(
+                    __nd_item, __n, __keys_rng, __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get(), __global_offset_data);
             });
         });
     }

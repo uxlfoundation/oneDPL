@@ -227,40 +227,50 @@ __one_wg_kernel(sycl::nd_item<1> __idx, ::std::uint32_t __n, _RngPack1&& __rng_p
 }
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
-          ::std::uint16_t __hist_work_group_size, typename _KeysRng>
-_ONEDPL_ESIMD_INLINE void
-__global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rng, ::std::uint32_t* __p_global_offset)
+          ::std::uint16_t __hist_work_group_size, std::uint32_t __sub_group_size, typename _KeysRng>
+void
+__global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rng, std::uint32_t* __slm, std::uint32_t* __p_global_offset)
 {
     using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
-    using _BinT = ::std::uint16_t;
-    using _GlobalHistT = ::std::uint32_t;
+    using _BinT = std::uint16_t;
+    using _GlobalHistT = std::uint32_t;
 
-    __dpl_esimd::__ns::slm_init<16384>();
 
+    constexpr ::std::uint32_t __hist_num_sub_groups = __hist_work_group_size / __sub_group_size;
     constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
     constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
-    constexpr ::std::uint32_t __hist_data_per_work_item = 128;
+    constexpr ::std::uint32_t __hist_data_per_sub_group = 128;
+    constexpr ::std::uint32_t __hist_data_per_work_item = __hist_data_per_sub_group / __sub_group_size;
     constexpr ::std::uint32_t __device_wide_step =
         __hist_work_group_count * __hist_work_group_size * __hist_data_per_work_item;
 
     // Cap the number of histograms to reduce in SLM per __keys_rng range read pass
     // due to excessive GRF usage for thread-local histograms
+    //constexpr ::std::uint32_t __stages_per_block = sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 2;
     constexpr ::std::uint32_t __stages_per_block = sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 4;
     constexpr ::std::uint32_t __stage_block_count =
         oneapi::dpl::__internal::__dpl_ceiling_div(__stage_count, __stages_per_block);
 
     constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
-    constexpr ::std::uint32_t __group_hist_size = __hist_buffer_size / __hist_work_group_size;
+    constexpr ::std::uint32_t __group_hist_size = __hist_buffer_size / __hist_num_sub_groups;
+    constexpr std::uint32_t __grf_state_hist_size = __bin_count * __stages_per_block;
+    constexpr std::uint32_t __grf_state_hist_size_per_item = __grf_state_hist_size / __sub_group_size;
 
-    static_assert(__hist_data_per_work_item % __data_per_step == 0);
-    static_assert(__bin_count * __stages_per_block % __data_per_step == 0);
+    _GlobalHistT __state_hist_grf_partition[__grf_state_hist_size_per_item];
+    // Keys loaded with stride of sub-group size
+    _KeyT __keys[__hist_data_per_work_item];
+    // Translation to bins to increment
+    _BinT __bins[__hist_data_per_work_item];
 
-    __dpl_esimd::__ns::simd<_KeyT, __hist_data_per_work_item> __keys;
-    __dpl_esimd::__ns::simd<_BinT, __hist_data_per_work_item> __bins;
+    //static_assert(__hist_data_per_work_item % __data_per_step == 0);
+    //static_assert(__bin_count * __stages_per_block % __data_per_step == 0);
 
     const ::std::uint32_t __local_id = __idx.get_local_linear_id();
     const ::std::uint32_t __global_id = __idx.get_global_linear_id();
+    const ::std::uint32_t __group_id = __idx.get_group_linear_id();
+    const ::std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
+    const ::std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
     // 0. Early exit for threads without work
     if ((__global_id - __local_id) * __hist_data_per_work_item > __n)
@@ -269,82 +279,109 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
     }
 
     // 1. Initialize group-local histograms in SLM
-    __dpl_esimd::__block_store_slm<_GlobalHistT, __group_hist_size>(
-        __local_id * __group_hist_size * sizeof(_GlobalHistT), 0);
-    __dpl_esimd::__ns::barrier();
+    for (std::uint32_t __i =__local_id; __i < __hist_buffer_size; __i += __hist_work_group_size) {
+        __slm[__i] = 0;
+    }
+
+    sycl::group_barrier(__idx.get_group());
 
     _ONEDPL_PRAGMA_UNROLL
     for (::std::uint32_t __stage_block = 0; __stage_block < __stage_block_count; ++__stage_block)
     {
-        __dpl_esimd::__ns::simd<_GlobalHistT, __bin_count * __stages_per_block> __state_hist_grf(0);
+        //
+        // Hardware GRF maps to a sub-group. To program this at the SIMD / SIMT lane level, partition the GRF
+        // evenly amongst items in the sub-group. E.g. for sub-group size of 32 distributing with 1024 bin hist 
+        // |----------------|------|-------|-------|-----|----------|
+        // | sub group id   | 0    | 1     | 2     | ... | 31       |
+        // |----------------|------|-------|-------|-----|----------|
+        // | bin assignment | 0-31 | 32-63 | 64-95 | ... | 960-1023 |
+        // |----------------|------|-------|-------|-----|----------|
+        //
         ::std::uint32_t __stage_block_start = __stage_block * __stages_per_block;
+        for (int i = 0; i < __grf_state_hist_size_per_item; ++i)
+            __state_hist_grf_partition[i] = 0;
 
-        for (::std::uint32_t __wi_offset = __global_id * __hist_data_per_work_item; __wi_offset < __n;
+        auto __increment_grf_histogram = [](sycl::nd_item<1> __idx, std::uint32_t __source_id, std::uint32_t* __state_hist_grf_partition, std::uint32_t __bin) {
+            __bin = sycl::group_broadcast(__idx.get_sub_group(), __bin, __source_id);
+            if (__bin / __grf_state_hist_size_per_item == __idx.get_sub_group().get_local_id()) {
+                ++__state_hist_grf_partition[__bin % __grf_state_hist_size_per_item];
+            }
+        };
+
+        for (::std::uint32_t __wi_offset = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group + __sub_group_local_id; __wi_offset < __n;
              __wi_offset += __device_wide_step)
         {
             // 1. Read __keys
             // TODO: avoid reading global memory twice when __stage_block_count > 1 increasing __hist_data_per_work_item
-            if (__wi_offset + __hist_data_per_work_item < __n)
+            // TODO: Matt - this check is not correct. It should be from the sub-group start + __hist_data_per_sub_group 
+            if (__wi_offset + __hist_data_per_sub_group < __n)
             {
-                __dpl_esimd::__copy_from(__rng_data(__keys_rng), __wi_offset, __keys);
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i) {
+                    // Disturbs ordering but we do not care for the normal histogram accumulation
+                    __keys[__i] = __keys_rng[__i * __sub_group_size + __wi_offset];
+                }
             }
             else
             {
-                __dpl_esimd::__ns::simd<::std::uint32_t, __data_per_step> __lane_offsets(0, 1);
-                _ONEDPL_PRAGMA_UNROLL
-                for (::std::uint32_t __step_offset = 0; __step_offset < __hist_data_per_work_item;
-                     __step_offset += __data_per_step)
+                for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i)
                 {
-                    __dpl_esimd::__ns::simd<::std::uint32_t, __data_per_step> __offsets =
-                        __lane_offsets + __step_offset + __wi_offset;
-                    __dpl_esimd::__ns::simd_mask<__data_per_step> __is_in_range = __offsets < __n;
-                    __dpl_esimd::__ns::simd<_KeyT, __data_per_step> data =
-                        __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__keys_rng), __offsets, 0,
-                                                                      __is_in_range);
-                    __dpl_esimd::__ns::simd<_KeyT, __data_per_step> sort_identities =
-                        __sort_identity<_KeyT, __is_ascending>();
-                    __keys.template select<__data_per_step, 1>(__step_offset) =
-                        __dpl_esimd::__ns::merge(data, sort_identities, __is_in_range);
+                    std::size_t __idx = __i * __sub_group_size + __wi_offset;
+                    __keys[__i] = (__idx < __n) ? __keys_rng[__idx] : __sort_identity<_KeyT, __is_ascending>();
                 }
             }
             // 2. Calculate thread-local histogram in GRF
+            // TODO Matt: Evaluate generated asm for this region if kernel is underperforming
             _ONEDPL_PRAGMA_UNROLL
             for (::std::uint32_t __stage_local = 0; __stage_local < __stages_per_block; ++__stage_local)
             {
                 constexpr _BinT __mask = __bin_count - 1;
                 ::std::uint32_t __stage_global = __stage_block_start + __stage_local;
-                __bins = __get_bucket<__mask>(__order_preserving_cast<__is_ascending>(__keys),
-                                              __stage_global * __radix_bits);
                 _ONEDPL_PRAGMA_UNROLL
-                for (::std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
+                for (std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
                 {
-                    ++__state_hist_grf[__stage_local * __bin_count + __bins[__i]];
+                    __bins[__i] = __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__keys[__i]),
+                                                              __stage_global * __radix_bits);
+                }
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __sub_group_size; ++__i)
+                {
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::uint32_t __j = 0; __j < __hist_data_per_work_item; ++__j)
+                    {
+                        // TODO check if this masking is faster than just computing the bin for everyone 
+                        std::uint32_t __bin = 0;
+                        if (__idx.get_sub_group().get_local_id() == __i)
+                        {
+                            __bin = __stage_local * __bin_count + __bins[__j];
+                        }
+                        __increment_grf_histogram(__idx, __i, &__state_hist_grf_partition[0], __bin);
+                    }
                 }
             }
         }
 
         // 3. Reduce thread-local histograms from GRF into group-local histograms in SLM
+        auto __sglid = __idx.get_sub_group().get_local_id();
+        using _SLMAtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::work_group, sycl::access::address_space::local_space>;
+        auto __slm_offset = __sglid * __grf_state_hist_size_per_item + __stage_block_start * __bin_count; 
+        // TODO we need to see how the compiler handles this and if bank conflicts show up
         _ONEDPL_PRAGMA_UNROLL
-        for (::std::uint32_t __grf_offset = 0; __grf_offset < __bin_count * __stages_per_block;
-             __grf_offset += __data_per_step)
+        for (std::uint32_t __i = 0; __i < __grf_state_hist_size_per_item; ++__i)
         {
-            ::std::uint32_t slm_offset = __stage_block_start * __bin_count + __grf_offset;
-            __dpl_esimd::__ns::simd<::std::uint32_t, __data_per_step> __slm_byte_offsets(
-                slm_offset * sizeof(_GlobalHistT), sizeof(_GlobalHistT));
-            __dpl_esimd::__ens::lsc_slm_atomic_update<__dpl_esimd::__ns::atomic_op::add, _GlobalHistT, __data_per_step>(
-                __slm_byte_offsets, __state_hist_grf.template select<__data_per_step, 1>(__grf_offset), 1);
+            _SLMAtomicRef __atomic_slm(__slm[__slm_offset + __i]);
+            __atomic_slm.fetch_add(__state_hist_grf_partition[__i]);
         }
-        __dpl_esimd::__ns::barrier();
+        sycl::group_barrier(__idx.get_group());
     }
 
     // 4. Reduce group-local histograms from SLM into global histograms in global memory
-    __dpl_esimd::__ns::simd<_GlobalHistT, __group_hist_size> __group_hist =
-        __dpl_esimd::__block_load_slm<_GlobalHistT, __group_hist_size>(__local_id * __group_hist_size *
-                                                                       sizeof(_GlobalHistT));
-    __dpl_esimd::__ns::simd<::std::uint32_t, __group_hist_size> __byte_offsets(0, sizeof(_GlobalHistT));
-    __dpl_esimd::__ens::lsc_atomic_update<__dpl_esimd::__ns::atomic_op::add>(
-        __p_global_offset + __local_id * __group_hist_size, __byte_offsets, __group_hist,
-        __dpl_esimd::__ns::simd_mask<__group_hist_size>(1));
+    for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
+    {
+        using _AtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>;
+        _AtomicRef __global_hist_ref(__p_global_offset[__i]);
+        __global_hist_ref.fetch_add(__slm[__i]);
+    }
 }
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,

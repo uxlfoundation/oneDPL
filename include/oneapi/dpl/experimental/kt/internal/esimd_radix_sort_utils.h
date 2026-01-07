@@ -87,6 +87,13 @@ __get_bucket(__dpl_esimd::__ns::simd<_T, _N> __value, ::std::uint32_t __radix_of
     return __dpl_esimd::__ns::simd<::std::uint16_t, _N>(__value >> __radix_offset) & __radix_mask;
 }
 
+template <::std::uint16_t __radix_mask, typename _T, std::enable_if_t<::std::is_unsigned_v<_T>, int> = 0>
+::std::uint16_t
+__get_bucket_scalar(_T __value, ::std::uint32_t __radix_offset)
+{
+    return std::uint16_t(__value >> __radix_offset) & __radix_mask;
+}
+
 template <typename _T, bool __is_ascending, std::enable_if_t<::std::is_integral_v<_T>, int> = 0>
 constexpr _T
 __sort_identity()
@@ -134,6 +141,16 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<bool, _N> __src)
         return !__src;
 }
 
+template <bool __is_ascending>
+bool
+__order_preserving_cast_scalar(bool __src)
+{
+    if constexpr (__is_ascending)
+        return __src;
+    else
+        return !__src;
+}
+
 template <bool __is_ascending, typename _UInt, int _N, std::enable_if_t<::std::is_unsigned_v<_UInt>, int> = 0>
 __dpl_esimd::__ns::simd<_UInt, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_UInt, _N> __src)
@@ -144,10 +161,33 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_UInt, _N> __src)
         return ~__src; //bitwise inversion
 }
 
+template <bool __is_ascending, typename _UInt, std::enable_if_t<::std::is_unsigned_v<_UInt>, int> = 0>
+_UInt
+__order_preserving_cast_scalar(_UInt __src)
+{
+    if constexpr (__is_ascending)
+        return __src;
+    else
+        return ~__src; //bitwise inversion
+}
+
+
 template <bool __is_ascending, typename _Int, int _N,
           std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
 __dpl_esimd::__ns::simd<::std::make_unsigned_t<_Int>, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Int, _N> __src)
+{
+    using _UInt = ::std::make_unsigned_t<_Int>;
+    // __mask: 100..0 for ascending, 011..1 for descending
+    constexpr _UInt __mask =
+        (__is_ascending) ? _UInt(1) << ::std::numeric_limits<_Int>::digits : ::std::numeric_limits<_UInt>::max() >> 1;
+    return __src.template bit_cast_view<_UInt>() ^ __mask;
+}
+
+template <bool __is_ascending, typename _Int,
+          std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
+::std::make_unsigned_t<_Int>
+__order_preserving_cast_scalar(_Int __src)
 {
     using _UInt = ::std::make_unsigned_t<_Int>;
     // __mask: 100..0 for ascending, 011..1 for descending

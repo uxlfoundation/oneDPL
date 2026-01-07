@@ -250,8 +250,11 @@ __onesweep_impl(sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pa
                                            (__global_hist_item_count + __group_hist_item_count) * sizeof(_GlobalHistT));
 
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
-    constexpr ::std::uint32_t __hist_work_group_count = 64;
-    constexpr ::std::uint32_t __hist_work_group_size = 64;
+    // Original esimd count and work group size are 64 and 64. In SYCL this would translate to 64 groups with size of 2048.
+    // However, size 2048 work-groups are an experimental feature enabled through an environment variable, so we can instead double
+    // the work group count and use the max 1024 size.
+    constexpr ::std::uint32_t __hist_work_group_count = 128;
+    constexpr ::std::uint32_t __hist_work_group_size = 1024;
     __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
                                                      __hist_work_group_size, _EsimdRadixSortHistogram>()(
         __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
