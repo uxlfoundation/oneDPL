@@ -908,9 +908,8 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
 
-    // Use write access mode without no_init so that we dont overwrite existing data past the end of the copied elements
     auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/false>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
@@ -943,9 +942,8 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__result1),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__result2));
 
-    // Use write access mode without no_init so that we dont overwrite existing data past the end of the copied elements
     auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/false>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__zipped_res, __zipped_res + __n);
 
     auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy(
@@ -983,9 +981,8 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ite
 
     auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
-    // Use write access mode without no_init so that we dont overwrite existing data past the end of the copied elements
     auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/false>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     auto __result = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
@@ -1773,9 +1770,8 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
     auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __last2);
 
-    // Use write access mode without no_init so that we dont overwrite existing data past the end of the copied elements
     auto __keep3 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/false>();
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
     _SizeType __result_size = __par_backend_hetero::__parallel_set_op<_SetTag>(

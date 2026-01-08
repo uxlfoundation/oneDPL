@@ -48,8 +48,12 @@ struct run_unique_copy
     template <typename Policy, typename InputIterator, typename OutputIterator, typename OutputIterator2, typename Size>
     void
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
-               OutputIterator out_last, OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
-               T trash)
+               OutputIterator
+#if !TEST_DPCPP_BACKEND_PRESENT
+               out_last
+#endif
+               , OutputIterator2 expected_first, OutputIterator2 /* expected_last */,
+               Size n, T trash)
     {
         // Cleaning
         ::std::fill_n(expected_first, n, trash);
@@ -58,12 +62,20 @@ struct run_unique_copy
         // Run unique_copy
         [[maybe_unused]] auto i = unique_copy(first, last, expected_first);
         auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first);
+#if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy effect");
         for (size_t j = 0; j < GuardSize; ++j)
         {
             ++k;
         }
         EXPECT_TRUE(out_last == k, "wrong return value from unique_copy");
+#else
+        auto expected_count = ::std::distance(expected_first, i);
+        auto out_count = ::std::distance(out_first, k);
+
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy");
+        EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy effect");
+#endif
     }
 };
 
@@ -95,7 +107,11 @@ struct run_unique_copy_predicate
               typename Predicate>
     void
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
-               OutputIterator out_last, OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
+               OutputIterator
+#if !TEST_DPCPP_BACKEND_PRESENT
+               out_last
+#endif
+               , OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
                Predicate pred, T trash)
     {
         // Cleaning
@@ -105,12 +121,20 @@ struct run_unique_copy_predicate
         // Run unique_copy with predicate
         [[maybe_unused]] auto i = unique_copy(first, last, expected_first, pred);
         auto k = unique_copy(std::forward<Policy>(exec), first, last, out_first, pred);
+#if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong unique_copy with predicate effect");
         for (size_t j = 0; j < GuardSize; ++j)
         {
             ++k;
         }
         EXPECT_TRUE(out_last == k, "wrong return value from unique_copy with predicate");
+#else
+        auto expected_count = ::std::distance(expected_first, i);
+        auto out_count = ::std::distance(out_first, k);
+
+        EXPECT_EQ(expected_count, out_count, "wrong return value from unique_copy with predicate");
+        EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong unique_copy with predicate effect");
+#endif
     }
 };
 
@@ -125,9 +149,13 @@ test(T trash, BinaryPredicate pred, Convert convert, bool check_weakness = true)
         // more for sake of detecting buffer overruns.
         Sequence<T> in(n, [&](size_t k) -> T { return convert(k ^ n); });
         using namespace std;
+#if !TEST_DPCPP_BACKEND_PRESENT
         size_t count = GuardSize;
         for (size_t k = 0; k < in.size(); ++k)
             count += k == 0 || !pred(in[k], in[k - 1]) ? 1 : 0;
+#else
+        size_t count = n;
+#endif
         Sequence<T> out(count, [=](size_t) { return trash; });
         Sequence<T> expected(count, [=](size_t) { return trash; });
         if (check_weakness)

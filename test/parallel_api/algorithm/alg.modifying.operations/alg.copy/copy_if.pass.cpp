@@ -54,7 +54,11 @@ struct run_copy_if
               typename Predicate, typename T>
     void
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
-               OutputIterator out_last, OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
+               OutputIterator
+#if !TEST_DPCPP_BACKEND_PRESENT
+               out_last
+#endif
+               , OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
                Predicate pred, T trash)
     {
         // Cleaning
@@ -64,12 +68,19 @@ struct run_copy_if
         // Run copy_if
         [[maybe_unused]] auto i = copy_if(first, last, expected_first, pred);
         auto k = copy_if(std::forward<Policy>(exec), first, last, out_first, pred);
+#if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong copy_if effect");
         for (size_t j = 0; j < GuardSize; ++j)
         {
             ++k;
         }
         EXPECT_TRUE(out_last == k, "wrong return value from copy_if");
+#else
+        auto expected_count = ::std::distance(expected_first, i);
+        auto out_count = ::std::distance(out_first, k);
+        EXPECT_EQ(expected_count, out_count, "wrong return value from copy_if");
+        EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong copy_if effect");
+#endif
     }
 };
 
@@ -99,7 +110,11 @@ template <typename InputIterator, typename OutputIterator, typename OutputIterat
               typename Predicate, typename T>
     void
     operator()(Policy&& exec, InputIterator first, InputIterator last, OutputIterator out_first,
-               OutputIterator out_last, OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
+               OutputIterator
+#if !TEST_DPCPP_BACKEND_PRESENT
+               out_last
+#endif
+               , OutputIterator2 expected_first, OutputIterator2 /* expected_last */, Size n,
                Predicate pred, T trash)
     {
         // Cleaning
@@ -108,14 +123,20 @@ template <typename InputIterator, typename OutputIterator, typename OutputIterat
 
         // Run remove_copy_if
         [[maybe_unused]] auto i = remove_copy_if(first, last, expected_first, TestUtils::NotPred<T, Predicate>{pred});
-        auto k =
-            remove_copy_if(std::forward<Policy>(exec), first, last, out_first, TestUtils::NotPred<T, Predicate>{pred});
+        auto k = remove_copy_if(std::forward<Policy>(exec), first, last, out_first, TestUtils::NotPred<T, Predicate>{pred});
+#if !TEST_DPCPP_BACKEND_PRESENT
         EXPECT_EQ_N(expected_first, out_first, n, "wrong remove_copy_if effect");
         for (size_t j = 0; j < GuardSize; ++j)
         {
             ++k;
         }
         EXPECT_TRUE(out_last == k, "wrong return value from remove_copy_if");
+#else
+        auto expected_count = ::std::distance(expected_first, i);
+        auto out_count = ::std::distance(out_first, k);
+        EXPECT_EQ(expected_count, out_count, "wrong return value from remove_copy_if");
+        EXPECT_EQ_N(expected_first, out_first, expected_count, "wrong remove_copy_if effect");
+#endif
     }
 };
 
@@ -126,12 +147,18 @@ test(T trash, Predicate pred, Convert convert, bool check_weakness = true)
     // Try sequences of various lengths.
     for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
+#if !TEST_DPCPP_BACKEND_PRESENT
         // count is number of output elements, plus a handful
         // more for sake of detecting buffer overruns.
         size_t count = GuardSize;
+#else
+        size_t count = n;
+#endif
         Sequence<T> in(n, [&](size_t k) -> T {
             T val = convert(n ^ k);
+#if !TEST_DPCPP_BACKEND_PRESENT
             count += pred(val) ? 1 : 0;
+#endif
             return val;
         });
 
@@ -191,7 +218,9 @@ main()
                   [](size_t j) { return ((j + 1) % 5 & 2) != 0 ? std::int16_t(j + 1) : 42; });
 #endif // ONEDPL_FPGA_DEVICE
 
+#if !TEST_DPCPP_BACKEND_PRESENT
     test<Number>(Number(42, OddTag()), IsMultiple(3, OddTag()), [](std::int32_t j) { return Number(j, OddTag()); });
+#endif
     test<std::int32_t>(-666, [](const std::int32_t&) { return true; }, [](size_t j) { return j; }, false);
 
 #if defined(_PSTL_TEST_REMOVE_COPY_IF)
