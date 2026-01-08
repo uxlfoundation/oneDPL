@@ -37,7 +37,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     _RngPack1 __rng_pack_in;
     _RngPack2 __rng_pack_out;
 
-    __one_wg_kernel(std::uint32_t __n, _RngPack1 __rng_pack_in, _RngPack2 __rng_pack_out) : 
+    __one_wg_kernel(std::uint32_t __n, const _RngPack1& __rng_pack_in, const _RngPack2& __rng_pack_out) : 
         __n(__n), __rng_pack_in(__rng_pack_in), __rng_pack_out(__rng_pack_out)
     {
     }
