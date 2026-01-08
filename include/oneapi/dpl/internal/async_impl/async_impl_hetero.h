@@ -171,7 +171,7 @@ auto
 __pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                      _ForwardIterator __last, const _T& __value)
 {
-    return __pattern_walk1_async<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>(
+    return __pattern_walk1_async(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
