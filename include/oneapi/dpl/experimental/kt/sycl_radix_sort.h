@@ -14,8 +14,8 @@
 #include <type_traits>
 
 #include "../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
-#include "internal/sycl_radix_sort_utils.h"
-#include "internal/sycl_radix_sort_dispatchers.h"
+#include "internal/radix_sort_utils.h"
+#include "internal/radix_sort_dispatchers.h"
 #include "../../pstl/utils.h"
 
 namespace oneapi::dpl::experimental::kt::gpu
@@ -31,7 +31,7 @@ radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
         return {};
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(::std::forward<_KeysRng>(__keys_rng))};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__sycl_tag{}, __q, __pack, __pack, __param);
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 }
 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator>
@@ -46,7 +46,7 @@ radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_las
     auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator>();
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng)};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__sycl_tag{}, __q, __pack, __pack, __param);
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 }
 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng,
@@ -61,7 +61,7 @@ radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng,
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(::std::forward<_KeysRng>(__keys_rng)),
                                      oneapi::dpl::__ranges::views::all(::std::forward<_ValsRng>(__vals_rng))};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__sycl_tag{}, __q, __pack, __pack, __param);
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 }
 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysIterator,
@@ -81,7 +81,7 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __k
     auto __vals_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator>();
     auto __vals_rng = __vals_keep(__vals_first, __vals_first + (__keys_last - __keys_first)).all_view();
     auto __pack = __impl::__rng_pack{::std::move(__keys_rng), ::std::move(__vals_rng)};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(__sycl_tag{}, __q, __pack, __pack, __param);
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 }
 
 template <bool __is_ascending = true, ::std::uint8_t __radix_bits = 8, typename _KernelParam, typename _KeysRng1,
@@ -95,7 +95,7 @@ radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, 
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(::std::forward<_KeysRng1>(__keys_rng))};
     auto __pack_out = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(::std::forward<_KeysRng2>(__keys_rng_out))};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__sycl_tag{}, __q, ::std::move(__pack),
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, ::std::move(__pack),
                                                                                     ::std::move(__pack_out), __param);
 }
 
@@ -117,7 +117,7 @@ radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_l
     auto __keys_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _KeysIterator2>();
     auto __keys_out_rng = __keys_out_keep(__keys_out_first, __keys_out_first + __n).all_view();
     auto __pack_out = __impl::__rng_pack{::std::move(__keys_out_rng)};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__sycl_tag{}, __q, ::std::move(__pack),
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, ::std::move(__pack),
                                                                                     ::std::move(__pack_out), __param);
 }
 
@@ -135,7 +135,7 @@ radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rn
                                      oneapi::dpl::__ranges::views::all(::std::forward<_ValsRng1>(__vals_rng))};
     auto __pack_out = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(::std::forward<_KeysRng2>(__keys_out_rng)),
                                          oneapi::dpl::__ranges::views::all(::std::forward<_ValsRng2>(__vals_out_rng))};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__sycl_tag{}, __q, ::std::move(__pack),
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, ::std::move(__pack),
                                                                                     ::std::move(__pack_out), __param);
 }
 
@@ -164,7 +164,7 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
     auto __vals_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write, _ValsIterator2>();
     auto __vals_out_rng = __vals_out_keep(__vals_out_first, __vals_out_first + __n).all_view();
     auto __pack_out = __impl::__rng_pack{::std::move(__keys_out_rng), ::std::move(__vals_out_rng)};
-    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(__sycl_tag{}, __q, ::std::move(__pack),
+    return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/false>(oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, ::std::move(__pack),
                                                                                     ::std::move(__pack_out), __param);
 }
 

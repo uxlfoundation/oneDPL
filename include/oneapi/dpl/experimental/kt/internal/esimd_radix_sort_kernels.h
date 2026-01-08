@@ -23,11 +23,15 @@
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
+// TODO: fill in general purpose pure sycl kernels, and return this to partial specialization for esimd
+//template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+//          ::std::uint16_t __work_group_size, typename _KeyT, typename _RngPack1, typename _RngPack2>
+// struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
+//                        _RngPack1, _RngPack2>
 
-template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _KeyT, typename _RngPack1, typename _RngPack2>
-struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
-                       _RngPack1, _RngPack2>
+struct __one_wg_kernel
 {
     using _BinT = ::std::uint16_t;
     using _HistT = ::std::uint16_t;
@@ -240,11 +244,16 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     }
 };
 
-template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
-          ::std::uint16_t __hist_work_group_size, typename _KeysRng>
-struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work_group_count,
-                          __hist_work_group_size, _KeysRng>
-{
+// TODO: fill in general purpose pure sycl kernels, and return this to partial specialization for esimd
+// template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
+//           ::std::uint16_t __hist_work_group_size, typename _KeysRng>
+// struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work_group_count,
+//                           __hist_work_group_size, _KeysRng>
+
+template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
+           ::std::uint16_t __hist_work_group_size, typename _KeysRng>
+ struct __global_histogram
+ {
     using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
     using _BinT = ::std::uint16_t;
     using _GlobalHistT = ::std::uint32_t;
@@ -375,10 +384,14 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
     }
 };
 
-template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+// TODO: fill in general purpose pure sycl kernels, and return this to partial specialization for esimd
+// template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+//           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
+// struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item,
+//                                     __work_group_size, _InRngPack, _OutRngPack>
+template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
-struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item,
-                                    __work_group_size, _InRngPack, _OutRngPack>
+struct __radix_sort_onesweep_kernel
 {
     using _LocOffsetT = ::std::uint16_t;
     using _GlobOffsetT = ::std::uint32_t;

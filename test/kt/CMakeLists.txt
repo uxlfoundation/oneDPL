@@ -44,29 +44,31 @@ endfunction()
 # Arguments with special treatment:
 #   _val_type. Treated as absent for values: "" (empty string).
 #              If absent, key sort test is generated, otherwise key-value sort test
-function(_generate_esimd_sort_test _base_file _data_per_work_item _work_group_size _key_type _val_type _probability_permille)
-    if ((NOT TARGET build-esimd-tests) AND (NOT TARGET run-esimd-tests))
-        add_custom_target(build-esimd-tests COMMENT "Build all ESIMD-based kernel template tests")
-        add_custom_target(run-esimd-tests
-            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-esimd-tests$" --output-on-failure --no-label-summary
-            DEPENDS build-esimd-tests
-            COMMENT "Build and run all ESIMD tests")
+#   _variant. Must be "esimd" or "sycl" to specify which kernel variant to use
+function(_generate_sort_test _variant _base_file _data_per_work_item _work_group_size _key_type _val_type _probability_permille)
+    if ((NOT TARGET build-${_variant}-sort-tests) AND (NOT TARGET run-${_variant}-sort-tests))
+        string(TOUPPER ${_variant} _variant_upper)
+        add_custom_target(build-${_variant}-sort-tests COMMENT "Build all ${_variant_upper}-based kernel template tests")
+        add_custom_target(run-${_variant}-sort-tests
+            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-${_variant}-sort-tests$" --output-on-failure --no-label-summary
+            DEPENDS build-${_variant}-sort-tests
+            COMMENT "Build and run all ${_variant_upper} tests")
     endif()
 
     string(REPLACE "_t" "" _key_type_short ${_key_type})
     if (NOT "${_val_type}" STREQUAL "")
         string(REPLACE "_t" "" _val_type_short ${_val_type})
-        set(_target_name "${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}")
-        set(_test_path "${_base_file}.cpp")
+        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}")
+        set(_test_path "${_variant}_${_base_file}.cpp")
     else()
-        set(_target_name "${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}")
-        set(_test_path "${_base_file}.cpp")
+        set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}")
+        set(_test_path "${_variant}_${_base_file}.cpp")
     endif()
 
     _generate_test_randomly(${_target_name} ${_test_path} ${_probability_permille})
     if(TARGET ${_target_name})
-        add_dependencies(build-esimd-tests ${_target_name})
-        add_dependencies(run-esimd-tests ${_target_name})
+        add_dependencies(build-${_variant}-sort-tests ${_target_name})
+        add_dependencies(run-${_variant}-sort-tests ${_target_name})
 
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})
@@ -77,7 +79,7 @@ function(_generate_esimd_sort_test _base_file _data_per_work_item _work_group_si
     endif()
 endfunction()
 
-# Tests for ESIMD-based Kernel Templates are randomly generated.
+# Tests for Sort Kernel Templates are randomly generated.
 # Purpose:
 # - Cover as much as possible cases with limited resources by running different sets during each session.
 # - Get more fine-grained results and thus better debuggability.
@@ -96,9 +98,9 @@ endfunction()
 # 4. Input data type: key type or a combination of key-value types.
 # 5. Number of elements.
 # Parameters #1 and #4 were selected for generation to allow compilation and execution of a test within ~5 minutes
-function(_generate_esimd_sort_tests _key_value_pairs)
-    set(_base_file_all "esimd_radix_sort" "esimd_radix_sort_out_of_place")
-    set(_base_file_by_key_all "esimd_radix_sort_by_key" "esimd_radix_sort_by_key_out_of_place")
+function(_generate_sort_tests _variant _key_value_pairs)
+    set(_base_file_all "radix_sort" "radix_sort_out_of_place")
+    set(_base_file_by_key_all "radix_sort_by_key" "radix_sort_by_key_out_of_place")
     set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
     set(_work_group_size_all "64")
     set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double")
@@ -110,13 +112,13 @@ function(_generate_esimd_sort_tests _key_value_pairs)
                     foreach (_base_file ${_base_file_by_key_all})
                         foreach (_val_type ${_type_all})
                             # ~1-2 tests: (2/1000) * (16 * 6 * 6 * 2)
-                            _generate_esimd_sort_test(${_base_file} ${_data_per_work_item} ${_work_group_size} ${_key_type} ${_val_type} 2)
+                            _generate_sort_test(${_variant} ${_base_file} ${_data_per_work_item} ${_work_group_size} ${_key_type} ${_val_type} 2)
                         endforeach()
                     endforeach()
                 else()
                     foreach (_base_file ${_base_file_all})
                         # ~1-2 test: (10/1000) * (16 * 6 * 2)
-                        _generate_esimd_sort_test(${_base_file} ${_data_per_work_item} ${_work_group_size} ${_key_type} "" 10)
+                        _generate_sort_test(${_variant} ${_base_file} ${_data_per_work_item} ${_work_group_size} ${_key_type} "" 10)
                     endforeach()
                 endif()
             endforeach()
@@ -125,12 +127,21 @@ function(_generate_esimd_sort_tests _key_value_pairs)
 endfunction()
 
 if (ONEDPL_TEST_ENABLE_KT_ESIMD)
-    _generate_esimd_sort_tests(FALSE) # esimd_radix_sort, random
-    _generate_esimd_sort_tests(TRUE) # esimd_radix_sort_by_key, random
+    _generate_sort_tests("esimd" FALSE) # radix_sort, random
+    _generate_sort_tests("esimd" TRUE) # radix_sort_by_key, random
 
     # Pin some cases to track them
-    _generate_esimd_sort_test("esimd_radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
-    _generate_esimd_sort_test("esimd_radix_sort" "384" "64" "int32_t" "" 1000)
+    _generate_sort_test("esimd" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("esimd" "radix_sort" "384" "64" "int32_t" "" 1000)
+endif()
+
+if (ONEDPL_TEST_ENABLE_KT_SYCL)
+    _generate_sort_tests("sycl" FALSE) # radix_sort, random
+    _generate_sort_tests("sycl" TRUE) # radix_sort_by_key, random
+
+    # Pin some cases to track them
+    _generate_sort_test("sycl" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("sycl" "radix_sort" "384" "64" "int32_t" "" 1000)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
