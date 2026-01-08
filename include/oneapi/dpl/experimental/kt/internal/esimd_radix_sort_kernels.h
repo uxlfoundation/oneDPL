@@ -291,11 +291,13 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
         //
         // Hardware GRF maps to a sub-group. To program this at the SIMD / SIMT lane level, partition the GRF
         // evenly amongst items in the sub-group. E.g. for sub-group size of 32 distributing with 1024 bin hist 
-        // |----------------|------|-------|-------|-----|----------|
-        // | sub group id   | 0    | 1     | 2     | ... | 31       |
-        // |----------------|------|-------|-------|-----|----------|
-        // | bin assignment | 0-31 | 32-63 | 64-95 | ... | 960-1023 |
-        // |----------------|------|-------|-------|-----|----------|
+        // |----------------|------------|-------------|-------------|-----|----------------|
+        // | sub group id   | 0          | 1           | 2           | ... | 31             |
+        // |----------------|------------|-------------|-------------|-----|----------------|
+        // | bin assignment | 0,32,64,...| 1,33,65,... | 2,34,66,... | ... | 63,127,191,... |
+        // |----------------|------------|-------------|-------------|-----|----------------|
+        //
+        // Strided approach allows more efficient accumulation into SLM after GRF histogram
         //
         ::std::uint32_t __stage_block_start = __stage_block * __stages_per_block;
         for (int i = 0; i < __grf_state_hist_size_per_item; ++i)
@@ -303,8 +305,8 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
 
         auto __increment_grf_histogram = [](sycl::nd_item<1> __idx, std::uint32_t __source_id, std::uint32_t* __state_hist_grf_partition, std::uint32_t __bin) {
             __bin = sycl::group_broadcast(__idx.get_sub_group(), __bin, __source_id);
-            if (__bin / __grf_state_hist_size_per_item == __idx.get_sub_group().get_local_id()) {
-                ++__state_hist_grf_partition[__bin % __grf_state_hist_size_per_item];
+            if (__bin % __sub_group_size == __idx.get_sub_group().get_local_id()) {
+                ++__state_hist_grf_partition[__bin / __sub_group_size];
             }
         };
 
@@ -364,12 +366,11 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
         // 3. Reduce thread-local histograms from GRF into group-local histograms in SLM
         auto __sglid = __idx.get_sub_group().get_local_id();
         using _SLMAtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::work_group, sycl::access::address_space::local_space>;
-        auto __slm_offset = __sglid * __grf_state_hist_size_per_item + __stage_block_start * __bin_count; 
-        // TODO we need to see how the compiler handles this and if bank conflicts show up
+        auto __slm_offset = __sglid + __stage_block_start * __bin_count;
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __grf_state_hist_size_per_item; ++__i)
         {
-            _SLMAtomicRef __atomic_slm(__slm[__slm_offset + __i]);
+            _SLMAtomicRef __atomic_slm(__slm[__slm_offset + __i * __sub_group_size]);
             __atomic_slm.fetch_add(__state_hist_grf_partition[__i]);
         }
         sycl::group_barrier(__idx.get_group());
