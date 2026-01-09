@@ -287,27 +287,28 @@ std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
                       _IterPredicate __pred) noexcept
 {
-    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan
     _DifferenceType __stop = __n;
-    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __write_pos)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
         bool __suitable = __pred(__first, __i);
-        __cnt += __suitable;
-        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
+        __write_pos += __suitable;
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__suitable)
         {
             if constexpr (__Bounded)
             {
-                if (__cnt < __n_out)
-                    __result[__cnt] = __first[__i];
-                if (__cnt == __n_out) // together with __suitable, the conditions are true for only one index
+                if (__write_pos < __n_out)
+                    __result[__write_pos] = __first[__i];
+                if (__write_pos == __n_out) // together with __suitable, the conditions are true for only one index
                     __stop = __i;
             }
             else
-                __result[__cnt] = __first[__i];
+                __result[__write_pos] = __first[__i];
         }
     }
+    _DifferenceType __cnt = __write_pos + 1;
     return {__stop, __cnt < __n_out ? __cnt : __n_out};
 }
 
@@ -331,24 +332,24 @@ _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
                     bool* __mask, _Assigner __assign) noexcept
 {
-    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan of the mask
     _DifferenceType __stop = __n;
-    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __write_pos)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __cnt += __mask[__i];
-        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
+        __write_pos += __mask[__i];
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__mask[__i])
         {
             if constexpr (__Bounded)
             {
-                if (__cnt < __n_out)
-                    __assign(__first + __i, __result + __cnt);
-                if (__cnt == __n_out) // together with the mask, the conditions are true for only one index
+                if (__write_pos < __n_out)
+                    __assign(__first + __i, __result + __write_pos);
+                if (__write_pos == __n_out) // together with the mask, the conditions are true for only one index
                     __stop = __i;
             }
             else
-                __assign(__first + __i, __result + __cnt);
+                __assign(__first + __i, __result + __write_pos);
         }
     }
     return __stop;
