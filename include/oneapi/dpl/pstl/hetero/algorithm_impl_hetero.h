@@ -271,7 +271,7 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
     // please see the comment above __pattern_walk2 and https://github.com/uxlfoundation/oneDPL/issues/1272.
     return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
-                           __par_backend_hetero::access_mode::read_write>(
+                           __par_backend_hetero::access_mode::read_write, /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
@@ -292,7 +292,7 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     // values of the output sequence for elements where the predicate is false. We never actually read from the output
     // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
     // please see the comment above __pattern_walk3 and https://github.com/uxlfoundation/oneDPL/issues/1272.
-    return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read_write>(
+    return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read_write, /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
