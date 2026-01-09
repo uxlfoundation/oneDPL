@@ -64,7 +64,7 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __num_histograms; ++__j)
         {
-            __slm[__j * __hist_buffer_size + __i] = 0;
+            __slm[__i * __num_histograms + __j] = 0;
         }
     }
 
