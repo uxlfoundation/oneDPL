@@ -311,7 +311,7 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
                     sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                      sycl::access::address_space::local_space>;
                 auto __slm_hist_idx = __sub_group_local_id % __num_histograms;
-                _SLMAtomicRef __slm_ref(__slm[__slm_hist_idx * __hist_buffer_size + __bin]);
+                _SLMAtomicRef __slm_ref(__slm[__bin * __num_histograms + __slm_hist_idx]);
                 __slm_ref.fetch_add(1);
             }
         }
@@ -325,7 +325,7 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __num_histograms; ++__j)
         {
-            __reduced_bincount += __slm[__j * __hist_buffer_size +__i];
+            __reduced_bincount += __slm[__i * __num_histograms +__j];
         }
         _AtomicRef __global_hist_ref(__p_global_offset[__i]);
         __global_hist_ref.fetch_add(__reduced_bincount);
