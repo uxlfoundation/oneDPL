@@ -320,11 +320,10 @@ _ForwardIterator
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                _ForwardIterator __last, const _T& __value)
 {
-    __pattern_walk1(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
-        fill_functor<_T>{__value});
+    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+                    __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
+                    __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
+                    fill_functor<_T>{__value});
     return __last;
 }
 
@@ -358,11 +357,10 @@ _ForwardIterator
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
-    __pattern_walk1(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
-        generate_functor<_Generator>{__g});
+    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+                    __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
+                    __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
+                    generate_functor<_Generator>{__g});
     return __last;
 }
 
@@ -1040,7 +1038,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::read_write,
+    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+                           __par_backend_hetero::access_mode::read_write,
                            /*_OutNoInit=*/false>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
