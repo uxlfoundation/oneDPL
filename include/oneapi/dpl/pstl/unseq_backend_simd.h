@@ -239,25 +239,6 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
     return __result + __n;
 }
 
-template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _UnaryPredicate>
-_DifferenceType
-__simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _UnaryPredicate __pred) noexcept
-{
-    _DifferenceType __cnt = 0;
-
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 0; __i < __n; ++__i)
-    {
-        _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-        if (__pred(__first[__i]))
-        {
-            __result[__cnt] = __first[__i];
-            ++__cnt;
-        }
-    }
-    return __cnt;
-}
-
 template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IterPredicate>
 std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
