@@ -235,45 +235,32 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
     using _BinT = std::uint16_t;
     using _GlobalHistT = std::uint32_t;
 
-    constexpr ::std::uint32_t __hist_num_sub_groups = __hist_work_group_size / __sub_group_size;
-    constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-    constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
-    constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
-    constexpr ::std::uint32_t __hist_data_per_sub_group = 128 * 8;
-    constexpr ::std::uint32_t __hist_data_per_work_item = __hist_data_per_sub_group / __sub_group_size;
-    constexpr ::std::uint32_t __device_wide_step =
+    constexpr std::uint32_t __hist_num_sub_groups = __hist_work_group_size / __sub_group_size;
+    constexpr std::uint32_t __bin_count = 1 << __radix_bits;
+    constexpr std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+    constexpr std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
+    constexpr std::uint32_t __hist_data_per_sub_group = 128;
+    constexpr std::uint32_t __hist_data_per_work_item = __hist_data_per_sub_group / __sub_group_size;
+    constexpr std::uint32_t __device_wide_step =
         __hist_work_group_count * __hist_work_group_size * __hist_data_per_work_item;
 
-    // Cap the number of histograms to reduce in SLM per __keys_rng range read pass
-    // due to excessive GRF usage for thread-local histograms
-    //constexpr ::std::uint32_t __stages_per_block = sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 2;
-    // TODO why does turning this up cause failures?
-    constexpr ::std::uint32_t __stages_per_block = 4; //sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 4;
-    constexpr ::std::uint32_t __stage_block_count =
-        oneapi::dpl::__internal::__dpl_ceiling_div(__stage_count, __stages_per_block);
+    constexpr std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
+    constexpr std::uint32_t __group_hist_size = __hist_buffer_size / __hist_num_sub_groups;
 
-    constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
-    constexpr ::std::uint32_t __group_hist_size = __hist_buffer_size / __hist_num_sub_groups;
-    constexpr std::uint32_t __grf_state_hist_size = __bin_count * __stages_per_block;
-    constexpr std::uint32_t __grf_state_hist_size_per_item = __grf_state_hist_size / __sub_group_size;
+    //static_assert(__hist_data_per_work_item % __sub_group_size == 0); //__data_per_step?
 
-    // Keys loaded with stride of sub-group size
-    _KeyT __keys[__hist_data_per_work_item];
-
-    //static_assert(__hist_data_per_work_item % __data_per_step == 0);
-    //static_assert(__bin_count * __stages_per_block % __data_per_step == 0);
-
-    const ::std::uint32_t __local_id = __idx.get_local_linear_id();
-    const ::std::uint32_t __global_id = __idx.get_global_linear_id();
-    const ::std::uint32_t __group_id = __idx.get_group_linear_id();
-    const ::std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
-    const ::std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
+    const std::uint32_t __local_id = __idx.get_local_linear_id();
+    const std::uint32_t __global_id = __idx.get_global_linear_id();
+    const std::uint32_t __group_id = __idx.get_group_linear_id();
+    const std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
+    const std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
     // 0. Early exit for threads without work
-    if ((__global_id - __local_id) * __hist_data_per_work_item > __n)
-    {
-        return;
-    }
+    // TODO fix
+    //if ((__global_id - __local_id) * __hist_data_per_work_item > __n)
+    //{
+    //    return;
+    //}
 
     // 1. Initialize group-local histograms in SLM
     for (std::uint32_t __i =__local_id; __i < __hist_buffer_size; __i += __hist_work_group_size) {
@@ -284,60 +271,58 @@ __global_histogram(sycl::nd_item<1> __idx, size_t __n, const _KeysRng& __keys_rn
 
     sycl::group_barrier(__idx.get_group());
 
-    _ONEDPL_PRAGMA_UNROLL
-    for (::std::uint32_t __stage_block = 0; __stage_block < __stage_block_count; ++__stage_block)
-    {
-        ::std::uint32_t __stage_block_start = __stage_block * __stages_per_block;
+    std::uint32_t __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
 
-        for (::std::uint32_t __wi_offset = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group + __sub_group_local_id; __wi_offset < __n;
-             __wi_offset += __device_wide_step)
+    for (std::uint32_t __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
+         __wi_offset += __device_wide_step)
+    {
+        // Keys loaded with stride of sub-group size
+        _KeyT __keys[__hist_data_per_work_item];
+        // 1. Read __keys
+        if (__sub_group_start + __hist_data_per_sub_group < __n)
         {
-            // 1. Read __keys
-            // TODO: avoid reading global memory twice when __stage_block_count > 1 increasing __hist_data_per_work_item
-            // TODO: Matt - this check is not correct. It should be from the sub-group start + __hist_data_per_sub_group 
-            if (__wi_offset + __hist_data_per_sub_group < __n)
-            {
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i) {
-                    // Disturbs ordering but we do not care for the normal histogram accumulation
-                    __keys[__i] = __keys_rng[__i * __sub_group_size + __wi_offset];
-                }
-            }
-            else
-            {
-                for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i)
-                {
-                    std::size_t __idx = __i * __sub_group_size + __wi_offset;
-                    __keys[__i] = (__idx < __n) ? __keys_rng[__idx] : __sort_identity<_KeyT, __is_ascending>();
-                }
-            }
-            // 2. Calculate thread-local histogram in GRF
-            // TODO Matt: Evaluate generated asm for this region if kernel is underperforming
             _ONEDPL_PRAGMA_UNROLL
-            for (::std::uint32_t __stage_local = 0; __stage_local < __stages_per_block; ++__stage_local)
+            for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i)
             {
-                constexpr _BinT __mask = __bin_count - 1;
-                ::std::uint32_t __stage_global = __stage_block_start + __stage_local;
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
-                {
-                    _BinT __bucket = __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__keys[__i]),
-                                                                 __stage_global * __radix_bits);
-                    _GlobalHistT __bin = __stage_local * __bin_count + __bucket;
-                    using _SLMAtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::work_group, sycl::access::address_space::local_space>;
-                    auto __slm_hist_idx = __local_id % __num_histograms;
-                    _SLMAtomicRef __slm_ref(__slm[__slm_hist_idx * __hist_buffer_size + __bin]);
-                    __slm_ref.fetch_add(1);
-                }
+                // Disturbs ordering but we do not care for the normal histogram accumulation
+                __keys[__i] = __keys_rng[__i * __sub_group_size + __wi_offset];
+            }
+        }
+        else
+        {
+            for (std::uint32_t __i = 0; __i != __hist_data_per_work_item; ++__i)
+            {
+                std::size_t __idx = __i * __sub_group_size + __wi_offset;
+                __keys[__i] = (__idx < __n) ? __keys_rng[__idx] : __sort_identity<_KeyT, __is_ascending>();
+            }
+        }
+        // 2. Accumulate histogram to SLM
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __stage = 0; __stage < __stage_count; ++__stage)
+        {
+            constexpr _BinT __mask = __bin_count - 1;
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
+            {
+                _BinT __bucket = __get_bucket_scalar<__mask>(
+                    __order_preserving_cast_scalar<__is_ascending>(__keys[__i]), __stage * __radix_bits);
+                _GlobalHistT __bin = __stage * __bin_count + __bucket;
+                using _SLMAtomicRef =
+                    sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                     sycl::access::address_space::local_space>;
+                auto __slm_hist_idx = __sub_group_local_id % __num_histograms;
+                _SLMAtomicRef __slm_ref(__slm[__slm_hist_idx * __hist_buffer_size + __bin]);
+                __slm_ref.fetch_add(1);
             }
         }
     }
     sycl::group_barrier(__idx.get_group());
-    // 4. Reduce group-local histograms from SLM into global histograms in global memory
+    // 3. Reduce group-local histograms from SLM into global histograms in global memory
     for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
     {
         using _AtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>;
         _GlobalHistT __reduced_bincount = 0;
+        _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __j = 0; __j < __num_histograms; ++__j)
         {
             __reduced_bincount += __slm[__j * __hist_buffer_size +__i];

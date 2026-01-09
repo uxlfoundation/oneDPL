@@ -77,8 +77,8 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
-            // TODO only keep if needed to regulate histogram count 
-            constexpr std::uint32_t __max_histograms = 0x555;
+            // TODO only keep if needed to regulate histogram count
+            constexpr std::uint32_t __max_histograms = 16;
             constexpr std::uint32_t __max_slm_bytes = 1 << 16;
             constexpr std::uint32_t __num_histograms = std::min(__max_histograms, std::uint32_t(__max_slm_bytes / (__hist_buffer_size * sizeof(_KeyT))));
             sycl::local_accessor<std::uint32_t, 1> __slm_accessor(__hist_buffer_size * __num_histograms, __cgh);
