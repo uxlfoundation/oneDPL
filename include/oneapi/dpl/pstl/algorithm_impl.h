@@ -1616,11 +1616,26 @@ _RandomAccessIterator2
 __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                     _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
 {
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    return __unseq_backend::__simd_unique_copy(__first, __last - __first, __result, __pred);
-#else
-    return ::std::unique_copy(__first, __last, __result, __pred);
-#endif
+// #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
+    // return __unseq_backend::__simd_unique_copy(__first, __last - __first, __result, __pred);
+// #else
+    // return ::std::unique_copy(__first, __last, __result, __pred);
+// #endif
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    _DifferenceType __n = __last - __first;
+    if (__n == 0)
+        return __result;
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n;
+    if (__n > 0)
+    {
+        __result += __unseq_backend::__simd_selective_copy</*bounded =*/ false>(__first, __n, __result, __n,
+                        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+                            return !__pred(__it[__idx], __it[__idx - 1]);
+                        }).second;
+    }
+    return __result;
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>

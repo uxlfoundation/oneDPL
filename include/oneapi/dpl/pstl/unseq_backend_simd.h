@@ -282,6 +282,35 @@ __simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __re
     return __cnt;
 }
 
+template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IterPredicate>
+std::pair<_DifferenceType, _DifferenceType>
+__simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
+                      _IterPredicate __pred) noexcept
+{
+    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    _DifferenceType __stop = __n;
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
+    for (_DifferenceType __i = 0; __i < __n; ++__i)
+    {
+        bool __suitable = __pred(__first, __i);
+        __cnt += __suitable;
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
+        if (__suitable)
+        {
+            if constexpr (__Bounded)
+            {
+                if (__cnt < __n_out)
+                    __result[__cnt] = __first[__i];
+                if (__cnt == __n_out) // together with __suitable, the conditions are true for only one index
+                    __stop = __i;
+            }
+            else
+                __result[__cnt] = __first[__i];
+        }
+    }
+    return {__stop, __cnt < __n_out ? __cnt : __n_out};
+}
+
 template <typename _Iterator, typename _DifferenceType, typename _IterPredicate>
 _DifferenceType
 __simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pred, bool* __mask) noexcept
