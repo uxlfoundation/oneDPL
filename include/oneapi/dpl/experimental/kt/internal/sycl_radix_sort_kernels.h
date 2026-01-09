@@ -52,6 +52,12 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
     const std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
     const std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
+    std::uint32_t __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
+
+    // 0. Early exit - important for small inputs as we intentionally oversubscribe the hardware
+    if ((__sub_group_start - __sub_group_id * __hist_data_per_sub_group) >= __n)
+        return;
+
     // 1. Initialize group-local histograms in SLM
     for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
     {
@@ -64,7 +70,6 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
 
     sycl::group_barrier(__idx.get_group());
 
-    std::uint32_t __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
     for (std::uint32_t __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
          __wi_offset += __device_wide_step)
     {
