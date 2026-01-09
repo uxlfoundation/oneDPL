@@ -1222,6 +1222,7 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type __m,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
+#if 0
     while (__m > 0 && __m < __n)
     {
         _RandomAccessIterator2 __stop = __brick_copy_if(__first, __first + __m, __result, __pred, std::true_type{});
@@ -1242,6 +1243,14 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
             [__pred](_RandomAccessIterator1 __it, auto __i) { return __pred(__it[__i]); });
     }
     return {__first, __result};
+#else
+    auto [__stop_in, __stop_out] =
+        __unseq_backend::__simd_selective_copy</*bounded =*/ true>(__first, __n, __result, __m,
+            [&__pred](_RandomAccessIterator1 __it, decltype(__n) __idx) {
+                return __pred(__it[__idx]);
+            });
+    return {__first + __stop_in, __result + __stop_out};
+#endif
 }
 
 template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
@@ -1616,11 +1625,6 @@ _RandomAccessIterator2
 __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                     _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
 {
-// #if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    // return __unseq_backend::__simd_unique_copy(__first, __last - __first, __result, __pred);
-// #else
-    // return ::std::unique_copy(__first, __last, __result, __pred);
-// #endif
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     _DifferenceType __n = __last - __first;
     if (__n == 0)
