@@ -1219,38 +1219,15 @@ std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_bounded_copy_if(_RandomAccessIterator1 __first,
                         typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
                         _RandomAccessIterator2 __result,
-                        typename std::iterator_traits<_RandomAccessIterator2>::difference_type __m,
+                        typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-#if 0
-    while (__m > 0 && __m < __n)
-    {
-        _RandomAccessIterator2 __stop = __brick_copy_if(__first, __first + __m, __result, __pred, std::true_type{});
-        __n -= __m;
-        __first += __m;
-        __m -= __stop - __result;
-        __result = __stop;
-    }
-    // The loop above may not decrease __m or __n below 0
-    if (__m >= __n) // enough space left for the rest
-    {
-        __result = __brick_copy_if(__first, __first + __n, __result, __pred, std::true_type{});
-        __first += __n;
-    }
-    else
-    { // m == 0
-        __first = __unseq_backend::__simd_first(__first, decltype(__n)(0), __n,
-            [__pred](_RandomAccessIterator1 __it, auto __i) { return __pred(__it[__i]); });
-    }
-    return {__first, __result};
-#else
     auto [__stop_in, __stop_out] =
-        __unseq_backend::__simd_selective_copy</*bounded =*/ true>(__first, __n, __result, __m,
+        __unseq_backend::__simd_selective_copy</*bounded =*/ true>(__first, __n, __result, __n_out,
             [&__pred](_RandomAccessIterator1 __it, decltype(__n) __idx) {
                 return __pred(__it[__idx]);
             });
     return {__first + __stop_in, __result + __stop_out};
-#endif
 }
 
 template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>

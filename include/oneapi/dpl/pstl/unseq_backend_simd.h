@@ -228,30 +228,6 @@ __simd_count(_Index __index, _DifferenceType __n, _Pred __pred) noexcept
     return __count;
 }
 
-template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _BinaryPredicate>
-_OutputIterator
-__simd_unique_copy(_InputIterator __first, _DifferenceType __n, _OutputIterator __result,
-                   _BinaryPredicate __pred) noexcept
-{
-    if (__n == 0)
-        return __result;
-
-    _DifferenceType __cnt = 1;
-    __result[0] = __first[0];
-
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 1; __i < __n; ++__i)
-    {
-        _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-        if (!__pred(__first[__i], __first[__i - 1]))
-        {
-            __result[__cnt] = __first[__i];
-            ++__cnt;
-        }
-    }
-    return __result + __cnt;
-}
-
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 _OutputIterator
 __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _Assigner __assigner) noexcept
