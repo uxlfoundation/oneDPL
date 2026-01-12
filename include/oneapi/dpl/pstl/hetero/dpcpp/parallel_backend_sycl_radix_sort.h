@@ -939,12 +939,12 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
         const auto __wg_sz_k = __n >= (1 << 15)/*32K*/ && __n < (1 << 19)/*512K*/ ? 8 : __n <= (1 << 21)/*2M*/ ? 4 : 1;
-        ::std::size_t __wg_size = __max_wg_size / __wg_sz_k;
+        ::std::size_t __wg_size = 128;//__max_wg_size / __wg_sz_k;
 #else
         ::std::size_t __wg_size = __max_wg_size;
 #endif
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-        constexpr std::size_t __keys_per_workitem = 8;
+        constexpr std::size_t __keys_per_workitem = 64;
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size * __keys_per_workitem);
 //        std::cout<<"using segments: "<<__segments<<"\n";
 
