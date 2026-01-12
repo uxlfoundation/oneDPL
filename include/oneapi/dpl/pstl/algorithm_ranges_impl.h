@@ -1367,6 +1367,18 @@ __pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange
 
 template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
 __unique_copy_return_t<_R, _OutRange>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_unique_copy(
+        std::ranges::begin(__r), std::ranges::size(__r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj}, /*vector=*/std::true_type{});
+
+    return {__res.first, __res.second};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {

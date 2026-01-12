@@ -1223,9 +1223,10 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
+    using _DifferenceType = decltype(__n);
     auto [__stop_in, __stop_out] = __unseq_backend::__simd_selective_copy</*bounded =*/ true>(
-        __first, __n, __result, __n_out,
-        [&__pred](_RandomAccessIterator1 __it, decltype(__n) __idx) { return __pred(__it[__idx]); });
+        __first, __n, __result, _DifferenceType(__n_out),
+        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
     return {__first + __stop_in, __result + __stop_out};
 }
 
@@ -1588,18 +1589,18 @@ __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
 // unique_copy
 //------------------------------------------------------------------------
 
-template <class _ForwardIterator, class OutputIterator, class _BinaryPredicate>
-OutputIterator
-__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, OutputIterator __result, _BinaryPredicate __pred,
-                    /*vector=*/::std::false_type) noexcept
+template <class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
+_OutputIterator
+__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _BinaryPredicate __pred,
+                    /*vector=*/std::false_type) noexcept
 {
-    return ::std::unique_copy(__first, __last, __result, __pred);
+    return std::unique_copy(__first, __last, __result, __pred);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
 _RandomAccessIterator2
 __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                    _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
+                    _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     _DifferenceType __n = __last - __first;
@@ -1608,14 +1609,34 @@ __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __las
 
     *__result++ = *__first++; // Always copy the first element
     --__n;
-    if (__n > 0)
-    {
-        __result += __unseq_backend::__simd_selective_copy</*bounded =*/ false>(__first, __n, __result, __n,
-                        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
-                            return !__pred(__it[__idx], __it[__idx - 1]);
-                        }).second;
-    }
+    __result += __unseq_backend::__simd_selective_copy</*bounded =*/ false>(__first, __n, __result, __n,
+                    [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+                        return !__pred(__it[__idx], __it[__idx - 1]);
+                    }).second;
     return __result;
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__brick_bounded_unique_copy(_RandomAccessIterator1 __first,
+                            typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
+                            _RandomAccessIterator2 __result,
+                            typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
+                            _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept
+{
+    using _DifferenceType = decltype(__n);
+    if (__n == 0 || __n_out == 0)
+        return {__first, __result};
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n;
+    --__n_out;
+    auto [__stop_in, __stop_out] = __unseq_backend::__simd_selective_copy</*bounded =*/ true>(
+        __first, __n, __result, _DifferenceType(__n_out),
+        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+            return !__pred(__it[__idx], __it[__idx - 1]);
+        });
+    return {__first + __stop_in, __result + __stop_out};
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
