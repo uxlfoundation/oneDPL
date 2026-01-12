@@ -156,21 +156,24 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
-template <std::uint32_t __packing_ratio>
-std::uint32_t
-__get_bucket_idx(std::uint32_t __workgroup_size, std::uint32_t radix_id, std::uint32_t __wg_id)
+template <std::uint32_t __packing_ratio, std::uint32_t __radix_states>
+struct __index_views
 {
-    std::uint32_t __lane = radix_id / __packing_ratio;
-    std::uint32_t __pack = radix_id % __packing_ratio;
-    return __lane * (__workgroup_size * __packing_ratio) + __wg_id * __packing_ratio + __pack;
-}
+    std::uint32_t
+    __get_bucket_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
+    {
+        return __wg_id * __radix_states + __radix_id;
+        // std::uint32_t __lane = __radix_id / __packing_ratio;
+        // std::uint32_t __pack = __radix_id % __packing_ratio;
+        // return __lane * (__workgroup_size * __packing_ratio) + __wg_id * __packing_ratio + __pack;
+    }
 
-template <std::uint32_t __packing_ratio>
-std::uint32_t
-__get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
-{
-    return __radix_id * (__workgroup_size / __packing_ratio) + __wg_id;
-}
+    std::uint32_t
+    __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
+    {
+        return __radix_id * (__workgroup_size / __packing_ratio) + __wg_id;
+    }
+};
 
 //-----------------------------------------------------------------------
 // radix sort: count kernel (per iteration)
@@ -234,6 +237,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 std::uint8_t* __slm_buckets = &__count_lacc[0];
                 _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
+                __index_views<__packing_ratio, __radix_states> __views;
 
                 // 1.1. count per witem: create a private array for storing count values
                 _CountT __count_arr[__radix_states] = {0};
@@ -244,7 +248,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
                 {
-                    __slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size, __i, __self_lidx)] = 0;
+                    __slm_buckets[__views.__get_bucket_idx(__wg_size, __i, __self_lidx)] = 0;
                 }
 
                 __dpl_sycl::__group_barrier(__self_item);
@@ -258,7 +262,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                     // increment counter for this bit bucket
 
-                    ++__slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size, __bucket, __self_lidx)];
+                    ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
@@ -276,7 +280,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                             {
                                 std::uint32_t __radix_id = __lane_id * __packing_ratio + __pack_id;
                                 __count_arr[__radix_id] +=
-                                    static_cast<_CountT>(__slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size,
+                                    static_cast<_CountT>(__slm_buckets[__views.__get_bucket_idx(__wg_size,
                                         __radix_id, __self_lidx * __packing_ratio + __wg_offset)]);
                             }
                         }
@@ -290,7 +294,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     _ONEDPL_PRAGMA_UNROLL
                     for (std::uint32_t __radix_id = 0; __radix_id < __radix_states; ++__radix_id)
                     {
-                            __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __radix_id, __self_lidx)] = __count_arr[__radix_id];
+                            __slm_counts[__views.__get_count_idx(__wg_size, __radix_id, __self_lidx)] = __count_arr[__radix_id];
                     }
                 }
                 __dpl_sycl::__group_barrier(__self_item);
@@ -298,9 +302,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 if (__self_lidx < __radix_states)
                 {
                     for ( std::uint32_t __wg_id = 1; __wg_id < __wg_size / __packing_ratio; ++__wg_id)
-                    __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, 0)] += __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, __wg_id)];
+                    __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)] += __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, __wg_id)];
                     //write final count to global memory
-                    __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, 0)];
+                    __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)];
                 }
 
                 // 3.0 side work: reset 'no operation flag', which specifies whether to skip re-order phase
