@@ -943,10 +943,10 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 #else
         ::std::size_t __wg_size = __max_wg_size;
 #endif
-        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-	constexpr std::size_t __keys_per_workitem = 8;
-	const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size * __keys_per_workitem);
-        std::cout<<"using segments: "<<__segments<<"\n";
+//        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
+        constexpr std::size_t __keys_per_workitem = 8;
+        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size * __keys_per_workitem);
+//        std::cout<<"using segments: "<<__segments<<"\n";
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
         // 'No operation' flag specifies whether to skip re-order phase if the all keys are the same (lie in one bin)
