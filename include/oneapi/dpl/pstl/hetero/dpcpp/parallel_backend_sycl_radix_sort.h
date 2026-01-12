@@ -938,8 +938,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
-        const auto __wg_sz_k = __n >= (1 << 15)/*32K*/ && __n < (1 << 19)/*512K*/ ? 8 : __n <= (1 << 21)/*2M*/ ? 4 : 1;
-        ::std::size_t __wg_size = 128;//__max_wg_size / __wg_sz_k;
+        ::std::size_t __wg_size = (__n > (1 << 21) /*2M*/ ? 128 : 32);
 #else
         ::std::size_t __wg_size = __max_wg_size;
 #endif
