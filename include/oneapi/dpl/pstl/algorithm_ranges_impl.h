@@ -601,7 +601,6 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
                 break;
         }
     }
-
     return {__it_in, __it_out};
 }
 
@@ -1371,9 +1370,22 @@ __unique_copy_return_t<_R, _OutRange>
 __pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
-    return std::ranges::unique_copy(std::forward<_R>(__r), std::ranges::begin(__out_r), __comp, __proj);
+    auto __it_in = std::ranges::begin(__r);
+    auto __it_out = std::ranges::begin(__out_r);
+    auto __end_in = std::ranges::end(__r);
+    auto __end_out = std::ranges::end(__out_r);
+    auto __not_comp = std::not_fn(__comp);
+    for (; __it_out != __end_out && __it_in != __end_in; ++__it_out)
+    {
+        *__it_out = *__it_in;
+        // Find an element that is *not* equivalent to the next one
+        __it_in = std::ranges::adjacent_find(__it_in, __end_in, __not_comp, __proj);
+        // That very next one should be read from in the next loop iteration
+        if (__it_in != __end_in)
+            ++__it_in;
+    }
+    return {__it_in, __it_out};
 }
-
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
