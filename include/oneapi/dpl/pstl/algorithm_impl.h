@@ -1395,7 +1395,7 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __
                           _UnaryPredicate __pred)
 {
     return __parallel_selective_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, _DifferenceType{__n_out},
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n_out,
         [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
 }
 
@@ -1668,6 +1668,25 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
+}
+
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
+          class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__pattern_bounded_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                              _RandomAccessIterator1 __first, _DifferenceType __n, _RandomAccessIterator2 __result,
+                              _DifferenceType __n_out, _BinaryPredicate __pred)
+{
+    if (__n == 0 || __n_out == 0)
+        return {__first, __result};
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n;
+    --__n_out;
+    return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n_out,
+                                     [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
+                                         return !__pred(__it[__idx], __it[__idx - 1]);
+                                     });
 }
 
 //------------------------------------------------------------------------
