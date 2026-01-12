@@ -189,7 +189,7 @@ struct __subgroup_radix_sort
                             __storage() {}
                         } __values;
                         uint16_t __wi = __it.get_local_linear_id();
-                        uint16_t __begin_bit = 0;
+                        
                         constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
@@ -197,7 +197,8 @@ struct __subgroup_radix_sort
                         // TODO: check if the barrier can be removed
                         __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                        while (true)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
                             uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
@@ -265,38 +266,12 @@ struct __subgroup_radix_sort
                                 }
                             }
 
-                            __begin_bit += __radix;
-
                             //3. "re-order" phase
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
-                            if (__begin_bit >= __end_bit)
-                            {
-                                // the last iteration - writing out the result
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const uint16_t __r = __indices[__i];
-                                    if (__r < __n)
-                                    {
-                                        //move the values to source range and destroy the values
-                                        __src[__r] = ::std::move(__values.__v[__i]);
-                                        __values.__v[__i].~_ValT();
-                                    }
-                                }
 
-                                //destroy values in exchange buffer
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    if (__idx < __n)
-                                        __exchange_lacc[__idx].~_ValT();
-                                }
-                                return;
-                            }
 
                             //3.1 data exchange
-                            if (__begin_bit == __radix) //the first sort iteration
+                            if (__begin_bit == 0) //the first sort iteration
                             {
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
@@ -318,14 +293,37 @@ struct __subgroup_radix_sort
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                            _ONEDPL_PRAGMA_UNROLL
-                            for (uint16_t __i = 0; __i < __block_size; ++__i)
+                            if (__begin_bit == __end_bit - __radix)
                             {
-                                const uint16_t __idx = __wi * __block_size + __i;
-                                if (__idx < __n)
-                                    __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
+                                // the last iteration - writing out the result
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                {
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
+                                        __src[__idx] = ::std::move(__exchange_lacc[__idx]);
+                                }
+
+                                //destroy values in exchange buffer
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                {
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
+                                        __exchange_lacc[__idx].~_ValT();
+                                }
                             }
-                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
+                            else
+                            {
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                {
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
+                                        __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
+                                }
+                                __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
+                            }
                         }
                     }));
             });
