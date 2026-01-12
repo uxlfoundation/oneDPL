@@ -156,6 +156,22 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
+template <std::uint32_t __packing_ratio>
+std::uint32_t
+__get_bucket_idx(std::uint32_t __workgroup_size, std::uint32_t radix_id, std::uint32_t __wg_id)
+{
+    std::uint32_t __lane = radix_id / __packing_ratio;
+    std::uint32_t __pack = radix_id % __packing_ratio;
+    return __lane * (__workgroup_size * __packing_ratio) + __wg_id * __packing_ratio + __pack;
+}
+
+template <std::uint32_t __packing_ratio>
+std::uint32_t
+__get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
+{
+    return __radix_id * (__workgroup_size / __packing_ratio) + __wg_id;
+}
+
 //-----------------------------------------------------------------------
 // radix sort: count kernel (per iteration)
 //-----------------------------------------------------------------------
@@ -186,6 +202,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
     const ::std::size_t __no_op_flag_idx = __count_buf.size() - 1;
 
+    //assert that we cannot overflow uint8 accumulation
+    assert(__elem_per_segment / __wg_size < 256 && "Segment size per work-group is too large to count in uint8");
+
     auto __count_rng =
         oneapi::dpl::__ranges::all_view<_CountT, __par_backend_hetero::access_mode::read_write>(__count_buf);
 
@@ -196,7 +215,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
         // ensure the input data and the space for counters are accessible
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng, __count_rng);
         // an accessor per work-group with value counters from each work-item
-        auto __count_lacc = __dpl_sycl::__local_accessor<_CountT>(__wg_size * __radix_states, __hdl);
+        auto __count_lacc = __dpl_sycl::__local_accessor<std::uint8_t>(__radix_states * __wg_size, __hdl);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
@@ -205,15 +224,32 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             __kernel,
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
+                static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
+                static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
+                
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                 const ::std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
 
+                std::uint8_t* __slm_buckets = &__count_lacc[0];
+                _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
+
                 // 1.1. count per witem: create a private array for storing count values
                 _CountT __count_arr[__radix_states] = {0};
                 // 1.2. count per witem: count values and write result to private count array
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
+
+                // reset SLM buckets
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
+                {
+                    __slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size, __i, __self_lidx)] = 0;
+                }
+
+                __dpl_sycl::__group_barrier(__self_item);
+                //TODO: Make sure we do not overflow (with large segments where keys per work item are more than 255),
+                //      and repeat loop accumulating to other memory until segment finishes
                 for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end;
                      __val_idx += __wg_size)
                 {
@@ -221,32 +257,50 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_rng[__val_idx]));
                     ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                     // increment counter for this bit bucket
-                    ++__count_arr[__bucket];
+
+                    ++__slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size, __bucket, __self_lidx)];
                 }
-                // 1.3. count per witem: write private count array to local count array
-                const ::std::uint32_t __count_start_idx = __radix_states * __self_lidx;
-                for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
-                    __count_lacc[__count_start_idx + __radix_state_idx] = __count_arr[__radix_state_idx];
+                __dpl_sycl::__group_barrier(__self_item);
+                
+                if (__self_lidx < __wg_size / __packing_ratio)
+                {
+                    //accumulate byte counts into uint32_t registers
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::uint32_t __lane_id = 0; __lane_id < __counter_lanes; ++__lane_id)
+                    {
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __wg_offset = 0; __wg_offset < __packing_ratio; ++__wg_offset)
+                        {
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint32_t __pack_id = 0; __pack_id < __packing_ratio; ++__pack_id)
+                            {
+                                std::uint32_t __radix_id = __lane_id * __packing_ratio + __pack_id;
+                                __count_arr[__radix_id] +=
+                                    static_cast<_CountT>(__slm_buckets[__get_bucket_idx<__packing_ratio>(__wg_size,
+                                        __radix_id, __self_lidx * __packing_ratio + __wg_offset)]);
+                            }
+                        }
+                    }
+                }
+                __dpl_sycl::__group_barrier(__self_item);
+                
+                //copy counts back to SLM from registers
+                if (__self_lidx < __wg_size / __packing_ratio)
+                {
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::uint32_t __radix_id = 0; __radix_id < __radix_states; ++__radix_id)
+                    {
+                            __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __radix_id, __self_lidx)] = __count_arr[__radix_id];
+                    }
+                }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // 2.1. count per wgroup: reduce till __count_lacc[] size > __wg_size (all threads work)
-                for (::std::uint32_t __i = 1; __i < __radix_states; ++__i)
-                    __count_lacc[__self_lidx] += __count_lacc[__wg_size * __i + __self_lidx];
-                __dpl_sycl::__group_barrier(__self_item);
-                // 2.2. count per wgroup: reduce until __count_lacc[] size > __radix_states (threads /= 2 per iteration)
-                for (::std::uint32_t __active_ths = __wg_size >> 1; __active_ths >= __radix_states;
-                     __active_ths >>= 1)
-                {
-                    if (__self_lidx < __active_ths)
-                        __count_lacc[__self_lidx] += __count_lacc[__active_ths + __self_lidx];
-                    __dpl_sycl::__group_barrier(__self_item);
-                }
-                // 2.3. count per wgroup: write local count array to global count array
                 if (__self_lidx < __radix_states)
                 {
-                    // move buckets with the same id to adjacent positions,
-                    // thus splitting __count_rng into __radix_states regions
-                    __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __count_lacc[__self_lidx];
+                    for ( std::uint32_t __wg_id = 1; __wg_id < __wg_size / __packing_ratio; ++__wg_id)
+                    __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, 0)] += __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, __wg_id)];
+                    //write final count to global memory
+                    __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__get_count_idx<__packing_ratio>(__wg_size, __self_lidx, 0)];
                 }
 
                 // 3.0 side work: reset 'no operation flag', which specifies whether to skip re-order phase
