@@ -64,37 +64,6 @@ __brick_uninitialized_move(_RandomAccessIterator __first, _RandomAccessIterator 
     return {__first + __n, __it_out};
 }
 
-template <typename _ForwardIterator, typename _OutputIterator>
-_OutputIterator
-__brick_uninitialized_bounded_move(_ForwardIterator __first, _ForwardIterator __last,       // bounds for data1
-                                   _OutputIterator __result1, _OutputIterator __result2,    // bounds for results
-                                   /*vector=*/::std::false_type) noexcept
-{
-    using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-    for (; __first != __last && __result1 != __result2; ++__first, (void)++__result1)
-    {
-        new (std::addressof(*__result1)) _ValueType(std::move(*__first));
-    }
-    return __result1;
-}
-
-template <typename _RandomAccessIterator, typename _OutputIterator>
-_OutputIterator
-__brick_uninitialized_bounded_move(_RandomAccessIterator __first, _RandomAccessIterator __last, // bounds for data1
-                                   _OutputIterator __result1, _OutputIterator __result2,        // bounds for results
-                                   /*vector=*/::std::true_type) noexcept
-{
-    using __ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-    using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
-    using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
-
-    const auto __n = std::min(__last - __first, __result2 - __result1);
-    return __unseq_backend::__simd_walk_n(
-        __n,
-        [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (std::addressof(__y)) __ValueType(std::move(__x)); },
-        __first, __result1);
-}
-
 template <typename _Iterator>
 void
 __brick_destroy(_Iterator __first, _Iterator __last, /*vector*/ ::std::false_type) noexcept
