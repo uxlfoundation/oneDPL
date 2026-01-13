@@ -3295,8 +3295,9 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     });
 }
 
+template <typename Size>
 constexpr bool
-__is_great_that_set_algo_cut_off(auto size)
+__is_great_that_set_algo_cut_off(Size size)
 {
     //constexpr auto __set_algo_cut_off = 1000;
     //return size > __set_algo_cut_off;
