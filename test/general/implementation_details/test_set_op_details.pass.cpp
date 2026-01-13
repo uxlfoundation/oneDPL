@@ -314,12 +314,12 @@ test_set_union_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1           = {                               };
         const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer<4> mask1Exp = {        0,         0,         0};
-        const MaskContainer<4> mask2Exp = {        1,         1,         1};
+        const MaskContainer<3> mask1Exp = {        0,         0,         0};
+        const MaskContainer<3> mask2Exp = {        1,         1,         1};
         const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         Container contOut(kOutputSize);
 
-        MaskContainer<4> mask1, mask2;
+        MaskContainer<3> mask1, mask2;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
