@@ -353,6 +353,7 @@ std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                                      _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
+                                     bool* __mask1, bool* __mask2,                          // source data usage masks
                                      _CopyFunc _copy,
                                      _CopyFromFirstSet,
                                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -368,9 +369,17 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
     while (__first1 != __last1 && __first2 != __last2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        {
             ++__first1;
+            __mask1 = __set_iterator_mask(__mask1, true);
+            __mask2 = __set_iterator_mask(__mask2, false);
+        }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        {
             ++__first2;
+            __mask1 = __set_iterator_mask(__mask1, false);
+            __mask2 = __set_iterator_mask(__mask2, true);
+        }
         else
         {
             if (__result1 != __result2)
@@ -383,6 +392,9 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
                 ++__first1;
                 ++__first2;
                 ++__result1;
+
+                __mask1 = __set_iterator_mask(__mask1, true);
+                __mask2 = __set_iterator_mask(__mask2, true);
             }
             else if (!__output_full)
                 __output_full = true;
