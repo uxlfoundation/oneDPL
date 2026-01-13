@@ -3923,7 +3923,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,                                      // bounds for data1
         __first2, __last2,                                      // bounds for data2
-        __result + __n1 + __n2,                                 // bounds for results w/o limitation
+        __result, __result + __n1 + __n2,                       // bounds for results w/o limitation
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result1, _Tp* __result2,
