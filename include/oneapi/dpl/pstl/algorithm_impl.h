@@ -1138,39 +1138,6 @@ struct __brick_move<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
     }
 };
 
-template <class _Tag>
-struct __brick_bounded_move<_Tag, std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
-{
-    template <typename _RandomAccessIterator1, typename _RandomAccessIterator2>
-    _RandomAccessIterator2
-    operator()(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last,      // bounds for data1
-               _RandomAccessIterator2 __result1, _RandomAccessIterator2 __result2, // bounds for results
-               /*vec*/ std::true_type) const
-    {
-        const auto __n = std::min(__last - __first, __result2 - __result1);
-        return __unseq_backend::__simd_assign(
-            __first, __n, __result1,
-            [](_RandomAccessIterator1 __first, _RandomAccessIterator2 __result) { *__result = std::move(*__first); });
-    }
-
-    template <typename _Iterator, typename _OutputIterator>
-    _OutputIterator
-    operator()(_Iterator __first, _Iterator __last,                  // bounds for data1
-               _OutputIterator __result1, _OutputIterator __result2, // bounds for results
-               /*vec*/ std::false_type) const
-    {
-        const auto __n = std::min(__last - __first, __result2 - __result1);
-        return std::move(__first, __first + __n, __result1);
-    }
-
-    template <typename _ReferenceType1, typename _ReferenceType2>
-    void
-    operator()(_ReferenceType1&& __val, _ReferenceType2&& __result) const
-    {
-        __result = ::std::move(__val);
-    }
-};
-
 template <class _Tag, typename = std::enable_if_t<__is_host_dispatch_tag_v<_Tag>>>
 struct __brick_move_destroy
 {
