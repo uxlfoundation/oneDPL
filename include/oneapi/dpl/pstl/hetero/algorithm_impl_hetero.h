@@ -140,8 +140,8 @@ __pattern_walk2_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
                   _ForwardIterator2 __first2, _Function __f)
 {
     return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
-                                  /*_IsOutNoInitRequested=*/true>(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1,
-                                                       __first1 + __n, __first2, __f);
+                                  /*_IsOutNoInitRequested=*/true>(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+                                                                  __first1, __first1 + __n, __first2, __f);
 }
 
 //------------------------------------------------------------------------
@@ -1580,11 +1580,11 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     {
         // If our output buffer is larger than the input buffer, simply copy elements to the output and use
         // full sort on them.
-        auto __out_end = __pattern_hetero_walk2<__par_backend_hetero::__sync_mode,
-                                                __par_backend_hetero::access_mode::write,
-                                                /*_IsOutNoInitRequested=*/true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last, __out_first,
-            __brick_copy<__hetero_tag<_BackendTag>>{});
+        auto __out_end =
+            __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write,
+                                   /*_IsOutNoInitRequested=*/true>(
+                __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last,
+                __out_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         // TODO: __pattern_hetero_walk2 is a blocking call here, so there is a synchronization between the patterns.
         // But, when the input iterators are a kind of hetero iterator on top of sycl::buffer, SYCL
@@ -1610,11 +1610,11 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_first = __buf.get();
 
-        auto __buf_last = __pattern_hetero_walk2<__par_backend_hetero::__async_mode,
-                                                 __par_backend_hetero::access_mode::write,
-                                                 /*_IsOutNoInitRequested=*/true>(
-            __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last, __buf_first,
-            __brick_copy<__hetero_tag<_BackendTag>>{});
+        auto __buf_last =
+            __pattern_hetero_walk2<__par_backend_hetero::__async_mode, __par_backend_hetero::access_mode::write,
+                                   /*_IsOutNoInitRequested=*/true>(
+                __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last,
+                __buf_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         auto __buf_mid = __buf_first + __out_size;
 
