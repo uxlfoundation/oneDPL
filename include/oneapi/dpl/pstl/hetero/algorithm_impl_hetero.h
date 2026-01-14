@@ -43,11 +43,11 @@ namespace __internal
 // walk1
 //------------------------------------------------------------------------
 
-template <__par_backend_hetero::access_mode __acc_mode = __par_backend_hetero::access_mode::read_write,
-          bool _NoInit = false, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
+template <__par_backend_hetero::access_mode __acc_mode,
+          bool _NoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
           typename _Function>
 void
-__pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+__pattern_hetero_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
                 _Function __f)
 {
     auto __n = __last - __first;
@@ -63,6 +63,16 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
         .__checked_deferrable_wait();
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
+          typename _Function>
+void
+__pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+                _Function __f)
+{
+        __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(__hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                __f);
+}
+
 //------------------------------------------------------------------------
 // walk1_n
 //------------------------------------------------------------------------
@@ -73,7 +83,7 @@ _ForwardIterator
 __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n,
                   _Function __f)
 {
-    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f);
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f);
     return __first + __n;
 }
 
@@ -89,7 +99,7 @@ template <typename _WaitMode = __par_backend_hetero::__deferrable_mode,
           bool _OutNoInit = true, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
           typename _ForwardIterator2, typename _Function>
 _ForwardIterator2
-__pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+__pattern_hetero_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                 _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
 {
     auto __n = __last1 - __first1;
@@ -113,13 +123,23 @@ __pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     return __first2 + __n;
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
+          typename _ForwardIterator2, typename _Function>
+_ForwardIterator2
+__pattern_walk2(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
+{
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>
+        (__hetero_tag<_BackendTag>{}, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __f);
+}
+
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _Size,
           typename _ForwardIterator2, typename _Function>
 _ForwardIterator2
 __pattern_walk2_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _Size __n,
                   _ForwardIterator2 __first2, _Function __f)
 {
-    return __pattern_walk2(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n, __first2, __f);
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n, __first2, __f);
 }
 
 //------------------------------------------------------------------------
@@ -154,12 +174,11 @@ __pattern_swap(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIte
 // walk3
 //------------------------------------------------------------------------
 
-template <typename _BackendTag,
-          __par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
-          bool _OutNoInit = true, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+template <__par_backend_hetero::access_mode __output_acc_mode, bool _OutNoInit, typename _BackendTag,
+          typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _ForwardIterator3, typename _Function>
 _ForwardIterator3
-__pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+__pattern_hetero_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                 _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f)
 {
     auto __n = __last1 - __first1;
@@ -182,6 +201,17 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
     return __first3 + __n;
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _ForwardIterator3, typename _Function>
+_ForwardIterator3
+__pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f)
+{
+    return __pattern_hetero_walk3<__par_backend_hetero::access_mode::write, true>(
+        __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __first3,
+        __f);
+}
+
 //------------------------------------------------------------------------
 // walk_brick, walk_brick_n
 //------------------------------------------------------------------------
@@ -197,7 +227,7 @@ __pattern_walk_brick(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
     if (__last - __first <= 0)
         return;
 
-    __pattern_walk1(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk_brick_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __first, __last, __f);
@@ -212,7 +242,7 @@ _ForwardIterator
 __pattern_walk_brick_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n,
                        _Function __f)
 {
-    __pattern_walk1(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk_brick_n_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __first, __first + __n, __f);
@@ -232,7 +262,7 @@ _ForwardIterator2
 __pattern_walk2_brick(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                       _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Brick __brick)
 {
-    return __pattern_walk2(
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_brick_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __brick);
@@ -247,7 +277,7 @@ _ForwardIterator2
 __pattern_walk2_brick_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                         _Size __n, _ForwardIterator2 __first2, _Brick __brick)
 {
-    return __pattern_walk2(
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_brick_n_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __first1, __first1 + __n, __first2, __brick);
@@ -269,8 +299,8 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
     // values of the output sequence for elements where the predicate is false. We never actually read from the output
     // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
-    // please see the comment above __pattern_walk2 and https://github.com/uxlfoundation/oneDPL/issues/1272.
-    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+    // please see the comment above __pattern_hetero_walk2 and https://github.com/uxlfoundation/oneDPL/issues/1272.
+    return __pattern_hetero_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
                            __par_backend_hetero::access_mode::read_write, /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
@@ -291,8 +321,8 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
     // values of the output sequence for elements where the predicate is false. We never actually read from the output
     // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
-    // please see the comment above __pattern_walk3 and https://github.com/uxlfoundation/oneDPL/issues/1272.
-    return __pattern_walk3<_BackendTag, __par_backend_hetero::access_mode::read_write, /*_OutNoInit=*/false>(
+    // please see the comment above __pattern_hetero_walk3 and https://github.com/uxlfoundation/oneDPL/issues/1272.
+    return __pattern_hetero_walk3<__par_backend_hetero::access_mode::read_write, /*_OutNoInit=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
             ::std::forward<_ExecutionPolicy>(__exec)),
@@ -320,7 +350,7 @@ _ForwardIterator
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                _ForwardIterator __last, const _T& __value)
 {
-    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(__tag, ::std::forward<_ExecutionPolicy>(__exec),
                     __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
                     __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
                     fill_functor<_T>{__value});
@@ -357,7 +387,7 @@ _ForwardIterator
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
-    __pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec),
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(__tag, ::std::forward<_ExecutionPolicy>(__exec),
                     __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
                     __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
                     generate_functor<_Generator>{__g});
@@ -1014,8 +1044,8 @@ __pattern_remove_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     // __pattern_copy_if above may be async due to there is implicit synchronization on sycl::buffer and the accessors
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_walk2(
+    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
 }
@@ -1037,8 +1067,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
     //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
+    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode,
                            __par_backend_hetero::access_mode::read_write,
                            /*_OutNoInit=*/false>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
@@ -1249,8 +1279,8 @@ __pattern_inplace_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __ex
     //TODO: optimize copy back depending on Iterator, i.e. set_final_data for host iterator/pointer
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-    // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
-    __pattern_walk2(
+    // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
+    __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_move<__hetero_tag<_BackendTag>>{});
 }
@@ -1342,16 +1372,16 @@ __pattern_stable_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     auto true_count = copy_result.first - __true_result;
 
     //TODO: optimize copy back if possible (inplace, decrease number of submits)
-    __pattern_walk2(__tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result,
+    __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(__tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(__exec), __true_result,
                     copy_result.first, __first, __brick_move<__hetero_tag<_BackendTag>>{});
 
-    __pattern_walk2(
+    __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper2>(::std::forward<_ExecutionPolicy>(__exec)),
         __false_result, copy_result.second, __first + true_count, __brick_move<__hetero_tag<_BackendTag>>{});
 
     //TODO: A buffer is constructed from a range, the destructor does not need to block.
     // The synchronization between these patterns is not required due to the data are being processed independently.
-    // So, sycl::event::wait(event1, event2) should be call. __pattern_walk2 calls above should be asynchronous and
+    // So, sycl::event::wait(event1, event2) should be call. __pattern_hetero_walk2 calls above should be asynchronous and
     // return event1 and event2.
 
     return __first + true_count;
@@ -1533,20 +1563,20 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     if (__in_size == 0 || __out_size == 0)
         return __out_first;
 
-    // TODO: we can avoid a separate __pattern_walk2 for initial copy: it can be done during sort itself
+    // TODO: we can avoid a separate __pattern_hetero_walk2 for initial copy: it can be done during sort itself
     // like it's done for CPU version, but it's better to be done together with merge cutoff implementation
     // as it uses a similar mechanism.
     if (__in_size <= __out_size)
     {
         // If our output buffer is larger than the input buffer, simply copy elements to the output and use
         // full sort on them.
-        auto __out_end = __pattern_walk2<__par_backend_hetero::__sync_mode>(
+        auto __out_end = __pattern_hetero_walk2<__par_backend_hetero::__sync_mode, __par_backend_hetero::access_mode::write, true>(
             __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_1>(__exec), __first, __last, __out_first,
             __brick_copy<__hetero_tag<_BackendTag>>{});
 
-        // TODO: __pattern_walk2 is a blocking call here, so there is a synchronization between the patterns.
+        // TODO: __pattern_hetero_walk2 is a blocking call here, so there is a synchronization between the patterns.
         // But, when the input iterators are a kind of hetero iterator on top of sycl::buffer, SYCL
-        // runtime makes a dependency graph. In that case the call of __pattern_walk2 could be changed to
+        // runtime makes a dependency graph. In that case the call of __pattern_hetero_walk2 could be changed to
         // be asynchronous for better performance.
 
         // Use regular sort as partial_sort isn't required to be stable.
@@ -1568,7 +1598,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         auto __buf_first = __buf.get();
 
-        auto __buf_last = __pattern_walk2<__par_backend_hetero::__async_mode>(
+        auto __buf_last = __pattern_hetero_walk2<__par_backend_hetero::__async_mode, __par_backend_hetero::access_mode::write, true>(
             __tag, __par_backend_hetero::make_wrapped_policy<__initial_copy_2>(__exec), __first, __last, __buf_first,
             __brick_copy<__hetero_tag<_BackendTag>>{});
 
@@ -1576,7 +1606,7 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 
         // An explicit wait between the patterns isn't required here because we are working a with temporary
         // sycl::buffer and sycl accessors. SYCL runtime makes a dependency graph to prevent the races between
-        // the patterns: __pattern_walk2, __parallel_partial_sort and __pattern_walk2.
+        // the patterns: __pattern_hetero_walk2, __parallel_partial_sort and __pattern_hetero_walk2.
 
         __par_backend_hetero::__parallel_partial_sort(
             _BackendTag{}, __par_backend_hetero::make_wrapped_policy<__partial_sort_2>(__exec),
@@ -1584,12 +1614,12 @@ __pattern_partial_sort_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
             __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_mid),
             __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::read_write>(__buf_last), __comp);
 
-        return __pattern_walk2(
+        return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write, true>(
             __tag, __par_backend_hetero::make_wrapped_policy<__copy_back>(::std::forward<_ExecutionPolicy>(__exec)),
             __buf_first, __buf_mid, __out_first, __brick_copy<__hetero_tag<_BackendTag>>{});
 
         // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
-        // we must call __pattern_walk2 in a way which provides blocking synchronization for this pattern.
+        // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
     }
 }
 

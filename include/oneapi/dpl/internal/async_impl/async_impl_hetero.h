@@ -30,8 +30,7 @@ namespace dpl
 namespace __internal
 {
 
-template <__par_backend_hetero::access_mode __acc_mode = __par_backend_hetero::access_mode::read_write,
-          bool _NoInit = false, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
+template <__par_backend_hetero::access_mode, bool _NoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
           typename _Function>
 auto
 __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
@@ -49,8 +48,7 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     return __future_obj;
 }
 
-template <__par_backend_hetero::access_mode __out_acc_mode = __par_backend_hetero::access_mode::write,
-          bool _OutNoInit = true, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
+template <__par_backend_hetero::access_mode __out_acc_mode, bool _OutNoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
           typename _ForwardIterator2, typename _Function>
 auto
 __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
@@ -73,8 +71,7 @@ __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     return __future.__make_future(__first2 + __n);
 }
 
-template <__par_backend_hetero::access_mode __output_acc_mode = __par_backend_hetero::access_mode::write,
-          bool _OutNoInit = true, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
+template <__par_backend_hetero::access_mode __output_acc_mode, bool _OutNoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
           typename _ForwardIterator2, typename _ForwardIterator3, typename _Function>
 auto
 __pattern_walk3_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
@@ -104,7 +101,7 @@ auto
 __pattern_walk2_brick_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                             _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Brick __brick)
 {
-    return __pattern_walk2_async(
+    return __pattern_walk2_async<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk2_brick_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __brick);
@@ -170,7 +167,7 @@ auto
 __pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                      _ForwardIterator __last, const _T& __value)
 {
-    return __pattern_walk1_async(
+    return __pattern_walk1_async<__par_backend_hetero::access_mode::read_write, /*_NoInit=*/false>(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
