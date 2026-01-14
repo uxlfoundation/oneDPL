@@ -1797,11 +1797,13 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    return __par_backend_hetero::__parallel_set_op<_SetTag>(
-        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec),
-        __buf1.all_view(), __buf2.all_view(), __buf3.all_view(),
-        __comp, __proj1, __proj2)
-        .__get_reached_out();
+    auto __buf3_av = __buf3.all_view();
+
+    auto [__first1_res, __first2_res, __result_res] = __par_backend_hetero::__parallel_set_op<_SetTag>(
+        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
+        __buf3_av, __comp, __proj1, __proj2);
+
+    return __result + (__result_res - __buf3_av.begin());
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
