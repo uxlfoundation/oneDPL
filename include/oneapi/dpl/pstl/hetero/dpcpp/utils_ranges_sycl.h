@@ -728,7 +728,7 @@ struct __get_sycl_range
     operator()(_ArgTypes... __args)
     {
         //when called using operator(), use access mode and no_init flag provided by the struct template parameters
-        return __process_input_iter<AccMode, _IsNoInitRequested>(::std::forward<_ArgTypes>(__args)...);
+        return __process_input_iter<AccMode, _IsNoInitRequested>(std::forward<_ArgTypes>(__args)...);
     }
 };
 
