@@ -251,8 +251,8 @@ inline
 bool*
 __set_iterator_mask(bool* __mask, bool __state)
 {
-    *__mask++ = __state;
-    return __mask;
+    *__mask = __state;
+    return ++__mask;
 }
 
 template <typename _Size>
