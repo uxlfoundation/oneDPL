@@ -30,8 +30,8 @@ namespace dpl
 namespace __internal
 {
 
-template <__par_backend_hetero::access_mode __acc_mode, bool _IsNoInitRequested, typename _BackendTag, typename _ExecutionPolicy,
-          typename _ForwardIterator, typename _Function>
+template <__par_backend_hetero::access_mode __acc_mode, bool _IsNoInitRequested, typename _BackendTag,
+          typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
 auto
 __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                       _ForwardIterator __last, _Function __f)
