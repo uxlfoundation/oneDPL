@@ -30,8 +30,8 @@ namespace dpl
 namespace __internal
 {
 
-template <__par_backend_hetero::access_mode, bool _NoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator,
-          typename _Function>
+template <__par_backend_hetero::access_mode, bool _NoInit, typename _BackendTag, typename _ExecutionPolicy,
+          typename _ForwardIterator, typename _Function>
 auto
 __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                       _ForwardIterator __last, _Function __f)
@@ -48,8 +48,8 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     return __future_obj;
 }
 
-template <__par_backend_hetero::access_mode __out_acc_mode, bool _OutNoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
-          typename _ForwardIterator2, typename _Function>
+template <__par_backend_hetero::access_mode __out_acc_mode, bool _OutNoInit, typename _BackendTag,
+          typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2, typename _Function>
 auto
 __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                       _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __f)
@@ -71,8 +71,9 @@ __pattern_walk2_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     return __future.__make_future(__first2 + __n);
 }
 
-template <__par_backend_hetero::access_mode __output_acc_mode, bool _OutNoInit, typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1,
-          typename _ForwardIterator2, typename _ForwardIterator3, typename _Function>
+template <__par_backend_hetero::access_mode __output_acc_mode, bool _OutNoInit, typename _BackendTag,
+          typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2, typename _ForwardIterator3,
+          typename _Function>
 auto
 __pattern_walk3_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                       _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3, _Function __f)
