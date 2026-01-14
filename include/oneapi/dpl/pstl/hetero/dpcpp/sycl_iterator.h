@@ -155,8 +155,9 @@ struct __access_mode_resolver<std::decay_t<decltype(sycl::write_only)>, _IsNoIni
 template <typename _IsNoInitRequestedT>
 struct __access_mode_resolver<std::decay_t<decltype(sycl::read_write)>, _IsNoInitRequestedT>
 {
-    static constexpr access_mode __value =
-        std::is_same_v<_IsNoInitRequestedT, __dpl_sycl::__no_init> ? access_mode::discard_read_write : access_mode::read_write;
+    static constexpr access_mode __value = std::is_same_v<_IsNoInitRequestedT, __dpl_sycl::__no_init>
+                                               ? access_mode::discard_read_write
+                                               : access_mode::read_write;
 };
 
 template <typename _ModeTagT, typename _IsNoInitRequestedT = void>
