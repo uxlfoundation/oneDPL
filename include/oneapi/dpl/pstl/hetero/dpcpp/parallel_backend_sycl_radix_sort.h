@@ -760,7 +760,7 @@ struct __parallel_radix_sort_iteration
 
     template <typename _InRange, typename _OutRange, typename _TmpBuf, typename _Proj>
     static sycl::event
-    submit(sycl::queue& __q, std::size_t __wg_size, std::size_t __segments, std::uint32_t __radix_iter, _InRange&& __in_rng,
+    submit(sycl::queue& __q, std::size_t __wg_size_count, std::size_t __wg_size_scan, std::size_t __wg_size_reorder, std::size_t __segments, std::uint32_t __radix_iter, _InRange&& __in_rng,
            _OutRange&& __out_rng, _TmpBuf& __tmp_buf, sycl::event __dependency_event, _Proj __proj)
     {
         using _RadixCountKernel =
@@ -776,13 +776,13 @@ struct __parallel_radix_sort_iteration
         ::std::size_t __reorder_sg_size = __max_sg_size;
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)1024);
+        std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_scan);
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
-        ::std::size_t __count_wg_size = __wg_size;
+        ::std::size_t __count_wg_size = __wg_size_count;
 #else
         ::std::size_t __count_wg_size = __max_sg_size;
 #endif
-        std::size_t __reorder_wg_size = __wg_size;//__scan_wg_size;
+        std::size_t __reorder_wg_size = __wg_size_reorder;
 
         // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
 #if _ONEDPL_COMPILE_KERNEL
@@ -943,19 +943,24 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
         // if less than 2M elements, use smaller work-group size
-        std::size_t __wg_size = 32;
-        std::size_t __keys_per_workitem = 4;
+        std::size_t __wg_size_count = 128;
+        std::size_t __keys_per_wi_count = 8;
+        std::size_t __wg_size_scan = 1024;
+        std::size_t __wg_size_reorder = 256;
         if (__n > (1 << 21) /*2M*/)
         {
-            __wg_size = 128;
-            __keys_per_workitem = 64;
+            __wg_size_count = 128;
+            __keys_per_wi_count = 64;
+            __wg_size_reorder = 256;
         }
 #else
-        ::std::size_t __wg_size = __max_wg_size;
-        std::size_t __keys_per_workitem = 64;
+        std::size_t __wg_size_count = __max_wg_size;
+        std::size_t __keys_per_wi_count = 64;
+        std::size_t __wg_size_scan = 1024;
+        std::size_t __wg_size_reorder = 256;
 #endif
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size * __keys_per_workitem);
+        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 //        std::cout<<"using segments: "<<__segments<<"\n";
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
@@ -977,12 +982,12 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
             // TODO: convert to ordered type once at the first iteration and convert back at the last one
             if (__radix_iter % 2 == 0)
                 __event = __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending,
-                                                          /*even=*/true>::submit(__q_local, __wg_size, __segments, __radix_iter,
+                                                          /*even=*/true>::submit(__q_local, __wg_size_count, __wg_size_scan, __wg_size_reorder, __segments, __radix_iter,
                                                                                  __in_rng, __out_rng, __tmp_buf,
                                                                                  __event, __proj);
             else //swap __in_rng and __out_rng
                 __event = __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending,
-                                                          /*even=*/false>::submit(__q_local, __wg_size, __segments, __radix_iter,
+                                                          /*even=*/false>::submit(__q_local, __wg_size_count, __wg_size_scan, __wg_size_reorder, __segments, __radix_iter,
                                                                                   __out_rng, __in_rng, __tmp_buf,
                                                                                   __event, __proj);
         }
