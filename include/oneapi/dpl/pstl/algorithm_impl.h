@@ -3869,10 +3869,11 @@ template <typename _IsVector>
 struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyConstructRange __cc_range
 {
     template <typename _ForwardIterator, typename _OutputIterator>
-    std::tuple<_ForwardIterator, _OutputIterator>
+    _OutputIterator
     operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
     {
-        return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+        auto [__first_res, __last_res] = __brick_uninitialized_copy(__first, __last, __result, _IsVector());
+        return __last_res;
     }
 
     template <typename _ForwardIterator, typename _OutputIterator>
@@ -3928,17 +3929,17 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __result, __result + __n1 + __n2,                       // bounds for results w/o limitation
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-            _Tp* __result1, _Tp* __result2,
+            _Tp* __result1, _Tp* /*__result2*/,
             bool* __mask1, bool* __mask2,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
-            return oneapi::dpl::__utils::__set_union_bounded_construct(
+            __result1 =  oneapi::dpl::__utils::__set_union_construct(
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
-                __result1, __result2,                           // bounds for results
-                __mask1, __mask2,                               // source data usage masks
+                __result1,
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            return std::make_tuple(__last1, __last2, __result1);
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
