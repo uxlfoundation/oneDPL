@@ -3299,9 +3299,9 @@ template <typename Size>
 constexpr bool
 __is_great_that_set_algo_cut_off(Size size)
 {
-    //constexpr auto __set_algo_cut_off = 1000;
-    //return size > __set_algo_cut_off;
-    return true;
+    // 1024 is chosen as a cut-off value based on benchmarking source data sizes
+    constexpr auto __set_algo_cut_off = 1024;
+    return size > __set_algo_cut_off;
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
