@@ -1298,7 +1298,8 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     }
     else
     {
-        const auto __available_to_merge = std::min(__difference_size, __n_out);
+        using min_common_type_t = std::common_type_t<decltype(__difference_size), decltype(__n_out)>;
+        const min_common_type_t __available_to_merge = std::min<min_common_type_t>(__difference_size, __n_out);
 
         // merge if elements are in diff
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__diff_buffer_begin)> __keep_diff_buffer2;
