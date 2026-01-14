@@ -103,7 +103,7 @@ __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _O
 }
 
 template <typename _RandomAccessIterator, typename _OutputIterator>
-std::tuple<_RandomAccessIterator, _OutputIterator>
+_OutputIterator
 __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator __last, _OutputIterator __result,
                            /*vector=*/::std::true_type) noexcept
 {
@@ -113,11 +113,9 @@ __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator 
 
     const auto __n = __last - __first;
 
-    auto __it_out = __unseq_backend::__simd_walk_n(
+    return __unseq_backend::__simd_walk_n(
         __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); }, __first,
         __result);
-
-    return {__first + __n, __it_out};
 }
 
 template <typename _ForwardIterator, typename _OutputIterator>

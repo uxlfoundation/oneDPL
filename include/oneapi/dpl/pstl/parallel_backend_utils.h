@@ -289,21 +289,21 @@ __set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __la
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             new (std::addressof(*__result1++)) _Tp(*__first1++);
-            //__mask1 = __set_iterator_mask(__mask1, true);
-            //__mask2 = __set_iterator_mask(__mask2, false);
+            __mask1 = __set_iterator_mask(__mask1, true);
+            __mask2 = __set_iterator_mask(__mask2, false);
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
             new (std::addressof(*__result1++)) _Tp(*__first2++);
-            //__mask1 = __set_iterator_mask(__mask1, false);
-            //__mask2 = __set_iterator_mask(__mask2, true);
+            __mask1 = __set_iterator_mask(__mask1, false);
+            __mask2 = __set_iterator_mask(__mask2, true);
         }
         else
         {
             new (std::addressof(*__result1++)) _Tp(*__first1++);
             ++__first2;
-            //__mask1 = __set_iterator_mask(__mask1, true);
-            //__mask2 = __set_iterator_mask(__mask2, true);
+            __mask1 = __set_iterator_mask(__mask1, true);
+            __mask2 = __set_iterator_mask(__mask2, true);
         }
     }
 

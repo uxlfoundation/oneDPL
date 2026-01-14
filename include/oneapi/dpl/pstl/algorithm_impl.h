@@ -3498,12 +3498,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
 
                 // Copy mask to result mask buffer to have information about used items in input ranges
-                //__brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng1_raw_data_begin + __s.__buf_pos,
-                //                                                  __buf_mask_rng1_raw_data_begin + __s.__buf_pos + __s.__len,
-                //                                                  __buf_mask_rng1_res_raw_data_begin + __s.__pos, _IsVector{});
-                //__brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng2_raw_data_begin + __s.__buf_pos,
-                //                                                  __buf_mask_rng2_raw_data_begin + __s.__buf_pos + __s.__len,
-                //                                                  __buf_mask_rng2_res_raw_data_begin + __s.__pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng1_raw_data_begin + __s.__buf_pos,
+                                                                  __buf_mask_rng1_raw_data_begin + __s.__buf_pos + __s.__len,
+                                                                  __buf_mask_rng1_res_raw_data_begin + __s.__pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng2_raw_data_begin + __s.__buf_pos,
+                                                                  __buf_mask_rng2_raw_data_begin + __s.__buf_pos + __s.__len,
+                                                                  __buf_mask_rng2_res_raw_data_begin + __s.__pos, _IsVector{});
             }
         };
 
@@ -3645,7 +3645,6 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         _DifferenceTypeCommon __res_reachedOffset1 = __n1;  // offset to the first unprocessed item from range1
         _DifferenceTypeCommon __res_reachedOffset2 = __n2;  // offset to the first unprocessed item from range2
 
-#if 0
         // Evaluate reached offsets in input ranges if output range is limited
         if (__n_out < __size_func(__n1, __n2))
         {
@@ -3664,7 +3663,6 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             // KSATODO we should calculate here the end unused items in the first range
             // KSATODO we should calculate here the end unused items in the second range
         }
-#endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             { __first1 + __res_reachedOffset1,
@@ -3872,8 +3870,7 @@ struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyCon
     _OutputIterator
     operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result)
     {
-        auto [__first_res, __last_res] = __brick_uninitialized_copy(__first, __last, __result, _IsVector());
-        return __last_res;
+        return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
     }
 
     template <typename _ForwardIterator, typename _OutputIterator>
@@ -3929,17 +3926,17 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __result, __result + __n1 + __n2,                       // bounds for results w/o limitation
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-            _Tp* __result1, _Tp* /*__result2*/,
+            _Tp* __result1, _Tp* __result2,
             bool* __mask1, bool* __mask2,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
-            __result1 =  oneapi::dpl::__utils::__set_union_construct(
+            return oneapi::dpl::__utils::__set_union_bounded_construct(
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
-                __result1,
+                __result1, __result2,                           // bounds for results
+                __mask1, __mask2,                               // source data usage masks
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            return std::make_tuple(__last1, __last2, __result1);
         },
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
