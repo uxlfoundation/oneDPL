@@ -3403,10 +3403,10 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     __par_backend::__buffer<_T>   __buf             (__buf_size);   // Temporary (windowed) buffer for result preparation
 
     using _MaskBuffer = __par_backend::__buffer<bool>;
-    _MaskBuffer __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
-    _MaskBuffer __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
-    _MaskBuffer __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
-    _MaskBuffer __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
+    //_MaskBuffer __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
+    //_MaskBuffer __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
+    //_MaskBuffer __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
+    //_MaskBuffer __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
 
     return __internal::__except_handler([&__exec,
                                         __n1, __n2, __n_out,
@@ -3417,20 +3417,20 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __size_func,
                                          __set_op,
                                          &__buf,
-                                         &__buf_mask_rng1, &__buf_mask_rng2,
-                                         &__buf_mask_rng1_res, &__buf_mask_rng2_res,
+                                         //&__buf_mask_rng1, &__buf_mask_rng2,
+                                         //&__buf_mask_rng1_res, &__buf_mask_rng2_res,
                                          __buf_size]() 
     {
         // Buffer raw data pointers
         const auto __buf_raw_data_begin = __buf.get();
 
         // Temporary "window"-organized mask of used items in input ranges
-        bool* __buf_mask_rng1_raw_data_begin     = __buf_mask_rng1.get();
-        bool* __buf_mask_rng2_raw_data_begin     = __buf_mask_rng2.get();
+        bool* __buf_mask_rng1_raw_data_begin     = nullptr; //__buf_mask_rng1.get();
+        bool* __buf_mask_rng2_raw_data_begin     = nullptr; //__buf_mask_rng2.get();
 
         // Final  mask of used items in input ranges
-        bool* __buf_mask_rng1_res_raw_data_begin = __buf_mask_rng1_res.get();
-        bool* __buf_mask_rng2_res_raw_data_begin = __buf_mask_rng2_res.get();
+        bool* __buf_mask_rng1_res_raw_data_begin = nullptr; //__buf_mask_rng1_res.get();
+        bool* __buf_mask_rng2_res_raw_data_begin = nullptr; //__buf_mask_rng2_res.get();
 
         // End of buffer raw data
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
@@ -3498,12 +3498,12 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
 
                 // Copy mask to result mask buffer to have information about used items in input ranges
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng1_raw_data_begin + __s.__buf_pos,
-                                                                  __buf_mask_rng1_raw_data_begin + __s.__buf_pos + __s.__len,
-                                                                  __buf_mask_rng1_res_raw_data_begin + __s.__pos, _IsVector{});
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng2_raw_data_begin + __s.__buf_pos,
-                                                                  __buf_mask_rng2_raw_data_begin + __s.__buf_pos + __s.__len,
-                                                                  __buf_mask_rng2_res_raw_data_begin + __s.__pos, _IsVector{});
+                //__brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng1_raw_data_begin + __s.__buf_pos,
+                //                                                  __buf_mask_rng1_raw_data_begin + __s.__buf_pos + __s.__len,
+                //                                                  __buf_mask_rng1_res_raw_data_begin + __s.__pos, _IsVector{});
+                //__brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng2_raw_data_begin + __s.__buf_pos,
+                //                                                  __buf_mask_rng2_raw_data_begin + __s.__buf_pos + __s.__len,
+                //                                                  __buf_mask_rng2_res_raw_data_begin + __s.__pos, _IsVector{});
             }
         };
 
