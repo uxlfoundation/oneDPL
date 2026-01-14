@@ -3645,6 +3645,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         _DifferenceTypeCommon __res_reachedOffset1 = __n1;  // offset to the first unprocessed item from range1
         _DifferenceTypeCommon __res_reachedOffset2 = __n2;  // offset to the first unprocessed item from range2
 
+#if 0
         // Evaluate reached offsets in input ranges if output range is limited
         if (__n_out < __size_func(__n1, __n2))
         {
@@ -3663,6 +3664,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             // KSATODO we should calculate here the end unused items in the first range
             // KSATODO we should calculate here the end unused items in the second range
         }
+#endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             { __first1 + __res_reachedOffset1,
