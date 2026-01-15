@@ -36,18 +36,6 @@ namespace __internal
 {
 
 template <typename _Range1, typename _Range2, typename _Range3>
-oneapi::dpl::__utils::__set_operations_result<
-    oneapi::dpl::__internal::__iterator_t<_Range1>,
-    oneapi::dpl::__internal::__iterator_t<_Range2>,
-    oneapi::dpl::__internal::__iterator_t<_Range3>>
-create_set_operations_result(_Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3)
-{
-       return {oneapi::dpl::__ranges::__begin(__rng1),
-               oneapi::dpl::__ranges::__begin(__rng2),
-               oneapi::dpl::__ranges::__begin(__rng3)};
-}
-
-template <typename _Range1, typename _Range2, typename _Range3>
 using __rng_set_operations_result_in_offsets =
     std::tuple<oneapi::dpl::__internal::__range_size_t<_Range1>,
                oneapi::dpl::__internal::__range_size_t<_Range2>,
