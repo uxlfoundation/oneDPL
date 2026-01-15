@@ -199,12 +199,14 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
+    static constexpr std::uint32_t __unroll_elements = 4;
 
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng);
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
     const ::std::size_t __no_op_flag_idx = __count_buf.size() - 1;
 
+    assert(__elem_per_segment % __unroll_elements == 0 && "Segment size per segment must be multiple of unroll factor");
     //assert that we cannot overflow uint8 accumulation
     assert(__elem_per_segment / __wg_size < 256 && "Segment size per work-group is too large to count in uint8");
 
@@ -227,9 +229,11 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             __kernel,
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
+                
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
                 
+
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);
@@ -254,15 +258,24 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 __dpl_sycl::__group_barrier(__self_item);
                 //TODO: Make sure we do not overflow (with large segments where keys per work item are more than 255),
                 //      and repeat loop accumulating to other memory until segment finishes
-                for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end;
-                     __val_idx += __wg_size)
+                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_end;
+                     __val_idx += __wg_size * __unroll_elements)
                 {
-                    // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
-                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_rng[__val_idx]));
-                    ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                    // increment counter for this bit bucket
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+                    {
+                        ::std::size_t __curr_idx = __val_idx + __unroll;
+                        if (__curr_idx < __seg_end)
+                        {
+                            // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
+                            auto __val = __order_preserving_cast<__is_ascending>(
+                                std::invoke(__proj, __val_rng[__curr_idx]));
+                            ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                            // increment counter for this bit bucket
 
-                    ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
+                            ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
+                        }
+                    }
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
