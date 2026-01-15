@@ -1803,7 +1803,10 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
         __buf3_av, __comp, __proj1, __proj2);
 
-    return __result + (__result_res - __buf3_av.begin());
+    auto __result_offset = __result_res - oneapi::dpl::__ranges::__begin(__buf3_av);
+    assert(__result_offset <= __output_size);
+
+    return __result + __result_offset;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
