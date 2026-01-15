@@ -162,6 +162,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     using _LocHistT = _SimdT<_LocOffsetT, __bin_count>;
     using _GlobHistT = _SimdT<_GlobOffsetT, __bin_count>;
 
+    static constexpr ::std::uint32_t __sub_group_size = 32;
+    static constexpr ::std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
+    static constexpr ::std::uint32_t __data_per_sub_group = __data_per_work_item * __sub_group_size;
+
     static constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     static constexpr _LocOffsetT __mask = __bin_count - 1;
     static constexpr ::std::uint32_t __hist_stride = __bin_count * sizeof(_LocOffsetT);
@@ -216,104 +220,120 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     {
     }
 
-    template <typename _SimdPack>
+    template <typename _KVPack>
     inline auto
-    __load_simd_pack(_SimdPack& __pack, ::std::uint32_t __wg_id, ::std::uint32_t __wg_size, ::std::uint32_t __lid) const
+    __load_pack(_KVPack& __pack, std::uint32_t __wg_id, std::uint32_t __sg_id, std::uint32_t __sg_local_id) const
     {
-        const _GlobOffsetT __offset = __data_per_work_item * (__wg_id * __wg_size + __lid);
-        __load_simd</*__sort_identity_residual=*/true>(__pack.__keys, __rng_data(__in_pack.__keys_rng()), __offset);
+        const _GlobOffsetT __offset = __data_per_sub_group * (__wg_id * __num_sub_groups_per_work_group + __sg_id);
+        __load</*__sort_identity_residual=*/true>(__pack.__keys, __rng_data(__in_pack.__keys_rng()), __offset,
+                                                  __sg_local_id);
         if constexpr (__has_values)
         {
-            __load_simd</*__sort_identity_residual=*/false>(__pack.__vals, __rng_data(__in_pack.__vals_rng()),
-                                                            __offset);
+            __load</*__sort_identity_residual=*/false>(__pack.__vals, __rng_data(__in_pack.__vals_rng()), __offset,
+                                                       __sg_local_id);
         }
     }
 
     template <bool __sort_identity_residual, typename _T, typename _InSeq>
     inline void
-    __load_simd(_SimdT<_T, __data_per_work_item>& __simd, const _InSeq& __in_seq, _GlobOffsetT __glob_offset) const
+    __load(_T (&__elements)[__data_per_work_item], const _InSeq& __in_seq, _GlobOffsetT __glob_offset,
+           std::uint32_t __local_offset) const
     {
-        static_assert(__data_per_work_item % __data_per_step == 0);
-
-        __dpl_esimd::__ns::simd<::std::uint16_t, __data_per_step> __lane_id(0, 1);
-        bool __is_full_block = (__glob_offset + __data_per_work_item) < __n;
+        //static_assert(__data_per_work_item % __data_per_step == 0);
+        bool __is_full_block = (__glob_offset + __data_per_sub_group) <= __n;
+        auto __offset = __glob_offset + __local_offset;
         if (__is_full_block)
         {
             _ONEDPL_PRAGMA_UNROLL
-            for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __data_per_step)
+            for (::std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
-                __dpl_esimd::__ns::simd<::std::uint32_t, __data_per_step> __offset = __glob_offset + __s + __lane_id;
-                __simd.template select<__data_per_step, 1>(__s) =
-                    __dpl_esimd::__gather<_T, __data_per_step>(__in_seq, __offset, 0);
+                __elements[__i] = __in_seq[__offset + __i * __sub_group_size];
             }
         }
         else
         {
             _ONEDPL_PRAGMA_UNROLL
-            for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __data_per_step)
+            for (::std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
-                __dpl_esimd::__ns::simd<::std::uint32_t, __data_per_step> __offset = __glob_offset + __s + __lane_id;
-                __dpl_esimd::__ns::simd_mask<__data_per_step> __m = __offset < __n;
-                auto __gathered = __dpl_esimd::__gather<_T, __data_per_step>(__in_seq, __offset, 0, __m);
+                auto __idx = __offset + __i * __sub_group_size;
                 if constexpr (__sort_identity_residual)
                 {
-                    constexpr _T __default_item = __sort_identity<_T, __is_ascending>();
-                    auto __default = __dpl_esimd::__ns::simd<_T, __data_per_step>(__default_item);
-                    __simd.template select<__data_per_step, 1>(__s) =
-                        __dpl_esimd::__ns::merge(__gathered, __default, __m);
+                    __elements[__i] = (__idx < __n) ? __in_seq[__idx] : __sort_identity<_T, __is_ascending>();
                 }
                 else
                 {
-                    __simd.template select<__data_per_step, 1>(__s) = __gathered;
+                    if (__idx < __n)
+                    {
+                        __elements[__i] = __in_seq[__idx];
+                    }
                 }
             }
         }
     }
 
-    static inline __dpl_esimd::__ns::simd<::std::uint32_t, 32>
-    __match_bins(const __dpl_esimd::__ns::simd<::std::uint32_t, 32>& __bins)
+    static inline std::uint32_t
+    __match_bins(sycl::nd_item<1> __idx, std::uint32_t __bin)
     {
-        __dpl_esimd::__ns::simd<::std::uint32_t, 32> __matched_bins(0xffffffff);
+        // start with all bits 1
+        auto __matched_bins = sycl::ext::oneapi::group_ballot(__idx.get_sub_group());
         _ONEDPL_PRAGMA_UNROLL
         for (int __i = 0; __i < __radix_bits; __i++)
         {
-            __dpl_esimd::__ns::simd<::std::uint32_t, 32> __bit = (__bins >> __i) & 1;
-            __dpl_esimd::__ns::simd<::std::uint32_t, 32> __x =
-                __dpl_esimd::__ns::merge<::std::uint32_t, 32>(0, -1, __bit != 0);
-            ::std::uint32_t __ones = __dpl_esimd::__ns::pack_mask(__bit != 0);
-            __matched_bins = __matched_bins & (__x ^ __ones);
+            auto __bit = (__bin >> __i) & 1;
+            sycl::ext::oneapi::group_ballot(__idx.get_sub_group(), static_cast<bool>(__bit));
+            // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
+            // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
+            __matched_bins &= __bit ? __mask : ~__mask;
         }
-        return __matched_bins;
+        std::uint32_t __result = 0;
+        __matched_bins.extract_bits(__result);
+        return __result;
     }
 
     inline auto
-    __rank_local(_LocOffsetSimdT& __ranks, _LocOffsetSimdT& __bins, ::std::uint32_t __slm_counter_offset) const
+    __rank_local(sycl::nd_item<1> __idx, _LocOffsetT __ranks[__data_per_work_item],
+                 _LocOffsetT __bins[__data_per_work_item], std::uint32_t* __slm,
+                 std::uint32_t __sub_group_slm_offset) const
     {
-        constexpr int __bins_per_step = 32;
-        using _ScanSimdT = __dpl_esimd::__ns::simd<::std::uint32_t, __bins_per_step>;
+        //constexpr int __bins_per_step = 32;
+        //using _ScanSimdT = __dpl_esimd::__ns::simd<::std::uint32_t, __bins_per_step>;
+        // TODO add
+        std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_id();
+        std::uint32_t* __slm_offset = __slm + __sub_group_slm_offset;
 
-        __dpl_esimd::__block_store_slm<_LocOffsetT, __bin_count>(__slm_counter_offset, 0);
-        _ScanSimdT __remove_right_lanes, __lane_id(0, 1);
-        __remove_right_lanes = 0x7fffffff >> (__bins_per_step - 1 - __lane_id);
-
-        static_assert(__data_per_work_item % __bins_per_step == 0);
-        _ONEDPL_PRAGMA_UNROLL
-        for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __bins_per_step)
+        //__dpl_esimd::__block_store_slm<_LocOffsetT, __bin_count>(__sub_group_slm_offset, 0);
+        for (std::uint32_t __i = __idx.get_sub_group().get_local_id(); __i < __bin_count; __i += __sub_group_size)
         {
-            _ScanSimdT __this_bins = __bins.template select<__bins_per_step, 1>(__s);
-            _ScanSimdT __matched_bins = __match_bins(__this_bins);
-            _ScanSimdT __pre_rank = __dpl_esimd::__vector_load<_LocOffsetT, 1, __bins_per_step>(
-                __slm_counter_offset + __this_bins * sizeof(_LocOffsetT));
+            __slm_offset[__i] = 0;
+        }
+        // TODO: sub-group barrier ? maybe not for simd architectures
+        // sub-group barrier or no?
+
+        //_ScanSimdT __remove_right_lanes, __lane_id(0, 1);
+        constexpr std::uint32_t __sub_group_full_bitmask = 0x7fffffff;
+        static_assert(__sub_group_size == 32);
+        // lower bits than my current will be set meaning we only preserve left lanes
+        std::uint32_t __remove_right_lanes = __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
+
+        //static_assert(__data_per_work_item % __bins_per_step == 0);
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+        {
+            _LocOffsetT __bin = __bins[__i];
+            std::uint32_t __matched_bins = __match_bins(__idx, __bin);
+            std::uint32_t __pre_rank = __slm_offset[__bin];
             auto __matched_left_lanes = __matched_bins & __remove_right_lanes;
-            _ScanSimdT __this_round_rank = __dpl_esimd::__ns::cbit(__matched_left_lanes);
-            auto __this_round_count = __dpl_esimd::__ns::cbit(__matched_bins);
+            std::uint32_t __this_round_rank = sycl::popcount(__matched_left_lanes);
+            std::uint32_t __this_round_count = sycl::popcount(__matched_bins);
             auto __rank_after = __pre_rank + __this_round_rank;
             auto __is_leader = __this_round_rank == __this_round_count - 1;
-            __dpl_esimd::__vector_store<_LocOffsetT, 1, __bins_per_step>(
-                __slm_counter_offset + __this_bins * sizeof(_LocOffsetT), __rank_after + 1, __is_leader);
-            __ranks.template select<__bins_per_step, 1>(__s) = __rank_after;
+            if (__is_leader)
+            {
+                __slm_offset[__bin] = __rank_after + 1;
+            }
+            __ranks[__i] = __rank_after;
         }
-        __dpl_esimd::__ns::barrier();
+        sycl::group_barrier(__idx.get_group());
     }
 
     inline void
@@ -551,32 +571,41 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    _ONEDPL_ESIMD_INLINE void
-    operator()(sycl::nd_item<1> __idx) const SYCL_ESIMD_KERNEL
+    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
+    operator()(sycl::nd_item<1> __idx) const
     {
-        __dpl_esimd::__ns::slm_init<__calc_slm_alloc()>();
-
         const ::std::uint32_t __local_tid = __idx.get_local_linear_id();
         const ::std::uint32_t __wg_id = __idx.get_group(0);
         const ::std::uint32_t __wg_size = __idx.get_local_range(0);
-        const ::std::uint32_t __thread_slm_offset = __local_tid * __bin_count * sizeof(_LocOffsetT);
+        const ::std::uint32_t __sg_id = __idx.get_sub_group().get_group_linear_id();
+        const ::std::uint32_t __sg_local_id = __idx.get_sub_group().get_local_id();
 
-        auto __values_simd_pack = __make_simd_pack<__data_per_work_item, _KeyT, _ValT>();
-        _LocOffsetSimdT __bins;
-        _LocOffsetSimdT __ranks;
+        // TODO: Right now storing a full sub-group histogram contiguously in SLM. Consider evaluating
+        // approach where each sub-group's bins are interleaved
+        const ::std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
+
+        auto __values_simd_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
+        _LocOffsetT __bins[__data_per_work_item];
+        _LocOffsetT __ranks[__data_per_work_item];
         _LocHistT __subgroup_offset;
         _GlobHistT __global_fix;
 
-        __load_simd_pack(__values_simd_pack, __wg_id, __wg_size, __local_tid);
+        __load_pack(__values_simd_pack, __wg_id, __sg_id, __sg_local_id);
 
-        const auto __ordered = __order_preserving_cast<__is_ascending>(__values_simd_pack.__keys);
-        __bins = __get_bucket<__mask>(__ordered, __stage * __radix_bits);
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+        {
+            const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_simd_pack.__keys[__i]);
+            __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
+        }
+        // todo what's the best way to allocate SLM and unify with esimd impl?
+        std::uint32_t* __slm;
 
-        __rank_local(__ranks, __bins, __thread_slm_offset);
-        __rank_global(__subgroup_offset, __global_fix, __local_tid, __wg_id);
+        __rank_local(__idx, __ranks, __bins, __slm, __sub_group_slm_offset);
+        //__rank_global(__subgroup_offset, __global_fix, __local_tid, __wg_id);
 
-        __reorder_reg_to_slm(__values_simd_pack, __ranks, __bins, __subgroup_offset, __wg_size, __thread_slm_offset);
-        __reorder_slm_to_glob(__values_simd_pack, __global_fix, __local_tid, __wg_size);
+        //__reorder_reg_to_slm(__values_simd_pack, __ranks, __bins, __subgroup_offset, __wg_size, __sub_group_slm_offset);
+        //__reorder_slm_to_glob(__values_simd_pack, __global_fix, __local_tid, __wg_size);
     }
 };
 

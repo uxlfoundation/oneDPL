@@ -125,6 +125,33 @@ __order_preserving_cast_scalar(_Float __src)
     return __uint64_src ^ __mask;
 }
 
+template <std::uint16_t _N, typename _KeyT>
+struct __keys_pack
+{
+    _KeyT __keys[_N];
+};
+
+template <std::uint16_t _N, typename _KeyT, typename _ValT>
+struct __pairs_pack
+{
+    _KeyT __keys[_N];
+    _ValT __vals[_N];
+};
+
+template <std::uint16_t _N, typename _T1, typename _T2 = void>
+auto
+__make_key_value_pack()
+{
+    if constexpr (::std::is_void_v<_T2>)
+    {
+        return __keys_pack<_N, _T1>{};
+    }
+    else
+    {
+        return __pairs_pack<_N, _T1, _T2>{};
+    }
+}
+
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 #endif // _ONEDPL_KT_SYCL_RADIX_SORT_UTILS_H
