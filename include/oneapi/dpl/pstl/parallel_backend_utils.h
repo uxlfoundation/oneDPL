@@ -248,22 +248,25 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return __cc_range(__first2, __last2, __result);
 }
 
-using __parallel_set_op_mask_t = std::uint8_t;
-static constexpr __parallel_set_op_mask_t __parallel_set_op_mask_1 = 0x10; // mask for first input data item usage
-static constexpr __parallel_set_op_mask_t __parallel_set_op_mask_2 = 0x01; // mask for second input data item usage
-static constexpr __parallel_set_op_mask_t __parallel_set_op_mask_12 = __parallel_set_op_mask_1 | __parallel_set_op_mask_2; // mask for both input data items usage
+enum __parallel_set_op_mask : std::uint8_t
+{
+    eNone = 0x00,           // mask for no input data item usage
+    eData1 = 0x10,          // mask for first input data item usage
+    eData2 = 0x01,          // mask for second input data item usage
+    eBoth = eData1 | eData2 // mask for both input data items usage
+};
 
 inline
-__parallel_set_op_mask_t*
-__set_iterator_mask(__parallel_set_op_mask_t* __mask, __parallel_set_op_mask_t __state)
+__parallel_set_op_mask*
+__set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state)
 {
     *__mask = __state;
     return ++__mask;
 }
 
 template <typename _Size>
-__parallel_set_op_mask_t*
-__set_iterator_mask_n(__parallel_set_op_mask_t* __mask, __parallel_set_op_mask_t __state, _Size __count)
+__parallel_set_op_mask*
+__set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count)
 {
     for (_Size __idx = 0; __idx < __count; ++__idx)
         __mask = __set_iterator_mask(__mask, __state);
@@ -274,10 +277,10 @@ template <typename _ForwardIterator1, typename _ForwardIterator2, typename _Outp
           typename _CopyConstructRange,
           typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,     // bounds for data1
-                              _ForwardIterator2 __first2, _ForwardIterator2 __last2,     // bounds for data2
-                              _OutputIterator __result1, _OutputIterator __result2,      // bounds for results
-                              oneapi::dpl::__utils::__parallel_set_op_mask_t* __mask,    // source data usage masks
+__set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
+                              _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
+                              _OutputIterator __result1, _OutputIterator __result2,     // bounds for results
+                              oneapi::dpl::__utils::__parallel_set_op_mask* __mask,     // source data usage masks
                               _CopyConstructRange __cc_range,
                               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -295,27 +298,27 @@ __set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __la
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             new (std::addressof(*__result1++)) _Tp(*__first1++);
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_1);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
             new (std::addressof(*__result1++)) _Tp(*__first2++);
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_2);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
         }
         else
         {
             new (std::addressof(*__result1++)) _Tp(*__first1++);
             ++__first2;
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_12);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
         }
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
     auto [__first1_res, __result1_res] = __cc_range(__first1, __last1, __result1, __result2);
-    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_1, __first1_res - __first1);
+    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __first1_res - __first1);
 
     auto [__first2_res, __result2_res] = __cc_range(__first2, __last2, __result1_res, __result2);
-    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_2, __first2_res - __first2);
+    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __first2_res - __first2);
 
     return {__first1_res, __first2_res, __result2_res};
 }
@@ -351,10 +354,10 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
           typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,      // bounds for data1
-                                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,      // bounds for data2
-                                     _OutputIterator __result1, _OutputIterator __result2,       // bounds for results
-                                      oneapi::dpl::__utils::__parallel_set_op_mask_t* __mask,    // source data usage masks
+__set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,     // bounds for data1
+                                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,     // bounds for data2
+                                     _OutputIterator __result1, _OutputIterator __result2,      // bounds for results
+                                      oneapi::dpl::__utils::__parallel_set_op_mask* __mask,     // source data usage masks
                                      _CopyFunc _copy,
                                      _CopyFromFirstSet,
                                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -372,12 +375,12 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             ++__first1;
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_1);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
             ++__first2;
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_2);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
         }
         else
         {
@@ -392,7 +395,7 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
                 ++__first2;
                 ++__result1;
 
-                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask_12);
+                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
             }
             else if (!__output_full)
                 __output_full = true;
@@ -437,9 +440,10 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
-                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
-                                   _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
+__set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,   // bounds for data1
+                                   _ForwardIterator2 __first2, _ForwardIterator2 __last2,   // bounds for data2
+                                   _OutputIterator __result1, _OutputIterator __result2,    // bounds for results
+                                   oneapi::dpl::__utils::__parallel_set_op_mask* __mask,    // source data usage masks
                                    _CopyConstructRange __cc_range,
                                    _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -462,6 +466,8 @@ __set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1
                 new (std::addressof(*__result1)) _Tp(*__first1);
                 ++__result1;
                 ++__first1;
+
+                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
             }
             else if (!__output_full)
                 __output_full = true;
@@ -473,10 +479,14 @@ __set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1
             if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
                 ++__first1;
             ++__first2;
+
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
         }
     }
 
     auto [__first1_res, __result_res] = __cc_range(__first1, __last1, __result1, __result2);
+    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __first1_res - __first1);
+
     return {__first1_res, __first2, __result_res};
 }
 
@@ -523,6 +533,7 @@ std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                                              _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                                              _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
+                                             oneapi::dpl::__utils::__parallel_set_op_mask* __mask,  // source data usage masks
                                              _CopyConstructRange __cc_range,
                                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -541,6 +552,8 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
         if (__first2 == __last2)
         {
             auto [__first1_res, __result1_res] = __cc_range(__first1, __last1, __result1, __result2);
+            __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __first1_res - __first1);
+
             return {__first1_res, __first2, __result1_res};
         }
 
@@ -551,6 +564,8 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
                 new (std::addressof(*__result1)) _Tp(*__first1);
                 ++__result1;
                 ++__first1;
+
+                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
             }
             else if (!__output_full)
                 __output_full = true;
@@ -566,6 +581,8 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
                     new (std::addressof(*__result1)) _Tp(*__first2);
                     ++__first2;
                     ++__result1;
+
+                    __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
                 }
                 else if (!__output_full)
                     __output_full = true;
@@ -576,11 +593,15 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
             {
                 ++__first1;
                 ++__first2;
+
+                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
             }
         }
     }
 
     auto [__first2_res, __result1_res] = __cc_range(__first2, __last2, __result1, __result2);
+    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __first2_res - __first2);
+
     return {__first1, __first2_res, __result1_res};
 }
 
