@@ -3321,10 +3321,6 @@ static std::size_t _s_SetRangeImplCounter = 0;
 template <typename _DifferenceTypeCommon>
 struct _SetRangeImpl
 {
-#if DUMP_PARALLEL_SET_OP_WORK
-    std::size_t __counter = _s_SetRangeImplCounter++; // For debug purposes only
-#endif
-
     //                                       [.........................)
     // Temporary buffer:              TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
     //                                       ^                         ^
@@ -3340,6 +3336,11 @@ struct _SetRangeImpl
     _DifferenceTypeCommon __pos{};            // Offset in output range w/o limitation to output data size
     _DifferenceTypeCommon __len{};            // Length in temporary buffer w/o limitation to output data size
     _DifferenceTypeCommon __buf_pos{};        // Position in temporary buffer w/o limitation to output data size
+
+#if DUMP_PARALLEL_SET_OP_WORK
+    // For debug purposes only (should be places after!!! __pos, __len, __buf_pos fields due used aggregate initialization)
+    std::size_t __counter = _s_SetRangeImplCounter++;
+#endif
 
     bool
     empty() const
