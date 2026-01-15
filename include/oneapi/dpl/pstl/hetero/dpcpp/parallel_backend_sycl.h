@@ -1258,24 +1258,28 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds_n(__result);
 
     // temporary buffer to store intermediate result
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_buffer(__n2);
-    auto __diff_buffer_begin = __diff_buffer.get();
-    
-    oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__diff_buffer_begin)> __keep_diff_buffer;
-    auto __diff_buffer_keeper = __keep_diff_buffer(__diff_buffer_begin, __diff_buffer_begin + __n2);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
+    auto __buf = __diff.get();
+    auto __keep_tmp1 =
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
+    auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
 
     // 1. Calc difference {2} \ {1} (i.e. all items of {2} that are not in {1})
-    auto __output_all_view = __diff_buffer_keeper.all_view();
+    auto __tmp_rng1_all_view = __tmp_rng1.all_view();
     auto __set_op_impl_res = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
         oneapi::dpl::unseq_backend::_DifferenceTag{},
         __q,
-        __rng2, __rng1, __output_all_view,
+        __rng2, __rng1, __tmp_rng1_all_view,
         __comp, __proj2, __proj1);
 
-    const std::size_t __difference_size = oneapi::dpl::__ranges::__size(__output_all_view);
+    const std::size_t __n_diff = __set_op_impl_res.__get_reached_out() - oneapi::dpl::__ranges::__begin(__tmp_rng1_all_view);
+
+    std::size_t __rng1_ofs = 0;
+    std::size_t __rng2_ofs = 0;
+    std::size_t __output_ofs = 0;
 
     // 2. Merge {2} and the difference
-    if (__difference_size == 0)
+    if (__n_diff == 0)
     {
         const auto __available_to_copy = std::min(__n1, __n_out);
 
@@ -1284,30 +1288,31 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
             __q, __available_to_copy, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
 
-        return { __first1  + __available_to_copy,
-                 __last2,                           // TODO is it correct to return last2 here as finish pointer? KSA: I think so.
-                 __result1 + __available_to_copy };
+        __rng1_ofs = __available_to_copy;
+        __rng2_ofs = __n2;
+        __output_ofs = __available_to_copy;
     }
     else
     {
-        using min_common_type_t = std::common_type_t<decltype(__difference_size), decltype(__n_out)>;
-        const min_common_type_t __available_to_merge = std::min<min_common_type_t>(__difference_size, __n_out);
+        using min_common_type_t = std::common_type_t<decltype(__n_diff), decltype(__n_out)>;
+        const min_common_type_t __available_to_merge = std::min<min_common_type_t>(__n_diff, __n_out);
 
         // merge if elements are in diff
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__diff_buffer_begin)> __keep_diff_buffer2;
-        auto __diff_buffer_keeper2 = __keep_diff_buffer2(__diff_buffer_begin, __diff_buffer_begin + __available_to_merge);
+        auto __keep_tmp2 =
+            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
+        auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __available_to_merge);
 
-        auto __merge_future =
+        auto __merge_result = 
             oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>, /* _OutSizeLimit */ std::true_type>(
-                __q, std::forward<_Range1>(__rng1), __diff_buffer_keeper2.all_view(), std::forward<_Range3>(__result),
-                __comp, __proj1, __proj2);
+                __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result),
+                __comp, __proj1, __proj2).get();
 
-        auto __merge_result = __merge_future.get();
-
-        return { __first1  + __merge_result.first,
-                 __first2  + __merge_result.second,
-                 __result1 + __merge_result.first + __merge_result.second };
+        __rng1_ofs = __merge_result.first;
+        __rng2_ofs = __merge_result.second;
+        __output_ofs = std::min<std::size_t>(__n_diff + __n1, __n_out);
     }
+
+    return {__first1 + __rng1_ofs, __first2 + __rng2_ofs, __result1 + __output_ofs};
 }
 
 template <typename _CustomName>
