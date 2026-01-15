@@ -3618,16 +3618,20 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             });
 
 #if DUMP_PARALLEL_SET_OP_WORK
-        // Dump mask into std::cout for debug purposes
-        std::cout << "mask1: (";
-        for (auto i1 = 0; i1 < __buf_size; ++i1)
-            std::cout << __buf_mask_rng1_res_raw_data_begin[i1] << ", ";
-        std::cout << ")" << std::endl;
+        {
+            std::ios old_state(nullptr);
+            old_state.copyfmt(std::cout);
 
-        std::cout << "mask2: (";
-        for (auto i2 = 0; i2 < __buf_size; ++i2)
-            std::cout << __buf_mask_rng2_res_raw_data_begin[i2] << ", ";
-        std::cout << ")" << std::endl;
+            // Dump mask into std::cout for debug purposes
+            std::cout << "mask: (";
+            for (auto i = 0; i < __buf_size; ++i)
+                std::cout << std::hex << std::setw(2) << std::setfill('0')
+                          << static_cast<unsigned>(__buf_mask_rng_res_raw_data_begin[i])
+                          << (i + 1 < __buf_size ? ", " : "");
+            std::cout << std::dec << ")" << std::endl;
+
+            std::cout.copyfmt(old_state);
+        }
 #endif
 
         // By default we thinks we reached the end of both input ranges
