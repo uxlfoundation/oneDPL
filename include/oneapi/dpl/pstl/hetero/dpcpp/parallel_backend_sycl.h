@@ -1015,8 +1015,6 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
                                             _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3> __result_init = oneapi::dpl::__ranges::__internal::create_set_operations_result(__rng1, __rng2, __result);
-
     //using _ReduceThenScanResultT = oneapi::dpl::__ranges::__internal::__rng_set_operations_result_in_offsets<_Range1, _Range2, _Range3>;
     using _ReduceThenScanResultT = oneapi::dpl::__internal::__range_size_t<_Range3>;
 
@@ -1063,10 +1061,10 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q,
         /*_Inclusive=*/std::true_type{},                                                                    // _Inclusive
         /*__is_unique_pattern=*/std::false_type{}).get();                                                   // _IsUniquePattern
                                                                                                             // sycl::event __prior_event = {}
-    //return __result_init + __res_of_reduce_then_scan;
-    return __result_init;
-    //#else
-//    return oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>{};
+
+    return { oneapi::dpl::__ranges::__end(__rng1),
+             oneapi::dpl::__ranges::__end(__rng2),
+             oneapi::dpl::__ranges::__begin(__result) + __res_of_reduce_then_scan };
 //#endif
 }
 
@@ -1078,8 +1076,6 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
                             _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3> __result_init = oneapi::dpl::__ranges::__internal::create_set_operations_result(__rng1, __rng2, __result);
-
     //using _ReduceThenScanResultT = oneapi::dpl::__ranges::__internal::__rng_set_operations_result_in_offsets<_Range1, _Range2, _Range3>;
     using _ReduceThenScanResultT = oneapi::dpl::__internal::__range_size_t<_Range3>;
 
@@ -1160,12 +1156,11 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q,
         oneapi::dpl::unseq_backend::__no_init_value<_SizeOfRange3>{},                                   // const _InitType       __init
         /*_Inclusive=*/std::true_type{},                                                                // _Inclusive
         /*__is_unique_pattern=*/std::false_type{},                                                      // _IsUniquePattern
-        __partition_event);                                                                             // sycl::event __prior_event = {}
+        __partition_event).get();                                                                       // sycl::event __prior_event = {}
 
-    //return __result_init + __res_of_reduce_then_scan;
-    return __result_init;
-//#else
-//    return oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>{};
+    return { oneapi::dpl::__ranges::__end(__rng1),
+             oneapi::dpl::__ranges::__end(__rng2),
+             oneapi::dpl::__ranges::__begin(__result) + __res_of_reduce_then_scan };
 //#endif
 }
 
@@ -1178,8 +1173,6 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
                     _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
                     _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3> __result_init = oneapi::dpl::__ranges::__internal::create_set_operations_result(__rng1, __rng2, __result);
-
     //using _ReduceThenScanResultT = oneapi::dpl::__ranges::__internal::__rng_set_operations_result_in_offsets<_Range1, _Range2, _Range3>;
     using _ReduceThenScanResultT = oneapi::dpl::__internal::__range_size_t<_Range3>;
 
@@ -1232,10 +1225,9 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
     _ReduceThenScanResultT __res_of_reduce_then_scan;
     __payload.__copy_result(&__res_of_reduce_then_scan, 1);
 
-    //return __result_init + __res_of_reduce_then_scan;
-    return __result_init;
-//#else
-//    return oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>{};
+    return { oneapi::dpl::__ranges::__end(__rng1),
+             oneapi::dpl::__ranges::__end(__rng2),
+             oneapi::dpl::__ranges::__begin(__result) + __res_of_reduce_then_scan };
 //#endif
 }
 
