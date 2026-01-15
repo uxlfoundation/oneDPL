@@ -3776,6 +3776,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                  __result1 + __to_walk_in_r1 + __to_walk_in_r2};
     }
 
+    auto __size_fnc = [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m) { return __n + __m; };
+
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
     {
@@ -3796,11 +3798,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __left_bound_seq_1, __last1,            // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result1, __result2,                   // bounds for results
-                    [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)    // _SizeFunction __size_func
-                    {
-                        return __n + __m;
-                    },
-                    __set_union_op,                                             // _SetOP __set_op
+                    __size_fnc,                             // _SizeFunction __size_func
+                    __set_union_op,                         // _SetOP __set_op
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -3827,10 +3826,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __first1, __last1,                      // bounds for data1
                     __left_bound_seq_2, __last2,            // bounds for data2
                     __result1, __result2,                   // bounds for results
-                    [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)    // _SizeFunction __size_func
-                    {
-                        return __n + __m;
-                    },
+                    __size_fnc,                             // _SizeFunction __size_func
                     __set_union_op,                                             // _SetOP __set_op
                     __comp, __proj1, __proj2);
             });
@@ -3842,11 +3838,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __first1, __last1,                                  // bounds for data1
         __first2, __last2,                                  // bounds for data2
         __result1, __result2,                               // bounds for results
-        [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                // _SizeFunction __size_func
-        {
-            return __n + __m;
-        },
-        __set_union_op,                                                         // _SetOP __set_op
+        __size_fnc,                                         // _SizeFunction __size_func
+        __set_union_op,                                     // _SetOP __set_op
         __comp, __proj1, __proj2);
 }
 
