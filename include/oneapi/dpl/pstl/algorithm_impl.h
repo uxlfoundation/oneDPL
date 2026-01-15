@@ -3401,7 +3401,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
               << "\t__buf_size = "  << __buf_size << std::endl;
 #endif
 
-    __par_backend::__buffer<_T>   __buf             (__buf_size);   // Temporary (windowed) buffer for result preparation
+    __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask_t>;
     _MaskBuffer __buf_mask_rng    (__buf_size);     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
@@ -3420,15 +3420,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          &__buf_mask_rng_res,
                                          __buf_size]() 
     {
-        // Buffer raw data pointers
+        // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
-
+        const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
+    
         // Temporary "window"-organized mask of used items in input ranges
         oneapi::dpl::__utils::__parallel_set_op_mask_t* __buf_mask_rng_raw_data_begin = __buf_mask_rng.get();
         oneapi::dpl::__utils::__parallel_set_op_mask_t* __buf_mask_rng_res_raw_data_begin = __buf_mask_rng_res.get();
-
-        // End of buffer raw data
-        const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _DifferenceTypeCommon __res_reachedOffsetOut = 0;   // offset to the first unprocessed item from output range
 
