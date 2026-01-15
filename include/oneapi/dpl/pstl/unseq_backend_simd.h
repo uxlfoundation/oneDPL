@@ -246,10 +246,11 @@ __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __r
 {
     std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan
     _DifferenceType __stop = __n;
-    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __write_pos)
+    bool __suitable;
+    _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable))
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        bool __suitable = __pred(__first, __i);
+        __suitable = __pred(__first, __i);
         __write_pos += __suitable;
         _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__suitable)
