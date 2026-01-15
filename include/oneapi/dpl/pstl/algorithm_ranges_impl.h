@@ -875,13 +875,13 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result1, _Tp* __result2,
-            bool* __mask1, bool* __mask2,
+            oneapi::dpl::__utils::__parallel_set_op_mask_t* __mask,
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_union_bounded_construct(
                 __first1, __last1,                                          // bounds for data1
                 __first2, __last2,                                          // bounds for data2
                 __result1, __result2,                                       // bounds for results
-                __mask1, __mask2,                                           // source data usage masks
+                __mask,                                                     // source data usage masks
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },

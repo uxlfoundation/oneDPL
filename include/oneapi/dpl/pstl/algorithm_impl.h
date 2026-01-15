@@ -3403,11 +3403,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
     __par_backend::__buffer<_T>   __buf             (__buf_size);   // Temporary (windowed) buffer for result preparation
 
-    using _MaskBuffer = __par_backend::__buffer<bool>;
-    _MaskBuffer __buf_mask_rng1    (__buf_size);   // Temporary (windowed) buffer for the input range1 item usage mask
-    _MaskBuffer __buf_mask_rng2    (__buf_size);   // Temporary (windowed) buffer for the input range2 item usage mask
-    _MaskBuffer __buf_mask_rng1_res(__buf_size);   // Temporary buffer for the input range1 item usage mask
-    _MaskBuffer __buf_mask_rng2_res(__buf_size);   // Temporary buffer for the input range2 item usage mask
+    using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask_t>;
+    _MaskBuffer __buf_mask_rng    (__buf_size);     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
+    _MaskBuffer __buf_mask_rng_res(__buf_size);     // Temporary buffer for the input range1 + range2 item usage mask
 
     return __internal::__except_handler([&__exec,
                                         __n1, __n2, __n_out,
@@ -3418,20 +3416,16 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __size_func,
                                          __set_op,
                                          &__buf,
-                                         &__buf_mask_rng1, &__buf_mask_rng2,
-                                         &__buf_mask_rng1_res, &__buf_mask_rng2_res,
+                                         &__buf_mask_rng,
+                                         &__buf_mask_rng_res,
                                          __buf_size]() 
     {
         // Buffer raw data pointers
         const auto __buf_raw_data_begin = __buf.get();
 
         // Temporary "window"-organized mask of used items in input ranges
-        bool* __buf_mask_rng1_raw_data_begin     = __buf_mask_rng1.get();
-        bool* __buf_mask_rng2_raw_data_begin     = __buf_mask_rng2.get();
-
-        // Final  mask of used items in input ranges
-        bool* __buf_mask_rng1_res_raw_data_begin = __buf_mask_rng1_res.get();
-        bool* __buf_mask_rng2_res_raw_data_begin = __buf_mask_rng2_res.get();
+        oneapi::dpl::__utils::__parallel_set_op_mask_t* __buf_mask_rng_raw_data_begin = __buf_mask_rng.get();
+        oneapi::dpl::__utils::__parallel_set_op_mask_t* __buf_mask_rng_res_raw_data_begin = __buf_mask_rng_res.get();
 
         // End of buffer raw data
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
@@ -3499,12 +3493,9 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
 
                 // Copy mask to result mask buffer to have information about used items in input ranges
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng1_raw_data_begin + __s.__buf_pos,
-                                                                  __buf_mask_rng1_raw_data_begin + __s.__buf_pos + __s.__len,
-                                                                  __buf_mask_rng1_res_raw_data_begin + __s.__pos, _IsVector{});
-                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng2_raw_data_begin + __s.__buf_pos,
-                                                                  __buf_mask_rng2_raw_data_begin + __s.__buf_pos + __s.__len,
-                                                                  __buf_mask_rng2_res_raw_data_begin + __s.__pos, _IsVector{});
+                __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng_raw_data_begin + __s.__buf_pos,
+                                                                  __buf_mask_rng_raw_data_begin + __s.__buf_pos + __s.__len,
+                                                                  __buf_mask_rng_res_raw_data_begin + __s.__pos, _IsVector{});
             }
         };
 
@@ -3566,8 +3557,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 auto __buffer_b = __buf_raw_data_begin + __buf_pos;
                 auto __buffer_e = __buf_raw_data_begin + __buf_pos + __size_func(__e - __b, __ee - __bb);
 
-                auto __mask1_b = __buf_mask_rng1_raw_data_begin + __buf_pos;
-                auto __mask2_b = __buf_mask_rng2_raw_data_begin + __buf_pos;
+                auto __mask_b = __buf_mask_rng_raw_data_begin + __buf_pos;
 
                 auto sz1 = __e - __b;
                 auto sz2 = __ee - __bb;
@@ -3576,7 +3566,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 auto [__res1, __res2, __res] = __set_op(__b, __e,               // bounds for data1
                                                         __bb, __ee,             // bounds for data2
                                                         __buffer_b, __buffer_e, // bounds for results
-                                                        __mask1_b, __mask2_b,   // iterator usage masks
+                                                        __mask_b,               // iterator usage masks
                                                         __comp, __proj1, __proj2);
 
                 auto __res_sz = __res - __buffer_b;
@@ -3617,7 +3607,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             },
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
-             __buf_mask_rng1_raw_data_begin, __buf_mask_rng2_raw_data_begin,
+             __buf_mask_rng_raw_data_begin,
              &__res_reachedOffsetOut, &__scan](const _SetRange& __total)
             {
                 //final scan
@@ -3649,17 +3639,29 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         // Evaluate reached offsets in input ranges if output range is limited
         if (__n_out < __size_func(__n1, __n2))
         {
-            auto count_pred = [](bool __state) -> _DifferenceTypeCommon { return __state ? 1 : 0; };
+        	using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+        	
+            auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask_t __state1,
+                                     oneapi::dpl::__utils::__parallel_set_op_mask_t /*__stat2*/) -> _Sizes {
+                return _Sizes{__state1 & oneapi::dpl::__utils::__parallel_set_op_mask_1 ? 1 : 0,
+                              __state1 & oneapi::dpl::__utils::__parallel_set_op_mask_2 ? 1 : 0};
+            };
 
-            // Summarize used items in range1
-            __res_reachedOffset1 = __pattern_count(__parallel_tag<_IsVector>{}, __exec,
-                                                   __buf_mask_rng1_res_raw_data_begin,
-                                                   __buf_mask_rng1_res_raw_data_begin + __n_out, count_pred);
+            auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
+                return {__a.first + __b.first, __a.second + __b.second};
+            };
 
-            // Summarize used items in range2
-            __res_reachedOffset2 = __pattern_count(__parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
-                                                   __buf_mask_rng2_res_raw_data_begin,
-                                                   __buf_mask_rng2_res_raw_data_begin + __n_out, count_pred);
+            // transform_reduce
+            const _Sizes __res = __pattern_transform_reduce(
+                __parallel_tag<_IsVector>{}, __exec,
+                __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __n_out,
+                __buf_mask_rng_res_raw_data_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
+                _Sizes{0, 0},
+                reduce_pred,
+                transform_pred);
+
+            __res_reachedOffset1 = __res.first;
+            __res_reachedOffset2 = __res.second;
 
             // KSATODO we should calculate here the end unused items in the first range
             // KSATODO we should calculate here the end unused items in the second range
@@ -3921,14 +3923,14 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result1, _Tp* __result2,
-            bool* __mask1, bool* __mask2,
+            oneapi::dpl::__utils::__parallel_set_op_mask_t* __mask,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
             return oneapi::dpl::__utils::__set_union_bounded_construct(
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
                 __result1, __result2,                           // bounds for results
-                __mask1, __mask2,                               // source data usage masks
+                __mask,                                         // source data usage masks
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
@@ -4238,14 +4240,14 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _Tp* __result1, _Tp* __result2,
-               auto __mask1, auto __mask2,
+               oneapi::dpl::__utils::__parallel_set_op_mask_t* __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
                     __result1, __result2,                                           // bounds for results
-                    __mask1, __mask2,                                               // source data usage masks
+                    __mask,                                                         // source data usage masks
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
