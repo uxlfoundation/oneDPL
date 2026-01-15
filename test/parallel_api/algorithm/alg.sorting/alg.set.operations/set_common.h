@@ -103,6 +103,28 @@ struct test_set_union
         auto expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin());
         auto res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
 
+#if 0
+        if (expect_res - expect.begin() != res - out.begin())
+        {
+            EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_union without comparator");
+            // Output all data from first1 - last1
+            std::cout << "\nSet1: "; 
+            for (auto it1 = first1; it1 != last1; ++it1)
+                std::cout << *it1 << " ";
+            std::cout << "\nSet2: "; 
+            for (auto it2 = first2; it2 != last2; ++it2)
+                std::cout << *it2 << " ";
+            std::cout << std::endl;
+            expect_res = ::std::set_union(first1, last1, first2, last2, expect.begin());
+            std::cout << "\nExpected result: "; 
+            for (auto it3 = expect.begin(); it3 != expect_res; ++it3)
+                std::cout << *it3 << " ";
+            std::cout << std::endl;
+
+            res = std::set_union(std::forward<Policy>(exec), first1, last1, first2, last2, out.begin());
+        }
+#endif
+
         EXPECT_EQ(expect_res - expect.begin(), res - out.begin(), "wrong result for set_union without comparator");
         EXPECT_EQ_N(expect.begin(), out.begin(), ::std::distance(out.begin(), res), "wrong set_union effect without comparator");
     }
