@@ -33,12 +33,16 @@ test_usm_shared_alloc(Policy&& exec, T trash, size_t n, const std::string& type_
 {
     if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
+        constexpr size_t guard_size = 5;
+        const size_t total_size = n + guard_size;
+        const T sentinel = static_cast<T>(-999);  // Distinct from trash
+
         //std::vector using usm shared allocator
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
         oneapi::dpl::counting_iterator<int> counting(0);
         // usm_shared allocator std::vector
         sycl::usm_allocator<T, sycl::usm::alloc::shared> q_alloc{exec};
-        std::vector<T, decltype(q_alloc)> shared_data_vec(n, q_alloc);
+        std::vector<T, decltype(q_alloc)> shared_data_vec(total_size, q_alloc);
         //test all modes / wrappers
 
         //Only test as source iterator for permutation iterator if we can expect it to work
@@ -48,9 +52,10 @@ test_usm_shared_alloc(Policy&& exec, T trash, size_t n, const std::string& type_
             /*__check_write=*/true, /*__usable_as_perm_map=*/true,
             /*__usable_as_perm_src=*/
             TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(shared_data_vec.begin())>,
-            /*__is_reversible=*/true>(std::forward<Policy>(exec), shared_data_vec.begin(), shared_data_vec.end(), counting,
+            /*__is_reversible=*/true>(std::forward<Policy>(exec), shared_data_vec.begin(), shared_data_vec.begin() + n, counting,
                                       copy_out.get_data(), shared_data_vec.begin(), copy_out.get_data(), counting,
-                                      trash, std::string("usm_shared_alloc_vector<") + type_text + std::string(">"));
+                                      trash, std::string("usm_shared_alloc_vector<") + type_text + std::string(">"),
+                                      guard_size, sentinel);
     }
     else
     {
@@ -64,12 +69,16 @@ test_usm_host_alloc(Policy&& exec, T trash, size_t n, const std::string& type_te
 {
     if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
+        constexpr size_t guard_size = 5;
+        const size_t total_size = n + guard_size;
+        const T sentinel = static_cast<T>(-999);  // Distinct from trash
+
         //std::vector using usm host allocator
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
         oneapi::dpl::counting_iterator<int> counting(0);
         // usm_host allocator std::vector
         sycl::usm_allocator<T, sycl::usm::alloc::host> q_alloc{exec};
-        std::vector<T, decltype(q_alloc)> host_data_vec(n, q_alloc);
+        std::vector<T, decltype(q_alloc)> host_data_vec(total_size, q_alloc);
         //test all modes / wrappers
 
         //Only test as source iterator for permutation iterator if we can expect it to work
@@ -78,9 +87,10 @@ test_usm_host_alloc(Policy&& exec, T trash, size_t n, const std::string& type_te
             __recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
             /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/
             TestUtils::__vector_impl_distinguishes_usm_allocator_from_default_v<decltype(host_data_vec.begin())>,
-            /*__is_reversible=*/true>(std::forward<Policy>(exec), host_data_vec.begin(), host_data_vec.end(), counting, copy_out.get_data(),
+            /*__is_reversible=*/true>(std::forward<Policy>(exec), host_data_vec.begin(), host_data_vec.begin() + n, counting, copy_out.get_data(),
                                       host_data_vec.begin(), copy_out.get_data(), counting, trash,
-                                      std::string("usm_host_alloc_vector<") + type_text + std::string(">"));
+                                      std::string("usm_host_alloc_vector<") + type_text + std::string(">"),
+                                      guard_size, sentinel);
     }
     else
     {
