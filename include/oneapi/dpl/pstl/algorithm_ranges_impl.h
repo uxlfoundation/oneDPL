@@ -1351,8 +1351,7 @@ template <typename _R, typename _OutR>
 using __unique_copy_return_t =
     std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp,
-          typename _Proj>
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
 __unique_copy_return_t<_R, _OutR>
 __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
                       _Comp __comp, _Proj __proj)
@@ -1362,9 +1361,8 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
     _Size __sz_out = std::ranges::size(__out_r);
 
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_unique_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in,
-        std::ranges::begin(__out_r), __sz_out,
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in, std::ranges::begin(__out_r),
+        __sz_out, oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
 
     return {__res.first, __res.second};
 }

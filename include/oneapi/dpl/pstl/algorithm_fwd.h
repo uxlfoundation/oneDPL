@@ -545,7 +545,7 @@ __pattern_unique(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIte
 
 template <class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
 _OutputIterator __brick_unique_copy(_ForwardIterator, _ForwardIterator, _OutputIterator, _BinaryPredicate,
-                                   /*vector=*/std::false_type) noexcept;
+                                    /*vector=*/std::false_type) noexcept;
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
 _RandomAccessIterator2 __brick_unique_copy(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,

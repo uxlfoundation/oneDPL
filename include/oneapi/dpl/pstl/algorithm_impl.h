@@ -1591,8 +1591,8 @@ __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
 
 template <class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
 _OutputIterator
-__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result, _BinaryPredicate __pred,
-                    /*vector=*/std::false_type) noexcept
+__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
+                    _BinaryPredicate __pred, /*vector=*/std::false_type) noexcept
 {
     return std::unique_copy(__first, __last, __result, __pred);
 }
