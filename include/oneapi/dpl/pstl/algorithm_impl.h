@@ -3642,11 +3642,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         if (__n_out < __size_func(__n1, __n2))
         {
         	using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+            using __parallel_set_op_mask_underlying_t = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
         	
             auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
                                      oneapi::dpl::__utils::__parallel_set_op_mask /*__stat2*/) -> _Sizes {
-                return _Sizes{__state1 & oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ? 1 : 0,
-                              __state1 & oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ? 1 : 0};
+                return _Sizes{(__parallel_set_op_mask_underlying_t)__state1 & (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ? 1 : 0,
+                              (__parallel_set_op_mask_underlying_t)__state1 & (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ? 1 : 0};
             };
 
             auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
