@@ -460,26 +460,29 @@ __set_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
+
             if (__result1 != __result2)
             {
                 new (std::addressof(*__result1)) _Tp(*__first1);
                 ++__result1;
                 ++__first1;
-
-                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
             }
             else if (!__output_full)
                 __output_full = true;
             else
                 break;
         }
+        else if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        {
+            ++__first1;
+            ++__first2;
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
+        }
         else
         {
-            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                ++__first1;
             ++__first2;
-
-            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
         }
     }
 
