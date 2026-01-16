@@ -383,6 +383,8 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
         else
         {
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
+
             if (__result1 != __result2)
             {
                 if constexpr (_CopyFromFirstSet::value)
@@ -393,8 +395,6 @@ __set_intersection_bounded_construct(_ForwardIterator1 __first1, _ForwardIterato
                 ++__first1;
                 ++__first2;
                 ++__result1;
-
-                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
             }
             else if (!__output_full)
                 __output_full = true;
