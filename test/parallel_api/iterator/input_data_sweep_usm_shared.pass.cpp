@@ -35,7 +35,7 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
     {
         constexpr size_t guard_size = 5;
         const size_t total_size = n + guard_size;
-        const T sentinel = static_cast<T>(-999);  // Distinct from trash
+        const T sentinel = static_cast<T>(-999); // Distinct from trash
 
         { //usm shared ptr
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
@@ -46,8 +46,7 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
             //test all modes / wrappers
             wrap_recurse<__recurse, 0>(std::forward<Policy>(exec), usm_shared, usm_shared + n, counting,
                                        copy_out.get_data(), usm_shared, copy_out.get_data(), counting, trash,
-                                       std::string("usm_shared<") + type_text + std::string(">"),
-                                       guard_size, sentinel);
+                                       std::string("usm_shared<") + type_text + std::string(">"), guard_size, sentinel);
         }
     }
     else
@@ -83,8 +82,8 @@ test_impl(Policy&& exec)
     wrap_recurse<1, 0, /*__read =*/false, /*__reset_read=*/false, /*__write=*/true,
                  /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
                  /*__is_reversible=*/true>(
-        CLONE_TEST_POLICY_IDX(exec, 4), perm2, perm2 + n, counting, copy_out.get_data(), perm2, copy_out.get_data(), counting, -666,
-        "permutation_iter(permutation_iterator(usm_shared<int>,counting_iterator),counting_iterator)",
+        CLONE_TEST_POLICY_IDX(exec, 4), perm2, perm2 + n, counting, copy_out.get_data(), perm2, copy_out.get_data(),
+        counting, -666, "permutation_iter(permutation_iterator(usm_shared<int>,counting_iterator),counting_iterator)",
         guard_size, sentinel);
 }
 
