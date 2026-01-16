@@ -248,9 +248,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     return __cc_range(__first2, __last2, __result);
 }
 
-enum __parallel_set_op_mask : std::uint8_t
+enum class __parallel_set_op_mask : std::uint8_t
 {
-    eNone = 0x00,           // mask for no input data item usage
     eData1 = 0x10,          // mask for first input data item usage
     eData2 = 0x01,          // mask for second input data item usage
     eBoth = eData1 | eData2 // mask for both input data items usage
