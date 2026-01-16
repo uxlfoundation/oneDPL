@@ -680,21 +680,39 @@ struct __scan_ignore
 };
 
 // create mask
-template <typename _Pred, typename _Tp>
+template <typename _Pred, typename _ValueType>
 struct __create_mask
 {
     _Pred __pred;
 
     template <typename _Idx, typename _Input>
-    _Tp
+    _ValueType
     operator()(const _Idx __idx, const _Input& __input) const
     {
-        using ::std::get;
-        // 1. apply __pred
-        auto __temp = __pred(get<0>(__input[__idx]));
-        // 2. initialize mask
-        get<1>(__input[__idx]) = __temp;
-        return _Tp(__temp);
+        using std::get;
+
+        bool __mask_value = __pred(get<0>(__input[__idx]));
+
+        get<1>(__input[__idx]) = __mask_value;
+        return _ValueType(__mask_value);
+    }
+};
+
+template <typename _Pred, typename _ValueType>
+struct __create_mask_unique
+{
+    _Pred __pred;
+
+    template <typename _Idx, typename _Input>
+    _ValueType
+    operator()(const _Idx __idx, const _Input& __input) const
+    {
+        using std::get;
+
+        bool __mask_value = (__idx == 0) ? true : !__pred(get<0>(__input[__idx]), get<0>(__input[__idx + (-1)]));
+
+        get<1>(__input[__idx]) = __mask_value;
+        return _ValueType(__mask_value);
     }
 };
 

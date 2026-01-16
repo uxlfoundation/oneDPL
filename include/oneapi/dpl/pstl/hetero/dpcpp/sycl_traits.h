@@ -101,9 +101,6 @@ struct __search_n_unary_predicate;
 template <class _Comp>
 struct __is_heap_check;
 
-template <typename _Predicate, typename _ValueType>
-struct __create_mask_unique_copy;
-
 template <class _Tag, typename _Tp, typename>
 struct __brick_fill;
 
@@ -268,13 +265,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <class _Comp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__is_heap_check, _Comp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Comp>
-{
-};
-
-template <typename _Predicate, typename _ValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__create_mask_unique_copy, _Predicate,
-                                                       _ValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
 {
 };
 
@@ -694,8 +684,11 @@ struct n_elem_match_pred;
 template <typename _Pred>
 struct first_match_pred;
 
-template <typename _Pred, typename _Tp>
+template <typename _Pred, typename _ValueType>
 struct __create_mask;
+
+template <typename _Pred, typename _ValueType>
+struct __create_mask_unique;
 
 template <typename _BinaryOp, typename _Assigner, std::size_t N>
 struct __copy_by_mask;
@@ -787,9 +780,16 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Pred, typename _Tp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _Tp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred, _Tp>
+template <typename _Pred, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Pred, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask_unique, _Pred,
+                                                       _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 
