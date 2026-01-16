@@ -611,10 +611,8 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // access the input and output data
         oneapi::dpl::__ranges::__require_access(__hdl, __input_rng, __output_rng);
 
-        // Local memory allocation:
-        // 1. Segment data buffer (entire segment in SLM)
-        // 2. Coordination counts (First half: subgroup counts, Second half: scanned offsets)
-        auto __slm_segment_data = __dpl_sycl::__local_accessor<_ValueT>(__elem_per_segment, __hdl);
+        // Local memory for multi-subgroup coordination:
+        // First half: subgroup counts, Second half: scanned offsets
         auto __local_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2, __hdl);
 
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
@@ -639,8 +637,6 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const std::size_t __self_lidx = __self_item.get_local_id(0);
                 const std::size_t __segment_idx = __self_item.get_group(0); //SYCL work group ID
                 const std::size_t __seg_start = __elem_per_segment * __segment_idx;
-                const std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
-                const std::size_t __seg_size = __seg_end - __seg_start;
 
                 // subgroup info for multi-subgroup coordination
                 auto __sub_group = __self_item.get_sub_group();
@@ -648,38 +644,29 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
 
-                // Phase 0: Cooperative load from global memory to SLM
-                // Each work-item loads multiple elements in a coalesced pattern
-                for (std::size_t __i = __self_lidx; __i < __seg_size; __i += __wg_size)
-                {
-                    __slm_segment_data[__i] = __input_rng[__seg_start + __i];
-                }
+                // Phase 1: Count elements per bucket within each subgroup
+                // Track local counts per radix state for this work-item (contiguous elements)
+                _OffsetT __local_counts_arr[__radix_states] = {0};
 
-                // Barrier to ensure all data is loaded into SLM
-                __dpl_sycl::__group_barrier(__self_item);
-
+                std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
                 // Compute segment bounds for this subgroup
-                const std::size_t __elems_per_subgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__seg_size, __num_subgroups);
-                const std::size_t __sg_seg_start = sycl::min(__sg_id * __elems_per_subgroup, __seg_size);
-                const std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_size);
+                const std::size_t __elems_per_subgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
+                const std::size_t __sg_seg_start = sycl::min(__seg_start + __sg_id * __elems_per_subgroup, __seg_end);
+                const std::size_t __sg_seg_end = sycl::min(__sg_seg_start + __elems_per_subgroup, __seg_end);
 
                 // Compute contiguous element range for this work-item
                 const std::size_t __sg_elems = __sg_seg_end - __sg_seg_start;
                 const std::size_t __elems_per_wi = __sg_elems / __sg_size;
                 const std::size_t __wi_seg_start = __sg_seg_start + __sg_local_id * __elems_per_wi;
                 // Last work-item gets any remaining elements
-                const ::std::size_t __wi_seg_end = (__sg_local_id == __sg_size - 1)
-                    ? __sg_seg_end
+                const ::std::size_t __wi_seg_end = (__sg_local_id == __sg_size - 1) 
+                    ? __sg_seg_end 
                     : __wi_seg_start + __elems_per_wi;
 
-                // Phase 1: Count elements per bucket within each subgroup (read from SLM)
-                // Track local counts per radix state for this work-item (contiguous elements)
-                _OffsetT __local_counts_arr[__radix_states] = {0};
-
-                // Count pass: each work-item counts its contiguous block of elements from SLM
-                for (::std::size_t __local_idx = __wi_seg_start; __local_idx < __wi_seg_end; ++__local_idx)
+                // Count pass: each work-item counts its contiguous block of elements
+                for (::std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
-                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __slm_segment_data[__local_idx]));
+                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input_rng[__val_idx]));
                     std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                     ++__local_counts_arr[__bucket];
                 }
@@ -695,7 +682,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                         __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
                                                                 __dpl_sycl::__plus<_OffsetT>());
                     __subgroup_totals[__radix_state_idx] =
-                        __dpl_sycl::__group_broadcast(__sub_group,
+                        __dpl_sycl::__group_broadcast(__sub_group, 
                             __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
                             __sg_size - 1);
                 }
@@ -753,10 +740,10 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                         + __wi_exclusive_prefix[__radix_state_idx];
                 }
 
-                // Phase 6: Reorder pass - scatter elements to output (read from SLM, write to global)
-                for (std::size_t __local_idx = __wi_seg_start; __local_idx < __wi_seg_end; ++__local_idx)
+                // Phase 6: Reorder pass - scatter elements to output (contiguous per work-item)
+                for (std::size_t __val_idx = __wi_seg_start; __val_idx < __wi_seg_end; ++__val_idx)
                 {
-                    _ValueT __in_val = std::move(__slm_segment_data[__local_idx]);
+                    _ValueT __in_val = std::move(__input_rng[__val_idx]);
                     // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
                     std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
                         __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
