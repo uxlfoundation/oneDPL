@@ -63,25 +63,21 @@ verify_guard_region(Policy&& exec, Iterator guard_start, Size guard_size, T sent
     if (guard_size > 0)
     {
         std::vector<T> guard_check(guard_size);
-        oneapi::dpl::copy(std::forward<Policy>(exec),
-                          guard_start, guard_start + guard_size, guard_check.begin());
+        oneapi::dpl::copy(std::forward<Policy>(exec), guard_start, guard_start + guard_size, guard_check.begin());
 
         for (Size i = 0; i < guard_size; ++i)
         {
             if (!TestUtils::is_equal_val(guard_check[i], sentinel_value))
             {
                 std::stringstream msg;
-                msg << "Buffer overflow detected in " << operation_type
-                    << " from " << input_descr
-                    << " at guard position " << i
-                    << ": expected " << sentinel_value
-                    << ", got " << guard_check[i];
+                msg << "Buffer overflow detected in " << operation_type << " from " << input_descr
+                    << " at guard position " << i << ": expected " << sentinel_value << ", got " << guard_check[i];
                 TestUtils::issue_error_message(msg);
             }
         }
-#if _ONEDPL_DEBUG_SYCL
+#    if _ONEDPL_DEBUG_SYCL
         std::cout << " guard region verified (" << guard_size << " elements)";
-#endif
+#    endif
     }
 }
 
@@ -93,8 +89,8 @@ template <int __recurse, int __reverses, bool __read = true, bool __reset_read =
 void
 wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIterator2 copy_from_first,
              OutputIterator copy_to_first, OriginalIterator1 orig_first, OriginalIterator2 orig_out_first,
-             ExpectedIterator expected_first, T trash, const std::string& input_descr,
-             std::size_t guard_size = 0, T sentinel_value = {})
+             ExpectedIterator expected_first, T trash, const std::string& input_descr, std::size_t guard_size = 0,
+             T sentinel_value = {})
 {
     oneapi::dpl::counting_iterator<size_t> counting(size_t{0});
 
@@ -130,7 +126,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
         EXPECT_EQ_N(expect, orig_out_first, n, msg.c_str());
 
         // Verify guard region
-        verify_guard_region(CLONE_TEST_POLICY_IDX(exec, 0), orig_out_first + n, guard_size, sentinel_value, input_descr, "read");
+        verify_guard_region(CLONE_TEST_POLICY_IDX(exec, 0), orig_out_first + n, guard_size, sentinel_value, input_descr,
+                            "read");
 
 #    if _ONEDPL_DEBUG_SYCL
         std::cout << " read pass,";
@@ -162,7 +159,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             EXPECT_EQ_N(expect, copy_back.begin(), n, msg.c_str());
 
             // Verify guard region
-            verify_guard_region(CLONE_TEST_POLICY_IDX(exec, 3), orig_first + n, guard_size, sentinel_value, input_descr, "write");
+            verify_guard_region(CLONE_TEST_POLICY_IDX(exec, 3), orig_first + n, guard_size, sentinel_value, input_descr,
+                                "write");
 
 #    if _ONEDPL_DEBUG_SYCL
             std::cout << " write pass";
@@ -201,9 +199,9 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             std::string new_input_descr = std::string("std::reverse(") + input_descr + std::string(")");
             //TODO: Look at device copyability of std::reverse_iterator and re-enable recurse
             wrap_recurse<0, __reverses + 1, __read, __reset_read, __write, __check_write, __usable_as_perm_map,
-                         __usable_as_perm_src, __is_reversible>(CLONE_TEST_POLICY_IDX(exec, 6), reversed_first, reversed_last, copy_from_first,
-                                                                copy_to_first, orig_first, orig_out_first,
-                                                                expected_first, trash, new_input_descr, guard_size, sentinel_value);
+                         __usable_as_perm_src, __is_reversible>(
+                CLONE_TEST_POLICY_IDX(exec, 6), reversed_first, reversed_last, copy_from_first, copy_to_first,
+                orig_first, orig_out_first, expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         { //transform_iterator(it,noop)
@@ -211,8 +209,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             std::string new_input_descr = std::string("transform_iterator(") + input_descr + std::string(", noop)");
             wrap_recurse<__recurse - 1, __reverses, __read, __reset_read, /*__write=*/false, __check_write,
                          __usable_as_perm_map, __usable_as_perm_src, __is_reversible>(
-                CLONE_TEST_POLICY_IDX(exec, 7), trans, trans + n, discard, copy_to_first, orig_first, orig_out_first, expected_first, trash,
-                new_input_descr, guard_size, sentinel_value);
+                CLONE_TEST_POLICY_IDX(exec, 7), trans, trans + n, discard, copy_to_first, orig_first, orig_out_first,
+                expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         if constexpr (__usable_as_perm_src)
@@ -220,9 +218,9 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             std::string new_input_descr = std::string("permutation_iterator(") + input_descr + std::string(", noop)");
             auto perm = oneapi::dpl::make_permutation_iterator(first, noop);
             wrap_recurse<__recurse - 1, __reverses, __read, __reset_read, __write, __check_write, __usable_as_perm_map,
-                         __usable_as_perm_src, __is_reversible>(CLONE_TEST_POLICY_IDX(exec, 8), perm, perm + n, copy_from_first, copy_to_first,
-                                                                orig_first, orig_out_first, expected_first, trash,
-                                                                new_input_descr, guard_size, sentinel_value);
+                         __usable_as_perm_src, __is_reversible>(
+                CLONE_TEST_POLICY_IDX(exec, 8), perm, perm + n, copy_from_first, copy_to_first, orig_first,
+                orig_out_first, expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         if constexpr (__usable_as_perm_src)
@@ -231,9 +229,9 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
                 std::string("permutation_iterator(") + input_descr + std::string(", counting_iterator)");
             auto perm = oneapi::dpl::make_permutation_iterator(first, counting);
             wrap_recurse<__recurse - 1, __reverses, __read, __reset_read, __write, __check_write, __usable_as_perm_map,
-                         __usable_as_perm_src, __is_reversible>(CLONE_TEST_POLICY_IDX(exec, 9), perm, perm + n, copy_from_first, copy_to_first,
-                                                                orig_first, orig_out_first, expected_first, trash,
-                                                                new_input_descr, guard_size, sentinel_value);
+                         __usable_as_perm_src, __is_reversible>(
+                CLONE_TEST_POLICY_IDX(exec, 9), perm, perm + n, copy_from_first, copy_to_first, orig_first,
+                orig_out_first, expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         if constexpr (__usable_as_perm_map)
@@ -243,8 +241,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             auto perm = oneapi::dpl::make_permutation_iterator(counting, first);
             wrap_recurse<__recurse - 1, __reverses, __read, __reset_read, /*__write=*/false, __check_write,
                          __usable_as_perm_map, __usable_as_perm_src, __is_reversible>(
-                CLONE_TEST_POLICY_IDX(exec, 10), perm, perm + n, discard, copy_to_first, orig_first, orig_out_first, expected_first, trash,
-                new_input_descr, guard_size, sentinel_value);
+                CLONE_TEST_POLICY_IDX(exec, 10), perm, perm + n, discard, copy_to_first, orig_first, orig_out_first,
+                expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         { //zip_iterator(counting_iterator,it)
@@ -254,8 +252,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             auto zip_out = oneapi::dpl::make_zip_iterator(discard, copy_to_first);
             wrap_recurse<__recurse - 1, __reverses, __read, __reset_read, /*__write=*/false, __check_write,
                          /*__usable_as_perm_map=*/false, __usable_as_perm_src, __is_reversible>(
-                CLONE_TEST_POLICY_IDX(exec, 11), zip, zip + n, discard, zip_out, orig_first, orig_out_first, expected_first, trash,
-                new_input_descr, guard_size, sentinel_value);
+                CLONE_TEST_POLICY_IDX(exec, 11), zip, zip + n, discard, zip_out, orig_first, orig_out_first,
+                expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
 
         { //zip_iterator(it, discard_iterator)
@@ -265,8 +263,8 @@ wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIter
             auto zip_in = oneapi::dpl::make_zip_iterator(copy_from_first, counting);
             wrap_recurse<__recurse - 1, __reverses, /*__read=*/false, false, __write, __check_write,
                          /*__usable_as_perm_map=*/false, __usable_as_perm_src, __is_reversible>(
-                CLONE_TEST_POLICY_IDX(exec, 12), zip, zip + n, zip_in, discard, orig_first, orig_out_first, expected_first, trash,
-                new_input_descr, guard_size, sentinel_value);
+                CLONE_TEST_POLICY_IDX(exec, 12), zip, zip + n, zip_in, discard, orig_first, orig_out_first,
+                expected_first, trash, new_input_descr, guard_size, sentinel_value);
         }
     }
 }

@@ -37,7 +37,7 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
         {
             constexpr size_t guard_size = 5;
             const size_t total_size = n + guard_size;
-            const T sentinel = static_cast<T>(-999);  // Distinct from trash
+            const T sentinel = static_cast<T>(-999); // Distinct from trash
 
             TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
             oneapi::dpl::counting_iterator<int> counting(0);
@@ -45,10 +45,10 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
             //counting_iterator
             wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/false, /*__write=*/false,
                          /*__check_write=*/false, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                         /*__is_reversible=*/true>(std::forward<Policy>(exec), my_counting, my_counting + n, counting, copy_out.get_data(),
-                                                   my_counting, copy_out.get_data(), counting, trash,
-                                                   std::string("counting_iterator<") + type_text + std::string(">"),
-                                                   guard_size, sentinel);
+                         /*__is_reversible=*/true>(
+                std::forward<Policy>(exec), my_counting, my_counting + n, counting, copy_out.get_data(), my_counting,
+                copy_out.get_data(), counting, trash, std::string("counting_iterator<") + type_text + std::string(">"),
+                guard_size, sentinel);
         }
         else
         {
