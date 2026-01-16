@@ -116,12 +116,12 @@ struct walk_n
 };
 
 // If read accessor returns temporary value then oneapi::dpl::identity returns lvalue reference to it.
-// After temporary value destroying it will be a reference on invalid object.
-// So let's don't call functor in case of oneapi::dpl::identity
+// After temporary value destroying it will be a reference to an invalid object.
+// So let's not call the functor in case of oneapi::dpl::identity
 template <>
 struct walk_n<oneapi::dpl::identity>
 {
-    oneapi::dpl::identity __f;
+    oneapi::dpl::identity __f; // only needed for uniform initialization
 
     template <typename _ItemId, typename _Range>
     auto
@@ -130,6 +130,8 @@ struct walk_n<oneapi::dpl::identity>
         return __rng[__idx];
     }
 };
+
+using __unchanged = walk_n<oneapi::dpl::identity>;
 
 // walk_n_vectors_or_scalars
 template <typename _F>
