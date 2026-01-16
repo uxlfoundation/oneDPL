@@ -532,10 +532,10 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
-                                             _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
-                                             _OutputIterator __result1, _OutputIterator __result2,  // bounds for results
-                                             oneapi::dpl::__utils::__parallel_set_op_mask* __mask,  // source data usage masks
+__set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,     // bounds for data1
+                                             _ForwardIterator2 __first2, _ForwardIterator2 __last2,     // bounds for data2
+                                             _OutputIterator __result1, _OutputIterator __result2,      // bounds for results
+                                             oneapi::dpl::__utils::__parallel_set_op_mask* __mask,      // source data usage masks
                                              _CopyConstructRange __cc_range,
                                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -549,25 +549,32 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
 
     bool __output_full = false;
 
-    while (__first1 != __last1)
+    while (__first1 != __last1 && __first2 != __last2)
     {
-        if (__first2 == __last2)
-        {
-            auto [__first1_res, __result1_res] = __cc_range(__first1, __last1, __result1, __result2);
-            __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __first1_res - __first1);
-
-            return {__first1_res, __first2, __result1_res};
-        }
-
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
+
             if (__result1 != __result2)
             {
                 new (std::addressof(*__result1)) _Tp(*__first1);
                 ++__result1;
                 ++__first1;
+            }
+            else if (!__output_full)
+                __output_full = true;
+            else
+                break;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        {
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
 
-                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
+            if (__result1 != __result2)
+            {
+                new (std::addressof(*__result1)) _Tp(*__first2);
+                ++__first2;
+                ++__result1;
             }
             else if (!__output_full)
                 __output_full = true;
@@ -576,35 +583,20 @@ __set_symmetric_difference_bounded_construct(_ForwardIterator1 __first1, _Forwar
         }
         else
         {
-            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-            {
-                if (__result1 != __result2)
-                {
-                    new (std::addressof(*__result1)) _Tp(*__first2);
-                    ++__first2;
-                    ++__result1;
+            ++__first1;
+            ++__first2;
 
-                    __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
-                }
-                else if (!__output_full)
-                    __output_full = true;
-                else
-                    break;
-            }
-            else
-            {
-                ++__first1;
-                ++__first2;
-
-                __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
-            }
+            __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
         }
     }
 
-    auto [__first2_res, __result1_res] = __cc_range(__first2, __last2, __result1, __result2);
+    auto [__first1_res, __result1_res] = __cc_range(__first1, __last1, __result1, __result2);
+    __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __first1_res - __first1);
+
+    auto [__first2_res, __result2_res] = __cc_range(__first2, __last2, __result1_res, __result2);
     __mask = __set_iterator_mask_n(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __first2_res - __first2);
 
-    return {__first1, __first2_res, __result1_res};
+    return {__first1_res, __first2_res, __result2_res};
 }
 
 template <template <typename, typename...> typename _Concrete, typename _ValueType, typename... _Args>
