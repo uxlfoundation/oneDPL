@@ -160,31 +160,46 @@ std::string log_value_title(TagActual)
     return " got ";
 }
 
+template <typename TStream, typename TValue>
+std::enable_if_t<!IsOutputStreamable<TValue, TStream>::value>
+log_value_to_stream(TStream& os, const TValue& value)
+{
+    os << "(unable to log value)";
+}
+
+template <typename TValue>
+constexpr bool is_char_type_v =
+    std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>;
+
+template <typename TStream, typename TValue>
+std::enable_if_t<!is_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value)
+{
+    os << value;
+}
+
+template <typename TStream, typename TValue>
+std::enable_if_t<is_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value)
+{
+    os << static_cast<int>(value);
+}
+
+template <typename TStream, typename TValue>
+std::enable_if_t<std::is_enum_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value)
+{
+    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value));
+}
+
 template <typename TStream, typename Tag, typename TValue>
- void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
 {
     if (bCommaNeeded)
         os << ",";
     os << log_value_title(Tag{});
 
-    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
-    {
-        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
-        {
-            if (value)
-                os << "true";
-            else
-                os << "false";
-        }
-        else
-        {
-            os << value;
-        }
-    }
-    else
-    {
-        os << "(unable to log value)";
-    }
+    log_value_to_stream(os, value);
 }
 
 // Do not change signature to const T&.
