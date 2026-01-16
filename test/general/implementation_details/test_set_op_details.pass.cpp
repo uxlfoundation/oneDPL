@@ -977,11 +977,13 @@ test_set_difference_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer<7> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10,      0x10};
+      //const MaskContainer<7> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10,      0x10};
+        const MaskContainer<6> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10           };
         const Container contOutExp     = {                                                       {6, 3, 1}           };
         Container contOut(1);
 
-        MaskContainer<7> mask;
+        //MaskContainer<7> mask;
+        MaskContainer<6> mask;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -998,7 +1000,7 @@ test_set_difference_construct()
         EXPECT_EQ_RANGES(maskExp, mask, "Incorrect mask state");
 
         // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
+         contOut.erase(out, contOut.end());
         EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
@@ -1342,11 +1344,13 @@ test_set_difference_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer<3> maskExp = {     0x10,      0x10,      0x11                      };
+      //const MaskContainer<3> maskExp = {     0x10,      0x10,      0x11                      };
+        const MaskContainer<1> maskExp = {     0x10                                            };
         const Container contOutExp     = {                                                     };
         Container contOut(0);
 
-        MaskContainer<3> mask;
+      //MaskContainer<3> mask;
+        MaskContainer<1> mask;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -1372,11 +1376,11 @@ test_set_difference_construct_edge_cases()
         // {<Value>, <item index>, <container no>}
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer<3> maskExp = {     0x10,      0x10,      0x11                      };
+        const MaskContainer<2> maskExp = {     0x10,      0x10                                 };
         const Container contOutExp     = {{1, 0, 1}                                            };
         Container contOut(1);
 
-        MaskContainer<3> mask;
+        MaskContainer<2> mask;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
@@ -1592,11 +1596,13 @@ test_set_symmetric_difference_construct()
         // {<Value>, <item index>, <container no>}
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer<7> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10,      0x10};
+      //const MaskContainer<7> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10,      0x10};
+        const MaskContainer<6> maskExp = {     0x01,      0x01,      0x11,      0x11,      0x11,      0x10           };
         const Container contOutExp     = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}           };
         Container contOut(3);          // +++++++++  +++++++++                                   +++++++++   <--oor-->
 
-        MaskContainer<7> mask;
+      //MaskContainer<7> mask;
+        MaskContainer<6> mask;
 
         auto [in1, in2, out] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
