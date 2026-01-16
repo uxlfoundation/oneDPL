@@ -234,10 +234,9 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
     {
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
-        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
-        auto __transform_pattern =
-            unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
-                                                                                                  _NoOpFunctor{}};
+        using unseq_backend::__unchanged;
+        auto __transform_pattern = unseq_backend::transform_reduce<_ReduceOp, __unchanged, _Tp, _Commutative,
+                                                                   _VecSize>{__reduce_op, __unchanged{}};
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
@@ -303,16 +302,14 @@ struct __parallel_transform_reduce_impl
     submit(sycl::queue& __q, _Size __n, _Size __work_group_size, const _Size __iters_per_work_item,
            _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
     {
-        using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
+        using unseq_backend::__unchanged;
         using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
-            __reduce_kernel, _CustomName, _Tp, _ReduceOp, _TransformOp, _NoOpFunctor, _Ranges...>;
+            __reduce_kernel, _CustomName, _Tp, _ReduceOp, _TransformOp, __unchanged, _Ranges...>;
 
-        auto __transform_pattern1 =
-            unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
-                                                                                                  __transform_op};
-        auto __transform_pattern2 =
-            unseq_backend::transform_reduce<_ReduceOp, _NoOpFunctor, _Tp, _Commutative, _VecSize>{__reduce_op,
-                                                                                                  _NoOpFunctor{}};
+        auto __transform_pattern1 = unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative,
+                                                                    _VecSize>{__reduce_op, __transform_op};
+        auto __transform_pattern2 = unseq_backend::transform_reduce<_ReduceOp, __unchanged, _Tp, _Commutative,
+                                                                    _VecSize>{__reduce_op, __unchanged{}};
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
 #if _ONEDPL_COMPILE_KERNEL
