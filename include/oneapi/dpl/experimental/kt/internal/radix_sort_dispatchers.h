@@ -86,6 +86,7 @@ class __onesweep_memory_holder
     // Memory to store intermediate results of sorting
     _KeyT* __m_keys_ptr = nullptr;
     _ValT* __m_vals_ptr = nullptr;
+    std::uint32_t* __m_atomic_id_pointer = nullptr;
 
     ::std::size_t __m_raw_mem_bytes = 0;
     ::std::size_t __m_keys_bytes = 0;
@@ -93,13 +94,15 @@ class __onesweep_memory_holder
     ::std::size_t __m_global_hist_bytes = 0;
     ::std::size_t __m_group_hist_bytes = 0;
 
+    ::std::size_t __m_atomic_id_bytes = 4;
+
     sycl::queue __m_q;
 
     void
     __calculate_raw_memory_amount() noexcept
     {
         // Extra bytes are added for potentiall padding
-        __m_raw_mem_bytes = __m_keys_bytes + __m_global_hist_bytes + __m_group_hist_bytes + sizeof(_KeyT);
+        __m_raw_mem_bytes = __m_keys_bytes + __m_global_hist_bytes + __m_group_hist_bytes + __m_atomic_id_bytes + sizeof(std::uint32_t) + sizeof(_KeyT);
         if constexpr (__has_values)
         {
             __m_raw_mem_bytes += (__m_vals_bytes + sizeof(_ValT));
@@ -135,6 +138,9 @@ class __onesweep_memory_holder
             __aligned_ptr = ::std::align(::std::alignment_of_v<_ValT>, __m_vals_bytes, __base_ptr, __remainder);
             __m_vals_ptr = reinterpret_cast<_ValT*>(__aligned_ptr);
         }
+        std::size_t __atomic_id_offset = __m_raw_mem_bytes - __m_atomic_id_bytes;
+        __atomic_id_offset -= (__atomic_id_offset % alignof(std::uint32_t));
+        __m_atomic_id_pointer = reinterpret_cast<std::uint32_t*>(__m_raw_mem_ptr + __atomic_id_offset);
     }
 
   public:
@@ -180,6 +186,11 @@ class __onesweep_memory_holder
     __group_hist_ptr() const noexcept
     {
         return __m_group_hist_ptr;
+    }
+    std::uint32_t*
+    __atomic_id_pointer() const noexcept
+    {
+        return __m_atomic_id_pointer;
     }
 
     void
@@ -260,7 +271,7 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
 
     __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                     __work_group_size, _RadixSortSweepInitial>()(
-        __kt_tag, __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(),
+        __kt_tag, __q, __input_pack, __virt_pack1, __mem_holder.__global_hist_ptr(), __mem_holder.__group_hist_ptr(), __mem_holder.__atomic_id_pointer(),
         __sweep_work_group_count, __n, 0, __event_chain);
 
     for (::std::uint32_t __stage = 1; __stage < __stage_count; __stage++)
@@ -273,14 +284,14 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepOdd>()(
-                __kt_tag, __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
+                __kt_tag, __q, __virt_pack1, __virt_pack2, __p_global_hist, __p_group_hists, __mem_holder.__atomic_id_pointer(), __sweep_work_group_count, __n,
                 __stage, __event_chain);
         }
         else
         {
             __event_chain = __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item,
                                                             __work_group_size, _RadixSortSweepEven>()(
-                __kt_tag, __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __sweep_work_group_count, __n,
+                __kt_tag, __q, __virt_pack2, __virt_pack1, __p_global_hist, __p_group_hists, __mem_holder.__atomic_id_pointer(), __sweep_work_group_count, __n,
                 __stage, __event_chain);
         }
     }

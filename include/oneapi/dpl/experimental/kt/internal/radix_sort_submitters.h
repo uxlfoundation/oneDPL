@@ -170,10 +170,10 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
 struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                        oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
+    template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _GlobalHistT, typename _AtomicIdT>
     sycl::event
     operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
-               _GlobalHistT* __p_group_hists, ::std::uint32_t __sweep_work_group_count, ::std::size_t __n,
+               _GlobalHistT* __p_group_hists, _AtomicIdT* __p_atomic_id, ::std::uint32_t __sweep_work_group_count, ::std::size_t __n,
                ::std::uint32_t __stage, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
@@ -186,7 +186,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.depends_on(__e);
             __radix_sort_onesweep_kernel<_KtTag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                          ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>
-                __kernel(__n, __stage, __p_global_hist, __p_group_hists, ::std::forward<_InRngPack>(__in_pack),
+                __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id, ::std::forward<_InRngPack>(__in_pack),
                          ::std::forward<_OutRngPack>(__out_pack));
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
