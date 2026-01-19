@@ -76,11 +76,14 @@
 #endif
 
 // Portability "#pragma" definition
-#ifdef _MSC_VER
-#    define _ONEDPL_PRAGMA(x) __pragma(x)
-#else
-#    define _ONEDPL_PRAGMA(x) _Pragma(#    x)
-#endif
+#define _ONEDPL_PRAGMA(x) _Pragma(#x)
+
+// Machinery to check if some macro is defined to a pragma
+#define _ONEDPL_PREPEND(x, y) _ONEDPL_##x##y
+#define _ONEDPL_CHECK_PRAGMA_Pragma(...)  1 // Matches _Pragma
+#define _ONEDPL_CHECK_PRAGMA__pragma(...) 1 // Matches MSVC __pragma
+#define _ONEDPL_CHECK_PRAGMA 0 // Empty
+#define _ONEDPL_IS_PRAGMA(P) _ONEDPL_PREPEND(CHECK_PRAGMA, P)
 
 #define _ONEDPL_STRING_AUX(x) #x
 #define _ONEDPL_STRING(x) _ONEDPL_STRING_AUX(x)
@@ -135,7 +138,11 @@
 #    define _ONEDPL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM) _ONEDPL_PRAGMA(omp scan exclusive(PRM))
 #elif (defined(_PSTL_PRAGMA_SIMD_SCAN) && _GLIBCXX_RELEASE != 10) // GCC 10 has issues
 #    define _ONEDPL_PRAGMA_SIMD_SCAN(PRM) _PSTL_PRAGMA_SIMD_SCAN(PRM)
-#    define _ONEDPL_PRAGMA_SIMD_SCAN_EX(PRM, ...) _PSTL_PRAGMA(omp simd reduction(inscan, PRM) __VA_ARGS__)
+#    if _ONEDPL_IS_PRAGMA(_PSTL_PRAGMA_SIMD_SCAN())
+#        define _ONEDPL_PRAGMA_SIMD_SCAN_EX(PRM, ...) _PSTL_PRAGMA(omp simd reduction(inscan, PRM) __VA_ARGS__)
+#    else
+#        define _ONEDPL_PRAGMA_SIMD_SCAN_EX(PRM, ...)
+#    endif    
 #    define _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM) _PSTL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM)
 #    define _ONEDPL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM) _PSTL_PRAGMA_SIMD_EXCLUSIVE_SCAN(PRM)
 #else
