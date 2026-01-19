@@ -1105,13 +1105,23 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
                         std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
+    bool __output_full = false;
+
+    // 1. Main set_union operation
+    while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            *__out_it = *__it1;
-            ++__it1;
-            ++__out_it;
+            if (__out_it != __out_end)
+            {
+                *__out_it = *__it1;
+                ++__it1;
+                ++__out_it;
+            }
+            else if (!__output_full)
+                __output_full = true;
+            else
+                break;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
@@ -1124,9 +1134,12 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
         }
     }
 
+    // 2. Copying the rest of the first sequence
     auto __remaining_capacity = __out_end - __out_it;
     auto __copy_n = __end1 - __it1;
-    return std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
+    auto __copy = std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
+
+    return {__copy.in, __copy.out};
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
