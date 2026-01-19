@@ -131,7 +131,8 @@
 #    define _ONEDPL_PRAGMA_FORCEINLINE
 #endif
 
-#if (__INTEL_LLVM_COMPILER >= 20230100 || __INTEL_COMPILER >= 1900 || _ONEDPL_GCC_VERSION >= 120000)
+#if (__INTEL_LLVM_COMPILER >= 20230100 || __INTEL_COMPILER >= 1900 || _ONEDPL_GCC_VERSION >= 120000 ||                 \
+     _ONEDPL_CLANG_VERSION >= 110000)
 #    define _ONEDPL_PRAGMA_SIMD_SCAN(PRM) _ONEDPL_PRAGMA(omp simd reduction(inscan, PRM))
 #    define _ONEDPL_PRAGMA_SIMD_SCAN_EX(PRM, ...) _ONEDPL_PRAGMA(omp simd reduction(inscan, PRM) __VA_ARGS__)
 #    define _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(PRM) _ONEDPL_PRAGMA(omp scan inclusive(PRM))
