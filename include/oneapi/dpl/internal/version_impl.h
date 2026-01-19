@@ -30,6 +30,8 @@
 
 // -- Check for C++20 Ranges support --
 #if _ONEDPL_CPP20_CONCEPTS_PRESENT
+// Ranges library is available if the standard library provides it and concepts are supported
+// Clang 15 and older do not support range adaptors, see https://bugs.llvm.org/show_bug.cgi?id=44833
 #    define _ONEDPL_CPP20_RANGES_PRESENT ((__cpp_lib_ranges >= 201911L) && !(__clang__ && __clang_major__ < 16))
 #else
 #    define _ONEDPL_CPP20_RANGES_PRESENT 0
