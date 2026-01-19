@@ -4028,12 +4028,14 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _T* __result1, _T* __result2,
+                   oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
                         __first1, __last1,                                                      // bounds for data1
                         __first2, __last2,                                                      // bounds for data2
                         __result1, __result2,                                                   // bounds for results
+                        __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         /*CopyFromFirstSet = */ std::true_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -4060,12 +4062,14 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _T* __result1, _T* __result2,
+                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
                         __first2, __last2,                                                      // bounds for data1
                         __first1, __last1,                                                      // bounds for data2
                         __result1, __result2,                                                   // bounds for results
+                        __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         /*CopyFromFirstSet = */ std::false_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
