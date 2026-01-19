@@ -221,6 +221,12 @@ template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
 template <typename T>
+static constexpr bool check_in_out_result{};
+
+template <typename I1, typename O>
+static constexpr bool check_in_out_result<std::ranges::in_out_result<I1, O>> = true;
+
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
