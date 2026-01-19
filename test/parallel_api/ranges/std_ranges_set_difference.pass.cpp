@@ -85,8 +85,7 @@ struct
     template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
               typename Proj2 = std::identity>
-    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                         std::ranges::borrowed_iterator_t<_ROut>>
+    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>
     operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         auto in1 = std::ranges::begin(r_1);
@@ -139,7 +138,7 @@ struct
             idxOut += to_copy;
         }
 
-        return {in1 + idx1, in2 + idx2, out + idxOut};
+        return {in1 + idx1, out + idxOut};
     }
 } set_difference_checker;
 #endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
