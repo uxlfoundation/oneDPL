@@ -108,35 +108,32 @@ struct
                     ++idxOut;
                     ++idx1;
                 }
+                else if (!output_full)
+                    output_full = true;
                 else
-                {
-                    if (!output_full)
-                        output_full = true;
-                    else
-                        break;
-                }
+                    break;
             }
-            else if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
-            {
-                ++idx2;
-            }
-            else
+            else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
             {
                 ++idx1;
                 ++idx2;
             }
+            else
+            {
+                ++idx2;
+            }
         }
 
-        if (idx1 < std::ranges::size(r_1))
-        {
-            auto remaining_space = std::ranges::size(r_out) - idxOut;
-            auto remaining_input = std::ranges::size(r_1) - idx1;
-            auto to_copy = std::min(remaining_space, remaining_input);
-            std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
+        auto remaining_space = std::ranges::size(r_out) - idxOut;
+        auto remaining_input = std::ranges::size(r_1) - idx1;
+        auto to_copy = std::min(remaining_space, remaining_input);
+        std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
-            idx1 += to_copy;
-            idxOut += to_copy;
-        }
+        idx1 += to_copy;
+        idxOut += to_copy;
+
+        assert(idx1 <= std::ranges::size(r_1));
+        assert(idxOut <= std::ranges::size(r_out));
 
         return {in1 + idx1, out + idxOut};
     }

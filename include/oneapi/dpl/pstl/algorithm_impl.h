@@ -3362,6 +3362,162 @@ struct _SetRangeImpl
 #endif
 };
 
+struct __set_union_offsets
+{
+    template <class _IsVector, class _ExecutionPolicy, 
+              typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, 
+              class _SizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+               _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out,
+               _SizeFunction __size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+               _DifferenceTypeOut __reachedOutPos) const
+    {
+        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+        // No output size limits - return the end of the first and second input buffers
+        if (__n_out >= __size_func(__n1, __n2))
+            return {__n1, __n2};
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+        using __parallel_set_op_mask_underlying_t =
+            std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+        auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
+                                 oneapi::dpl::__utils::__parallel_set_op_mask __state2) -> _Sizes {
+            assert(__state1 == __state2);
+            return _Sizes{
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1
+                    ? 1
+                    : 0,
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2
+                    ? 1
+                    : 0};
+        };
+
+        auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
+            return {__a.first + __b.first, __a.second + __b.second};
+        };
+
+        // transform_reduce
+        const _Sizes __res = __pattern_transform_reduce(
+            __parallel_tag<_IsVector>{}, __exec,
+            __mask, __mask + __reachedOutPos,
+            __mask,                         // <<< Dummy argument just for compatibility with binary transform_reduce
+            _Sizes{0, 0},
+            reduce_pred, transform_pred);
+
+        return {(_DifferenceType1)__res.first, (_DifferenceType2)__res.second};
+    }
+};
+
+struct __set_difference_offsets
+{
+    template <class _IsVector, class _ExecutionPolicy, 
+              typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+              class _SizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+               _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out,
+               _SizeFunction __size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+               _DifferenceTypeOut __reachedOutPos) const
+    {
+        assert(__n_out > 0);
+
+        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+        const auto __req_size = __size_func(__n1, __n2);
+
+        // No output size limits - return the end of the first and second input buffers
+        if (__n_out >= __req_size)
+            return {__n1, __n2};
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+
+        using _CountsType = _Counts<_DifferenceTypeCommon>;
+
+        // Calculate counts through transform_iterator
+        auto __tr_first = oneapi::dpl::make_transform_iterator(
+            __mask,
+            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType
+            {
+                const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+                const bool __is_using_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                                              __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+
+                // mask == 0x10
+                _DifferenceTypeCommon __eq = __is_eq_data1 ? 1 : 0;
+
+                // (mask & 0x10) != 0
+                _DifferenceTypeCommon __bit = __is_using_data1 ? 1 : 0;
+
+                return _CountsType{__eq, __bit};
+            }
+        );
+        auto __tr_last = __tr_first + __req_size;
+
+        using _PrefixBuf = __par_backend::__buffer<_CountsType>;
+        _PrefixBuf __prefix_summ_buf(__req_size);
+
+        // Calculate prefix summs of counts
+        __pattern_transform_scan(
+            __parallel_tag<_IsVector>{}, __exec,
+            __tr_first, __tr_last,
+            __prefix_summ_buf.get(),
+            oneapi::dpl::identity{},
+            _CountsType{},
+            _PlusCounts<_DifferenceTypeCommon>{},
+            /* _Inclusive */ std::true_type{});
+
+        // Find the position where output size limit is reached
+        auto __cit_first = oneapi::dpl::counting_iterator<_DifferenceTypeCommon>(0);
+        auto __cit_last = __cit_first + __req_size;
+
+        auto __it = __pattern_find_if(
+            __parallel_tag<_IsVector>{}, __exec,
+            __cit_first, __cit_last,
+            [&](_DifferenceTypeCommon i) {
+                bool bResult = //__mask[i] == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 &&
+                               __prefix_summ_buf.get()[i].__eq == __reachedOutPos;
+                return bResult;
+            });
+
+        auto __idx = *__it;
+        return {__prefix_summ_buf.get()[__idx].__bit, __n2};
+    }
+
+  protected:
+    template <typename _DifferenceTypeCommon>
+    struct _Counts
+    {
+        _DifferenceTypeCommon __eq = 0;  // mask == 0x10
+        _DifferenceTypeCommon __bit = 0; // (mask & 0x10) != 0
+    };
+
+    template <typename _DifferenceTypeCommon>
+    struct _PlusCounts
+    {
+        _Counts<_DifferenceTypeCommon>
+        operator()(const _Counts<_DifferenceTypeCommon>& __lhs, const _Counts<_DifferenceTypeCommon>& __rhs) const
+        {
+            return {__lhs.__eq + __rhs.__eq, __lhs.__bit + __rhs.__bit};
+        }
+    };
+
+    template <typename _DifferenceTypeCommon>
+    struct _Result
+    {
+        _DifferenceTypeCommon __index = 0;
+        _DifferenceTypeCommon __bit10_before = 0;
+    };
+};
+
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
@@ -3428,7 +3584,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         oneapi::dpl::__utils::__parallel_set_op_mask* __buf_mask_rng_raw_data_begin = __buf_mask_rng.get();
         oneapi::dpl::__utils::__parallel_set_op_mask* __buf_mask_rng_res_raw_data_begin = __buf_mask_rng_res.get();
 
-        _DifferenceTypeCommon __res_reachedOffsetOut = 0;   // offset to the first unprocessed item from output range
+        _DifferenceTypeCommon __res_reachedOutPos = 0;   // offset to the first unprocessed item from output range
 
         // Scan predicate
         auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
@@ -3606,7 +3762,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
              __buf_mask_rng_raw_data_begin,
-             &__res_reachedOffsetOut, &__scan](const _SetRange& __total)
+             &__res_reachedOutPos, &__scan](const _SetRange& __total)
             {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
@@ -3614,7 +3770,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.3:\n" << "\t\t <- (" << __total << ") " << std::endl;
 #endif
-                __res_reachedOffsetOut = std::min(__n_out, __total.__pos + __total.__len);
+                __res_reachedOutPos = std::min(__n_out, __total.__pos + __total.__len);
             });
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3634,47 +3790,28 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
         }
 #endif
 
-        // By default we thinks we reached the end of both input ranges
-        _DifferenceTypeCommon __res_reachedOffset1 = __n1;  // offset to the first unprocessed item from range1
-        _DifferenceTypeCommon __res_reachedOffset2 = __n2;  // offset to the first unprocessed item from range2
-
-        // Evaluate reached offsets in input ranges if output range is limited
-        if (__n_out < __size_func(__n1, __n2))
-        {
-        	using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
-
-            using __parallel_set_op_mask_underlying_t = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
-        	
-            auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
-                                     oneapi::dpl::__utils::__parallel_set_op_mask /*__stat2*/) -> _Sizes {
-                return _Sizes{(__parallel_set_op_mask_underlying_t)__state1 & (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ? 1 : 0,
-                              (__parallel_set_op_mask_underlying_t)__state1 & (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ? 1 : 0};
-            };
-
-            auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
-                return {__a.first + __b.first, __a.second + __b.second};
-            };
-
-            // transform_reduce
-            const _Sizes __res = __pattern_transform_reduce(
-                __parallel_tag<_IsVector>{}, __exec,
-                __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __n_out,
-                __buf_mask_rng_res_raw_data_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
-                _Sizes{0, 0},
-                reduce_pred,
-                transform_pred);
-
-            __res_reachedOffset1 = __res.first;
-            __res_reachedOffset2 = __res.second;
-
-            // KSATODO we should calculate here the end unused items in the first range
-            // KSATODO we should calculate here the end unused items in the second range
-        }
+        // Evaluate reached offsets in input ranges
+        // KSATODO required to extract this code from this function        
+#if 0 // set_union
+        const auto __reached_positions = __set_union_offsets{}.operator()(
+            __parallel_tag<_IsVector>{}, __exec,
+            __n1, __n2, __n_out,
+            __size_func,
+            __buf_mask_rng_res_raw_data_begin,
+            __res_reachedOutPos);
+#else // set_intersection
+        const auto __reached_positions = __set_difference_offsets{}.operator()(
+            __parallel_tag<_IsVector>{}, __exec,
+            __n1, __n2, __n_out,
+            __size_func,
+            __buf_mask_rng_res_raw_data_begin,
+            __res_reachedOutPos);
+#endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            { __first1 + __res_reachedOffset1,
-              __first2 + __res_reachedOffset2,
-              __result1 + __res_reachedOffsetOut };
+            { __first1 + __reached_positions.first,
+              __first2 + __reached_positions.second,
+              __result1 + __res_reachedOutPos };
     });
 }
 
