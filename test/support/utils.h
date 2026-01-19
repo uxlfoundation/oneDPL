@@ -172,21 +172,21 @@ constexpr bool is_char_type_v =
     std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>;
 
 template <typename TStream, typename TValue>
-std::enable_if_t<!is_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value)
 {
     os << value;
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<is_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value)
 {
     os << static_cast<int>(value);
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<std::is_enum_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value)
 {
     log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value));
