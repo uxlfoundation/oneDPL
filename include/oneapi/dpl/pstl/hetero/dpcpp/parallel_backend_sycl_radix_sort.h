@@ -938,14 +938,14 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 #if _ONEDPL_RADIX_WORKLOAD_TUNING
         // if less than 2M elements, use smaller work-group size
         std::size_t __wg_size_count = 128;
-        std::size_t __keys_per_wi_step_count = 64;
+        std::size_t __keys_per_wi_step_count = 8;
         std::size_t __wg_size_scan = 1024;
-        std::size_t __wg_size_reorder = 256;  // Match count wg size for simpler segment logic
+        std::size_t __wg_size_reorder = 128;  // Match count wg size for simpler segment logic
         if (__n > (1 << 21) /*2M*/)
         {
             __wg_size_count = 128;
-            __keys_per_wi_step_count = 64;  // Keep at 8 for reorder kernel
-            __wg_size_reorder = 256;
+            __keys_per_wi_step_count = 8;  // Keep at 8 for reorder kernel
+            __wg_size_reorder = 128;
         }
 #else
         std::size_t __wg_size_count = __max_wg_size;
