@@ -611,9 +611,14 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // access the input and output data
         oneapi::dpl::__ranges::__require_access(__hdl, __input_rng, __output_rng);
 
-        // Minimal SLM: only for subgroup coordination (no value buffering)
-        // Layout: [subgroup_counts: num_sg * 16] [subgroup_prefix: num_sg * 16]
-        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2, __hdl);
+        // Constants
+        constexpr std::uint32_t __keys_per_step = 8;
+
+        // Local memory:
+        // 1. Cached values for coalesced loading (WG_SIZE * KEYS_PER_STEP)
+        auto __slm_values = __dpl_sycl::__local_accessor<_ValueT>(__wg_size * __keys_per_step, __hdl);
+        // 2. Subgroup counts (2x for hierarchical scan) + Block global offsets (1x)
+        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2 + __radix_states, __hdl);
 
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
@@ -622,8 +627,10 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 #if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
             __kernel,
 #endif
+            //Each SYCL work group processes one data segment with multiple subgroups
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
 
+                //Optimization: skip re-order phase if the all keys are the same, do just copying
                 auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
                 if (__no_op_flag)
                 {
@@ -631,94 +638,192 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     return;
                 }
 
+                // item info
                 const std::size_t __self_lidx = __self_item.get_local_id(0);
-                const std::size_t __segment_idx = __self_item.get_group(0);
+                const std::size_t __segment_idx = __self_item.get_group(0); //SYCL work group ID
                 const std::size_t __seg_start = __elem_per_segment * __segment_idx;
-                const std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
+                // subgroup info for multi-subgroup coordination
                 auto __sub_group = __self_item.get_sub_group();
                 const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
 
-                // Compute this subgroup's contiguous chunk of the segment
-                const std::size_t __elems_per_sg = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
-                const std::size_t __sg_start = sycl::min(__seg_start + __sg_id * __elems_per_sg, __seg_end);
-                const std::size_t __sg_end = sycl::min(__sg_start + __elems_per_sg, __seg_end);
+                // Pointers to SLM
+                _OffsetT* __local_counts_ptr = &__slm_counts[0];
+                _OffsetT* __slm_global_offsets = &__slm_counts[__num_subgroups * __radix_states * 2];
 
-                // Each work-item owns a contiguous block within its subgroup's chunk
-                const std::size_t __sg_items = __sg_end - __sg_start;
-                const std::size_t __items_per_wi = __sg_items / __sg_size;
-                const std::size_t __wi_start = __sg_start + __sg_local_id * __items_per_wi;
-                const std::size_t __wi_end = (__sg_local_id == __sg_size - 1) ? __sg_end : (__wi_start + __items_per_wi);
-
-                // Phase 1: Count pass - each work-item counts its contiguous elements
-                _OffsetT __local_counts[__radix_states] = {0};
-                for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
+                // Phase 0: Initialize global offsets in SLM (cooperative)
+                if (__self_lidx == 0)
                 {
-                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input_rng[__idx]));
-                    ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
-                }
-
-                // Subgroup scan to get work-item prefix within subgroup
-                _OffsetT __wi_prefix[__radix_states];
-                _OffsetT __sg_totals[__radix_states];
-                for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
-                {
-                    __wi_prefix[__b] = __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b],
-                                                                               __dpl_sycl::__plus<_OffsetT>());
-                    __sg_totals[__b] = __dpl_sycl::__group_broadcast(__sub_group,
-                                                                     __wi_prefix[__b] + __local_counts[__b],
-                                                                     __sg_size - 1);
-                }
-
-                // Write subgroup totals to SLM
-                if (__sg_local_id == 0)
-                {
-                    for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
-                        __slm_counts[__sg_id * __radix_states + __b] = __sg_totals[__b];
-                }
-
-                __dpl_sycl::__group_barrier(__self_item);
-
-                // Phase 2: Compute subgroup prefix (first 16 threads)
-                if (__self_lidx < __radix_states)
-                {
-                    _OffsetT __sum = 0;
-                    for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
+                    const std::size_t __scan_size = __segments + 1;
+                    _OffsetT __scanned_bin = 0;
+                    __slm_global_offsets[0] = __offset_rng[__segment_idx];
+                    
+                    for (std::uint32_t __radix_state_idx = 1; __radix_state_idx < __radix_states; ++__radix_state_idx)
                     {
-                        _OffsetT __val = __slm_counts[__sg * __radix_states + __self_lidx];
-                        __slm_counts[__num_subgroups * __radix_states + __sg * __radix_states + __self_lidx] = __sum;
-                        __sum += __val;
+                         const std::uint32_t __local_offset_idx = __segment_idx + (__segments + 1) * __radix_state_idx;
+                         std::size_t __last_segment_bucket_idx = __radix_state_idx * __scan_size - 1;
+                         __scanned_bin += __offset_rng[__last_segment_bucket_idx];
+                         __slm_global_offsets[__radix_state_idx] = __scanned_bin + __offset_rng[__local_offset_idx];
                     }
                 }
-
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 3: Compute final offsets = global_base + sg_prefix + wi_prefix
-                _OffsetT __offsets[__radix_states];
-                const std::size_t __scan_size = __segments + 1;
-                _OffsetT __scanned_bin = 0;
-                __offsets[0] = __offset_rng[__segment_idx]
-                             + __slm_counts[__num_subgroups * __radix_states + __sg_id * __radix_states]
-                             + __wi_prefix[0];
-
-                for (std::uint32_t __b = 1; __b < __radix_states; ++__b)
+                // Segment processing loop
+                const std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
+                const std::size_t __items_in_segment = __seg_end - __seg_start;
+                // Round up block count
+                const std::size_t __block_size = __wg_size * __keys_per_step;
+                
+                for (std::size_t __block_base = 0; __block_base < __items_in_segment; __block_base += __block_size)
                 {
-                    __scanned_bin += __offset_rng[__b * __scan_size - 1];
-                    __offsets[__b] = __scanned_bin
-                                   + __offset_rng[__segment_idx + __scan_size * __b]
-                                   + __slm_counts[__num_subgroups * __radix_states + __sg_id * __radix_states + __b]
-                                   + __wi_prefix[__b];
-                }
+                    // 1. Cooperative Load Global -> SLM (Coalesced with Vectorization)
+                    if constexpr (sizeof(_ValueT) == 4 && (__keys_per_step % 4 == 0))
+                    {
+                        using _VecT = sycl::vec<_ValueT, 4>;
+                        constexpr std::uint32_t __vec_steps = __keys_per_step / 4;
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __j = 0; __j < __vec_steps; ++__j)
+                        {
+                            std::size_t __vec_idx = __j * __wg_size + __self_lidx;
+                            // Ensure bounds for full vector load
+                            if (__block_base + __vec_idx * 4 + 3 < __items_in_segment)
+                            {
+                                std::size_t __base_idx = __seg_start + __block_base + __vec_idx * 4;
+                                _VecT __val;
+                                // Compiler preserves coalescing for contiguous loads
+                                __val[0] = __input_rng[__base_idx];
+                                __val[1] = __input_rng[__base_idx + 1];
+                                __val[2] = __input_rng[__base_idx + 2];
+                                __val[3] = __input_rng[__base_idx + 3];
 
-                // Phase 4: Scatter pass - re-read and write to output
-                for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
-                {
-                    _ValueT __in_val = __input_rng[__idx];
-                    std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
-                        __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
-                    __output_rng[__offsets[__bucket]++] = std::move(__in_val);
+                                // Store to SLM (compiler optimizes contiguous stores)
+                                std::size_t __slm_idx = __vec_idx * 4;
+                                __slm_values[__slm_idx]     = __val[0];
+                                __slm_values[__slm_idx + 1] = __val[1];
+                                __slm_values[__slm_idx + 2] = __val[2];
+                                __slm_values[__slm_idx + 3] = __val[3];
+                            }
+                            else
+                            {
+                                // Boundary fallback
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (std::uint32_t __k = 0; __k < 4; ++__k)
+                                {
+                                    std::size_t __scalar_idx = __vec_idx * 4 + __k;
+                                    if (__block_base + __scalar_idx < __items_in_segment)
+                                        __slm_values[__scalar_idx] = __input_rng[__seg_start + __block_base + __scalar_idx];
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 1. Cooperative Load Global -> SLM (Coalesced, Scalar-only fallback)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            std::size_t __local_load_idx = __i * __wg_size + __self_lidx;
+                            if (__block_base + __local_load_idx < __items_in_segment)
+                            {
+                                __slm_values[__local_load_idx] = __input_rng[__seg_start + __block_base + __local_load_idx];
+                            }
+                        }
+                    }
+                    __dpl_sycl::__group_barrier(__self_item);
+
+                    // 2. Load SLM -> Registers (Blocked Ownership for Stability)
+                    _ValueT __val_reg[__keys_per_step];
+                    // Track how many items this thread actually owns in this block
+                    std::uint8_t __valid_items = 0;
+                    std::size_t __thread_block_offset = __self_lidx * __keys_per_step;
+                    
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                    {
+                        if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                        {
+                             __val_reg[__i] = __slm_values[__thread_block_offset + __i];
+                             __valid_items++;
+                        }
+                    }
+
+                    // 3. Count elements per bucket within each subgroup (Blocked ownership)
+                    _OffsetT __local_counts_arr[__radix_states] = {0};
+                    for (std::uint8_t __i = 0; __i < __valid_items; ++__i)
+                    {
+                        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                        ++__local_counts_arr[__bucket];
+                    }
+
+                    // 4. Subgroup Scan
+                    _OffsetT __subgroup_totals[__radix_states];
+                    _OffsetT __wi_exclusive_prefix[__radix_states];
+
+                    for (::std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                    {
+                        __wi_exclusive_prefix[__radix_state_idx] =
+                            __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts_arr[__radix_state_idx],
+                                                                    __dpl_sycl::__plus<_OffsetT>());
+                        __subgroup_totals[__radix_state_idx] =
+                            __dpl_sycl::__group_broadcast(__sub_group, 
+                                __wi_exclusive_prefix[__radix_state_idx] + __local_counts_arr[__radix_state_idx],
+                                __sg_size - 1);
+                    }
+
+                    // Write subgroup totals to SLM
+                    if (__sg_local_id == 0)
+                    {
+                        for (std::uint32_t __radix_state_idx = 0; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                        {
+                            __local_counts_ptr[__sg_id * __radix_states + __radix_state_idx] = __subgroup_totals[__radix_state_idx];
+                        }
+                    }
+
+                    __dpl_sycl::__group_barrier(__self_item);
+
+                    // 5. Hierarchical scan (Prefix of Subgroup totals)
+                    // First 16 threads compute prefix sum of subgroup totals and store in 2nd half of SLM
+                    // They also capture the TOTAL block count for each bucket.
+                    _OffsetT __bucket_block_total = 0;
+                    if (__self_lidx < __radix_states)
+                    {
+                        _OffsetT __running_sum = 0;
+                        for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
+                        {
+                            const std::size_t __idx = __sg * __radix_states + __self_lidx;
+                            __local_counts_ptr[__num_subgroups * __radix_states + __idx] = __running_sum;
+                            __running_sum += __local_counts_ptr[__idx];
+                        }
+                        __bucket_block_total = __running_sum;
+                    }
+
+                    __dpl_sycl::__group_barrier(__self_item);
+
+                    // 6. Scatter
+                    for (std::uint8_t __i = 0; __i < __valid_items; ++__i)
+                    {
+                        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                        
+                        // Calculate offset: GlobalBase + SubgroupPrefix + WiPrefix + InternalCount
+                        _OffsetT __offset = __slm_global_offsets[__bucket];
+                        __offset += __local_counts_ptr[__num_subgroups * __radix_states + __sg_id * __radix_states + __bucket]; // SG prefix
+                        __offset += __wi_exclusive_prefix[__bucket]++; // WI prefix + post-inc for next item
+
+                        __output_rng[__offset] = std::move(__val_reg[__i]);
+                    }
+                    
+                    __dpl_sycl::__group_barrier(__self_item);
+                    
+                    // 7. Update Global Offsets in SLM
+                    if (__self_lidx < __radix_states)
+                    {
+                        __slm_global_offsets[__self_lidx] += __bucket_block_total;
+                    }
+                    __dpl_sycl::__group_barrier(__self_item);
                 }
             });
     });
