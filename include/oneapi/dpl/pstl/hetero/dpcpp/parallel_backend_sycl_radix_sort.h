@@ -712,64 +712,8 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                                    + __wi_prefix[__b];
                 }
 
-                // Phase 4: Scatter pass - vectorized with dependency-free approach
-                constexpr std::size_t __vec_width = 4;
-                const std::size_t __wi_count = __wi_end - __wi_start;
-                const std::size_t __vec_iterations = __wi_count / __vec_width;
-                const std::size_t __vec_end = __wi_start + __vec_iterations * __vec_width;
-
-                // Fast path: Process full vectors of 4 elements
-                for (std::size_t __vec_base = __wi_start; __vec_base < __vec_end; __vec_base += __vec_width)
-                {
-                    // Phase 1: Load values and compute buckets (no dependencies)
-                    _ValueT __vals[__vec_width];
-                    std::uint32_t __buckets[__vec_width];
-
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __i = 0; __i < __vec_width; ++__i)
-                    {
-                        __vals[__i] = __input_rng[__vec_base + __i];
-                        __buckets[__i] = __get_bucket<(1 << __radix_bits) - 1>(
-                            __order_preserving_cast<__is_ascending>(std::invoke(__proj, __vals[__i])), __radix_offset);
-                    }
-
-                    // Phase 2: Compute local ranks (sequential per bucket, but amortized)
-                    _OffsetT __local_ranks[__vec_width];
-                    _OffsetT __bucket_counts[__radix_states] = {0};
-
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __i = 0; __i < __vec_width; ++__i)
-                    {
-                        __local_ranks[__i] = __bucket_counts[__buckets[__i]]++;
-                    }
-
-                    // Phase 3: Compute write positions (pure reads - no dependencies!)
-                    _OffsetT __write_positions[__vec_width];
-
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __i = 0; __i < __vec_width; ++__i)
-                    {
-                        __write_positions[__i] = __offsets[__buckets[__i]] + __local_ranks[__i];
-                    }
-
-                    // Phase 4: Scatter (pure parallel writes!)
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __i = 0; __i < __vec_width; ++__i)
-                    {
-                        __output_rng[__write_positions[__i]] = std::move(__vals[__i]);
-                    }
-
-                    // Update offsets for next iteration
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::size_t __i = 0; __i < __vec_width; ++__i)
-                    {
-                        __offsets[__buckets[__i]] += __bucket_counts[__buckets[__i]];
-                        __bucket_counts[__buckets[__i]] = 0;
-                    }
-                }
-
-                // Slow path: Handle remaining elements (< 4)
-                for (std::size_t __idx = __vec_end; __idx < __wi_end; ++__idx)
+                // Phase 4: Scatter pass - re-read and write to output
+                for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
                 {
                     _ValueT __in_val = __input_rng[__idx];
                     std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
