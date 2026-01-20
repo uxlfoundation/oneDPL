@@ -3523,6 +3523,29 @@ template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Out
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
+#if DUMP_PARALLEL_SET_OP_WORK
+template <typename OStream, typename Iterator, typename ValueType = std::iterator_traits<Iterator>::value_type>
+OStream&
+dump_data(OStream& os, Iterator first, Iterator last)
+{
+    bool bCommaNeeded = false;
+
+    os << "(";
+    for (auto it = first; it != last; ++it)
+    {
+        if (bCommaNeeded)
+            os << ", ";
+
+        os << (ValueType)*it;
+
+        bCommaNeeded = true;
+    }
+    os << ")";
+
+    return os;
+}
+#endif
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
