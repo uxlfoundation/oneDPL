@@ -612,7 +612,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
         // Local memory: per-work-item histogram (uint16_t to save space)
         auto __slm_histograms = __dpl_sycl::__local_accessor<::std::uint16_t>(__wg_size * __radix_states, __hdl);
-        //auto __value_lacc = __dpl_sycl::__local_accessor<_ValueT>(__wg_size * __keys_per_wi_step, __hdl);
+        auto __value_lacc = __dpl_sycl::__local_accessor<_ValueT>(__wg_size * __keys_per_wi_step, __hdl);
         auto __global_offsets_lacc = __dpl_sycl::__local_accessor<_OffsetT>(__radix_states, __hdl);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
@@ -642,7 +642,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 // Phase 1: Load elements into registers and compute buckets (SINGLE GLOBAL READ)
                 //TODO: fix default constructible issue
-                _ValueT __value_buffer[__keys_per_wi_step];
+                //_ValueT __value_buffer[__keys_per_wi_step];
 
 
                 // Prepare global base offsets for each bucket
@@ -684,9 +684,9 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     {
                         if (__i < __wi_num_elems)
                         {
-                            __value_buffer[__i] = __input_rng[__wi_seg_start + __i];
+                            __value_lacc[__self_lidx * __keys_per_wi_step + __i] = __input_rng[__wi_seg_start + __i];
                             ++__slm_histograms[__self_lidx * __radix_states + __get_bucket<(1 << __radix_bits) - 1>(__order_preserving_cast<__is_ascending>(
-                                std::invoke(__proj, __value_buffer[__i])), __radix_offset)];
+                                std::invoke(__proj, __value_lacc[__self_lidx * __keys_per_wi_step + __i])), __radix_offset)];
                         }
                     }
 
@@ -717,11 +717,11 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                         if (__i < __wi_num_elems)
                         {
                             ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__order_preserving_cast<__is_ascending>(
-                                std::invoke(__proj, __value_buffer[__i])), __radix_offset);
+                                std::invoke(__proj, __value_lacc[__self_lidx * __keys_per_wi_step + __i])), __radix_offset);
                             //post increment to get local offset then increment for next element in the same bucket
                             ::std::uint32_t __local_offset = __slm_histograms[__self_lidx * __radix_states + __bucket]++;
                             ::std::uint32_t __global_offset = __global_offsets_lacc[__bucket] + __local_offset;
-                            __output_rng[__global_offset] = std::move(__value_buffer[__i]);
+                            __output_rng[__global_offset] = std::move(__value_lacc[__self_lidx * __keys_per_wi_step + __i]);
                         }
                     }
                     __dpl_sycl::__group_barrier(__self_item);
