@@ -24,6 +24,12 @@
 #include "support/utils.h"
 #include "support/utils_invoke.h"       // for CLONE_TEST_POLICY macro
 
+#define LIMITED_TBB_MAX_ALLOWED_PARALLELISM 1
+
+#if LIMITED_TBB_MAX_ALLOWED_PARALLELISM
+#    include <oneapi/tbb/global_control.h>
+#endif
+
 #define LOG_TESTING_OUTPUT 0
 
 #if _ENABLE_STD_RANGES_TESTING

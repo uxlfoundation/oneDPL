@@ -171,18 +171,12 @@ struct
 
 #endif // _ENABLE_STD_RANGES_TESTING
 
-#define LIMITED_MAX_ALLOWED_PARALLELISM 1
-
-#if LIMITED_MAX_ALLOWED_PARALLELISM
-#include <oneapi/tbb/global_control.h>
-#endif
-
 int
 main()
 {
     bool bProcessed = false;
 
-#if LIMITED_MAX_ALLOWED_PARALLELISM
+#if LIMITED_TBB_MAX_ALLOWED_PARALLELISM
     // Limited the amount of threads in TBB
     oneapi::tbb::global_control gl_control(oneapi::tbb::global_control::max_allowed_parallelism, 1);
 #endif
