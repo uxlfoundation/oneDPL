@@ -235,8 +235,8 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
 
         using unseq_backend::__unchanged;
-        auto __transform_pattern = unseq_backend::transform_reduce<_ReduceOp, __unchanged, _Tp, _Commutative,
-                                                                   _VecSize>{__reduce_op, __unchanged{}};
+        auto __transform_pattern = unseq_backend::transform_reduce<_ReduceOp, __unchanged, _Tp, _Commutative, _VecSize>{
+                                       __reduce_op, __unchanged{}};
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
 
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
