@@ -3574,11 +3574,14 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     const auto __buf_size = __size_func(__n1, __n2);
 
 #if DUMP_PARALLEL_SET_OP_WORK
-    std::cout << "__parallel_set_op :\n"
-              << "\t__n1 = "        << __n1       << "\n"
-              << "\t__n2 = "        << __n2       << "\n"
-              << "\t__n_out = "     << __n_out    << "\n"
-              << "\t__buf_size = "  << __buf_size << std::endl;
+    std::cout << "=================================================================\n"
+              << "__parallel_set_op :"
+              << "\n\t__n1 = " << __n1 << " : ";
+    dump_data(std::cout, __first1, __last1);
+    std::cout << "\n\t__n2 = " << __n2 << " : ";
+    dump_data(std::cout, __first2, __last2);
+    std::cout << "\n\t__n_out = " << __n_out
+              << "\n\t__buf_size = " << __buf_size << "\n";
 #endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
