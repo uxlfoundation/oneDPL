@@ -735,27 +735,58 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                     // 2. Load SLM -> Registers (Blocked Ownership for Stability)
                     _ValueT __val_reg[__keys_per_step];
-                    // Track how many items this thread actually owns in this block
-                    std::uint8_t __valid_items = 0;
                     std::size_t __thread_block_offset = __self_lidx * __keys_per_step;
-                    
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+
+                    // Determine if this is a full block or partial block
+                    const bool __is_full_block = (__block_base + __thread_block_offset + __keys_per_step <= __items_in_segment);
+
+                    if (__is_full_block)
                     {
-                        if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                        // Fast path: Full block, can truly unroll
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
                         {
-                             __val_reg[__i] = __slm_values[__thread_block_offset + __i];
-                             __valid_items++;
+                            __val_reg[__i] = __slm_values[__thread_block_offset + __i];
+                        }
+                    }
+                    else
+                    {
+                        // Slow path: Partial block with bounds checking
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                            {
+                                __val_reg[__i] = __slm_values[__thread_block_offset + __i];
+                            }
                         }
                     }
 
                     // 3. Count elements per bucket within each subgroup (Blocked ownership)
                     _OffsetT __local_counts_arr[__radix_states] = {0};
-                    for (std::uint8_t __i = 0; __i < __valid_items; ++__i)
+
+                    if (__is_full_block)
                     {
-                        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
-                        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                        ++__local_counts_arr[__bucket];
+                        // Fast path: Process all __keys_per_step items
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                            std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                            ++__local_counts_arr[__bucket];
+                        }
+                    }
+                    else
+                    {
+                        // Slow path: Conditional processing
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                            {
+                                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                                std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                                ++__local_counts_arr[__bucket];
+                            }
+                        }
                     }
 
                     // 4. Subgroup Scan
@@ -802,23 +833,85 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    // 6. Scatter
-                    for (std::uint8_t __i = 0; __i < __valid_items; ++__i)
-                    {
-                        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
-                        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                        
-                        // Calculate offset: GlobalBase + SubgroupPrefix + WiPrefix + InternalCount
-                        _OffsetT __offset = __slm_global_offsets[__bucket];
-                        __offset += __local_counts_ptr[__num_subgroups * __radix_states + __sg_id * __radix_states + __bucket]; // SG prefix
-                        __offset += __wi_exclusive_prefix[__bucket]++; // WI prefix + post-inc for next item
+                    // 6-8. Three-phase dependency-free scatter
+                    std::uint32_t __buckets[__keys_per_step];
+                    _OffsetT __local_ranks[__keys_per_step];
+                    _OffsetT __write_positions[__keys_per_step];
 
-                        __output_rng[__offset] = std::move(__val_reg[__i]);
+                    if (__is_full_block)
+                    {
+                        // Fast path: Full block with true unrolling
+                        _OffsetT __wi_bucket_counts[__radix_states] = {0};
+
+                        // Phase 1: Compute buckets and local ranks (NO loop-carried dependencies)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                            __buckets[__i] = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                            __local_ranks[__i] = __wi_bucket_counts[__buckets[__i]]++;
+                        }
+
+                        // Phase 2: Compute final write positions (all reads - no dependencies!)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            std::uint32_t __bucket = __buckets[__i];
+                            __write_positions[__i] = __slm_global_offsets[__bucket];
+                            __write_positions[__i] += __local_counts_ptr[__num_subgroups * __radix_states + __sg_id * __radix_states + __bucket];
+                            __write_positions[__i] += __wi_exclusive_prefix[__bucket];
+                            __write_positions[__i] += __local_ranks[__i];
+                        }
+
+                        // Phase 3: Scatter (NO DEPENDENCIES - pure parallel writes!)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            __output_rng[__write_positions[__i]] = std::move(__val_reg[__i]);
+                        }
                     }
-                    
+                    else
+                    {
+                        // Slow path: Partial block with conditionals
+                        _OffsetT __wi_bucket_counts[__radix_states] = {0};
+
+                        // Phase 1: Compute buckets and local ranks
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                            {
+                                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_reg[__i]));
+                                __buckets[__i] = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                                __local_ranks[__i] = __wi_bucket_counts[__buckets[__i]]++;
+                            }
+                        }
+
+                        // Phase 2: Compute final write positions
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                            {
+                                std::uint32_t __bucket = __buckets[__i];
+                                __write_positions[__i] = __slm_global_offsets[__bucket];
+                                __write_positions[__i] += __local_counts_ptr[__num_subgroups * __radix_states + __sg_id * __radix_states + __bucket];
+                                __write_positions[__i] += __wi_exclusive_prefix[__bucket];
+                                __write_positions[__i] += __local_ranks[__i];
+                            }
+                        }
+
+                        // Phase 3: Scatter
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            if (__block_base + __thread_block_offset + __i < __items_in_segment)
+                            {
+                                __output_rng[__write_positions[__i]] = std::move(__val_reg[__i]);
+                            }
+                        }
+                    }
+
                     __dpl_sycl::__group_barrier(__self_item);
-                    
-                    // 7. Update Global Offsets in SLM
+
+                    // 9. Update Global Offsets in SLM
                     if (__self_lidx < __radix_states)
                     {
                         __slm_global_offsets[__self_lidx] += __bucket_block_total;
