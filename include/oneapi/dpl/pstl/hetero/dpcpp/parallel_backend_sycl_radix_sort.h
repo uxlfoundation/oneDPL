@@ -613,7 +613,6 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // Local memory: per-work-item histogram (uint16_t to save space)
         auto __slm_histograms = __dpl_sycl::__local_accessor<::std::uint16_t>(__wg_size * __radix_states, __hdl);
         auto __value_lacc = __dpl_sycl::__local_accessor<_ValueT>(__wg_size * __keys_per_wi_step, __hdl);
-        auto __global_offsets_lacc = __dpl_sycl::__local_accessor<_OffsetT>(__radix_states, __hdl);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
         __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
 #endif
@@ -646,25 +645,25 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
 
                 // Prepare global base offsets for each bucket
-                if (__self_lidx == 0)
-                {
-                    const std::size_t __scan_size = __segments + 1;
-                    _OffsetT __scanned_bin = 0;
-                    __global_offsets_lacc[0] = __offset_rng[__segment_idx];
+                const std::size_t __scan_size = __segments + 1;
+                _OffsetT __global_base_offsets[__radix_states];
+                _OffsetT __scanned_bin = 0;
+                __global_base_offsets[0] = __offset_rng[__segment_idx];
 
-                    for (::std::uint32_t __radix_state_idx = 1; __radix_state_idx < __radix_states; ++__radix_state_idx)
-                    {
-                        const ::std::uint32_t __local_offset_idx = __segment_idx + __scan_size * __radix_state_idx;
-                        std::size_t __last_segment_bucket_idx = __radix_state_idx * __scan_size - 1;
-                        __scanned_bin += __offset_rng[__last_segment_bucket_idx];
-                        __global_offsets_lacc[__radix_state_idx] = __scanned_bin + __offset_rng[__local_offset_idx];
-                    }
+                for (::std::uint32_t __radix_state_idx = 1; __radix_state_idx < __radix_states; ++__radix_state_idx)
+                {
+                    const ::std::uint32_t __local_offset_idx = __segment_idx + __scan_size * __radix_state_idx;
+                    std::size_t __last_segment_bucket_idx = __radix_state_idx * __scan_size - 1;
+                    __scanned_bin += __offset_rng[__last_segment_bucket_idx];
+                    __global_base_offsets[__radix_state_idx] = __scanned_bin + __offset_rng[__local_offset_idx];
                 }
+
+                __dpl_sycl::__group_barrier(__self_item);
 
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __step = 0; __step < __steps_per_segment; ++__step)
                 {
-                    __dpl_sycl::__group_barrier(__self_item);
+
                     // Compute this work-item's element range (8 consecutive elements)
                     const std::size_t __wi_seg_start = __seg_start + __self_lidx * __keys_per_wi_step + __step * __wg_size * __keys_per_wi_step;
                     const std::size_t __wi_seg_end = sycl::min(__wi_seg_start + __keys_per_wi_step, __seg_end);
@@ -720,16 +719,18 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                                 std::invoke(__proj, __value_lacc[__self_lidx * __keys_per_wi_step + __i])), __radix_offset);
                             //post increment to get local offset then increment for next element in the same bucket
                             ::std::uint32_t __local_offset = __slm_histograms[__self_lidx * __radix_states + __bucket]++;
-                            ::std::uint32_t __global_offset = __global_offsets_lacc[__bucket] + __local_offset;
+                            ::std::uint32_t __global_offset = __global_base_offsets[__bucket] + __local_offset;
                             __output_rng[__global_offset] = std::move(__value_lacc[__self_lidx * __keys_per_wi_step + __i]);
                         }
                     }
                     __dpl_sycl::__group_barrier(__self_item);
                     // Update global base offsets for next step
-                    if (__self_lidx < __radix_states)
+                    _ONEDPL_PRAGMA_UNROLL
+                    for (::std::uint32_t __bucket = 0; __bucket < __radix_states; ++__bucket)
                     {
-                        __global_offsets_lacc[__self_lidx] += __slm_histograms[(__wg_size - 1) * __radix_states + __self_lidx];
+                        __global_base_offsets[__bucket] += __slm_histograms[(__wg_size - 1) * __radix_states + __bucket];
                     }
+                    __dpl_sycl::__group_barrier(__self_item);
                 }
             });
     });
