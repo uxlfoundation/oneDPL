@@ -3814,6 +3814,10 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             std::cout << std::dec << ")" << std::endl;
 
             std::cout.copyfmt(old_state);
+
+            std::cout << "\n\tRESULT: ";
+            dump_data(std::cout, __result1, __result2);
+            std::cout << "\n";
         }
 #endif
 
