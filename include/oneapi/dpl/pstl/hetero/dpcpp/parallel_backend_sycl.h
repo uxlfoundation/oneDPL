@@ -716,10 +716,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
         __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
-        unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged,
-                              _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op, __read_op},
+        unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged, _InitType>{
+            __binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op, __read_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/std::true_type, _BinaryOperation, _Unchanged, _NoAssign, _Assigner,
+        unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _Unchanged, _NoAssign, _Assigner,
                               _Unchanged, unseq_backend::__no_init_value<_Type>>{__binary_op, __read_op, __ignore_op,
                                                                                  __assign_op, __read_op},
         // global scan
@@ -775,12 +775,12 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
                           __mask_buf.get_buffer())),
         std::forward<_OutRng>(__out_rng), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
                               _CreateMaskOp, _InitType>{__reduce_op, __read_op, __assign_op, __add_mask_op,
                                                         __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner,
-                              _Unchanged,_InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
@@ -1102,12 +1102,12 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
                 __mask_buf.get_buffer())),
         std::forward<_Range3>(__result), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
                               decltype(__create_mask_op), _InitType>{__reduce_op, __read_op, __assign_op,
                                                                      _MaskAssigner{}, __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner,
-                              _Unchanged, _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
     return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
