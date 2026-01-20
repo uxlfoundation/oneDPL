@@ -613,7 +613,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
         // Constants
         constexpr std::uint32_t __keys_per_step = 8;
-        
+
         // Local memory:
         // 1. Cached values for coalesced loading (WG_SIZE * KEYS_PER_STEP)
         auto __slm_values = __dpl_sycl::__local_accessor<_ValueT>(__wg_size * __keys_per_step, __hdl);
@@ -678,14 +678,57 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 
                 for (std::size_t __block_base = 0; __block_base < __items_in_segment; __block_base += __block_size)
                 {
-                    // 1. Cooperative Load Global -> SLM (Coalesced)
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                    // 1. Cooperative Load Global -> SLM (Coalesced with Vectorization)
+                    if constexpr (sizeof(_ValueT) == 4 && (__keys_per_step % 4 == 0))
                     {
-                        std::size_t __local_load_idx = __i * __wg_size + __self_lidx;
-                        if (__block_base + __local_load_idx < __items_in_segment)
+                        using _VecT = sycl::vec<_ValueT, 4>;
+                        constexpr std::uint32_t __vec_steps = __keys_per_step / 4;
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __j = 0; __j < __vec_steps; ++__j)
                         {
-                            __slm_values[__local_load_idx] = __input_rng[__seg_start + __block_base + __local_load_idx];
+                            std::size_t __vec_idx = __j * __wg_size + __self_lidx;
+                            // Ensure bounds for full vector load
+                            if (__block_base + __vec_idx * 4 + 3 < __items_in_segment)
+                            {
+                                std::size_t __base_idx = __seg_start + __block_base + __vec_idx * 4;
+                                _VecT __val;
+                                // Compiler preserves coalescing for contiguous loads
+                                __val[0] = __input_rng[__base_idx];
+                                __val[1] = __input_rng[__base_idx + 1];
+                                __val[2] = __input_rng[__base_idx + 2];
+                                __val[3] = __input_rng[__base_idx + 3];
+
+                                // Store to SLM (compiler optimizes contiguous stores)
+                                std::size_t __slm_idx = __vec_idx * 4;
+                                __slm_values[__slm_idx]     = __val[0];
+                                __slm_values[__slm_idx + 1] = __val[1];
+                                __slm_values[__slm_idx + 2] = __val[2];
+                                __slm_values[__slm_idx + 3] = __val[3];
+                            }
+                            else
+                            {
+                                // Boundary fallback
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (std::uint32_t __k = 0; __k < 4; ++__k)
+                                {
+                                    std::size_t __scalar_idx = __vec_idx * 4 + __k;
+                                    if (__block_base + __scalar_idx < __items_in_segment)
+                                        __slm_values[__scalar_idx] = __input_rng[__seg_start + __block_base + __scalar_idx];
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 1. Cooperative Load Global -> SLM (Coalesced, Scalar-only fallback)
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __i = 0; __i < __keys_per_step; ++__i)
+                        {
+                            std::size_t __local_load_idx = __i * __wg_size + __self_lidx;
+                            if (__block_base + __local_load_idx < __items_in_segment)
+                            {
+                                __slm_values[__local_load_idx] = __input_rng[__seg_start + __block_base + __local_load_idx];
+                            }
                         }
                     }
                     __dpl_sycl::__group_barrier(__self_item);
