@@ -34,8 +34,8 @@ constexpr void
 __check_onesweep_params()
 {
     static_assert(__radix_bits == 8);
-    static_assert(__data_per_workitem % 32 == 0);
-    static_assert(__workgroup_size == 32 || __workgroup_size == 64);
+    //static_assert(__data_per_workitem % 32 == 0);
+    //static_assert(__workgroup_size == 32 || __workgroup_size == 64);
 }
 
 //-----------------------------------------------------------------------------

@@ -285,10 +285,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         for (int __i = 0; __i < __radix_bits; __i++)
         {
             auto __bit = (__bin >> __i) & 1;
-            sycl::ext::oneapi::group_ballot(__idx.get_sub_group(), static_cast<bool>(__bit));
+            auto __sg_vote = sycl::ext::oneapi::group_ballot(__idx.get_sub_group(), static_cast<bool>(__bit));
             // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
             // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
-            __matched_bins &= __bit ? __mask : ~__mask;
+            __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
         }
         std::uint32_t __result = 0;
         __matched_bins.extract_bits(__result);
@@ -522,24 +522,34 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     template <typename _KVPack>
     void inline __reorder_reg_to_slm(sycl::nd_item<1> __idx,
-                                     const _KVPack& __pack, const _LocOffsetT (&__ranks)[__data_per_work_item],
+                                     const _KVPack& __pack, _LocOffsetT (&__ranks)[__data_per_work_item],
                                      const _LocOffsetT (&__bins)[__data_per_work_item], /*const _LocHistT& __subgroup_offset,*/
                                      std::uint32_t* __slm
                                      /*::std::uint32_t __wg_size, ::std::uint32_t __sub_group_slm_offset*/) const
     {
         const ::std::uint32_t __slm_bin_hist_group_incoming = __sub_group_size * __bin_count;
         const ::std::uint32_t __slm_bin_hist_global_incoming = __slm_bin_hist_group_incoming + __bin_count;
+        const auto __global_fix_offset = __calc_reorder_slm_size();
         // MATT todo: performance may be a problem here. Esimd version precomputes offsets in a binwide histogram
         // per sub-group. As we know sub-group histograms perform poorly in SYCL. So instead we are recomputing them
         // on the fly here, updating the ranks and then writing to SLM
         auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
+        // 1. update ranks to reflect sub-group offsets in and across bins
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
             auto __bin = __bins[__i];
+            auto __group_incoming = __slm[__slm_bin_hist_group_incoming + __bin];
             auto __offset_in_bin = (__sub_group_id == 0) ? 0 : __slm[(__sub_group_id - 1) * __bin_count + __bin];
-            auto __offset_across_bins = (__bin == 0) ? 0 :__slm[__slm_bin_hist_group_incoming + __bin - 1];
-            __ranks[__i] += __slm[__slm_bin_hist_global_incoming + __i];
+            auto __offset_across_bins = __group_incoming;
+            //__ranks[__i] += __slm[__slm_bin_hist_global_incoming + __i];
+            __ranks[__i] += __offset_in_bin + __offset_across_bins;
+        }
+        // 2. compute __global_fix 
+        //_ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __i = __idx.get_local_id(); __i < __bin_count; __i += __work_group_size)
+        {
+            __slm[__global_fix_offset + __i] = __slm[__slm_bin_hist_global_incoming + __i] - __slm[__slm_bin_hist_group_incoming + __i];
         }
         sycl::group_barrier(__idx.get_group());
         // TODO: i think we need reinterpret casting here to key type
@@ -555,50 +565,40 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     template <typename _KVPack>
-    void inline __reorder_slm_to_glob(_KVPack& __pack, const _GlobHistT& __global_fix, ::std::uint32_t __local_tid,
-                                      ::std::uint32_t __wg_size) const
+    void inline __reorder_slm_to_glob(sycl::nd_item<1> __idx, _KVPack& __pack, std::uint32_t* __slm) const
     {
-        __slm_lookup<_GlobOffsetT> __global_fix_lookup(__calc_reorder_slm_size());
-        if (__local_tid == 0)
-            __global_fix_lookup.__setup(__global_fix);
-        __dpl_esimd::__ns::barrier();
+        //__slm_lookup<_GlobOffsetT> __global_fix_lookup(__calc_reorder_slm_size());
+        //if (__local_tid == 0)
+        //    __global_fix_lookup.__setup(__global_fix);
+        //__dpl_esimd::__ns::barrier();
+        constexpr bool __is_full_block = true;
+        //bool __is_full_block = (__glob_offset + __data_per_sub_group) <= __n; // TODO
+        const auto __global_fix_offset = __calc_reorder_slm_size();
+        auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
+        auto __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
-        ::std::uint32_t __keys_slm_offset = __local_tid * __data_per_work_item * sizeof(_KeyT);
-        __pack.__keys = __dpl_esimd::__block_load_slm<_KeyT, __data_per_work_item>(__keys_slm_offset);
-        if constexpr (__has_values)
-        {
-            ::std::uint32_t __vals_slm_offset =
-                __wg_size * __data_per_work_item * sizeof(_KeyT) + __local_tid * __data_per_work_item * sizeof(_ValT);
-            __pack.__vals = __dpl_esimd::__block_load_slm<_ValT, __data_per_work_item>(__vals_slm_offset);
-        }
-        const auto __ordered = __order_preserving_cast<__is_ascending>(__pack.__keys);
-        _LocOffsetSimdT __bins = __get_bucket<__mask>(__ordered, __stage * __radix_bits);
-
-        // This vector contains IDs of the elements in a work-group:
-        //  {__local_tid * __data_per_work_item, __local_tid * __data_per_work_item + 1, ..., __wg_size * __data_per_work_item - 1}
-        _LocOffsetSimdT __group_offset =
-            __create_simd<_LocOffsetT, __data_per_work_item>(__local_tid * __data_per_work_item, 1);
-
-        // The trick with IDs and the "fix" component in __global_fix is used to get relative indexes
-        // of each digit in a work-group after reordering in SLM. Example when work-item id is 0:
-        // key digit:              0  0  0  0  1  1  1  1  2  3
-        // ----------------------------------------------------
-        // key ID in a work-group: 0  1  2  3  4  5  6  7  8  9
-        // "fix" component:        0  0  0  0 -4 -4 -4 -4 -8 -9
-        // ----------------------------------------------------
-        // digit offset:           0  1  2  3  0  1  2  3  0  0
-        // Note: offset component from global histogram and the previous groups is also added as a part of "__global_fix" vector.
-        _GlobOffsetSimdT __global_offset =
-            __group_offset + __global_fix_lookup.template __lookup<__data_per_work_item>(__bins);
-
-        __dpl_esimd::__vector_store<_KeyT, 1, __data_per_work_item>(
-            __rng_data(__out_pack.__keys_rng()), __global_offset * sizeof(_KeyT), __pack.__keys, __global_offset < __n);
-        if constexpr (__has_values)
-        {
-            __dpl_esimd::__vector_store<_ValT, 1, __data_per_work_item>(__rng_data(__out_pack.__vals_rng()),
-                                                                        __global_offset * sizeof(_ValT), __pack.__vals,
-                                                                        __global_offset < __n);
-        }
+        const _GlobOffsetT __keys_slm_offset = __data_per_sub_group * __sub_group_id;
+        // MATT todo: performance may be a problem here. Esimd version precomputes offsets in a binwide histogram
+        // per sub-group. As we know sub-group histograms perform poorly in SYCL. So instead we are recomputing them
+        // on the fly here, updating the ranks and then writing to SLM
+        //if constexpr (__is_full_block)
+        //{
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            {
+                auto __slm_idx = __keys_slm_offset + __i * __sub_group_size + __sub_group_local_id;
+                auto __key = __slm[__slm_idx];
+                auto __bin =
+                    __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__key), __stage * __radix_bits);
+                auto __global_fix = __slm[__global_fix_offset + __bin];
+                __out_pack.__keys_rng()[__global_fix + __slm_idx] = __key;
+                if constexpr (__has_values)
+                {
+                    auto __val = __slm[__slm_idx + __work_group_size * __data_per_work_item];
+                    __out_pack.__vals_rng()[__global_fix + __slm_idx] = __val;
+                }
+            }
+        //}
     }
 
     [[sycl::reqd_sub_group_size(__sub_group_size)]] void
@@ -621,28 +621,25 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // approach where each sub-group's bins are interleaved
         const ::std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
 
-        auto __values_simd_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
+        auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
         _LocOffsetT __bins[__data_per_work_item];
         _LocOffsetT __ranks[__data_per_work_item];
-        //_LocHistT __subgroup_offset; // rely on SLM instead
-        //_GlobHistT __global_fix;
 
-        __load_pack(__values_simd_pack, __wg_id, __sg_id, __sg_local_id);
+        __load_pack(__values_pack, __wg_id, __sg_id, __sg_local_id);
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
-            const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_simd_pack.__keys[__i]);
+            const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_pack.__keys[__i]);
             __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
         }
         std::uint32_t* __slm = __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get();
 
         __rank_local(__idx, __ranks, __bins, __slm, __sub_group_slm_offset);
-        __rank_global(/*__subgroup_offset, __global_fix,*/ __idx, __wg_id, __slm);
-        //__rank_global(/*__subgroup_offset, __global_fix,*/ __idx, __wg_id, __sub_group_slm_offset);
+        __rank_global(__idx, __wg_id, __slm);
 
-        //__reorder_reg_to_slm(__values_simd_pack, __ranks, __bins, __subgroup_offset);
-        //__reorder_slm_to_glob(__values_simd_pack, __global_fix, __local_tid, __wg_size);
+        __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __slm);
+        __reorder_slm_to_glob(__idx, __values_pack, __slm);
     }
 };
 
