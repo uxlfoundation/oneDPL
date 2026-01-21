@@ -158,13 +158,12 @@ __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuff
 {
     // TODO: make it work if this static assert is not true
     static_assert(__segment_width == __sub_group_size);
-    constexpr std::uint32_t __num_rounds = __segment_width / __num_segments;
     using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
     _ElemT __carry = 0;
     auto __sub_group_local_id = __sub_group.get_local_linear_id();
 
     _ONEDPL_PRAGMA_UNROLL
-    for (std::uint32_t __i = 0; __i < __num_rounds; ++__i)
+    for (std::uint32_t __i = 0; __i < __num_segments; ++__i)
     {
         auto __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
         auto __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
