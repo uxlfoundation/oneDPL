@@ -3518,7 +3518,7 @@ struct __set_difference_offsets
 
         // Calculate prefix summs of counts
         __pattern_transform_scan(
-            __serial_tag<std::false_type>{}, __exec, //__parallel_tag<_IsVector>{}, __exec,
+            __parallel_tag<_IsVector>{}, __exec,
             __tr_first, __tr_first + __req_mask_size,
             __prefix_summ_buf_it_b,
             oneapi::dpl::identity{},
@@ -3538,7 +3538,7 @@ struct __set_difference_offsets
 
         // Find the position where output size limit is reached
         auto it_prefix_summ_buf = __pattern_find_if(
-            __serial_tag<std::false_type>{}, __exec, //__parallel_tag<_IsVector>{}, __exec,
+            __parallel_tag<_IsVector>{}, __exec,
             it_prefix_summ_buf_b, it_prefix_summ_buf_e,
             [__reachedOutPos](const _CountsType& __count) {
                 return __count.__eq == __reachedOutPos + 1;     // We should try to find the next processed position
