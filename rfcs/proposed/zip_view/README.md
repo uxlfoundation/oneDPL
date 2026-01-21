@@ -21,7 +21,7 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 - compilable with C++20 version (minimum)
 - API-compliant with `std::ranges::zip_view`
 - in case of a device usage: a device copyable view if the all "underlying" views are device copyable views.
-- To provide a transitive device copyability oneDPL tuple-like type underhood is proposed - `oneapi::dpl::__internal::tuple`.
+- The implemntation may be based on tuple-like type underhood, but it must provide a transitive device copyability.
 - To satisfy trivially copyability to provide a transitive device copyability for the pipes created over `oneapi::dpl::ranges::zip_view`.
   
 `oneapi::dpl::ranges::zip_view::iterator` should be:
@@ -29,8 +29,9 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 - able to be used with the non-range algorithms, including C++ and oneDPL parallel algorithms
 
 ### Discrepancies with std::zip_view C++23
+- `oneapi::dpl::ranges::zip_view` may use a oneDPL tuple-like type instead of std::tuple 
 - `oneapi::dpl::ranges::zip_view` is based on oneDPL tuple-like type oneapi::dpl::__internal::tuple instead of std::tuple.
-- `oneapi::dpl::ranges::zip_view::iterator::value_type` is oneDPL tuple-like type oneapi::dpl::__internal::tuple instead of std::tuple.
+- `oneapi::dpl::ranges::zip_view::iterator::value_type` should be defined so that `oneapi::dpl::ranges::zip_view::iterator` satisfies the std::indirectly_writable concept.
 
 ### Other technical reasons not to use std::zip_view C++23 (and std::tuple) with oneDPL algorithms in the future:
 - There is an issue with `std::ranges::sort(zip_view)` with clang 19.0 and older. (https://godbolt.org/z/jKvG9rY5M)
