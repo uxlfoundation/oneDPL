@@ -3306,7 +3306,7 @@ __is_great_that_set_algo_cut_off(Size size)
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
-#define DUMP_PARALLEL_SET_OP_WORK 1
+#define DUMP_PARALLEL_SET_OP_WORK 0
 
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
