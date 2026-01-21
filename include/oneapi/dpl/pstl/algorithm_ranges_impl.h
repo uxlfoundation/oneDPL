@@ -907,8 +907,6 @@ __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::itera
                           std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    bool __output_full = false;
-
     while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
@@ -919,21 +917,15 @@ __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::itera
         {
             ++__it2;
         }
-        else
+        else if (__out_it != __out_end)
         {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it1;
-                ++__out_it;
-            }
-            else if (!__output_full)
-                __output_full = true;
-            else
-                break;
-
+            *__out_it = *__it1;
             ++__it1;
             ++__it2;
+            ++__out_it;
         }
+        else 
+            break;
     }
 
     return {__it1, __it2, __out_it};
