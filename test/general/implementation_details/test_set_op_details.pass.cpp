@@ -49,11 +49,10 @@ test_set_union_construct()
     
     // the first case - output range has enough capacity
     {
-    
-        const Container           cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container           cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer<7> maskExp  = {       D1,        D1,       D12,       D12,       D12,        D2,        D2};
-        const Container      contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
+        const Container          cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container          cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer<7> maskExp = {       D1,        D1,       D12,       D12,       D12,        D2,        D2};
+        const Container     contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
         Container contOut(cont1.size() + cont2.size());
 
         MaskResultsContainer mask(cont1.size() + cont2.size());
@@ -77,11 +76,10 @@ test_set_union_construct()
 
     // the first case - output range has enough capacity - SWAP input ranges data
     {
-    
-        const Container cont1           = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2           = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer<7> maskExp  = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
-        const Container contOutExp      = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container          cont1 = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container          cont2 = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer<7> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
+        const Container     contOutExp = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         Container contOut(cont1.size() + cont2.size());
 
         MaskResultsContainer mask(cont1.size() + cont2.size());
@@ -105,7 +103,6 @@ test_set_union_construct()
 
     // the first case - output range hasn't enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<5> maskExp = {       D1,        D1,       D12,       D12,       D12                      };
@@ -134,7 +131,6 @@ test_set_union_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<5> maskExp = {       D2,        D2,       D12,       D12,       D12                      };
@@ -163,7 +159,6 @@ test_set_union_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<4> maskExp = {       D2,        D2,       D12,       D12                                 };
@@ -192,7 +187,6 @@ test_set_union_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}           };
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
         const MaskContainer<4> maskExp = {       D2,        D2,       D12,       D12                                            };
@@ -221,7 +215,6 @@ test_set_union_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1},                       {8, 5, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}, {6, 3, 2}, {7, 4, 2}           };
         const MaskContainer<4> maskExp = {       D2,        D2,       D12,       D12                                            };
@@ -257,7 +250,6 @@ test_set_union_construct_edge_cases()
 
     // The case: both containers are empty
     {
-    
         const Container cont1          = { };
         const Container cont2          = { };
         const MaskContainer<0> maskExp = { };
@@ -285,7 +277,6 @@ test_set_union_construct_edge_cases()
 
     // The case: the first container is empty
     {
-    
         const Container cont1          = {                               };
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<3> maskExp = {       D2,        D2,        D2};
@@ -313,7 +304,6 @@ test_set_union_construct_edge_cases()
 
     // The case: the second container is empty
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {                               };
         const MaskContainer<3> maskExp = {       D1,        D1,        D1};
@@ -395,7 +385,6 @@ test_set_union_construct_edge_cases()
 
     // The case: all items are equal but the last item in the first container is unique
     {
-    
         const Container cont1          = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         const Container cont2          = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
         const MaskContainer<4> maskExp = {      D12,       D12,       D12,        D1};
@@ -423,7 +412,6 @@ test_set_union_construct_edge_cases()
 
     // The case: both containers have the same items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<3> maskExp = {      D12,       D12,       D12};
@@ -451,7 +439,6 @@ test_set_union_construct_edge_cases()
 
     // The case: all items in the first container less then in the second one
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2          = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         const MaskContainer<6> maskExp = {       D1,        D1,        D1,        D2,        D2,        D2};
@@ -479,7 +466,6 @@ test_set_union_construct_edge_cases()
 
     // The case: output container has zero capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<0> maskExp = {                                                     };
@@ -508,7 +494,6 @@ test_set_union_construct_edge_cases()
 
     // The case: output container has one element capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<1> maskExp = {       D1                                            };
@@ -537,7 +522,6 @@ test_set_union_construct_edge_cases()
 
     // The case: the first container has duplicated items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
         const Container cont2          = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
         const MaskContainer<5> maskExp = {       D1,       D12,        D1,       D12,        D2};
@@ -576,7 +560,6 @@ test_set_intersection_construct()
 
     // the first case - output range has enough capacity
     {
-    
         const Container cont1          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const Container cont2          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const MaskContainer<5> maskExp = {       D2,        D2,       D12,       D12,       D12                      };
@@ -606,7 +589,6 @@ test_set_intersection_construct()
 
     // the first case - output range has enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<5> maskExp = {       D2,        D2,       D12,       D12,       D12                      };
@@ -640,7 +622,6 @@ test_set_intersection_construct()
 
     // the first case - output range hasn't enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<4> maskExp = {       D1,        D1,       D12,       D12                                 };
@@ -672,7 +653,6 @@ test_set_intersection_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<5> maskExp = {       D2,        D2,       D12,       D12,       D12                      };
@@ -704,7 +684,6 @@ test_set_intersection_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<4> maskExp = {       D2,        D2,       D12,       D12                                 };
@@ -736,7 +715,6 @@ test_set_intersection_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
         const MaskContainer<8> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1,       D12};
@@ -778,7 +756,6 @@ test_set_intersection_construct_edge_cases()
 
     // The case: both containers are empty
     {
-    
         const Container cont1          = { };
         const Container cont2          = { };
         const MaskContainer<0> maskExp = { };
@@ -810,7 +787,6 @@ test_set_intersection_construct_edge_cases()
 
     // The case: the first container is empty
     {
-    
         const Container cont1          = {                               };
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<0> maskExp = {                               };
@@ -844,7 +820,6 @@ test_set_intersection_construct_edge_cases()
 
     // The case: the second container is empty
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {                               };
         const MaskContainer<0> maskExp = {                               };
@@ -917,7 +892,6 @@ test_set_difference_construct()
 
     // the first case - output range has enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<5> maskExp = {       D1,        D1,       D12,       D12,       D12                      };
@@ -948,7 +922,6 @@ test_set_difference_construct()
 
     // the first case - output range has enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<7> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
@@ -979,7 +952,6 @@ test_set_difference_construct()
 
     // the first case - output range hasn't enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<2> maskExp = {       D1,        D1                                                       };
@@ -1010,7 +982,6 @@ test_set_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<6> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1           };
@@ -1041,7 +1012,6 @@ test_set_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<7> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
@@ -1072,7 +1042,6 @@ test_set_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
         const MaskContainer<8> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1,       D12};
@@ -1103,7 +1072,6 @@ test_set_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
         const MaskContainer<6> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1                      };
@@ -1141,7 +1109,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: both containers are empty
     {
-    
         const Container cont1          = { };
         const Container cont2          = { };
         const MaskContainer<0> maskExp = { };
@@ -1172,7 +1139,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: the first container is empty
     {
-    
         const Container cont1          = {                               };
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<0> maskExp = {                               };
@@ -1203,7 +1169,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: the second container is empty
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {                               };
         const MaskContainer<3> maskExp = {       D1,        D1,        D1};
@@ -1294,7 +1259,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: all items are equal but the last item in the first container is unique
     {
-    
         const Container cont1          = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         const Container cont2          = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
         const MaskContainer<4> maskExp = {      D12,       D12,       D12,        D1};
@@ -1325,7 +1289,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: both containers have the same items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<3> maskExp = {      D12,       D12,       D12};
@@ -1356,7 +1319,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: all items in the first container less then in the second one
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2          = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         const MaskContainer<3> maskExp = {       D1,        D1,        D1                                 };
@@ -1387,7 +1349,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: output container has zero capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<1> maskExp = {       D1                                            };
@@ -1418,7 +1379,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: output container has one element capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<2> maskExp = {       D1,        D1                                 };
@@ -1449,7 +1409,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: the first container has duplicated items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
         const Container cont2          = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
         const MaskContainer<4> maskExp = {       D1,       D12,        D1,       D12           };
@@ -1480,7 +1439,6 @@ test_set_difference_construct_edge_cases()
 
     // The case: no intersections and empty output
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}                                 };
         const Container cont2          = {                      {3, 0, 2}, {3, 1, 2}, {4, 2, 2}};
         const MaskContainer<1> maskExp = {       D1                                            };
@@ -1521,7 +1479,6 @@ test_set_symmetric_difference_construct()
 
     // the first case - output range has enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<7> maskExp = {       D1,        D1,       D12,       D12,       D12,        D2,        D2};
@@ -1552,7 +1509,6 @@ test_set_symmetric_difference_construct()
 
     // the first case - output range has enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<7> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
@@ -1583,7 +1539,6 @@ test_set_symmetric_difference_construct()
 
     // the first case - output range hasn't enough capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer<2> maskExp = {       D1,        D1                                                       };
@@ -1614,7 +1569,6 @@ test_set_symmetric_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<2> maskExp = {       D2,        D2                                                       };
@@ -1645,7 +1599,6 @@ test_set_symmetric_difference_construct()
 
     // the first case - output range hasn't enough capacity - SWAP input ranges data
     {
-    
         const Container cont1          = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer<6> maskExp = {       D2,        D2,       D12,       D12,       D12,        D1           };
@@ -1683,7 +1636,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: both containers are empty
     {
-    
         const Container cont1          = { };
         const Container cont2          = { };
         const MaskContainer<0> maskExp = { };
@@ -1714,7 +1666,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: the first container is empty
     {
-    
         const Container cont1          = {                               };
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<3> maskExp = {       D2,        D2,        D2};
@@ -1745,7 +1696,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: the second container is empty
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {                               };
         const MaskContainer<3> maskExp = {       D1,        D1,        D1};
@@ -1836,7 +1786,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: all items are equal but the last item in the first container is unique
     {
-    
         const Container cont1          = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         const Container cont2          = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
         const MaskContainer<4> maskExp = {      D12,       D12,       D12,        D1};
@@ -1867,7 +1816,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: both containers have the same items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2          = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer<3> maskExp = {      D12,       D12,       D12};
@@ -1898,7 +1846,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: all items in the first container less then in the second one
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         const Container cont2          = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         const MaskContainer<6> maskExp = {       D1,        D1,        D1,        D2,        D2,        D2};
@@ -1929,7 +1876,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: output container has zero capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<1> maskExp = {       D1                                            };
@@ -1960,7 +1906,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: output container has one element capacity
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
         const Container cont2          = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
         const MaskContainer<2> maskExp = {       D1,        D1                                 };
@@ -1991,7 +1936,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: the first container has duplicated items
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
         const Container cont2          = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
         const MaskContainer<5> maskExp = {       D1,       D12,        D1,       D12,        D2};
@@ -2022,7 +1966,6 @@ test_set_symmetric_difference_construct_edge_cases()
 
     // The case: no intersections and empty output
     {
-    
         const Container cont1          = {{1, 0, 1}, {2, 1, 1}                                 };
         const Container cont2          = {                      {3, 0, 2}, {3, 1, 2}, {4, 2, 2}};
         const MaskContainer<1> maskExp = {       D1                                            };
