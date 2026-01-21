@@ -152,9 +152,10 @@ __make_key_value_pack()
     }
 }
 
-template <std::uint32_t __segment_width, std::uint32_t __num_segments, std::uint32_t __sub_group_size, typename _ScanBuffer>
+template <std::uint32_t __segment_width, std::uint32_t __num_segments, std::uint32_t __sub_group_size,
+          typename _ScanBuffer>
 void
-__sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer __scan_elements)
+__sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements)
 {
     // TODO: make it work if this static assert is not true
     static_assert(__segment_width == __sub_group_size);
@@ -171,7 +172,7 @@ __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuff
             __element_right_shift = 0;
         __scan_elements[__i * __segment_width + __sub_group_local_id] = __element_right_shift + __carry;
 
-        __carry = sycl::group_broadcast(__sub_group, __element, __segment_width - 1);
+        __carry += sycl::group_broadcast(__sub_group, __element, __sub_group_size - 1);
     }
 }
 

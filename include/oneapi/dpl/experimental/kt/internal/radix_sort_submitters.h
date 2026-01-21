@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
 #define _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
 
-#define DEBUG_SYCL_KT 1
+// #define DEBUG_SYCL_KT 1
 
 #include <cstdint>
 #include <utility>
@@ -244,7 +244,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
 
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
-            sycl::local_accessor<::std::uint32_t, 1> __slm_accessor(__slm_size_elements, __cgh);
+            sycl::local_accessor<unsigned char, 1> __slm_accessor(__slm_size_bytes, __cgh);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (::std::decay_t<_InRngPack>::__has_values)
             {
