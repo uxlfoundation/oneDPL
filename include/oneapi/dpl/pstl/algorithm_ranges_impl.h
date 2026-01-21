@@ -924,14 +924,15 @@ __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::itera
             if (__out_it != __out_end)
             {
                 *__out_it = *__it1;
-                ++__it1;
-                ++__it2;
                 ++__out_it;
             }
             else if (!__output_full)
                 __output_full = true;
             else
                 break;
+
+            ++__it1;
+            ++__it2;
         }
     }
 
