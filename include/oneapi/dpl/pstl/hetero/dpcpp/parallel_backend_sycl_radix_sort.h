@@ -227,21 +227,36 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
 
                 // Strided coalesced reads: all work-items read consecutive elements
-                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_end;
+                // Compute how many full iterations we can do without bounds checking
+                const std::size_t __seg_size = __seg_end - __seg_start;
+                const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
+                const std::size_t __full_end = __seg_start + __full_rounds * __wg_size * __unroll_elements;
+
+                // Full iterations - no bounds checking needed
+                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __full_end;
                      __val_idx += __wg_size * __unroll_elements)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
+                        auto __val = __order_preserving_cast<__is_ascending>(
+                            std::invoke(__proj, __val_rng[__val_idx + __unroll]));
+                        ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                        ++__slm_counts[__radix_states * __self_lidx + __bucket];
+                    }
+                }
+
+                // Remainder - at most one partial block, no loop needed
+                {
+                    const ::std::size_t __val_idx = __full_end + __self_lidx * __unroll_elements;
+                    for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+                    {
                         ::std::size_t __curr_idx = __val_idx + __unroll;
                         if (__curr_idx < __seg_end)
                         {
-                            // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
                             auto __val = __order_preserving_cast<__is_ascending>(
                                 std::invoke(__proj, __val_rng[__curr_idx]));
                             ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                            // increment counter for this bit bucket
-
                             ++__slm_counts[__radix_states * __self_lidx + __bucket];
                         }
                     }
@@ -874,9 +889,18 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         std::size_t __wg_size_reorder = 256;
 
         // adjust to keep a minimum number of workgroups active
-
-        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q_local);
-        __keys_per_wi_count = sycl::min(__keys_per_wi_count, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __max_cu * 4));
+        if (__n < 1 << 14)
+        {
+            __keys_per_wi_count = 8;
+        }
+        else if (__n < 1 << 16)
+        {
+            __keys_per_wi_count = 16;
+        }
+        else if (__n < 1 << 20)
+        {
+            __keys_per_wi_count = 32;
+        }
 
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
