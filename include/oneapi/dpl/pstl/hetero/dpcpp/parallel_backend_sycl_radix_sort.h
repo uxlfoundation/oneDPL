@@ -614,22 +614,15 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 }
 
                 // Subgroup scan to get work-item prefix within subgroup
+                // Last work-item writes totals directly to SLM (avoids broadcast)
                 _OffsetT __wi_prefix[__radix_states];
-                _OffsetT __sg_totals[__radix_states];
+                const bool __is_last_in_sg = (__sg_local_id == __sg_size - 1);
                 for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
                 {
                     __wi_prefix[__b] = __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b],
                                                                                __dpl_sycl::__plus<_OffsetT>());
-                    __sg_totals[__b] = __dpl_sycl::__group_broadcast(__sub_group,
-                                                                     __wi_prefix[__b] + __local_counts[__b],
-                                                                     __sg_size - 1);
-                }
-
-                // Write subgroup totals to SLM
-                if (__sg_local_id == 0)
-                {
-                    for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
-                        __slm_counts[__sg_id * __radix_states + __b] = __sg_totals[__b];
+                    if (__is_last_in_sg)
+                        __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
                 }
 
                 __dpl_sycl::__group_barrier(__self_item);
