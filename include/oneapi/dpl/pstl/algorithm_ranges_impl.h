@@ -1028,6 +1028,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return std::min(__n, __m);
                 },
+                [](_DifferenceType __n, _DifferenceType __m)                                                            // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
+                },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                     _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _Tp* __result1, _Tp* __result2,
@@ -1055,14 +1059,18 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __internal::__except_handler([&]() {
             return __internal::__parallel_set_op(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
-                __first1, __last1,                              // bounds for data1
-                __left_bound_seq_2, __last2,                    // bounds for data2
-                __result1, __result2,                           // bounds for results
-                [](_DifferenceType __n, _DifferenceType __m)                                                            // _SizeFunction __size_func
+                __first1, __last1,                                                              // bounds for data1
+                __left_bound_seq_2, __last2,                                                    // bounds for data2
+                __result1, __result2,                                                           // bounds for results
+                [](_DifferenceType __n, _DifferenceType __m)                                    // _SizeFunction __size_func
                 {
                     return std::min(__n, __m);
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                [](_DifferenceType __n, _DifferenceType __m)                                    // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
+                },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _Tp* __result1, _Tp* __result2,
                     oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
@@ -1251,6 +1259,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             __first2, __last2,                              // bounds for data2
             __result1, __result2,                           // bounds for results
             [](_DifferenceType __n, _DifferenceType) { return __n; },
+            [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _T* __result1, _T* __result2,

@@ -3402,11 +3402,12 @@ struct __set_union_offsets
 {
     template <class _IsVector, class _ExecutionPolicy, 
               typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, 
-              class _SizeFunction>
+              class _SizeFunction, class _MaskSizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out,
                _SizeFunction __size_func,
+               _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
                _DifferenceTypeOut __reachedOutPos) const
     {
@@ -3455,11 +3456,12 @@ struct __set_difference_offsets
 {
     template <class _IsVector, class _ExecutionPolicy, 
               typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
-              class _SizeFunction>
+              class _SizeFunction, class _MaskSizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out,
                _SizeFunction __size_func,
+               _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
                _DifferenceTypeOut __reachedOutPos) const
     {
@@ -3469,6 +3471,7 @@ struct __set_difference_offsets
         using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
 
         const auto __req_size = __size_func(__n1, __n2);
+        const auto __req_mask_size = __mask_size_func(__n1, __n2);
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "=== __set_difference_offsets call ===" << std::endl;
@@ -3508,15 +3511,15 @@ struct __set_difference_offsets
         );
 
         using _PrefixBuf = __par_backend::__buffer<_CountsType>;
-        _PrefixBuf __prefix_summ_buf(__req_size);
+        _PrefixBuf __prefix_summ_buf(__req_mask_size);
 
         auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
-        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_size;
+        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
 
         // Calculate prefix summs of counts
         __pattern_transform_scan(
             __serial_tag<std::false_type>{}, __exec, //__parallel_tag<_IsVector>{}, __exec,
-            __tr_first, __tr_first + __req_size,
+            __tr_first, __tr_first + __req_mask_size,
             __prefix_summ_buf_it_b,
             oneapi::dpl::identity{},
             _CountsType{},
@@ -3531,7 +3534,7 @@ struct __set_difference_offsets
 #endif
 
         auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
-        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_size;
+        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
 
         // Find the position where output size limit is reached
         auto it_prefix_summ_buf = __pattern_find_if(
@@ -3632,13 +3635,15 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
 #endif
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
-__parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+          class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetOP, class _Compare, class _Proj1,
+    class _Proj2 >
+        __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,  // bounds for data1
                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,  // bounds for data2
                   _OutputIterator __result1, _OutputIterator __result2,             // bounds for results
                   _SizeFunction __size_func,
+                  _MaskSizeFunction __mask_size_func,
                   _SetOP __set_op,
                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
@@ -3657,6 +3662,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     const _DifferenceTypeCommon __n_out = __result2 - __result1;    // Size of output range
 
     const auto __buf_size = __size_func(__n1, __n2);
+    const auto __mask_buf_size = __mask_size_func(__n1, __n2);
 
 #if DUMP_PARALLEL_SET_OP_WORK
     std::cout << "=================================================================\n"
@@ -3666,14 +3672,15 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     std::cout << "\n\t__n2 = " << __n2 << " : ";
     dump_buffer(std::cout, __first2, __last2);
     std::cout << "\n\t__n_out = " << __n_out
-              << "\n\t__buf_size = " << __buf_size << "\n";
+              << "\n\t__buf_size = " << __buf_size
+              << "\n\t__mask_buf_size = " << __mask_buf_size << "\n";
 #endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-    _MaskBuffer __buf_mask_rng    (__buf_size);     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
-    _MaskBuffer __buf_mask_rng_res(__buf_size);     // Temporary buffer for the input range1 + range2 item usage mask
+    _MaskBuffer __buf_mask_rng    (__mask_buf_size);     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
+    _MaskBuffer __buf_mask_rng_res(__mask_buf_size);     // Temporary buffer for the input range1 + range2 item usage mask
 
     return __internal::__except_handler([&__exec,
                                         __n1, __n2, __n_out,
@@ -3682,11 +3689,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __result1, __result2,      // bounds for results
                                          __comp, __proj1, __proj2,
                                          __size_func,
+                                         __mask_size_func,
                                          __set_op,
                                          &__buf,
                                          &__buf_mask_rng,
                                          &__buf_mask_rng_res,
-                                         __buf_size]() 
+                                         __buf_size,
+                                         __mask_buf_size]() 
     {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
@@ -3820,12 +3829,15 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                         __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
                                                                       __b, __comp, __proj2, __proj1);
 
-                    const _DifferenceTypeCommon __buf_pos = __size_func((__b - __first1), (__bb - __first2));
+                    typename _SetRange::_Data __new_processing_data{
+                        0,                                                          // position in output range
+                        0,                                                          // length of data in temporary buffer
+                        __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
 
-                    typename _SetRange::_Data __new_processing_data{0,          // position in output range
-                                                                    0,          // length of data in temporary buffer
-                                                                    __buf_pos}; // position in temporary buffer
-                    typename _SetRange::_Data __new_mask_data = __new_processing_data;
+                    typename _SetRange::_Data __new_mask_data{
+                        0,                                                          // position in mask buffer
+                        0,                                                          // length of mask in temporary mask buffer
+                        __mask_size_func((__b - __first1), (__bb - __first2))};     // position in temporary mask buffer
 
                     _SetRange __sr_result1{__new_processing_data, __new_mask_data};
 
@@ -3859,36 +3871,36 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 auto __buffer_b = __buf_raw_data_begin + __buf_pos;
                 auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
 
-                auto __mask_b = __buf_mask_rng_raw_data_begin + __buf_pos;
+                const _DifferenceTypeCommon __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
+
+                auto __mask_b = __buf_mask_rng_raw_data_begin + __buf_mask_pos;
 
                 auto [__res1, __res2, __res, __mask_e] = __set_op(__b, __e,               // bounds for data1
                                                                   __bb, __ee,             // bounds for data2
                                                                   __buffer_b, __buffer_e, // bounds for results
                                                                   __mask_b,               // iterator usage masks
                                                                   __comp, __proj1, __proj2);
-                assert(__mask_e - __mask_b <= __buf_len);
+
+                [[maybe_unused]] const _DifferenceTypeCommon __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
+                assert(__mask_e - __mask_b <= __buf_mask_len);
 
                 // Prepare processed data info
-                typename _SetRange::_Data __new_processing_data{0,                  // position in output range
-                                                                __res - __buffer_b, // length of data in temporary buffer
-                                                                __buf_pos};         // position in temporary buffer
+                const typename _SetRange::_Data __new_processing_data{
+                    0,                          // position in output range
+                    __res - __buffer_b,         // length of data in temporary buffer
+                    __buf_pos};                 // position in temporary buffer
                 assert(__new_processing_data.__pos <= __buf_size);
                 assert(__new_processing_data.__buf_pos <= __buf_size);
                 assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
 
                 // Prepare processed mask info
-#if 0
-                // set_union
-                auto __new_mask_data = __new_processing_data;
-#else
-                // set_difference
-                typename _SetRange::_Data __new_mask_data{0,                    // position in output range
-                                                          __mask_e - __mask_b,  // length of mask in temporary buffer
-                                                          __buf_pos};           // position in temporary buffer
-#endif
-                assert(__new_mask_data.__pos <= __buf_size);
-                assert(__new_mask_data.__buf_pos <= __buf_size);
-                assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __buf_size);
+                const typename _SetRange::_Data __new_mask_data{
+                    0,                          // position in mask buffer
+                    __mask_e - __mask_b,        // length of mask in temporary mask buffer
+                    __buf_mask_pos};            // position in temporary mask buffer
+                assert(__new_mask_data.__pos <= __mask_buf_size);
+                assert(__new_mask_data.__buf_pos <= __mask_buf_size);
+                assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
 
                 _SetRange __sr_result1{__new_processing_data, __new_mask_data};
 
@@ -3942,24 +3954,14 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             });
 
 #if DUMP_PARALLEL_SET_OP_WORK
-        {
-            std::ios old_state(nullptr);
-            old_state.copyfmt(std::cout);
+        // Dump mask into std::cout for debug purposes
+        std::cout << "\n\tMASK: ";
+        dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_res_raw_data_begin), int>(std::cout, __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __mask_buf_size);
+        std::cout << "\n";
 
-            // Dump mask into std::cout for debug purposes
-            std::cout << "mask: (";
-            for (auto i = 0; i < __buf_size; ++i)
-                std::cout << std::hex << std::setw(2) << std::setfill('0')
-                          << static_cast<unsigned>(__buf_mask_rng_res_raw_data_begin[i])
-                          << (i + 1 < __buf_size ? ", " : "");
-            std::cout << std::dec << ")" << "\n";
-
-            std::cout.copyfmt(old_state);
-
-            std::cout << "\n\tRESULT: ";
-            dump_buffer(std::cout, __result1, __result2);
-            std::cout << "\n";
-        }
+        std::cout << "\n\tRESULT: ";
+        dump_buffer(std::cout, __result1, __result2);
+        std::cout << "\n";
 #endif
 
         // Evaluate reached offsets in input ranges
@@ -3970,6 +3972,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __parallel_tag<_IsVector>{}, __exec,
             __n1, __n2, __n_out,
             __size_func,
+            __mask_size_func,
             __buf_mask_rng_res_raw_data_begin,
             __res_reachedOutPos);
 #else
@@ -3978,6 +3981,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
             __parallel_tag<_IsVector>{}, __exec,
             __n1, __n2, __n_out,
             __size_func,
+            __mask_size_func,
             __buf_mask_rng_res_raw_data_begin,
             __res_reachedOutPos);
 #endif
@@ -4095,6 +4099,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     }
 
     auto __size_fnc = [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m) { return __n + __m; };
+    auto __mask_size_fnc = __size_fnc;
 
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
@@ -4117,6 +4122,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __first2, __last2,                      // bounds for data2
                     __result1, __result2,                   // bounds for results
                     __size_fnc,                             // _SizeFunction __size_func
+                    __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
                     __set_union_op,                         // _SetOP __set_op
                     __comp, __proj1, __proj2);
             });
@@ -4145,7 +4151,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __left_bound_seq_2, __last2,            // bounds for data2
                     __result1, __result2,                   // bounds for results
                     __size_fnc,                             // _SizeFunction __size_func
-                    __set_union_op,                                             // _SetOP __set_op
+                    __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
+                    __set_union_op,                         // _SetOP __set_op
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4157,6 +4164,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __first2, __last2,                                  // bounds for data2
         __result1, __result2,                               // bounds for results
         __size_fnc,                                         // _SizeFunction __size_func
+        __mask_size_fnc,                                    // _MaskSizeFunction __mask_size_fnc
         __set_union_op,                                     // _SetOP __set_op
         __comp, __proj1, __proj2);
 }
@@ -4336,6 +4344,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return std::min(__n, __m);
                 },
+                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
+                },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _T* __result1, _T* __result2,
@@ -4369,6 +4381,10 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                    // _SizeFunction __size_func
                 {
                     return std::min(__n, __m);
+                },
+                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                   // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
