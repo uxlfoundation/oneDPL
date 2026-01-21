@@ -870,7 +870,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
         std::size_t __wg_size_count = 128;
-        std::size_t __keys_per_wi_count = 8;
+        std::size_t __keys_per_wi_count = 64;
         std::size_t __wg_size_scan = 1024;
         std::size_t __wg_size_reorder = 256;
 
