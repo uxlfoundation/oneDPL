@@ -3306,7 +3306,7 @@ __is_great_that_set_algo_cut_off(Size size)
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
-#define DUMP_PARALLEL_SET_OP_WORK 1
+#define DUMP_PARALLEL_SET_OP_WORK 0
 
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
@@ -3347,9 +3347,9 @@ struct _SetRangeImpl
         friend OStream&
         operator<<(OStream& os, const _Data& data)
         {
-            os << "__pos = " << std::setw(2) << data.__pos << ", "
-               << "__len = " << std::setw(2) << data.__len << ", "
-               << "__buf_pos = " << std::setw(2) << data.__buf_pos;
+            os << "__pos = " << data.__pos << ", "
+               << "__len = " << data.__len << ", "
+               << "__buf_pos = " << data.__buf_pos;
             return os;
         }
 #endif
@@ -3596,8 +3596,8 @@ struct __set_difference_offsets
         friend OStream&
         operator<<(OStream& os, const _Result& data)
         {
-            os << "__index = " << std::setw(2) << data.__index << ", "
-               << "__bit10_before = " << std::setw(2) << data.__bit10_before;
+            os << "__index = " << data.__index << ", "
+               << "__bit10_before = " << data.__bit10_before;
             return os;
         }
     };
