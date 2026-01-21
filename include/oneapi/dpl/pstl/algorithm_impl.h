@@ -3597,6 +3597,7 @@ struct __set_difference_offsets
         _DifferenceTypeCommon __index = 0;
         _DifferenceTypeCommon __bit10_before = 0;
 
+#if DUMP_PARALLEL_SET_OP_WORK
         template <typename OStream>
         friend OStream&
         operator<<(OStream& os, const _Result& data)
@@ -3605,6 +3606,7 @@ struct __set_difference_offsets
                << "__bit10_before = " << data.__bit10_before;
             return os;
         }
+#endif
     };
 };
 
