@@ -250,11 +250,23 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 __dpl_sycl::__group_barrier(__self_item);
 
+                // 2x accumulations of a single work item should not overflow 255
+                if (__self_lidx < __wg_size >> 1)
+                {
+                    for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
+                    {
+                        __slm_counts[__radix_states * __self_lidx + __i] += __slm_counts[
+                            __radix_states * (__self_lidx + (__wg_size >> 1)) + __i];
+                    }
+                }
+
+                __dpl_sycl::__group_barrier(__self_item);
+
                 // Parallel reduction: first 16 work-items reduce one bucket each
                 if (__self_lidx < __radix_states)
                 {
                     _CountT __sum = 0;
-                    for (std::size_t __wi = 0; __wi < __wg_size; ++__wi)
+                    for (std::size_t __wi = 0; __wi < __wg_size >> 1; ++__wi)
                     {
                         __sum += __slm_counts[__radix_states * __wi + __self_lidx];
                     }
