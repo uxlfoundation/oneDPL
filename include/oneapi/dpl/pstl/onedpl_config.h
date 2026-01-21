@@ -86,15 +86,6 @@
 #define _ONEDPL_STRING(x) _ONEDPL_STRING_AUX(x)
 #define _ONEDPL_STRING_CONCAT(x, y) x #y
 
-// note that when ICC or Clang is in use, _ONEDPL_GCC_VERSION might not fully match
-// the actual GCC version on the system.
-#define _ONEDPL_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-
-#if __clang__
-// according to clang documentation, version can be vendor specific
-#    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
-#endif
-
 // Enable SIMD for compilers that support OpenMP 4.0
 #if (_OPENMP >= 201307) || __INTEL_LLVM_COMPILER || (__INTEL_COMPILER >= 1600) ||                                      \
     (!defined(__INTEL_LLVM_COMPILER) && !defined(__INTEL_COMPILER) && _ONEDPL_GCC_VERSION >= 40900)

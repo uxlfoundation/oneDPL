@@ -18,6 +18,15 @@
 // The oneAPI Specification version this implementation is compliant with
 #define ONEDPL_SPEC_VERSION 104
 
+// note that when ICC or Clang is in use, _ONEDPL_GCC_VERSION might not fully match
+// the actual GCC version on the system.
+#define _ONEDPL_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+
+#if __clang__
+// according to clang documentation, version can be vendor specific
+#    define _ONEDPL_CLANG_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#endif
+
 // -- Check for C++ standard library feature macros --
 #if __has_include(<version>)
 #    include <version>
