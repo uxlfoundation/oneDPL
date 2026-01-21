@@ -32,7 +32,6 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 
 ### Discrepancies with std::zip_view C++23
 - `oneapi::dpl::ranges::zip_view` may use a oneDPL tuple-like type instead of std::tuple 
-- `oneapi::dpl::ranges::zip_view` is based on oneDPL tuple-like type oneapi::dpl::__internal::tuple instead of std::tuple.
 - `oneapi::dpl::ranges::zip_view::iterator::value_type` should be defined so that `oneapi::dpl::ranges::zip_view::iterator` satisfies the std::indirectly_writable concept.
 
 ### Other technical reasons not to use std::zip_view C++23 (and std::tuple) with oneDPL algorithms in the future:
@@ -50,11 +49,12 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 - To ensure device copyability, `oneapi::dpl::__internal::tuple` is proposed as a tuple-like type for underlying elements.
 - To provide a value-swappable requirement `oneapi::dpl::__internal::tuple` is proposed as a dereferenced value for
 `oneapi::dpl::ranges::zip_view::iterator` due to `std::tuple` not satisfying the value-swappable requirement in C++20.
+- To provide a indirectly writable requirement `oneapi::dpl::__internal::tuple` is proposed as the public type for `oneapi::dpl::ranges::zip_view::iterator::value_type`.
 - Usage of C++ concepts is desirable to write type requirements for types, methods and members of the class.
 - C++20 is minimum supported version for the class. It allows using modern C++ features such as concepts and others.
 
 ### Test coverage
 - `oneapi::dpl::ranges::zip_view` is tested itself, base functionality (the API that is used for a range in the oneDPL algorithm implementations)
-- the base functionality test coverage may be extended by the adapted LLVM `std::ranges::zip_view` tests.
+- the base functionality test coverage may be extended by the adapted LLVM `std::ranges::zip_view` (C++23) tests.
 - should be tested with at least one oneDPL range based algorithm.
 - should be tested with at least one oneDPL iterator based algorithm.
