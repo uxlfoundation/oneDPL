@@ -869,24 +869,11 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
-#if _ONEDPL_RADIX_WORKLOAD_TUNING
-        // if less than 2M elements, use smaller work-group size
         std::size_t __wg_size_count = 128;
         std::size_t __keys_per_wi_count = 8;
         std::size_t __wg_size_scan = 1024;
         std::size_t __wg_size_reorder = 256;
-        if (__n > (1 << 21) /*2M*/)
-        {
-            __wg_size_count = 128;
-            __keys_per_wi_count = 64;
-            __wg_size_reorder = 256;
-        }
-#else
-        std::size_t __wg_size_count = __max_wg_size;
-        std::size_t __keys_per_wi_count = 64;
-        std::size_t __wg_size_scan = 1024;
-        std::size_t __wg_size_reorder = 256;
-#endif
+
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 //        std::cout<<"using segments: "<<__segments<<"\n";
