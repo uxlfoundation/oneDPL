@@ -98,24 +98,24 @@ struct
         auto in2 = std::ranges::begin(r_2);
         auto out = std::ranges::begin(r_out);
 
+        const auto n1 = std::ranges::size(r_1);
+        const auto n2 = std::ranges::size(r_2);
+
         std::size_t idx1 = 0;
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
-        while (idx1 < std::ranges::size(r_1))
+        while (idx1 < n1)
         {
-            if (idx2 == std::ranges::size(r_2))
+            if (idx2 == n2)
             {
-                if (idx1 < std::ranges::size(r_1))
-                {
-                    auto remaining_space = std::ranges::size(r_out) - idxOut;
-                    auto remaining_input = std::ranges::size(r_1) - idx1;
-                    auto to_copy = std::min(remaining_space, remaining_input);
-                    std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
+                auto remaining_space = std::ranges::size(r_out) - idxOut;
+                auto remaining_input = n1 - idx1;
+                auto to_copy = std::min(remaining_space, remaining_input);
+                std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
-                    idx1 += to_copy;
-                    idxOut += to_copy;
-                }
+                idx1 += to_copy;
+                idxOut += to_copy;
                 break;
             }
 
@@ -138,10 +138,10 @@ struct
             }
         }
 
-        if (idx2 < std::ranges::size(r_2))
+        if (idx2 < n2)
         {
             auto remaining_space = std::ranges::size(r_out) - idxOut;
-            auto remaining_input = std::ranges::size(r_2) - idx2;
+            auto remaining_input = n2 - idx2;
             auto to_copy = std::min(remaining_space, remaining_input);
             std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
 

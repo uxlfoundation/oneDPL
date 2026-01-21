@@ -92,17 +92,21 @@ struct
         auto in2 = std::ranges::begin(r_2);
         auto out = std::ranges::begin(r_out);
 
+        const auto n1 = std::ranges::size(r_1);
+        const auto n2 = std::ranges::size(r_2);
+        const auto nOut = std::ranges::size(r_out);
+
         std::size_t idx1 = 0;
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
         bool output_full = false;
 
-        while (idx1 < std::ranges::size(r_1) && idx2 < std::ranges::size(r_2))
+        while (idx1 < n1 && idx2 < n2)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
-                if (idxOut < std::ranges::size(r_out))
+                if (idxOut < nOut)
                 {
                     out[idxOut] = in1[idx1];
                     ++idxOut;
@@ -125,16 +129,16 @@ struct
             }
         }
 
-        auto remaining_space = std::ranges::size(r_out) - idxOut;
-        auto remaining_input = std::ranges::size(r_1) - idx1;
+        auto remaining_space = nOut - idxOut;
+        auto remaining_input = n1 - idx1;
         auto to_copy = std::min(remaining_space, remaining_input);
         std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
         idx1 += to_copy;
         idxOut += to_copy;
 
-        assert(idx1 <= std::ranges::size(r_1));
-        assert(idxOut <= std::ranges::size(r_out));
+        assert(idx1 <= n1);
+        assert(idxOut <= nOut);
 
         return {in1 + idx1, out + idxOut};
     }

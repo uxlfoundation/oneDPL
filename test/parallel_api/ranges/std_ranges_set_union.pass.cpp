@@ -100,25 +100,29 @@ struct
         auto in2 = std::ranges::begin(r_2);
         auto out = std::ranges::begin(r_out);
 
+        const auto n1 = std::ranges::size(r_1);
+        const auto n2 = std::ranges::size(r_2);
+        const auto nOut = std::ranges::size(r_out);
+
         std::size_t idx1 = 0;
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
 #if LOG_TESTING_OUTPUT
         std::cout << "Serial set_union checker called: \n" <<
-            "  r_1 size: " << std::ranges::size(r_1) << "\n" <<
-            "  r_2 size: " << std::ranges::size(r_2) << "\n" <<
-            "  r_out size: " << std::ranges::size(r_out) << "\n";
+            "  r_1 size: " << n1 << "\n" <<
+            "  r_2 size: " << n2 << "\n" <<
+            "  r_out size: " << nOut << "\n";
         std::cout << "r_1 : (";
-        std::for_each(in1, in1 + std::ranges::size(r_1), [](const auto& v) { std::cout << v << ", "; });
+        std::for_each(in1, in1 + n1, [](const auto& v) { std::cout << v << ", "; });
         std::cout << ")\n";
 
         std::cout << "r_2 : (";
-        std::for_each(in2, in2 + std::ranges::size(r_2), [](const auto& v) { std::cout << v << ", "; });
+        std::for_each(in2, in2 + n2, [](const auto& v) { std::cout << v << ", "; });
         std::cout << ")\n";
 #endif
 
-        while (idx1 < std::ranges::size(r_1) && idx2 < std::ranges::size(r_2) && idxOut < std::ranges::size(r_out))
+        while (idx1 < n1 && idx2 < n2 && idxOut < nOut)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
@@ -135,10 +139,10 @@ struct
             }
         }
 
-        if (idx1 < std::ranges::size(r_1))
+        if (idx1 < n1)
         {
-            auto remaining_space = std::ranges::size(r_out) - idxOut;
-            auto remaining_input = std::ranges::size(r_1) - idx1;
+            auto remaining_space = nOut - idxOut;
+            auto remaining_input = n1 - idx1;
             auto to_copy = std::min(remaining_space, remaining_input);
             std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
@@ -146,10 +150,10 @@ struct
             idxOut += to_copy;
         }
 
-        if (idx2 < std::ranges::size(r_2))
+        if (idx2 < n2)
         {
-            auto remaining_space = std::ranges::size(r_out) - idxOut;
-            auto remaining_input = std::ranges::size(r_2) - idx2;
+            auto remaining_space = nOut - idxOut;
+            auto remaining_input = n2 - idx2;
             auto to_copy = std::min(remaining_space, remaining_input);
             std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
 
