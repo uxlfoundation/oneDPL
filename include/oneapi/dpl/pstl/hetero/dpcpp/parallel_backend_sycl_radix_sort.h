@@ -874,6 +874,11 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         std::size_t __wg_size_scan = 1024;
         std::size_t __wg_size_reorder = 256;
 
+        // adjust to keep a minimum number of workgroups active
+
+        const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q_local);
+        __keys_per_wi_count = sycl::max(__keys_per_wi_count, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __max_cu * 4));
+
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 //        std::cout<<"using segments: "<<__segments<<"\n";
