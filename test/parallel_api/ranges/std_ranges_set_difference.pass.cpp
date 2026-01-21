@@ -100,8 +100,6 @@ struct
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
-        bool output_full = false;
-
         while (idx1 < n1 && idx2 < n2)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
@@ -109,14 +107,11 @@ struct
                 if (idxOut < nOut)
                 {
                     out[idxOut] = in1[idx1];
+                    ++idx1;
                     ++idxOut;
                 }
-                else if (!output_full)
-                    output_full = true;
-                else
+                else 
                     break;
-
-                ++idx1;
             }
             else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
             {
