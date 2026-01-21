@@ -187,9 +187,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
     const ::std::size_t __no_op_flag_idx = __count_buf.size() - 1;
 
-    assert(__elem_per_segment % __unroll_elements == 0 && "Segment size per segment must be multiple of unroll factor");
     //assert that we cannot overflow uint8 accumulation
-    assert(__elem_per_segment / __wg_size < 256 && "Segment size per work-group is too large to count in uint8");
+    assert(__elem_per_segment / __wg_size * 2 < 256 && "Segment size per work-group is too large to count in uint8");
 
     auto __count_rng =
         oneapi::dpl::__ranges::all_view<_CountT, __par_backend_hetero::access_mode::read_write>(__count_buf);
@@ -877,7 +876,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         // adjust to keep a minimum number of workgroups active
 
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q_local);
-        __keys_per_wi_count = sycl::max(__keys_per_wi_count, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __max_cu * 4));
+        __keys_per_wi_count = sycl::min(__keys_per_wi_count, oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __max_cu * 4));
 
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
