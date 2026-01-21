@@ -106,12 +106,13 @@ struct
                 {
                     out[idxOut] = in1[idx1];
                     ++idxOut;
-                    ++idx1;
                 }
                 else if (!output_full)
                     output_full = true;
                 else
                     break;
+
+                ++idx1;
             }
             else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
             {
