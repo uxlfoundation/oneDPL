@@ -26,7 +26,9 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
   
 `oneapi::dpl::ranges::zip_view::iterator` should be:
 - value-swappable (https://en.cppreference.com/w/cpp/named_req/ValueSwappable)
-- able to be used with the non-range algorithms, including C++ and oneDPL parallel algorithms
+- indirectly writable (https://en.cppreference.com/w/cpp/iterator/indirectly_writable.html)
+- able to be used with the non-range algorithms, including C++ and oneDPL parallel algorithms:
+  depending on the algorithm, stricter requirements may apply. For example, `std::sortable` concept must be satisfied in order to call `std::ranges::sort`.
 
 ### Discrepancies with std::zip_view C++23
 - `oneapi::dpl::ranges::zip_view` may use a oneDPL tuple-like type instead of std::tuple 
