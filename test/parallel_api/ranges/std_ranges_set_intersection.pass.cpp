@@ -102,17 +102,15 @@ struct
                 if (idxOut < std::ranges::size(r_out))
                 {
                     out[idxOut] = in1[idx1];
-                    ++idx1;
-                    ++idx2;
                     ++idxOut;
                 }
+                else if (!output_full)
+                    output_full = true;
                 else
-                {
-                    if (!output_full)
-                        output_full = true;
-                    else
-                        break;
-                }
+                    break;
+
+                ++idx1;
+                ++idx2;
             }
         }
 
