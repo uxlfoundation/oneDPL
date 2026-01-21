@@ -292,23 +292,44 @@ __set_union_bounded_construct(_ForwardIterator1 __first1, _ForwardIterator1 __la
     // This implementation should be aligned with https://eel.is/c++draft/set.union
 
     // 1. Main set_union operation
-    while (__first1 != __last1 && __first2 != __last2 && __result1 != __result2)
+    while (__first1 != __last1 && __first2 != __last2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            new (std::addressof(*__result1++)) _Tp(*__first1++);
             __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData1);
+            if (__result1 != __result2)
+            {
+                new (std::addressof(*__result1)) _Tp(*__first1);
+                ++__first1;
+                ++__result1;
+            }
+            else
+                break;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            new (std::addressof(*__result1++)) _Tp(*__first2++);
             __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
+            if (__result1 != __result2)
+            {
+                new (std::addressof(*__result1)) _Tp(*__first2);
+                ++__first2;
+                ++__result1;
+            }
+            else
+                break;
         }
         else
         {
-            new (std::addressof(*__result1++)) _Tp(*__first1++);
-            ++__first2;
             __mask = __set_iterator_mask(__mask, oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
+            if (__result1 != __result2)
+            {
+                new (std::addressof(*__result1)) _Tp(*__first1);
+                ++__first1;
+                ++__first2;
+                ++__result1;
+            }
+            else
+                break;
         }
     }
 
