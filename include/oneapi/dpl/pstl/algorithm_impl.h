@@ -3554,7 +3554,7 @@ struct __set_difference_offsets
 
         // Initially we assume that we processed all first data range
         // But if we found the next processed position we use it
-        const _DifferenceType1 __n1_reached = it_prefix_summ_buf != it_prefix_summ_buf_e ? it_prefix_summ_buf->__bit : __n1;
+        const _DifferenceType1 __n1_reached = it_prefix_summ_buf != it_prefix_summ_buf_e ? it_prefix_summ_buf->__bit - 1 : __n1;
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "\t<- Returning reached offsets : { " << __n1_reached << ", " << __n2 << " }\n";
