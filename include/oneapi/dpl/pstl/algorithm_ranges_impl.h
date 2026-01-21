@@ -1122,13 +1122,14 @@ __serial_set_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterato
             if (__out_it != __out_end)
             {
                 *__out_it = *__it1;
-                ++__it1;
                 ++__out_it;
             }
             else if (!__output_full)
                 __output_full = true;
             else
                 break;
+
+            ++__it1;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
         {
