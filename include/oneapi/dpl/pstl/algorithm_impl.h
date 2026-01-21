@@ -3306,7 +3306,7 @@ __is_great_that_set_algo_cut_off(Size size)
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
-#define DUMP_PARALLEL_SET_OP_WORK 0
+#define DUMP_PARALLEL_SET_OP_WORK 1
 
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
@@ -3530,28 +3530,28 @@ struct __set_difference_offsets
         std::cout << "\n";
 #endif
 
-        auto it_find_b = __prefix_summ_buf.get();
-        auto it_find_e = it_find_b + __req_size;
+        auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
+        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_size;
 
         // Find the position where output size limit is reached
-        auto __it_found = __pattern_find_if(
+        auto it_prefix_summ_buf = __pattern_find_if(
             __serial_tag<std::false_type>{}, __exec, //__parallel_tag<_IsVector>{}, __exec,
-            it_find_b, it_find_e,
+            it_prefix_summ_buf_b, it_prefix_summ_buf_e,
             [__reachedOutPos](const _CountsType& __count) {
                 return __count.__eq == __reachedOutPos + 1;     // We should try to find the next processed position
             });
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
-        if (__it_found != it_find_e)
-            std::cout << "found at offset " << (__it_found - it_find_b) << " : " << *__it_found << "\n";
+        if (it_prefix_summ_buf != it_prefix_summ_buf_e)
+            std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
         else
             std::cout << "not found\n";
 #endif
 
         // Initially we assume that we processed all first data range
         // But if we found the next processed position we use it
-        const _DifferenceType1 __n1_reached = __it_found != it_find_e ? __it_found->__bit : __n1;
+        const _DifferenceType1 __n1_reached = it_prefix_summ_buf != it_prefix_summ_buf_e ? it_prefix_summ_buf->__bit : __n1;
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "\t<- Returning reached offsets : { " << __n1_reached << ", " << __n2 << " }\n";
