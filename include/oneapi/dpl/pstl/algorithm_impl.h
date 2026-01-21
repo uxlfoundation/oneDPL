@@ -3551,18 +3551,10 @@ struct __set_difference_offsets
 
         // Initially we assume that we processed all first data range
         // But if we found the next processed position we use it
-        _DifferenceType1 __n1_reached = __n1;
-        if (__it_found != it_find_e)
-        {
-            assert(__it_found != it_find_b);
-
-            // Move to the previous position and get reached position from that
-            --__it_found;
-            __n1_reached = __it_found->__bit;
-        }
+        const _DifferenceType1 __n1_reached = __it_found != it_find_e ? __it_found->__bit : __n1;
 
 #if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "\t<- Returning reached offsets from previous pos : { " << __n1_reached << ", " << __n2 << " }\n";
+        std::cout << "\t<- Returning reached offsets : { " << __n1_reached << ", " << __n2 << " }\n";
 #endif
 
         return {__n1_reached, __n2};
