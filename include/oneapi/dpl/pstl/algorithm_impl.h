@@ -3570,6 +3570,7 @@ struct __set_difference_offsets
         _DifferenceTypeCommon __eq = 0;  // mask == 0x10
         _DifferenceTypeCommon __bit = 0; // (mask & 0x10) != 0
 
+#if DUMP_PARALLEL_SET_OP_WORK
         template <typename OStream>
         friend OStream&
         operator<<(OStream& os, const _Counts& data)
@@ -3577,6 +3578,7 @@ struct __set_difference_offsets
             os << "(" << data.__eq << ", " << data.__bit << ")";
             return os;
         }
+#endif
     };
 
     template <typename _DifferenceTypeCommon>
