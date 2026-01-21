@@ -3620,7 +3620,7 @@ template <typename OStream, typename Iterator, typename ValueType = std::iterato
 OStream&
 dump_buffer(OStream& os, Iterator first, Iterator last)
 {
-#if 0
+#if 1
     bool bCommaNeeded = false;
 
     os << "(";
