@@ -3397,6 +3397,27 @@ struct _SetRangeImpl
 #endif
 };
 
+// The structure __set_op_offsets_full should be used when we apriory know
+// that output buffer is enough to keep all output data and all input data will be processed
+struct __set_op_unbounded_offsets_eval
+{
+    template <class _IsVector, class _ExecutionPolicy, 
+              typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+              class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
+               [[maybe_unused]]_DifferenceType1 __n1, [[maybe_unused]] _DifferenceType2 __n2, [[maybe_unused]] _DifferenceTypeOut __n_out,
+               [[maybe_unused]] _SizeFunction __size_func,
+               _MaskSizeFunction,
+               oneapi::dpl::__utils::__parallel_set_op_mask*,
+               _DifferenceTypeOut) const
+    {
+        assert(__size_func(__n1, __n2) <= __n_out);
+
+        return {__n1, __n2};
+    }
+};
+
 struct __set_union_offsets
 {
     template <class _IsVector, class _ExecutionPolicy, 
