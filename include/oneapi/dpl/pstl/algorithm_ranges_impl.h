@@ -909,6 +909,8 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
+    bool __output_full = false;
+
     while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
@@ -922,13 +924,19 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
         else if (__out_it != __out_end)
         {
             *__out_it = *__it1;
+            ++__out_it;
             ++__it1;
             ++__it2;
-            ++__out_it;
         }
-        else 
+        else
+        {
+            __output_full = true;
             break;
+        }
     }
+
+    __it1 = __output_full ? __it1 : __end1;
+    __it2 = __output_full ? __it2 : __end2;
 
     return {__it1, __it2, __out_it};
 }
