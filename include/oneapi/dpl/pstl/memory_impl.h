@@ -35,7 +35,7 @@ namespace __internal
 //------------------------------------------------------------------------
 
 template <typename _ForwardIterator, typename _OutputIterator>
-std::tuple<_ForwardIterator, _OutputIterator>
+_OutputIterator
 __brick_uninitialized_move(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
                            /*vector=*/std::false_type) noexcept
 {
@@ -44,7 +44,7 @@ __brick_uninitialized_move(_ForwardIterator __first, _ForwardIterator __last, _O
     {
         new (std::addressof(*__result)) _ValueType(std::move(*__first));
     }
-    return {__first, __result};
+    return __result;
 }
 
 template <typename _RandomAccessIterator, typename _OutputIterator>
@@ -89,7 +89,7 @@ __brick_destroy(_RandomAccessIterator __first, _RandomAccessIterator __last, /*v
 //------------------------------------------------------------------------
 
 template <typename _ForwardIterator, typename _OutputIterator>
-std::tuple<_ForwardIterator, _OutputIterator>
+_OutputIterator
 __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
                            /*vector=*/::std::false_type) noexcept
 {
@@ -99,7 +99,7 @@ __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _O
         ::new (std::addressof(*__result)) _ValueType(*__first);
     }
 
-    return {__first, __result};
+    return __result;
 }
 
 template <typename _RandomAccessIterator, typename _OutputIterator>
@@ -116,40 +116,6 @@ __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator 
     return __unseq_backend::__simd_walk_n(
         __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); }, __first,
         __result);
-}
-
-template <typename _ForwardIterator, typename _OutputIterator>
-std::tuple<_ForwardIterator, _OutputIterator>
-__brick_uninitialized_bounded_copy(_ForwardIterator __first, _ForwardIterator __last,    // bounds for data1
-                                   _OutputIterator __result1, _OutputIterator __result2, // bounds for results
-                                   /*vector=*/::std::false_type) noexcept
-{
-    using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-    for (; __first != __last && __result1 != __result2; ++__first, (void)++__result1)
-    {
-        ::new (std::addressof(*__result1)) _ValueType(*__first);
-    }
-
-    return {__first, __result1};
-}
-
-template <typename _RandomAccessIterator, typename _OutputIterator>
-std::tuple<_RandomAccessIterator, _OutputIterator>
-__brick_uninitialized_bounded_copy(_RandomAccessIterator __first, _RandomAccessIterator __last, // bounds for data1
-                                   _OutputIterator __result1, _OutputIterator __result2,        // bounds for results
-                                   /*vector=*/::std::true_type) noexcept
-{
-    using __ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
-    using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
-    using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
-
-    const auto __n = std::min(__last - __first, __result2 - __result1);
-
-    _OutputIterator __it_out = __unseq_backend::__simd_walk_n(
-        __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { new (std::addressof(__y)) __ValueType(__x); }, __first,
-        __result1);
-
-    return {__first + __n, __it_out};
 }
 
 template <typename _ExecutionPolicy>

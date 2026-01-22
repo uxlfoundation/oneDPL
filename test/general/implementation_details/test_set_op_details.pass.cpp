@@ -21,11 +21,18 @@
 #include <vector>
 #include <functional>
 
-template <typename Container>
-auto
-summ(const Container& container)
+template <typename Container1, typename Container2>
+std::size_t
+evalContainerSize(const Container1& cont1, const Container2& cont2)
 {
-    return std::accumulate(std::begin(container), std::end(container), 0, std::plus{});
+    return cont1.size() + cont2.size();
+}
+
+template <typename Container1, typename Container2>
+std::size_t
+evalMaskSize(const Container1& cont1, const Container2& cont2)
+{
+    return cont1.size() + cont2.size();
 }
 
 // For details please see decsciption of the enum oneapi::dpl::__utils::__parallel_set_op_mask
@@ -48,21 +55,19 @@ test_set_union_construct()
         const Container       cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer maskExp = {       D1,        D1,       D12,       D12,       D12,        D2,        D2};
         const Container  contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(5, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -73,156 +78,22 @@ test_set_union_construct()
         const Container       cont2 = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
         const Container  contOutExp = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(5, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
-
-    // the first case - output range hasn't enough capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer maskExp = {       D1,        D1,       D12,       D12,       D12                      };
-        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        Container contOut(5);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(5, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
-        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
-        Container contOut(5);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(3, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(5, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
-        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                 };
-        Container contOut(4);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(2, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(4, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}           };
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1           };
-        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
-        Container contOut(4);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(2, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(4, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1},                       {8, 5, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}, {6, 3, 2}, {7, 4, 2}           };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D2,        D2           };
-        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}                                            };
-        Container contOut(4);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(2, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(4, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-}
-
-template <typename Container1, typename Container2>
-std::size_t
-evalContainerSize(const Container1& cont1, const Container2& cont2)
-{
-    return cont1.size() + cont2.size();
 }
 
 void
@@ -239,19 +110,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = { };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(0, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -264,19 +133,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -289,19 +156,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(0, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -314,19 +179,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 2}, {2, 0, 1}, {3, 2, 2}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -339,19 +202,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(1, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -364,19 +225,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -389,19 +248,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -414,69 +271,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // The case: output container has zero capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1,        D1,       D12                      };
-        const Container contOutExp  = {                                                     };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(0, std::distance(cont2.begin(), in2), "Incorrect in2 state");
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
-
-    // The case: output container has one element capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1,        D1,       D12                      };
-        const Container contOutExp  = {{1, 0, 1}                                            };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(0, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -489,19 +294,17 @@ test_set_union_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 2, 2}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(), in1), "Incorrect in1 state");
-        EXPECT_EQ(3, std::distance(cont2.begin(), in2), "Incorrect in2 state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -524,15 +327,15 @@ test_set_intersection_construct()
         const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
         const Container contOutExp  = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}                      };
 
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
@@ -552,155 +355,22 @@ test_set_intersection_construct()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
         const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        // Here we have 3 but not 5 because we testing __set_intersection_bounded_construct
-        // and iterators moved to the end in __pattern_set_intersection for __hetero_tag
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer maskExp = {       D1,        D1,       D12,       D12                                 };
-        const Container contOutExp  = {                      {3, 2, 1}                                            };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
-            CopyFromFirstRange,
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
-        const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}                                 };
-        Container contOut(2);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
-            CopyFromFirstRange,
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(2, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(4, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12                                 };
-        const Container contOutExp  = {                      {3, 0, 1}                                            };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
-            CopyFromFirstRange,
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1,       D12};
-        const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                                 };
-        Container contOut(3);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
-            CopyFromFirstRange,
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 }
 
@@ -721,27 +391,20 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp  = { };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
     // The case: the first container is empty
@@ -752,29 +415,20 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        // Here we have 3 but not 5 because we testing __set_intersection_bounded_construct
-        // and iterators moved to the end in __pattern_set_intersection for __hetero_tag
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
     // The case: the second container is empty
@@ -785,27 +439,20 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 
     // The case: one item in the first container
@@ -816,27 +463,20 @@ test_set_intersection_construct_edge_cases()
         const Container contOutExp  = {           {2, 0, 1}           };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_intersection_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_intersection_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
     }
 }
 
@@ -855,28 +495,21 @@ test_set_difference_construct()
         const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer maskExp = {       D1,        D1,       D12,       D12,       D12                      };
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}                                                       };
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // the first case - output range has enough capacity - SWAP input ranges data
@@ -885,178 +518,21 @@ test_set_difference_construct()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
         const Container contOutExp  = {                                                       {6, 3, 1}, {7, 4, 1}};
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer maskExp = {       D1,        D1                                                       };
-        const Container contOutExp  = {{1, 0, 1}                                                                  };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1           };
-        const Container contOutExp  = {                                                       {6, 3, 1}           };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
-        const Container contOutExp  = {                                                       {6, 3, 1}, {7, 4, 1}};
-        Container contOut(2);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1,       D12};
-        const Container contOutExp  = {                                                       {6, 3, 1}, {7, 4, 1}           };
-        Container contOut(2);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(6, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(6, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}, {8, 5, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2},                       {8, 5, 2}};
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1                      };
-        const Container contOutExp  = {                                                       {6, 3, 1}                      };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 }
 
@@ -1074,26 +550,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = { };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: the first container is empty
@@ -1104,26 +573,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: the second container is empty
@@ -1134,26 +596,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: one item in the first container
@@ -1164,26 +619,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: one item in the second container
@@ -1194,26 +642,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1},            {3, 2, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: all items are equal but the last item in the first container is unique
@@ -1224,26 +665,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {                                 {3, 3, 1}};
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: both containers have the same items
@@ -1254,26 +688,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: all items in the first container less then in the second one
@@ -1284,86 +711,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // The case: output container has zero capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1                                            };
-        const Container contOutExp  = {                                                     };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // The case: output container has one element capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1,        D1                                 };
-        const Container contOutExp  = {{1, 0, 1}                                            };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 
     // The case: the first container has duplicated items
@@ -1374,56 +734,19 @@ test_set_difference_construct_edge_cases()
         const Container contOutExp  = {{1, 0, 1},            {2, 2, 1}                      };
         Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
-    }
-
-    // The case: no intersections and empty output
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}                                 };
-        const Container cont2       = {                      {3, 0, 2}, {3, 1, 2}, {4, 2, 2}};
-        const MaskContainer maskExp = {       D1                                            };
-        const Container contOutExp  = {                                                     };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_difference_bounded_construct");
     }
 }
 
@@ -1442,28 +765,21 @@ test_set_symmetric_difference_construct()
         const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const MaskContainer maskExp = {       D1,        D1,       D12,       D12,       D12,        D2,        D2};
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1},                                  {6, 3, 2}, {7, 4, 2}};
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(4, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // the first case - output range has enough capacity - SWAP input ranges data
@@ -1472,118 +788,21 @@ test_set_symmetric_difference_construct()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
         const Container contOutExp  = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}, {7, 4, 1}};
-        Container contOut(cont1.size() + cont2.size());
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(5, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(4, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
-        const MaskContainer maskExp = {       D1,        D1                                                       };
-        const Container contOutExp  = {{1, 0, 1}                                                                  };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2                                                       };
-        const Container contOutExp  = {{1, 0, 2}                                                                  };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // the first case - output range hasn't enough capacity - SWAP input ranges data
-    {
-        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
-        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1           };
-        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}           };
-        Container contOut(3);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(5, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 }
 
@@ -1593,64 +812,27 @@ test_set_symmetric_difference_construct_edge_cases()
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
 
-    // The case: both containers are empty
-    {
-        const Container cont1       = { };
-        const Container cont2       = { };
-        const MaskContainer maskExp = { };
-        const Container contOutExp  = { };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
     // The case: the first container is empty
     {
         const Container cont1       = {                               };
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer maskExp = {       D2,        D2,        D2};
         const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        Container contOut(3);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: the second container is empty
@@ -1659,28 +841,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {                               };
         const MaskContainer maskExp = {       D1,        D1,        D1};
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
-        Container contOut(3);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: one item in the first container
@@ -1689,28 +864,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer maskExp = {       D2,       D12,        D2};
         const Container contOutExp  = {{1, 0, 2},            {3, 2, 2}};
-        Container contOut(2);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: one item in the second container
@@ -1719,28 +887,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {           {2, 0, 2}           };
         const MaskContainer maskExp = {       D1,       D12,        D1};
         const Container contOutExp  = {{1, 0, 1},            {3, 2, 1}};
-        Container contOut(2);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(2, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: all items are equal but the last item in the first container is unique
@@ -1749,28 +910,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
         const MaskContainer maskExp = {      D12,       D12,       D12,        D1};
         const Container contOutExp  = {                                 {3, 3, 1}};
-        Container contOut(1);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: both containers have the same items
@@ -1778,29 +932,22 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer maskExp = {      D12,       D12,       D12};
-        const Container contOutExp     = {                               };
-        Container contOut(0);
+        const Container contOutExp  = {                               };
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: all items in the first container less then in the second one
@@ -1809,88 +956,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
         const MaskContainer maskExp = {       D1,        D1,        D1,        D2,        D2,        D2};
         const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
-        Container contOut(6);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(6, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // The case: output container has zero capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1                                            };
-        const Container contOutExp  = {                                                     };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // The case: output container has one element capacity
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                      };
-        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}};
-        const MaskContainer maskExp = {       D1,        D1                                 };
-        const Container contOutExp  = {{1, 0, 1}                                            };
-        Container contOut(1);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(1, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(1, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 
     // The case: the first container has duplicated items
@@ -1899,58 +979,21 @@ test_set_symmetric_difference_construct_edge_cases()
         const Container cont2       = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
         const MaskContainer maskExp = {       D1,       D12,        D1,       D12,        D2};
         const Container contOutExp  = {{1, 0, 1},            {2, 2, 1},            {4, 2, 2}};
-        Container contOut(3);
+        Container contOut(evalContainerSize(cont1, cont2));
 
-        MaskContainer mask(cont1.size() + cont2.size());
+        MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
+            contOut.begin(),
             mask_b,
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(4, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
-    }
-
-    // The case: no intersections and empty output
-    {
-        const Container cont1       = {{1, 0, 1}, {2, 1, 1}                                 };
-        const Container cont2       = {                      {3, 0, 2}, {3, 1, 2}, {4, 2, 2}};
-        const MaskContainer maskExp = {       D1                                            };
-        const Container contOutExp  = {                                                     };
-        Container contOut(0);
-
-        MaskContainer mask(cont1.size() + cont2.size());
-        auto mask_b = mask.data();
-
-        auto [in1, in2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(), contOut.end(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ(0, std::distance(cont1.begin(),   in1), "incorrect state of in1 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(cont2.begin(),   in2), "incorrect state of in2 for __set_symmetric_difference_bounded_construct");
-        EXPECT_EQ(0, std::distance(contOut.begin(), out), "incorrect state of out for __set_symmetric_difference_bounded_construct");
-
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-
-        // Truncate output from out till the end to avoid compare error
-        contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_symmetric_difference_bounded_construct");
     }
 }
 

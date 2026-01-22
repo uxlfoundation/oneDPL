@@ -1912,7 +1912,7 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
                                                   __b, __e,                                                                 // bounds for data1
-                                                  __result + (__b - __first), __result + (__b - __first) + (__e - __b),     // bounds for results w/o limit
+                                                  __result + (__b - __first),                                               // results
                                                   _IsVector{});
                                           });
 
@@ -1920,15 +1920,15 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
                                                   __b, __e,                                                                 // bounds for data1
-                                                  __first + (__b - __middle), __first + (__b - __middle) + (__e - __b),     // bounds for results w/o limit
+                                                  __first + (__b - __middle),                                               // results
                                                   _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e,                                                                                             // bounds for data1
-                                                  __first + ((__n - __m) + (__b - __result)), __first + ((__n - __m) + (__b - __result)) + (__e - __b), // bounds for results w/o limit
+                                                  __b, __e,                                                                 // bounds for data1
+                                                  __first + ((__n - __m) + (__b - __result)),                               // results
                                                   _IsVector{}); 
                                           });
 
@@ -3755,8 +3755,8 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                 const auto __result_remaining = __result_to - __result_from;
 
                 // Evaluate pointers to current data chunk in temporary buffer
-                const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped( __buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-                const auto __buf_raw_data_to   = oneapi::dpl::__utils::__advance_clamped( __buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
+                const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
+                const auto __buf_raw_data_to   = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 const auto __items = __buf_raw_data_to - __buf_raw_data_from;
@@ -3879,11 +3879,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 auto __mask_b = __buf_mask_rng_raw_data_begin + __buf_mask_pos;
 
-                auto [__res1, __res2, __res, __mask_e] = __set_op(__b, __e,               // bounds for data1
-                                                                  __bb, __ee,             // bounds for data2
-                                                                  __buffer_b, __buffer_e, // bounds for results
-                                                                  __mask_b,               // iterator usage masks
-                                                                  __comp, __proj1, __proj2);
+                auto [__res, __mask_e] = __set_op(__b, __e,               // bounds for data1
+                                                  __bb, __ee,             // bounds for data2
+                                                  __buffer_b,             // results
+                                                  __mask_b,               // iterator usage masks
+                                                  __comp, __proj1, __proj2);
 
                 [[maybe_unused]] const _DifferenceTypeCommon __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
                 assert(__mask_e - __mask_b <= __buf_mask_len);
@@ -4195,13 +4195,6 @@ struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyCon
     {
         return __brick_uninitialized_copy(__first, __last, __result, _IsVector());
     }
-
-    template <typename _ForwardIterator, typename _OutputIterator>
-    std::tuple<_ForwardIterator, _OutputIterator>
-    operator()(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result1, _OutputIterator __result2)
-    {
-        return __brick_uninitialized_bounded_copy(__first, __last, __result1, __result2, _IsVector());
-    }
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator, class _Compare>
@@ -4249,14 +4242,14 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __result, __result + __n1 + __n2,                       // bounds for results w/o limitation
         [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-            _Tp* __result1, _Tp* __result2,
+            _Tp* __result,
             oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
             return oneapi::dpl::__utils::__set_union_bounded_construct(
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
-                __result1, __result2,                           // bounds for results
+                __result,                                       // results
                 __mask,                                         // source data usage masks
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -4354,14 +4347,14 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                   _T* __result1, _T* __result2,
+                   _T* __result,
                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
                         __first1, __last1,                                                      // bounds for data1
                         __first2, __last2,                                                      // bounds for data2
-                        __result1, __result2,                                                   // bounds for results
+                        __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         /*CopyFromFirstSet = */ std::true_type{},
@@ -4392,14 +4385,14 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetOP __set_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                    _T* __result1, _T* __result2,
-                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
+                    _T* __result,                                                               // results
+                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask,                       // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
                         __first2, __last2,                                                      // bounds for data1
                         __first1, __last1,                                                      // bounds for data2
-                        __result1, __result2,                                                   // bounds for results
+                        __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         /*CopyFromFirstSet = */ std::false_type{},
@@ -4498,14 +4491,14 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             [](_DifferenceType __n, _DifferenceType) { return __n; },
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-               _T* __result1, _T* __result2,
+               _T* __result,
                 oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_difference_bounded_construct(
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
-                    __result1, __result2,                                           // bounds for results
+                    __result,                                                       // results
                     __mask,                                                         // source data usage masks
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -4580,14 +4573,14 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             __result, __result + __n1 + __n2,               // bounds for results w/o limitation
             [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-               _Tp* __result1, _Tp* __result2,
+               _Tp* __result,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
-                    __result1, __result2,                                           // bounds for results
+                    __result,                                                       // results
                     __mask,                                                         // source data usage masks
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
@@ -5173,8 +5166,8 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
                                           [__first, __n](_DiffType __i, _DiffType __j) {
                                               __brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __first + __i, __first + __j,                                                     // bounds for data1
-                                                  __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                  __first + __i, __first + __j,                 // bounds for data1
+                                                  __first + __i - __n,                          // results
                                                   _IsVector{});
                                           });
         }
@@ -5187,8 +5180,8 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                 __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
                                               [__first, __n](_DiffType __i, _DiffType __j) {
                                                   __brick_move<__parallel_tag<_IsVector>>{}(
-                                                      __first + __i, __first + __j,                                                     // bounds for data1
-                                                      __first + __i - __n, __first + __i - __n + ((__first + __j) - (__first + __i)),   // bounds for results w/o limit
+                                                      __first + __i, __first + __j,             // bounds for data1
+                                                      __first + __i - __n,                      // results
                                                       _IsVector{});
                                               });
             }
