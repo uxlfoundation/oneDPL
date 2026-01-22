@@ -750,8 +750,8 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
           typename _CopyByMaskOp>
 std::tuple<sycl::event, __combined_storage<_Size>>
-__parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
-                     _IndexPred __pred, _CopyByMaskOp __copy_by_mask_op)
+__parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _IndexPred __pred,
+                     _CopyByMaskOp __copy_by_mask_op)
 {
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
@@ -879,9 +879,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     }
     else
     {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
-            std::forward<_Range2>(__result), __n, oneapi::dpl::__internal::__pred_at_index{__pred},
-            unseq_backend::__partition_by_mask{});
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
@@ -935,9 +935,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     }
     else
     {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-            std::forward<_OutRng>(__out_rng), __n, oneapi::dpl::__internal::__pred_at_index{__pred},
-            unseq_backend::__copy_by_mask<_Assign, 1>{__assign});
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__copy_by_mask<_Assign, 1>{__assign});
 
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());

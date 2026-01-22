@@ -147,6 +147,7 @@ class __unique_at_index
     {
         if constexpr (!_SafeAtZero)
             if (__i == 0) return true;
+
         return !_M_pred(__arr[__i], __arr[__i - 1]);
     }
 };
