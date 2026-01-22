@@ -206,7 +206,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
     const ::std::size_t __no_op_flag_idx = __count_buf.size() - 1;
 
-    assert(__elem_per_segment % __unroll_elements == 0 && "Segment size per segment must be multiple of unroll factor");
     //assert that we cannot overflow uint8 accumulation
     assert(__elem_per_segment / __wg_size < 256 && "Segment size per work-group is too large to count in uint8");
 
