@@ -184,7 +184,7 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _InRngPack, _OutRngPack>
 {
-    using _LocOffsetT = ::std::uint16_t;
+    using _LocOffsetT = ::std::uint32_t;
     using _GlobOffsetT = ::std::uint32_t;
     using _AtomicIdT = ::std::uint32_t;
 
@@ -392,20 +392,24 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         _GlobOffsetT* __p_this_group_hist = __p_group_hists + __bin_count * __wg_id;
         _GlobOffsetT* __p_prev_group_hist = __p_this_group_hist - __bin_count;
 
-        constexpr ::std::uint32_t __bin_summary_sub_group_size = 8; // have 8 sub-groups execute the summary
-        constexpr ::std::uint32_t __bin_width = __bin_count / __bin_summary_sub_group_size;
-        constexpr ::std::uint32_t __bin_width_per_item = __bin_width / __sub_group_size;
+        // This is important so that we can evenly partition the radix bits across a number of sub-groups
+        // without masking lanes. Radix bits is always a power of two, so this requirement essentially just
+        // requires radix_bits >= 5 for sub-group size of 32.
+        static_assert(__bin_count % __sub_group_size == 0);
 
-        static_assert(__bin_count % __bin_width == 0);
-        //static_assert(__bin_width_per_item % __sub_group_size == 0);
-     
+        constexpr ::std::uint32_t __bin_summary_sub_group_size = __bin_count / __sub_group_size;
+        constexpr ::std::uint32_t __bin_width = __sub_group_size;
+
         auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
         auto __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
         // 1. Vector scan of histograms previously accumulated by each work-item
         // update slm instead of grf summary due to perf issues with grf histogram
-        _LocOffsetT __item_grf_hist_summary[__bin_width_per_item] = {0};
-        _LocOffsetT __item_bin_counts[__bin_width_per_item];
+
+        // TODO: this single element array is a temporary workaround for sub group scan requiring an array
+        _LocOffsetT __item_grf_hist_summary_arr[1] = {0};
+        _LocOffsetT& __item_grf_hist_summary = __item_grf_hist_summary_arr[0];
+        _LocOffsetT __item_bin_count;
         if (__sub_group_id < __bin_summary_sub_group_size)
         {
             // 1.1. Vector scan of the same bins across different histograms.
@@ -414,60 +418,21 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             for (::std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
                  __s++, __slm_bin_hist_summary_offset += __bin_count)
             {
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i) {
-                    auto __slm_idx = __slm_bin_hist_summary_offset + __i * __sub_group_size + __sub_group_local_id;
-                    __item_grf_hist_summary[__i] += __slm_subgroup_hists[__slm_idx];
-                    __slm_subgroup_hists[__slm_idx] = __item_grf_hist_summary[__i];
-                }
+                auto __slm_idx = __slm_bin_hist_summary_offset + __sub_group_local_id;
+                __item_grf_hist_summary += __slm_subgroup_hists[__slm_idx];
+                __slm_subgroup_hists[__slm_idx] = __item_grf_hist_summary;
             }
+            __item_bin_count = __item_grf_hist_summary;
 
-            // Debug: After 1.1 accumulation
-#ifdef DEBUG_SYCL_KT
-            if (__wg_id == 0 && __sub_group_id == 0 && __sub_group_local_id < 4)
-            {
-                auto __bin_idx = __sub_group_id * __bin_width + __sub_group_local_id;
-                sycl::ext::oneapi::experimental::printf("[1.1] WG0 SG%u lane%u bin%u: accumulated=%u\n", __sub_group_id,
-                                                        __sub_group_local_id, __bin_idx, __item_grf_hist_summary[0]);
-            }
-#endif
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
-            {
-                __item_bin_counts[__i] = __item_grf_hist_summary[__i];
-            }
             // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
             // Only "__bin_width" pieces of the histogram are scanned at this stage.
             // This histogram will be further used for calculation of offsets of keys already reordered in SLM,
             // it does not participate in sycnhronization between work-groups.
-            __sub_group_scan<__sub_group_size, __bin_width_per_item>(
-                __idx.get_sub_group(), __item_grf_hist_summary,
-                std::plus<>{}, __bin_width);
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i) {
-                auto __write_idx = __sub_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
-                __slm_group_hist[__write_idx] = __item_grf_hist_summary[__i];
+            __sub_group_scan<__sub_group_size, 1>(__idx.get_sub_group(), __item_grf_hist_summary_arr, std::plus<>{},
+                                                  __bin_width);
 
-                // Debug: Show where we're writing
-#ifdef DEBUG_SYCL_KT
-                if (__wg_id == 0 && __sub_group_id == 0 && __sub_group_local_id < 4)
-                {
-                    sycl::ext::oneapi::experimental::printf(
-                        "[1.2 WRITE] WG0 SG%u lane%u: writing value=%u to group_hist[%u]\n", __sub_group_id,
-                        __sub_group_local_id, __item_grf_hist_summary[__i], __write_idx);
-                }
-#endif
-            }
-
-#ifdef DEBUG_SYCL_KT
-            // Debug: After 1.2 inclusive scan
-            if (__wg_id == 0 && __sub_group_id == 0 && __sub_group_local_id < 4)
-            {
-                auto __bin_idx = __sub_group_id * __bin_width + __sub_group_local_id;
-                sycl::ext::oneapi::experimental::printf("[1.2] WG0 SG%u lane%u bin%u: incl_scan=%u\n", __sub_group_id,
-                                                        __sub_group_local_id, __bin_idx, __item_grf_hist_summary[0]);
-            }
-#endif
+            auto __write_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+            __slm_group_hist[__write_idx] = __item_grf_hist_summary;
 
             // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
             // Write the histogram to global memory, bypassing caches, to ensure cross-work-group visibility.
@@ -477,11 +442,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 // Copy the histogram, local to this WG
                 using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                                          sycl::access::address_space::global_space>;
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i) {
-                    _GlobalAtomicT __ref(__p_this_group_hist[__sub_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id]);
-                    __ref.store(__item_bin_counts[__i] | __hist_updated);
-                }
+                _GlobalAtomicT __ref(__p_this_group_hist[__sub_group_id * __bin_width + __sub_group_local_id]);
+                __ref.store(__item_bin_count | __hist_updated);
             }
             else
             {
@@ -490,83 +452,20 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 using _GlobalAtomicT =
                     sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                      sycl::access::address_space::global_space>;
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
-                {
-                    auto __hist_idx = __sub_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
-                    _GlobOffsetT __global_hist = __p_global_hist[__hist_idx] & __global_offset_mask;
-                    _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_counts[__i];
-                    _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
-                    __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
-                    // Copy the global histogram to local memory to share with other work-items
-                    __slm_global_incoming[__hist_idx] = __global_hist;
 
-                    // Debug: WG0 global histogram
-#ifdef DEBUG_SYCL_KT
-                    if (__hist_idx < 8)
-                    {
-                        sycl::ext::oneapi::experimental::printf(
-                            "[1.3 WRITE] WG0 SG%u lane%u writes global_hist=%u to global_incoming[%u]\n",
-                            __sub_group_id, __sub_group_local_id, __global_hist, __hist_idx);
-                    }
-#endif
-                }
+                auto __hist_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+                _GlobOffsetT __global_hist = __p_global_hist[__hist_idx] & __global_offset_mask;
+                _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_count;
+                _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
+                __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
+                // Copy the global histogram to local memory to share with other work-items
+                __slm_global_incoming[__hist_idx] = __global_hist;
             }
         }
-        sycl::group_barrier(__idx.get_group());
-
-        // Debug: After 1.3, check what's in global_incoming for first 8 bins
-#ifdef DEBUG_SYCL_KT
-        if (__wg_id == 0 && __idx.get_local_linear_id() == 0)
-        {
-            sycl::ext::oneapi::experimental::printf("[POST-1.3] Checking global_incoming:\n");
-            for (std::uint32_t __b = 0; __b < 8; ++__b)
-            {
-                sycl::ext::oneapi::experimental::printf("  bin%u: global_incoming[%u]=%u\n", __b, __b,
-                                                        __slm_global_incoming[__b]);
-            }
-        }
-#endif
-        sycl::group_barrier(__idx.get_group());
-
-        // Debug: RIGHT after barrier, check if writes persisted
-#ifdef DEBUG_SYCL_KT
-        if (__wg_id == 0 && __idx.get_local_linear_id() < 4)
-        {
-            auto __check_idx = __idx.get_local_linear_id();
-            sycl::ext::oneapi::experimental::printf("[POST-BARRIER] WG0 thread%u: group_hist[%u]=%u\n",
-                                                    __idx.get_local_linear_id(), __check_idx,
-                                                    __slm_group_hist[__check_idx]);
-        }
-
-        // Debug: Before 1.4 - show raw SLM values
-        if (__wg_id == 0 && __idx.get_local_linear_id() == 0)
-        {
-            for (std::uint32_t __b = 0; __b < 8; ++__b)
-            {
-                sycl::ext::oneapi::experimental::printf("[Pre-1.4] WG0 bin%u: group_hist=%u\n", __b,
-                                                        __slm_group_hist[__b]);
-            }
-        }
-#endif
         sycl::group_barrier(__idx.get_group());
 
         auto __sub_group = __idx.get_sub_group();
         auto __sub_group_group_id = __sub_group.get_group_linear_id();
-
-        // Debug: Before 1.4, verify global_incoming is still intact
-#ifdef DEBUG_SYCL_KT
-        if (__wg_id == 0 && __idx.get_local_linear_id() == 0)
-        {
-            sycl::ext::oneapi::experimental::printf("[PRE-1.4] global_incoming check:\n");
-            for (std::uint32_t __b = 0; __b < 4; ++__b)
-            {
-                sycl::ext::oneapi::experimental::printf("  bin%u: global_incoming[%u]=%u\n", __b, __b,
-                                                        __slm_global_incoming[__b]);
-            }
-        }
-#endif
-        sycl::group_barrier(__idx.get_group());
 
         // 1.4 One work-item finalizes scan performed at stage 1.2
         // by propagating prefixes accumulated after scanning individual "__bin_width" pieces.
@@ -578,67 +477,37 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
         sycl::group_barrier(__idx.get_group());
 
-        // Debug: After 1.4 - show final values
-#ifdef DEBUG_SYCL_KT
-        if (__wg_id == 0 && __idx.get_local_linear_id() == 0)
-        {
-            for (std::uint32_t __b = 0; __b < 8; ++__b)
-            {
-                sycl::ext::oneapi::experimental::printf("[Post-1.4] WG0 bin%u: excl_scan=%u, global_incoming=%u\n", __b,
-                                                        __slm_group_hist[__b], __slm_global_incoming[__b]);
-            }
-        }
-#endif
-
         // 2. Chained scan. Synchronization between work-groups.
         if (__sub_group_group_id < __bin_summary_sub_group_size && __wg_id != 0)
         {
             using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                                         sycl::access::address_space::global_space>;
             // 2.1. Read the histograms scanned across work-groups
-            _GlobOffsetT __prev_group_hist_sum[__bin_width_per_item] = {0};
-            _GlobOffsetT __prev_group_hist[__bin_width_per_item];
-            bool __is_not_accumulated[__bin_width_per_item];
-            for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
-                __is_not_accumulated[__i] = true;
-
-            bool __local_not_accumulated = true;
+            _GlobOffsetT __prev_group_hist_sum = 0;
+            _GlobOffsetT __prev_group_hist;
+            bool __is_not_accumulated = true;
             do
             {
-                // best config is 1 here, so one lookback per item at this stage
-                for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
+                auto __idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+                _GlobalAtomicT __ref(__p_prev_group_hist[__idx]);
+                do
                 {
-                    auto __idx = __sub_group_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
-                    _GlobalAtomicT __ref(__p_prev_group_hist[__idx]);
-                    do {
-                        __prev_group_hist[__i] = __ref.load();
-                        // fence?
-                    } while ((__prev_group_hist[__i] & __hist_updated) == 0);
-                    __prev_group_hist_sum[__i] += __is_not_accumulated[__i] ? __prev_group_hist[__i] : 0;
-                    __is_not_accumulated[__i] = (__prev_group_hist_sum[__i] & __global_accumulated) == 0;
-                }
+                    __prev_group_hist = __ref.load();
+                } while ((__prev_group_hist & __hist_updated) == 0);
+                __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
+                __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
                 __p_prev_group_hist -= __bin_count;
-                __local_not_accumulated = false;
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
-                {
-                    __local_not_accumulated = __local_not_accumulated || __is_not_accumulated[__i];
-                }
-            } while (sycl::any_of_group(__sub_group, __local_not_accumulated));
-            // FIX: Use _GlobOffsetT instead of _LocOffsetT to avoid overflow when prev_group_hist_sum > 65535
-            _GlobOffsetT __after_group_hist_sum[__bin_width_per_item] = {0};
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
-            {
-                __prev_group_hist_sum[__i] &= __global_offset_mask;
-                __after_group_hist_sum[__i] = __prev_group_hist_sum[__i] + __item_bin_counts[__i];
-                auto __idx = __sub_group_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
-                // 2.2. Write the histogram scanned across work-group, updated with the current work-group data
-                _GlobalAtomicT __ref(__p_this_group_hist[__idx]);
-                __ref.store(__after_group_hist_sum[__i] | __hist_updated | __global_accumulated);
-                // 2.3. Save the scanned histogram from previous work-groups locally
-                __slm_global_incoming[__idx] = __prev_group_hist_sum[__i];
-            }
+            } while (sycl::any_of_group(__sub_group, __is_not_accumulated));
+
+            _GlobOffsetT __after_group_hist_sum = 0;
+            __prev_group_hist_sum &= __global_offset_mask;
+            __after_group_hist_sum = __prev_group_hist_sum + __item_bin_count;
+            auto __idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+            // 2.2. Write the histogram scanned across work-group, updated with the current work-group data
+            _GlobalAtomicT __ref(__p_this_group_hist[__idx]);
+            __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
+            // 2.3. Save the scanned histogram from previous work-groups locally
+            __slm_global_incoming[__idx] = __prev_group_hist_sum;
         }
         sycl::group_barrier(__idx.get_group());
     }
