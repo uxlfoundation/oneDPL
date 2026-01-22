@@ -682,38 +682,17 @@ struct __scan_ignore
 };
 
 // create mask
-template <typename _Pred, typename _ValueType>
+template <typename _IndexPred, typename _ValueType>
 struct __create_mask
 {
-    _Pred __pred;
+    _IndexPred __pred;
 
-    template <typename _Idx, typename _Input>
+    template <typename _Idx, typename... _Ranges>
     _ValueType
-    operator()(const _Idx __idx, const _Input& __input) const
+    operator()(const _Idx __idx, const oneapi::dpl::__ranges::zip_view<_Ranges...>& __input) const
     {
-        using std::get;
-
-        bool __mask_value = __pred(get<0>(__input[__idx]));
-
-        get<1>(__input[__idx]) = __mask_value;
-        return _ValueType(__mask_value);
-    }
-};
-
-template <typename _Pred, typename _ValueType>
-struct __create_mask_unique
-{
-    _Pred __pred;
-
-    template <typename _Idx, typename _Input>
-    _ValueType
-    operator()(const _Idx __idx, const _Input& __input) const
-    {
-        using std::get;
-
-        bool __mask_value = (__idx == 0) ? true : !__pred(get<0>(__input[__idx]), get<0>(__input[__idx + (-1)]));
-
-        get<1>(__input[__idx]) = __mask_value;
+        bool __mask_value = __pred(std::get<0>(__input.tuple()), __idx);
+        std::get<1>(__input[__idx]) = __mask_value;
         return _ValueType(__mask_value);
     }
 };

@@ -126,13 +126,6 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__create_mask<noop_device_copyable, int_non_device_copyable>>,
                   "__create_mask is incorrectly not device copyable because of non member field template arg");
-    //__create_mask_unique
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask_unique<noop_device_copyable, int_device_copyable>>,
-                  "__create_mask_unique is not device copyable with device copyable types");
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask_unique<noop_device_copyable, int_non_device_copyable>>,
-                  "__create_mask_unique is incorrectly not device copyable because of non member field template arg");
     //__copy_by_mask
     static_assert(
         sycl::is_device_copyable_v<
@@ -317,6 +310,12 @@ test_device_copyable()
     //__reorder_pred
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__reorder_pred<noop_device_copyable>>,
                   "__reorder_pred is not device copyable with device copyable types");
+    //__pred_at_index
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__pred_at_index<noop_device_copyable>>,
+                  "__pred_at_index is not device copyable with device copyable types");
+    //__unique_at_index
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__unique_at_index<noop_device_copyable>>,
+                  "__unique_at_index is not device copyable with device copyable types");
     //__equal_value
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::__equal_value<int_device_copyable>>,
                   "__equal_value is not device copyable with device copyable types");
@@ -466,10 +465,6 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::unseq_backend::__create_mask<noop_non_device_copyable, int_device_copyable>>,
                   "__create_mask is device copyable with non device copyable types");
-    //__create_mask_unique
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__create_mask_unique<noop_non_device_copyable, int_device_copyable>>,
-                  "__create_mask_unique is device copyable with non device copyable types");
     //__copy_by_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<
                       noop_device_copyable, noop_non_device_copyable, 10>>,
@@ -651,6 +646,12 @@ test_non_device_copyable()
     //__reorder_pred
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__reorder_pred<noop_non_device_copyable>>,
                   "__reorder_pred is device copyable with non device copyable types");
+    //__pred_at_index
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__pred_at_index<noop_non_device_copyable>>,
+                  "__pred_at_index is device copyable with non device copyable types");
+    //__unique_at_index
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__unique_at_index<noop_non_device_copyable>>,
+                  "__unique_at_index is device copyable with non device copyable types");
     //__equal_value
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::__equal_value<int_non_device_copyable>>,
                   "__equal_value is device copyable with non device copyable types");
