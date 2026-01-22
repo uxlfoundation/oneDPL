@@ -239,10 +239,10 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
     return __result + __n;
 }
 
-template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IterPredicate>
+template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
-                      _IterPredicate __pred) noexcept
+                      _IndexPredicate __pred) noexcept
 {
     std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan
     _DifferenceType __stop = __n;
@@ -270,9 +270,9 @@ __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __r
     return {__stop, __cnt < __n_out ? __cnt : __n_out};
 }
 
-template <typename _Iterator, typename _DifferenceType, typename _IterPredicate>
+template <typename _Iterator, typename _DifferenceType, typename _IndexPredicate>
 _DifferenceType
-__simd_compute_mask(_Iterator __first, _DifferenceType __n, _IterPredicate __pred, bool* __mask) noexcept
+__simd_compute_mask(_Iterator __first, _DifferenceType __n, _IndexPredicate __pred, bool* __mask) noexcept
 {
     _DifferenceType __count = 0;
 
@@ -822,15 +822,13 @@ _RandomAccessIterator
 __simd_remove_if(_RandomAccessIterator __first, _DifferenceType __n, _UnaryPredicate __pred) noexcept
 {
     // find first element we need to remove
-    auto __current = __unseq_backend::__simd_first(
-        __first, _DifferenceType(0), __n,
-        [&__pred](_RandomAccessIterator __it, _DifferenceType __i) { return __pred(__it[__i]); });
-    __n -= __current - __first;
+    auto __start = __unseq_backend::__simd_first(__first, _DifferenceType(0), __n, __internal::__pred_at_index{__pred});
+    __n -= __start - __first;
 
-    // if we have in sequence only one element that pred(__current[1]) != false we can exit the function
+    // if we have in sequence only one element that pred(__start[1]) != false we can exit the function
     if (__n < 2)
     {
-        return __current;
+        return __start;
     }
 
     _DifferenceType __cnt = 0;
@@ -838,13 +836,13 @@ __simd_remove_if(_RandomAccessIterator __first, _DifferenceType __n, _UnaryPredi
     for (_DifferenceType __i = 1; __i < __n; ++__i)
     {
         _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-        if (!__pred(__current[__i]))
+        if (!__pred(__start[__i]))
         {
-            __current[__cnt] = ::std::move(__current[__i]);
+            __start[__cnt] = ::std::move(__start[__i]);
             ++__cnt;
         }
     }
-    return __current + __cnt;
+    return __start + __cnt;
 }
 } // namespace __unseq_backend
 } // namespace dpl
