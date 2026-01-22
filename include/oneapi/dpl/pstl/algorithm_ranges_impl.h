@@ -1284,11 +1284,13 @@ using __set_symmetric_difference_return_t =
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
-                                  std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
-                                  std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
-                                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                                  _Proj2 __proj2)
 {
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+
     // 1. Main set_symmetric_difference operation
     while (__it1 != __end1 && __it2 != __end2)
     {
@@ -1331,19 +1333,6 @@ __serial_set_symmetric_difference(std::ranges::iterator_t<_R1> __it1, std::range
     auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
 
     return {__copy1.in, __copy2.in, __copy2.out};
-}
-
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                             std::ranges::borrowed_iterator_t<_R2>,
-                                             std::ranges::borrowed_iterator_t<_OutRange>>
-__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
-{
-    return __serial_set_symmetric_difference<_R1, _R2, _OutRange>(
-        std::ranges::begin(__r1), std::ranges::begin(__r1) + std::ranges::size(__r1), std::ranges::begin(__r2),
-        std::ranges::begin(__r2) + std::ranges::size(__r2), std::ranges::begin(__out_r),
-        std::ranges::begin(__out_r) + std::ranges::size(__out_r), __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
