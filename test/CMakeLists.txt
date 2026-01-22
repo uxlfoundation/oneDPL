@@ -132,21 +132,6 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
 
         set_tests_properties(${_test_name} PROPERTIES SKIP_RETURN_CODE 77)
 
-        if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-            if (DEFINED DEVICE_SELECTION_LINE)
-                message(FATAL_ERROR "PSTL offload tests ${_test_name} don't need ${DEVICE_SELECTION_LINE} variable, so one should be not set.")
-            endif()
-            # This test is only one requiring device selection environment, set it manually.
-            if ("${_test_name}" STREQUAL selected_different_device.pass AND _ONEDPL_PSTL_OFFLOAD MATCHES "(cpu|gpu)")
-                set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${_ONEDPL_PSTL_OFFLOAD}")
-            endif()
-        elseif (DEFINED DEVICE_SELECTION_LINE)
-            file(GLOB_RECURSE DS_TESTS "parallel_api/dynamic_selection/*.cpp")
-            if (NOT "${DS_TESTS}" MATCHES "${_test_name}") # do not set SYCL_DEVICE_FILTER for dynamic selection tests
-                set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT ${DEVICE_SELECTION_LINE})
-            endif()
-        endif()
-
         add_custom_target(run-${_test_name}
             COMMAND "${CMAKE_CTEST_COMMAND}" -R ^${_test_name}$$ --output-on-failure --no-label-summary
             USES_TERMINAL

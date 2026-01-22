@@ -23,9 +23,6 @@ function(_generate_test _target_name _test_path)
 
     add_test(NAME ${_target_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${_target_name})
     set_tests_properties(${_target_name} PROPERTIES SKIP_RETURN_CODE 77)
-    if (DEFINED DEVICE_SELECTION_LINE)
-        set_tests_properties(${_target_name} PROPERTIES ENVIRONMENT ${DEVICE_SELECTION_LINE})
-    endif()
 
     add_custom_target(run-${_target_name}
         COMMAND "${CMAKE_CTEST_COMMAND}" -R ^${_target_name}$$ --output-on-failure --no-label-summary
