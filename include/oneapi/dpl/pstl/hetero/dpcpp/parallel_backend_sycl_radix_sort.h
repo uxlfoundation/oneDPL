@@ -180,15 +180,11 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
-    static constexpr std::uint32_t __unroll_elements = 4;
 
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng);
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
     const ::std::size_t __no_op_flag_idx = __count_buf.size() - 1;
-
-    //assert that we cannot overflow uint8 accumulation
-    assert(__elem_per_segment / __wg_size * 2 < 256 && "Segment size per work-group is too large to count in uint8");
 
     auto __count_rng =
         oneapi::dpl::__ranges::all_view<_CountT, __par_backend_hetero::access_mode::read_write>(__count_buf);
@@ -220,31 +216,22 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 // Initialize private counters (uint8 to match SLM)
                 std::uint8_t __count_arr[__radix_states] = {0};
 
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
+                // Strided coalesced reads: all work-items read consecutive elements
+                for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end;
+                     __val_idx += __wg_size)
                 {
-                    __slm_counts[__wg_size * __i + __self_lidx] = 0;
+                    auto __val = __order_preserving_cast<__is_ascending>(
+                        std::invoke(__proj, __val_rng[__val_idx]));
+                    ::std::uint32_t __bucket = __get_bucket<__radix_states - 1>(__val, __radix_offset);
+                    ++__count_arr[__bucket];
                 }
 
-                // Strided coalesced reads: all work-items read consecutive elements
-                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_end;
-                     __val_idx += __wg_size * __unroll_elements)
+                // Write private counts to SLM (work-item-major layout for coalesced writes)
+                // Layout: wi0 [b0,b1,...,b15], wi1 [b0,b1,...,b15], ...
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
                 {
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
-                    {
-                        ::std::size_t __curr_idx = __val_idx + __unroll;
-                        if (__curr_idx < __seg_end)
-                        {
-                            // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
-                            auto __val = __order_preserving_cast<__is_ascending>(
-                                std::invoke(__proj, __val_rng[__curr_idx]));
-                            ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                            // increment counter for this bit bucket
-
-                            ++__slm_counts[__wg_size * __bucket + __self_lidx];
-                        }
-                    }
+                    __slm_counts[__self_lidx * __radix_states + __b] = __count_arr[__b];
                 }
 
                 __dpl_sycl::__group_barrier(__self_item);
@@ -255,7 +242,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     _CountT __sum = 0;
                     for (std::size_t __wi = 0; __wi < __wg_size; ++__wi)
                     {
-                        __sum += __slm_counts[__wg_size * __self_lidx + __wi];
+                        __sum += __slm_counts[__wi * __radix_states + __self_lidx];
                     }
                     // Write final count to global memory
                     __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __sum;
