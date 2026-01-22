@@ -181,17 +181,11 @@ struct __index_views
 
 template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, typename _ValRange, typename _CountBuf,
           typename _Proj
-#if _ONEDPL_COMPILE_KERNEL
-          , typename _Kernel
-#endif
           >
 sycl::event
 __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size,
                           ::std::uint32_t __radix_offset, _ValRange&& __val_rng, _CountBuf& __count_buf,
                           sycl::event __dependency_event, _Proj __proj
-#if _ONEDPL_COMPILE_KERNEL
-                          , _Kernel& __kernel
-#endif
 )
 {
     // typedefs
@@ -220,13 +214,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng, __count_rng);
         // an accessor per work-group with value counters from each work-item
         auto __count_lacc = __dpl_sycl::__local_accessor<std::uint8_t>(__radix_states * __wg_size, __hdl);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-        __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
-#endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-            __kernel,
-#endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
@@ -346,16 +334,10 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 //-----------------------------------------------------------------------
 
 template <typename _KernelName, std::uint32_t __radix_bits, typename _CountBuf
-#if _ONEDPL_COMPILE_KERNEL
-          , typename _Kernel
-#endif
           >
 sycl::event
 __radix_sort_scan_submit(sycl::queue& __q, std::size_t __scan_wg_size, std::size_t __segments, _CountBuf& __count_buf,
                          ::std::size_t __n, sycl::event __dependency_event
-#if _ONEDPL_COMPILE_KERNEL
-                         , _Kernel& __kernel
-#endif
 )
 {
     using _CountT = typename _CountBuf::value_type;
@@ -378,13 +360,7 @@ __radix_sort_scan_submit(sycl::queue& __q, std::size_t __scan_wg_size, std::size
         __hdl.depends_on(__dependency_event);
         // access the counters for all work groups
         oneapi::dpl::__ranges::__require_access(__hdl, __count_rng);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-        __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
-#endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-            __kernel,
-#endif
             sycl::nd_range<1>(__radix_states * __scan_wg_size, __scan_wg_size), [=](sycl::nd_item<1> __self_item) {
                 // find borders of a region with a specific bucket id
                 sycl::global_ptr<_CountT> __begin = __count_rng.begin() + __scan_size * __self_item.get_group(0);
@@ -581,17 +557,11 @@ __copy_kernel_for_radix_sort(const std::size_t __elem_per_segment, std::size_t _
 //-----------------------------------------------------------------------
 template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascending,
           typename _InRange, typename _OutRange, typename _OffsetBuf, typename _Proj
-#if _ONEDPL_COMPILE_KERNEL
-          , typename _Kernel
-#endif
           >
 sycl::event
 __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size, std::size_t __sg_size,
                             std::uint32_t __radix_offset, _InRange&& __input_rng, _OutRange&& __output_rng,
                             _OffsetBuf& __offset_buf, sycl::event __dependency_event, _Proj __proj
-#if _ONEDPL_COMPILE_KERNEL
-                            , _Kernel& __kernel
-#endif
 )
 {
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
@@ -624,13 +594,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // Layout: [subgroup_counts: num_sg * 16] [subgroup_prefix: num_sg * 16]
         auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2, __hdl);
 
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
-        __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
-#endif
         __hdl.parallel_for<_KernelName>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
-            __kernel,
-#endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
 
                 auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
@@ -768,35 +732,6 @@ struct __parallel_radix_sort_iteration
 #endif
         std::size_t __reorder_wg_size = __wg_size_reorder;
 
-        // correct __count_wg_size, __scan_wg_size, __reorder_sg_size after introspection of the kernels
-#if _ONEDPL_COMPILE_KERNEL
-        auto __kernels = __internal::__kernel_compiler<_RadixCountKernel, _RadixLocalScanKernel,
-                                                       _RadixReorderKernel>::__compile(__q);
-        auto __count_kernel = __kernels[0];
-        auto __local_scan_kernel = __kernels[1];
-        auto __reorder_kernel = __kernels[2];
-        std::size_t __count_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __count_kernel);
-        __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __reorder_kernel);
-        __scan_wg_size =
-            sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __local_scan_kernel));
-        //__count_wg_size = sycl::max(__count_sg_size, __reorder_sg_size);
-#else
-        // When kernel compilation is disabled, use conservative fallback values
-        // Get device sub-group sizes and pick a suitable one for radix sort
-        const auto __subgroup_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-        // The radix sort kernels are optimized for sub-group size 16 to avoid register spills
-        // and efficiently handle 4-bit radix (16 buckets). Prefer 16, then 32, then 8.
-        if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 16) != __subgroup_sizes.end())
-            __reorder_sg_size = 16;
-        else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 32) != __subgroup_sizes.end())
-            __reorder_sg_size = 32;
-        else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 8) != __subgroup_sizes.end())
-            __reorder_sg_size = 8;
-        // else keep __reorder_sg_size = __max_sg_size
-
-        // For __count_wg_size, use the maximum of the current value and __reorder_sg_size
-        __count_wg_size = sycl::max(__count_wg_size, __reorder_sg_size);
-#endif
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
         // correct __count_wg_size according to local memory limit in count phase
@@ -823,17 +758,11 @@ struct __parallel_radix_sort_iteration
         // 1. Count Phase
         sycl::event __count_event = __radix_sort_count_submit<_RadixCountKernel, __radix_bits, __is_ascending>(
             __q, __segments, __count_wg_size, __radix_offset, __in_rng, __tmp_buf, __dependency_event, __proj
-#if _ONEDPL_COMPILE_KERNEL
-            , __count_kernel
-#endif
         );
 
         // 2. Scan Phase
         sycl::event __scan_event = __radix_sort_scan_submit<_RadixLocalScanKernel, __radix_bits>(
             __q, __scan_wg_size, __segments, __tmp_buf, oneapi::dpl::__ranges::__size(__in_rng), __count_event
-#if _ONEDPL_COMPILE_KERNEL
-            , __local_scan_kernel
-#endif
         );
 
         // 3. Reorder Phase
@@ -841,9 +770,6 @@ struct __parallel_radix_sort_iteration
             __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
                 __q, __segments, __reorder_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
                 std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
-#if _ONEDPL_COMPILE_KERNEL
-                , __reorder_kernel
-#endif
             );
 
         return __reorder_event;
