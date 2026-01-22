@@ -231,12 +231,14 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         //      1.2 Scan group histogram: __group_hist_size
         //      1.3 Accumulate group histogram from previous groups: __global_hist_size
         // 2. Reorder keys in SLM:
-        //      2.1 Place global offsets into SLM for lookup: __global_hist_size
-        //      2.2 Reorder key-value pairs: __reorder_size
+        //      2.1 Reorder key-value pairs: __reorder_size (overlaps with histogram space)
+        //      2.2 Place global offsets into SLM for lookup: __global_hist_size (after all histograms)
+        //      During reorder, we need the old histograms + global_fix simultaneously
         constexpr ::std::uint32_t __reorder_size = __calc_reorder_slm_size();
         constexpr ::std::uint32_t __offset_calc_substage_slm =
             __work_item_all_hists_size + __group_hist_size + __global_hist_size;
-        constexpr ::std::uint32_t __reorder_substage_slm = __reorder_size + __global_hist_size;
+        constexpr ::std::uint32_t __reorder_substage_slm =
+            __offset_calc_substage_slm + __global_hist_size; // Need space for old histograms + global_fix
 
         constexpr ::std::uint32_t __slm_size = ::std::max(__offset_calc_substage_slm, __reorder_substage_slm);
         // Workaround: Align SLM allocation at 2048 byte border to avoid internal compiler error.
@@ -403,6 +405,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // 1. Vector scan of histograms previously accumulated by each work-item
         // update slm instead of grf summary due to perf issues with grf histogram
         _LocOffsetT __item_grf_hist_summary[__bin_width_per_item] = {0};
+        _LocOffsetT __item_bin_counts[__bin_width_per_item];
         if (__sub_group_id < __bin_summary_sub_group_size)
         {
             // 1.1. Vector scan of the same bins across different histograms.
@@ -428,7 +431,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                                         __sub_group_local_id, __bin_idx, __item_grf_hist_summary[0]);
             }
 #endif
-
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
+            {
+                __item_bin_counts[__i] = __item_grf_hist_summary[__i];
+            }
             // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
             // Only "__bin_width" pieces of the histogram are scanned at this stage.
             // This histogram will be further used for calculation of offsets of keys already reordered in SLM,
@@ -473,7 +480,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i) {
                     _GlobalAtomicT __ref(__p_this_group_hist[__sub_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id]);
-                    __ref.store(__item_grf_hist_summary[__i] | __hist_updated);
+                    __ref.store(__item_bin_counts[__i] | __hist_updated);
                 }
             }
             else
@@ -488,7 +495,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 {
                     auto __hist_idx = __sub_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
                     _GlobOffsetT __global_hist = __p_global_hist[__hist_idx] & __global_offset_mask;
-                    _GlobOffsetT __after_group_hist_sum = __global_hist + __item_grf_hist_summary[__i];
+                    _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_counts[__i];
                     _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
                     __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
                     // Copy the global histogram to local memory to share with other work-items
@@ -618,12 +625,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                     __local_not_accumulated = __local_not_accumulated || __is_not_accumulated[__i];
                 }
             } while (sycl::any_of_group(__sub_group, __local_not_accumulated));
-            _LocOffsetT __after_group_hist_sum[__bin_width_per_item] = {0};
+            // FIX: Use _GlobOffsetT instead of _LocOffsetT to avoid overflow when prev_group_hist_sum > 65535
+            _GlobOffsetT __after_group_hist_sum[__bin_width_per_item] = {0};
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __bin_width_per_item; ++__i)
             {
                 __prev_group_hist_sum[__i] &= __global_offset_mask;
-                __after_group_hist_sum[__i] = __prev_group_hist_sum[__i] + __item_grf_hist_summary[__i];
+                __after_group_hist_sum[__i] = __prev_group_hist_sum[__i] + __item_bin_counts[__i];
                 auto __idx = __sub_group_group_id * __bin_width + __i * __sub_group_size + __sub_group_local_id;
                 // 2.2. Write the histogram scanned across work-group, updated with the current work-group data
                 _GlobalAtomicT __ref(__p_this_group_hist[__idx]);
@@ -787,7 +795,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         {
             __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __wg_size * __data_per_work_item * sizeof(_KeyT));
         }
-        _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __calc_reorder_slm_size());
+        // Place __slm_global_fix AFTER __slm_global_incoming to avoid overlap
+        // __slm_global_incoming ends at: __work_item_all_hists_size + __group_hist_size + __global_hist_size
+        _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __work_item_all_hists_size +
+                                                                         __group_hist_size + __global_hist_size);
 
         __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __slm_subgroup_hists, __slm_group_hist,
                              __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
