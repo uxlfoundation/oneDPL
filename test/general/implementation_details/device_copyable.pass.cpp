@@ -128,13 +128,8 @@ test_device_copyable()
                   "__create_mask is incorrectly not device copyable because of non member field template arg");
     //__copy_by_mask
     static_assert(
-        sycl::is_device_copyable_v<
-            oneapi::dpl::unseq_backend::__copy_by_mask<noop_device_copyable, noop_device_copyable, 10>>,
+        sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<noop_device_copyable, 10>>,
         "__copy_by_mask is not device copyable with device copyable types");
-    // __partition_by_mask
-    static_assert(sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__partition_by_mask<noop_device_copyable>>,
-                  "__partition_by_mask is not device copyable with device copyable types");
     // __global_scan_functor
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__global_scan_functor<
                       std::true_type, noop_device_copyable, int_device_copyable>>,
@@ -466,13 +461,8 @@ test_non_device_copyable()
                       oneapi::dpl::unseq_backend::__create_mask<noop_non_device_copyable, int_device_copyable>>,
                   "__create_mask is device copyable with non device copyable types");
     //__copy_by_mask
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<
-                      noop_device_copyable, noop_non_device_copyable, 10>>,
+    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__copy_by_mask<noop_non_device_copyable, 10>>,
                   "__copy_by_mask is device copyable with non device copyable types");
-    //__partition_by_mask
-    static_assert(!sycl::is_device_copyable_v<
-                      oneapi::dpl::unseq_backend::__partition_by_mask<noop_non_device_copyable>>,
-                  "__partition_by_mask is device copyable with non device copyable types");
     //__global_scan_functor
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::unseq_backend::__global_scan_functor<
                       std::true_type, noop_non_device_copyable, int_device_copyable>>,

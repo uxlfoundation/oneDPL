@@ -698,10 +698,9 @@ struct __create_mask
 };
 
 // functors for scan
-template <typename _BinaryOp, typename _Assigner, std::size_t N>
+template <typename _Assigner, std::size_t N>
 struct __copy_by_mask
 {
-    _BinaryOp __binary_op;
     _Assigner __assigner;
 
     template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
@@ -738,7 +737,7 @@ struct __copy_by_mask
             if (__item_idx >= __size_per_wg)
             {
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
-                __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
+                __out_idx += __wg_sums_ptr[__wg_sums_idx];
             }
             if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
             {
@@ -771,11 +770,8 @@ struct __copy_by_mask_stops
     }
 };
 
-template <typename _BinaryOp>
 struct __partition_by_mask
 {
-    _BinaryOp __binary_op;
-
     template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
               typename _SizePerWg>
     void
@@ -797,7 +793,7 @@ struct __partition_by_mask
                     __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
-                    __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
+                    __out_idx += __wg_sums_ptr[__wg_sums_idx - 1];
                 get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
             }
             else
