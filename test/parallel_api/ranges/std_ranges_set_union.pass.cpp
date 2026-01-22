@@ -141,9 +141,9 @@ struct
 
         if (idx1 < n1)
         {
-            auto remaining_space = nOut - idxOut;
-            auto remaining_input = n1 - idx1;
-            auto to_copy = std::min(remaining_space, remaining_input);
+            const auto remaining_space = nOut - idxOut;
+            const auto remaining_input = n1 - idx1;
+            const auto to_copy = std::min(remaining_space, remaining_input);
             std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
             idx1 += to_copy;
@@ -152,9 +152,9 @@ struct
 
         if (idx2 < n2)
         {
-            auto remaining_space = nOut - idxOut;
-            auto remaining_input = n2 - idx2;
-            auto to_copy = std::min(remaining_space, remaining_input);
+            const auto remaining_space = nOut - idxOut;
+            const auto remaining_input = n2 - idx2;
+            const auto to_copy = std::min(remaining_space, remaining_input);
             std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
 
             idx2 += to_copy;
