@@ -242,8 +242,12 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 // 1.2. count per witem: count values and write result to private count array
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
-                // Private histogram - count into registers (faster than SLM)
-                std::uint8_t __local_hist[__radix_states] = {0};
+                // reset SLM buckets
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __i = 0; __i < __counter_lanes; ++__i)
+                {
+                    __slm_counts[__views.__get_bucket32_idx(__wg_size, __i, __self_lidx)] = 0;
+                }
 
                 // Strided coalesced reads: all work-items read consecutive elements
                 // Compute how many full iterations we can do without bounds checking
@@ -261,7 +265,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                         auto __val = __order_preserving_cast<__is_ascending>(
                             std::invoke(__proj, __val_rng[__val_idx + __unroll]));
                         ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                        ++__local_hist[__bucket];
+                        ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                     }
                 }
 
@@ -276,16 +280,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                             auto __val = __order_preserving_cast<__is_ascending>(
                                 std::invoke(__proj, __val_rng[__curr_idx]));
                             ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                            ++__local_hist[__bucket];
+                            ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                         }
                     }
-                }
-
-                // Write private histogram to SLM (single burst write per WI)
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
-                {
-                    __slm_buckets[__views.__get_bucket_idx(__wg_size, __i, __self_lidx)] = __local_hist[__i];
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
@@ -602,7 +599,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
         // Minimal SLM: only for subgroup coordination (no value buffering)
         // Layout: [subgroup_counts: num_sg * 16] [subgroup_prefix: num_sg * 16]
-        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states, __hdl);
+        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states * 2, __hdl);
 
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
