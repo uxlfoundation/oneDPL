@@ -885,6 +885,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },
+        __set_union_offsets{},                                   // _ReachedPositionsEvaluator __reached_positions_evaluator{}
         __comp, __proj1, __proj2)
         .template __get_reached_in1_in2_out<__set_union_return_t<_R1, _R2, _OutRange>>();
 }
@@ -1047,6 +1048,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::true_type{},
                         __comp, __proj1, __proj2);
                 },
+                __set_intersection_offsets{},                                                   // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
@@ -1085,6 +1087,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::false_type{},
                         __comp, __proj2, __proj1);
                 },
+                __set_intersection_offsets{},                                                   // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
@@ -1274,6 +1277,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __BrickCopyConstruct<_IsVector>(),      // _CopyConstructRange __cc_range
                     __comp, __proj1, __proj2);
             },
+            __set_difference_offsets{},                     // _ReachedPositionsEvaluator __reached_positions_evaluator
             __comp, __proj1, __proj2)
             .template __get_reached_in1_out<__set_difference_return_t<_R1, _OutRange>>();
     }
@@ -1430,6 +1434,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                 oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),         // _CopyConstructRange __cc_range
                 __comp, __proj1, __proj2);
         },
+        __set_symmetric_difference_offsets{},                                       // _ReachedPositionsEvaluator __reached_positions_evaluator
         __comp, __proj1, __proj2)
         .template __get_reached_in1_in2_out<__set_symmetric_difference_return_t<_R1, _R2, _OutRange>>();
 }

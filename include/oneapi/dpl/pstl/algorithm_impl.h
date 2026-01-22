@@ -3746,6 +3746,7 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
+          class _ReachedPositionsEvaluator,
           class _Compare, class _Proj1, class _Proj2>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
@@ -3755,6 +3756,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                   _SizeFunction __size_func,
                   _MaskSizeFunction __mask_size_func,
                   _SetUnionOp __set_union_op,
+                  _ReachedPositionsEvaluator __reached_positions_evaluator,
                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -3801,6 +3803,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __size_func,
                                          __mask_size_func,
                                          __set_union_op,
+                                         __reached_positions_evaluator,
                                          &__buf,
                                          &__buf_mask_rng,
                                          &__buf_mask_rng_res,
@@ -4075,26 +4078,13 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 #endif
 
         // Evaluate reached offsets in input ranges
-        // KSATODO required to extract this code from this function        
-#if 0
-        // set_union
-        const auto __reached_positions = __set_union_offsets{}.operator()(
+        const auto __reached_positions = __reached_positions_evaluator(
             __parallel_tag<_IsVector>{}, __exec,
             __n1, __n2, __n_out,
             __size_func,
             __mask_size_func,
             __buf_mask_rng_res_raw_data_begin,
             __res_reachedOutPos);
-#else
-        // set_intersection
-        const auto __reached_positions = __set_difference_offsets{}.operator()(
-            __parallel_tag<_IsVector>{}, __exec,
-            __n1, __n2, __n_out,
-            __size_func,
-            __mask_size_func,
-            __buf_mask_rng_res_raw_data_begin,
-            __res_reachedOutPos);
-#endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             { __first1 + __reached_positions.first,
@@ -4105,13 +4095,16 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
+          class _OutputIterator, class _SetUnionOp,
+          class _ReachedPositionsEvaluator,
+          class _Compare, class _Proj1, class _Proj2>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,    // bounds for data1
                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,    // bounds for data2
                         _OutputIterator __result1, _OutputIterator __result2,               // bounds for results
                         _SetUnionOp __set_union_op,
+                        _ReachedPositionsEvaluator __reached_positions_evaluator,
                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -4234,6 +4227,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
                     __set_union_op,                         // _SetUnionOp __set_union_op
+                    __reached_positions_evaluator,          // _ReachedPositionsEvaluator __reached_positions_evaluator
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4263,6 +4257,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
                     __set_union_op,                         // _SetUnionOp __set_union_op
+                    __reached_positions_evaluator,          // _ReachedPositionsEvaluator __reached_positions_evaluator
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4276,6 +4271,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __size_fnc,                                         // _SizeFunction __size_func
         __mask_size_fnc,                                    // _MaskSizeFunction __mask_size_fnc
         __set_union_op,                                     // _SetUnionOp __set_union_op
+        __reached_positions_evaluator,                      // _ReachedPositionsEvaluator __reached_positions_evaluator
         __comp, __proj1, __proj2);
 }
 
@@ -4360,6 +4356,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
+        __set_union_offsets{},                                  // _ReachedPositionsEvaluator __reached_positions_evaluator
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
 }
@@ -4466,6 +4463,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::true_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
+                __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
@@ -4504,6 +4502,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         /*CopyFromFirstSet = */ std::false_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
+                __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
@@ -4609,6 +4608,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
+            __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     }
@@ -4691,6 +4691,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
+            __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     });
