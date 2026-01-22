@@ -1787,27 +1787,21 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
         __output_size = __n1 + __n2;
     }
 
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
     auto __buf1 = __keep1(__first1, __last1);
-    auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator2>();
+
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator2>();
     auto __buf2 = __keep2(__first2, __last2);
 
     auto __keep3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _OutputIterator>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    auto __buf3_av = __buf3.all_view();
-
     const auto __parallel_set_op_res = __par_backend_hetero::__parallel_set_op<_SetTag>(
         _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec),
-        __buf1.all_view(), __buf2.all_view(), __buf3_av,
+        __buf1.all_view(), __buf2.all_view(), __buf3.all_view(),
         __comp, __proj1, __proj2);
 
-    auto __result_offset = __parallel_set_op_res.__get_reached_out() - oneapi::dpl::__ranges::__begin(__buf3_av);
-    assert(__result_offset <= __output_size);
-
-    return __result + __result_offset;
+    return __result + std::get<2>(__parallel_set_op_res);
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,

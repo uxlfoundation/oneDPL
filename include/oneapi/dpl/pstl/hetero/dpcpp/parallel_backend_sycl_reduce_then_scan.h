@@ -2258,40 +2258,6 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-/* 
-    Chain of calls for __parallel_transform_reduce_then_scan :
-
-    __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag...  -> __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-        __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag -> void
-        __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag -> void
-        __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag                     -> Iterator2
-        __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag                     -> Iterator2
-        __pattern_transform_scan_base(__hetero_tag<_BackendTag>                           -> oneapi::dpl::__internal::__difference_t<_Range2>
-        __pattern_transform_scan(__parallel_tag<_IsVector> __tag                          -> _OutputIterator
-
-    __parallel_reduce_then_scan_copy(sycl::queue& __q,                          -> __future<sycl::event, __result_and_scratch_storage<_Size>>
-        __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag              -> __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
-        __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag           -> __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
-        __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag                  -> __future<sycl::event, __result_and_scratch_storage<_Size>>
-
-    __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q              -> __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
-        __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag        -> oneapi::dpl::__internal::__difference_t<_Range3>
-
-    __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q                -> __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
-        __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag          -> void
-
-    __parallel_set_reduce_then_scan_set_a_write(_SetTag<                        -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-        __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag                -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-        __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag                  -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-
-    __parallel_set_reduce_then_scan_set_a_write(_SetTag<                        -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-        __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag                -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-        __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag                  -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-
-    __parallel_set_write_a_b_op(_SetTag<                                        -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-        __set_op_impl(_SetTag __set_tag                                                   -> oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2, _Range3>
-
-*/
 template <std::uint32_t __bytes_per_work_item_iter,
           typename _CustomName,
           typename _InRng, typename _OutRng,

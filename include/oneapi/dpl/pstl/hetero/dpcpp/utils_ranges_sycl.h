@@ -36,7 +36,7 @@ namespace __internal
 {
 
 template <typename _Range1, typename _Range2, typename _Range3>
-using __rng_set_operations_result_in_offsets =
+using __rng_set_operations_result =
     std::tuple<oneapi::dpl::__internal::__range_size_t<_Range1>,
                oneapi::dpl::__internal::__range_size_t<_Range2>,
                oneapi::dpl::__internal::__range_size_t<_Range3>>;
@@ -44,7 +44,7 @@ using __rng_set_operations_result_in_offsets =
 template <typename _Range1, typename _Range2, typename _Range3>
 struct __combine_set_operation_offsets
 {
-    using _op_t = __rng_set_operations_result_in_offsets<_Range1, _Range2, _Range3>;
+    using _op_t = __rng_set_operations_result<_Range1, _Range2, _Range3>;
 
     inline _op_t
     operator()(const _op_t& __arg1, const _op_t& __arg2) const
@@ -54,12 +54,6 @@ struct __combine_set_operation_offsets
                  __arg1.template get<2>() + __arg2.template get<2>()           };   // Sum of offsets in the output range (amount of filled elements)
     }
 };
-
-template <typename _Range1, typename _Range2, typename _Range3>
-using __rng_set_operations_result =
-    oneapi::dpl::__utils::__set_operations_result<oneapi::dpl::__internal::__iterator_t<_Range1>,
-                                                  oneapi::dpl::__internal::__iterator_t<_Range2>,
-                                                  oneapi::dpl::__internal::__iterator_t<_Range3>>;
 
 template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
