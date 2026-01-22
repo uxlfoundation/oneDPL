@@ -3300,8 +3300,7 @@ constexpr bool
 __is_great_that_set_algo_cut_off(Size size)
 {
     // 1024 is chosen as a cut-off value based on benchmarking source data sizes
-    //constexpr auto __set_algo_cut_off = 1024;
-    constexpr auto __set_algo_cut_off = 0;
+    constexpr auto __set_algo_cut_off = 1024;
     return size > __set_algo_cut_off;
 }
 
