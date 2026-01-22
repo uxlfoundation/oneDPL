@@ -169,6 +169,13 @@ struct __index_views
     }
 
     std::uint32_t
+    __get_bucket32_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
+    {
+        return __wg_id * (__radix_states / __packing_ratio) + __radix_id_lane;
+    }
+
+
+    std::uint32_t
     __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
         return __radix_id * (__workgroup_size / __packing_ratio) + __wg_id;
@@ -237,9 +244,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 // reset SLM buckets
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
+                for (std::uint32_t __i = 0; __i < __counter_lanes; ++__i)
                 {
-                    __slm_buckets[__views.__get_bucket_idx(__wg_size, __i, __self_lidx)] = 0;
+                    __slm_counts[__views.__get_bucket32_idx(__wg_size, __i, __self_lidx)] = 0;
                 }
 
                 // Strided coalesced reads: all work-items read consecutive elements
