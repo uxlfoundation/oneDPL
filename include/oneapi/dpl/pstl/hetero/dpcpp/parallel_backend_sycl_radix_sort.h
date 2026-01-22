@@ -566,7 +566,7 @@ template <typename _KernelName, ::std::uint32_t __radix_bits, bool __is_ascendin
           typename _InRange, typename _OutRange, typename _OffsetBuf, typename _Proj
           >
 sycl::event
-__radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size, std::size_t __sg_size,
+__radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size, std::size_t __min_sg_size,
                             std::uint32_t __radix_offset, _InRange&& __input_rng, _OutRange&& __output_rng,
                             _OffsetBuf& __offset_buf, sycl::event __dependency_event, _Proj __proj
 )
@@ -582,7 +582,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__output_rng);
     const ::std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
-    const ::std::size_t __num_subgroups = __wg_size / __sg_size;
+    const ::std::size_t __max_num_subgroups = __wg_size / __min_sg_size;
 
     const ::std::size_t __no_op_flag_idx = __offset_buf.size() - 1;
 
@@ -599,11 +599,10 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
         // Minimal SLM: only for subgroup coordination (no value buffering)
         // Layout: [subgroup_counts: num_sg * 16] [subgroup_prefix: num_sg * 16]
-        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__num_subgroups * __radix_states * 2, __hdl);
+        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states * 2, __hdl);
 
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
-
                 auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
                 if (__no_op_flag)
                 {
@@ -620,6 +619,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
+                const std::uint32_t __num_subgroups = __wg_size / __sg_size;
 
                 // Compute this subgroup's contiguous chunk of the segment
                 const std::size_t __elems_per_sg = oneapi::dpl::__internal::__dpl_ceiling_div(__elem_per_segment, __num_subgroups);
@@ -727,8 +727,7 @@ struct __parallel_radix_sort_iteration
             __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>,
                                                 std::decay_t<_OutRange>, _Proj>;
 
-        std::size_t __max_sg_size = oneapi::dpl::__internal::__max_sub_group_size(__q);
-        ::std::size_t __reorder_sg_size = __max_sg_size;
+        std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
         std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_scan);
@@ -775,7 +774,7 @@ struct __parallel_radix_sort_iteration
         // 3. Reorder Phase
         sycl::event __reorder_event =
             __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
-                __q, __segments, __reorder_wg_size, __reorder_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
+                __q, __segments, __reorder_wg_size, __reorder_min_sg_size, __radix_offset, std::forward<_InRange>(__in_rng),
                 std::forward<_OutRange>(__out_rng), __tmp_buf, __scan_event, __proj
             );
 
