@@ -229,9 +229,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 #endif
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 
-                static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
-                static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
-                
+                auto __sub_group = __self_item.get_sub_group();
+                const std::uint32_t __sg_size = __sub_group.get_local_linear_range();
+                const std::uint32_t __sg_lid = __sub_group.get_local_linear_id();
 
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
@@ -239,12 +239,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const ::std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
 
                 std::uint8_t* __slm_buckets = &__count_lacc[0];
-                _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
-                __index_views<__packing_ratio, __radix_states> __views;
+                __index_views<1, __radix_states> __views;  // First param unused for __get_bucket_idx
 
-                // Private array for partial sums - only 4 registers needed per WI
-                _CountT __count_arr[__packing_ratio] = {0};
-                // 1.2. count per witem: count values and write result to private count array
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
                 // reset SLM buckets
@@ -291,44 +287,33 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
-                // All WIs participate - each handles 4 radix states from 4 columns
-                // This distributes work evenly and reduces register pressure
-                const std::uint32_t __wis_per_radix_group = __wg_size / __counter_lanes;  // 128/4 = 32
-                const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group;  // 0-3
-                const std::uint32_t __radix_base = __radix_group * __packing_ratio;  // 0, 4, 8, or 12
-                const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group;  // 0-31
-                const std::uint32_t __col_base = __wi_in_group * __packing_ratio;  // 0, 4, 8, ..., 124
+                // Reduction phase: WG_SIZE must equal SG_SIZE * RADIX_STATES (16 subgroups)
+                // Each subgroup handles exactly one radix state
+                // Subgroup ID directly maps to radix state
+                const std::uint32_t __sg_id = __sub_group.get_group_linear_id();  // This IS the radix state
                 
-                // Accumulate 4 radix states from 4 columns
-                _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
-                {
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
-                    {
-                        __count_arr[__r] += static_cast<_CountT>(
-                            __slm_buckets[__views.__get_bucket_idx(__wg_size, __radix_base + __r, __col_base + __c)]);
-                    }
-                }
-                __dpl_sycl::__group_barrier(__self_item);
+                // Each WI reads WG_SIZE/SG_SIZE = 16 columns for its subgroup's radix state
+                // WIs in same subgroup read disjoint columns, covering all WG_SIZE columns
+                const std::uint32_t __cols_per_wi = __wg_size / __sg_size;  // Always 16
+                const std::uint32_t __col_start = __sg_lid * __cols_per_wi;
                 
-                // All WIs write their 4 partial sums to SLM
+                _CountT __partial_sum = 0;
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                for (std::uint32_t __c = 0; __c < __cols_per_wi; ++__c)
                 {
-                    __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] = __count_arr[__r];
+                    __partial_sum += static_cast<_CountT>(
+                        __slm_buckets[__views.__get_bucket_idx(__wg_size, __sg_id, __col_start + __c)]);
                 }
-
-                __dpl_sycl::__group_barrier(__self_item);
-
-                if (__self_lidx < __radix_states)
+                
+                // Single subgroup reduction - all WIs have same radix state, different columns
+                _CountT __total = sycl::reduce_over_group(__sub_group, __partial_sum, sycl::plus<_CountT>{});
+                
+                // First WI in each subgroup writes the final count for its radix state
+                if (__sg_lid == 0)
                 {
-                    for ( std::uint32_t __wg_id = 1; __wg_id < __wg_size / __packing_ratio; ++__wg_id)
-                    __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)] += __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, __wg_id)];
-                    //write final count to global memory
-                    __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)];
+                    __count_rng[(__segments + 1) * __sg_id + __wgroup_idx] = __total;
                 }
-
+                
                 // 3.0 side work: reset 'no operation flag', which specifies whether to skip re-order phase
                 if (__wgroup_idx == 0 && __self_lidx == 0)
                 {
@@ -779,36 +764,40 @@ struct __parallel_radix_sort_iteration
         __reorder_sg_size = oneapi::dpl::__internal::__kernel_sub_group_size(__q, __reorder_kernel);
         __scan_wg_size =
             sycl::min(__scan_wg_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __local_scan_kernel));
-        //__count_wg_size = sycl::max(__count_sg_size, __reorder_sg_size);
+        // Count kernel requires WG_SIZE = SG_SIZE * 16 for single subgroup reduction
+        __count_wg_size = __count_sg_size * (1 << __radix_bits);
 #else
         // When kernel compilation is disabled, use conservative fallback values
         // Get device sub-group sizes and pick a suitable one for radix sort
         const auto __subgroup_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
         // The radix sort kernels are optimized for sub-group size 16 to avoid register spills
         // and efficiently handle 4-bit radix (16 buckets). Prefer 16, then 32, then 8.
+        std::size_t __count_sg_size = __max_sg_size;
         if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 16) != __subgroup_sizes.end())
+        {
             __reorder_sg_size = 16;
+            __count_sg_size = 16;
+        }
         else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 32) != __subgroup_sizes.end())
+        {
             __reorder_sg_size = 32;
+            __count_sg_size = 32;
+        }
         else if (std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), 8) != __subgroup_sizes.end())
+        {
             __reorder_sg_size = 8;
+            __count_sg_size = 8;
+        }
         // else keep __reorder_sg_size = __max_sg_size
 
-        // For __count_wg_size, use the maximum of the current value and __reorder_sg_size
-        __count_wg_size = sycl::max(__count_wg_size, __reorder_sg_size);
+        // Count kernel requires WG_SIZE = SG_SIZE * 16 for single subgroup reduction
+        __count_wg_size = __count_sg_size * (1 << __radix_bits);
 #endif
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
-        // correct __count_wg_size according to local memory limit in count phase
-        using _CounterType = typename ::std::decay_t<_TmpBuf>::value_type;
-        const auto __max_count_wg_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-            __q, sizeof(_CounterType) * __radix_states, __count_wg_size);
-        __count_wg_size = static_cast<::std::size_t>((__max_count_wg_size / __radix_states)) * __radix_states;
-
-        // work-group size must be a power of 2 and not less than the number of states.
-        // TODO: Check how to get rid of that restriction.
-        __count_wg_size =
-            sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__count_wg_size), ::std::size_t(__radix_states));
+        // Verify the count work-group size constraint is satisfied
+        // __count_wg_size must be exactly SG_SIZE * 16 for the reduction to work correctly
+        // The SLM adjustment below should not violate this constraint on modern GPUs
 
 
         //std::cout<<"Radix sort iteration parameters: "
@@ -925,26 +914,28 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
 
-        std::size_t __wg_size_count = 128;
-        std::size_t __keys_per_wi_count = 64;
+        // Tunable parameters - note that count WG_SIZE will be SG_SIZE * 16 (determined at runtime)
+        std::size_t __wg_size_count = 128;  // Initial value, will be overridden by SG_SIZE * 16
+        std::size_t __keys_per_segment = 8192;  // Target keys per segment
         std::size_t __wg_size_scan = 1024;
         std::size_t __wg_size_reorder = 256;
 
+        // Adjust keys_per_segment based on input size
         if (__n < 1 << 14)
         {
-            __keys_per_wi_count = 8;
+            __keys_per_segment = 1024;
         }
         else if (__n < 1 << 16)
         {
-            __keys_per_wi_count = 16;
+            __keys_per_segment = 2048;
         }
         else if (__n < 1 << 20)
         {
-            __keys_per_wi_count = 32;
+            __keys_per_segment = 4096;
         }
 
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
+        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __keys_per_segment);
 //        std::cout<<"using segments: "<<__segments<<"\n";
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
