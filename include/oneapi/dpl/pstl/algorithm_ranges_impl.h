@@ -903,11 +903,12 @@ using __set_intersection_return_t =
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::iterator_t<_R1> __end1,
-                          std::ranges::iterator_t<_R2> __it2, std::ranges::iterator_t<_R2> __end2,
-                          std::ranges::iterator_t<_OutRange> __out_it, std::ranges::iterator_t<_OutRange> __out_end,
-                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
+
     while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
@@ -930,20 +931,6 @@ __serial_set_intersection(std::ranges::iterator_t<_R1> __it1, std::ranges::itera
     }
 
     return {__it1, __it2, __out_it};
-}
-
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_intersection_return_t<_R1, _R2, _OutRange>
-__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-     auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-     auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    return __serial_set_intersection<_R1, _R2, _OutRange>(__it1, __end1,
-                                                          __it2, __end2,
-                                                          __out_it, __out_end,
-                                                          __comp, __proj1, __proj2);
 }
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1094,9 +1081,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return __serial_set_intersection(__left_bound_seq_1, __last1,
-                                     __left_bound_seq_2, __last2,
-                                     std::ranges::begin(__out_r), std::ranges::end(__out_r),
+    return __serial_set_intersection(std::ranges::subrange(__left_bound_seq_1, __last1),
+                                     std::ranges::subrange(__left_bound_seq_2, __last2),
+                                     __out_r,
                                      __comp, __proj1, __proj2);
 }
 
