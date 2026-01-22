@@ -1799,11 +1799,12 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
 
     auto __buf3_av = __buf3.all_view();
 
-    auto [__first1_res, __first2_res, __result_res] = __par_backend_hetero::__parallel_set_op<_SetTag>(
-        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
-        __buf3_av, __comp, __proj1, __proj2);
+    const auto __parallel_set_op_res = __par_backend_hetero::__parallel_set_op<_SetTag>(
+        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec),
+        __buf1.all_view(), __buf2.all_view(), __buf3_av,
+        __comp, __proj1, __proj2);
 
-    auto __result_offset = __result_res - oneapi::dpl::__ranges::__begin(__buf3_av);
+    auto __result_offset = __parallel_set_op_res.__get_reached_out() - oneapi::dpl::__ranges::__begin(__buf3_av);
     assert(__result_offset <= __output_size);
 
     return __result + __result_offset;
