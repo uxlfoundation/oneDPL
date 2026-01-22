@@ -959,13 +959,11 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    auto __merge_future = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
+    const auto __merge_result = __par_backend_hetero::__parallel_merge<std::true_type /*out size limit*/>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2);
-
-    auto __merge_result = __merge_future.get();
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2).get();
 
     return {__merge_result.first, __merge_result.second};
 }
