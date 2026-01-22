@@ -47,7 +47,8 @@ transform_async(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIt
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    auto ret_val = oneapi::dpl::__internal::__pattern_walk2_async(
+    auto ret_val = oneapi::dpl::__internal::__pattern_walk2_async<__par_backend_hetero::access_mode::write,
+                                                                  /*_IsNoInitRequested=*/true>(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
         oneapi::dpl::__internal::__transform_functor<_UnaryOperation>{::std::move(__op)});
     return ret_val;
@@ -65,7 +66,8 @@ transform_async(_ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardI
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first1, __first2, __result);
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    auto ret_val = oneapi::dpl::__internal::__pattern_walk3_async(
+    auto ret_val = oneapi::dpl::__internal::__pattern_walk3_async<__par_backend_hetero::access_mode::write,
+                                                                  /*_IsNoInitRequested=*/true>(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __result,
         oneapi::dpl::__internal::__transform_functor<_BinaryOperation>(::std::move(__op)));
     return ret_val;
@@ -97,7 +99,7 @@ sort_async(_ExecutionPolicy&& __exec, _Iterator __first, _Iterator __last, _Comp
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     assert(__last - __first >= 2);
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
@@ -128,7 +130,8 @@ for_each_async(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
-    auto ret_val = oneapi::dpl::__internal::__pattern_walk1_async(
+    auto ret_val = oneapi::dpl::__internal::__pattern_walk1_async<__par_backend_hetero::access_mode::read_write,
+                                                                  /*_IsNoInitRequested=*/false>(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
     return ret_val;
 }
