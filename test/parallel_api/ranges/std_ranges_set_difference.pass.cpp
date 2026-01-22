@@ -124,9 +124,9 @@ struct
             }
         }
 
-        auto remaining_space = nOut - idxOut;
-        auto remaining_input = n1 - idx1;
-        auto to_copy = std::min(remaining_space, remaining_input);
+        const auto remaining_space = nOut - idxOut;
+        const auto remaining_input = n1 - idx1;
+        const auto to_copy = std::min(remaining_space, remaining_input);
         std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
 
         idx1 += to_copy;
