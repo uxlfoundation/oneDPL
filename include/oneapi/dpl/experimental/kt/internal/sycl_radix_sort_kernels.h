@@ -596,17 +596,14 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         using _AtomicRefT = sycl::atomic_ref<_AtomicIdT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                              sycl::access::address_space::global_space>;
         _AtomicRefT __atomic_id_ref(*__p_atomic_id);
-        // Modulo num work-groups because onesweep gets invoked multiple times and we do not want an extra memset between
-        // invocations.
-        const ::std::uint32_t __wg_id = __idx.get_group_linear_id(); // BUG FIX: was hardcoded to 0!
-
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
+        std::uint32_t __wg_id = 0;
+        if (__idx.get_local_linear_id() == 0)
         {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Starting onesweep kernel, stage %u\n", __wg_id,
-                                                    __stage);
+            // Modulo num work-groups because onesweep gets invoked multiple times and we do not want an extra memset between
+            // invocations.
+            __wg_id = __atomic_id_ref.fetch_add(1) % __num_wgs;
         }
-#endif
+        __wg_id = sycl::group_broadcast(__idx.get_group(), __wg_id);
 
         // TODO: Right now storing a full sub-group histogram contiguously in SLM. Consider evaluating
         // approach where each sub-group's bins are interleaved
@@ -617,13 +614,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         _LocOffsetT __ranks[__data_per_work_item];
 
         __load_pack(__values_pack, __wg_id, __sg_id, __sg_local_id);
-
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Keys loaded\n", __wg_id);
-        }
-#endif
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
@@ -640,53 +630,22 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             reinterpret_cast<_GlobOffsetT*>(__slm_raw + __work_item_all_hists_size + __group_hist_size);
 
         __rank_local(__idx, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset);
-
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Local ranking complete\n", __wg_id);
-        }
-#endif
-
         __rank_global(__idx, __wg_id, __slm_subgroup_hists, __slm_group_hist, __slm_global_incoming);
 
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Global ranking complete\n", __wg_id);
-        }
-#endif
-
-        // For reorder phase, reinterpret SLM as key/value storage and global_fix
+        // For reorder phase, reinterpret SLM as key/value storage and global_fix. This probably violates strict aliasing
         _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
         _ValT* __slm_vals = nullptr;
         if constexpr (__has_values)
         {
             __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __wg_size * __data_per_work_item * sizeof(_KeyT));
         }
-        // Place __slm_global_fix AFTER __slm_global_incoming to avoid overlap
-        // __slm_global_incoming ends at: __work_item_all_hists_size + __group_hist_size + __global_hist_size
         _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __work_item_all_hists_size +
                                                                          __group_hist_size + __global_hist_size);
 
         __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __slm_subgroup_hists, __slm_group_hist,
                              __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
 
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Reorder to SLM complete\n", __wg_id);
-        }
-#endif
-
         __reorder_slm_to_glob(__idx, __values_pack, __slm_global_fix, __slm_keys, __slm_vals);
-
-#ifdef DEBUG_SYCL_KT
-        if (__local_tid == 0 && __wg_id == __num_wgs - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[ONESWEEP WG %u] Onesweep kernel complete\n", __wg_id);
-        }
-#endif
     }
 };
 
