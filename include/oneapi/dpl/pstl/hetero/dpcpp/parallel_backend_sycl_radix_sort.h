@@ -223,7 +223,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __i = 0; __i < __radix_states; ++__i)
                 {
-                    __slm_counts[__radix_states * __self_lidx + __i] = 0;
+                    __slm_counts[__wg_size * __i + __self_lidx] = 0;
                 }
 
                 // Strided coalesced reads: all work-items read consecutive elements
@@ -242,7 +242,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                             ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                             // increment counter for this bit bucket
 
-                            ++__slm_counts[__radix_states * __self_lidx + __bucket];
+                            ++__slm_counts[__wg_size * __bucket + __self_lidx];
                         }
                     }
                 }
@@ -255,7 +255,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     _CountT __sum = 0;
                     for (std::size_t __wi = 0; __wi < __wg_size; ++__wi)
                     {
-                        __sum += __slm_counts[__radix_states * __wi + __self_lidx];
+                        __sum += __slm_counts[__wg_size * __self_lidx + __wi];
                     }
                     // Write final count to global memory
                     __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __sum;
