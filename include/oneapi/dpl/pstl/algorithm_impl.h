@@ -3639,16 +3639,16 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
 #endif
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetOP, class _Compare, class _Proj1,
-    class _Proj2 >
-        __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+          class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
+          class _Compare, class _Proj1, class _Proj2>
+__parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,  // bounds for data1
                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,  // bounds for data2
                   _OutputIterator __result1, _OutputIterator __result2,             // bounds for results
                   _SizeFunction __size_func,
                   _MaskSizeFunction __mask_size_func,
-                  _SetOP __set_op,
+                  _SetUnionOp __set_union_op,
                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -3694,7 +3694,7 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
                                          __comp, __proj1, __proj2,
                                          __size_func,
                                          __mask_size_func,
-                                         __set_op,
+                                         __set_union_op,
                                          &__buf,
                                          &__buf_mask_rng,
                                          &__buf_mask_rng_res,
@@ -3879,11 +3879,11 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
 
                 auto __mask_b = __buf_mask_rng_raw_data_begin + __buf_mask_pos;
 
-                auto [__res, __mask_e] = __set_op(__b, __e,               // bounds for data1
-                                                  __bb, __ee,             // bounds for data2
-                                                  __buffer_b,             // results
-                                                  __mask_b,               // iterator usage masks
-                                                  __comp, __proj1, __proj2);
+                auto [__res, __mask_e] = __set_union_op(__b, __e,               // bounds for data1
+                                                        __bb, __ee,             // bounds for data2
+                                                        __buffer_b,             // results
+                                                        __mask_b,               // iterator usage masks
+                                                        __comp, __proj1, __proj2);
 
                 [[maybe_unused]] const _DifferenceTypeCommon __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
                 assert(__mask_e - __mask_b <= __buf_mask_len);
@@ -4127,7 +4127,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __result1, __result2,                   // bounds for results
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
-                    __set_union_op,                         // _SetOP __set_op
+                    __set_union_op,                         // _SetUnionOp __set_union_op
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4156,7 +4156,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __result1, __result2,                   // bounds for results
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
-                    __set_union_op,                         // _SetOP __set_op
+                    __set_union_op,                         // _SetUnionOp __set_union_op
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4169,7 +4169,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __result1, __result2,                               // bounds for results
         __size_fnc,                                         // _SizeFunction __size_func
         __mask_size_fnc,                                    // _MaskSizeFunction __mask_size_fnc
-        __set_union_op,                                     // _SetOP __set_op
+        __set_union_op,                                     // _SetUnionOp __set_union_op
         __comp, __proj1, __proj2);
 }
 
@@ -4345,7 +4345,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _T* __result,
                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
@@ -4383,7 +4383,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetOP __set_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _T* __result,                                                               // results
                     oneapi::dpl::__utils::__parallel_set_op_mask* __mask,                       // source data usage masks

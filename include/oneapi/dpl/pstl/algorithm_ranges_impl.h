@@ -1032,7 +1032,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetOP __set_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                     _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _Tp* __result,
                     oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
@@ -1070,7 +1070,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetOP __set_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _Tp* __result,
                     oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
