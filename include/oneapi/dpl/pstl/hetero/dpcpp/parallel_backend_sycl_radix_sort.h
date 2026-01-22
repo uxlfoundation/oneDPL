@@ -255,24 +255,37 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     __slm_buckets[__views.__get_bucket_idx(__wg_size, __i, __self_lidx)] = 0;
                 }
 
-                __dpl_sycl::__group_barrier(__self_item);
-                //TODO: Make sure we do not overflow (with large segments where keys per work item are more than 255),
-                //      and repeat loop accumulating to other memory until segment finishes
-                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_end;
+                // Strided coalesced reads: all work-items read consecutive elements
+                // Compute how many full iterations we can do without bounds checking
+                const std::size_t __seg_size = __seg_end - __seg_start;
+                const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
+                const std::size_t __full_end = __seg_start + __full_rounds * __wg_size * __unroll_elements;
+
+                // Full iterations - no bounds checking needed
+                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __full_end;
                      __val_idx += __wg_size * __unroll_elements)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
+                        auto __val = __order_preserving_cast<__is_ascending>(
+                            std::invoke(__proj, __val_rng[__val_idx + __unroll]));
+                        ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                        ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
+                    }
+                }
+
+                // Remainder - at most one partial block
+                {
+                    const ::std::size_t __val_idx = __full_end + __self_lidx * __unroll_elements;
+                    for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+                    {
                         ::std::size_t __curr_idx = __val_idx + __unroll;
                         if (__curr_idx < __seg_end)
                         {
-                            // get the bucket for the bit-ordered input value, applying the offset and mask for radix bits
                             auto __val = __order_preserving_cast<__is_ascending>(
                                 std::invoke(__proj, __val_rng[__curr_idx]));
                             ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                            // increment counter for this bit bucket
-
                             ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                         }
                     }
