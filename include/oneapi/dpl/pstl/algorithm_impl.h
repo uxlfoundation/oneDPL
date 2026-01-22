@@ -3673,6 +3673,49 @@ struct __set_intersection_offsets
     }
 };
 
+struct __set_symmetric_difference_offsets
+{
+    template <class _IsVector, class _ExecutionPolicy, 
+              typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+              class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+               _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out,
+               _SizeFunction __size_func,
+               _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+               _DifferenceTypeOut __reachedOutPos) const
+    {
+        assert(__n_out > 0);
+
+        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+        const auto __req_size = __size_func(__n1, __n2);
+        const auto __req_mask_size = __mask_size_func(__n1, __n2);
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "=== __set_symmetric_difference_offsets call ===" << std::endl;
+        std::cout << "__n1 = " << __n1 << ", __n2 = " << __n2 << ", __n_out = " << __n_out
+                  << ", __reachedOutPos = " << __reachedOutPos << ", __req_size = " << __req_size << "\n";
+#endif
+
+        // No output size limits - return the end of the first and second input buffers
+        if (__n_out >= __req_size)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t<- No output size limits - return the end of the first and second input buffers: {__n1, __n2}\n";
+#endif
+            return {__n1, __n2};
+        }
+
+        // KSATODO implementation required
+        assert(!"not implemented yet");
+
+        return {__n1, __n2};
+    }
+};
+
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
