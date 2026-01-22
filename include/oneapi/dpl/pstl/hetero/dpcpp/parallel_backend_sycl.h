@@ -747,11 +747,11 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
           typename _CopyByMaskOp>
 std::tuple<sycl::event, __combined_storage<_Size>>
 __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
-                     _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
+                     _IndexPred __pred, _CopyByMaskOp __copy_by_mask_op)
 {
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
@@ -759,11 +759,13 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
     using _Unchanged = unseq_backend::__unchanged;
     using _InitType = unseq_backend::__no_init_value<_Size>;
+    using _CreateMaskOp = unseq_backend::__create_mask<_IndexPred, _Size>;
 
     _Assigner __assign_op{};
     _ReduceOp __reduce_op{};
     _MaskAssigner __add_mask_op{};
     _Unchanged __read_op{};
+    _CreateMaskOp __create_mask_op{__pred};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
@@ -814,12 +816,12 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     else
     {
         using _ReduceOp = std::plus<_Size1>;
-        using _CreateOp = unseq_backend::__create_mask_unique<_BinaryPredicate, _Size1>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            _CreateOp{__pred}, _CopyOp{_ReduceOp{}, _Assign{}});
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate,/*SafeAtZero*/false>{__pred},
+            _CopyOp{_ReduceOp{}, _Assign{}});
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
@@ -880,12 +882,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     else
     {
         using _ReduceOp = std::plus<_Size1>;
-        using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, _Size1>;
         using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp>;
 
-        auto&& [__event, __payload] =
-            __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
-                                              __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
+            std::forward<_Range2>(__result), __n, oneapi::dpl::__internal::__pred_at_index{__pred}, _CopyOp{_ReduceOp{}});
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
@@ -939,11 +939,11 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     else
     {
         using _ReduceOp = std::plus<_Size>;
-        using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
         using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
 
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-            std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
+            std::forward<_OutRng>(__out_rng), __n, oneapi::dpl::__internal::__pred_at_index{__pred},
+            _CopyOp{_ReduceOp{}, __assign});
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());
     }
