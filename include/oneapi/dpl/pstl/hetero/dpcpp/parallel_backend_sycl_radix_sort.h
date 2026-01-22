@@ -242,8 +242,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
                 __index_views<__packing_ratio, __radix_states> __views;
 
-                // 1.1. count per witem: create a private array for storing count values
-                _CountT __count_arr[__radix_states] = {0};
+                // Private array for partial sums - only 4 registers needed per WI
+                _CountT __count_arr[__packing_ratio] = {0};
                 // 1.2. count per witem: count values and write result to private count array
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
@@ -291,37 +291,34 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
-                if (__self_lidx < __wg_size / __packing_ratio)
+                // All WIs participate - each handles 4 radix states from 4 columns
+                // This distributes work evenly and reduces register pressure
+                const std::uint32_t __wis_per_radix_group = __wg_size / __counter_lanes;  // 128/4 = 32
+                const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group;  // 0-3
+                const std::uint32_t __radix_base = __radix_group * __packing_ratio;  // 0, 4, 8, or 12
+                const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group;  // 0-31
+                const std::uint32_t __col_base = __wi_in_group * __packing_ratio;  // 0, 4, 8, ..., 124
+                
+                // Accumulate 4 radix states from 4 columns
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
                 {
-                    //accumulate byte counts into uint32_t registers
                     _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __lane_id = 0; __lane_id < __counter_lanes; ++__lane_id)
+                    for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
                     {
-                        _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint32_t __wg_offset = 0; __wg_offset < __packing_ratio; ++__wg_offset)
-                        {
-                            _ONEDPL_PRAGMA_UNROLL
-                            for (std::uint32_t __pack_id = 0; __pack_id < __packing_ratio; ++__pack_id)
-                            {
-                                std::uint32_t __radix_id = __lane_id * __packing_ratio + __pack_id;
-                                __count_arr[__radix_id] +=
-                                    static_cast<_CountT>(__slm_buckets[__views.__get_bucket_idx(__wg_size,
-                                        __radix_id, __self_lidx * __packing_ratio + __wg_offset)]);
-                            }
-                        }
+                        __count_arr[__r] += static_cast<_CountT>(
+                            __slm_buckets[__views.__get_bucket_idx(__wg_size, __radix_base + __r, __col_base + __c)]);
                     }
                 }
                 __dpl_sycl::__group_barrier(__self_item);
                 
-                //copy counts back to SLM from registers
-                if (__self_lidx < __wg_size / __packing_ratio)
+                // All WIs write their 4 partial sums to SLM
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
                 {
-                    _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __radix_id = 0; __radix_id < __radix_states; ++__radix_id)
-                    {
-                            __slm_counts[__views.__get_count_idx(__wg_size, __radix_id, __self_lidx)] = __count_arr[__radix_id];
-                    }
+                    __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] = __count_arr[__r];
                 }
+
                 __dpl_sycl::__group_barrier(__self_item);
 
                 if (__self_lidx < __radix_states)
@@ -945,7 +942,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         {
             __keys_per_wi_count = 32;
         }
-        
+
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
         const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 //        std::cout<<"using segments: "<<__segments<<"\n";
