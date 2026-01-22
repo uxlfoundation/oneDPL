@@ -119,7 +119,7 @@ struct
                 break;
             }
 
-            if (std::invoke(__comp, std::invoke(__proj1, in1[idx1]), std::invoke(__proj2, in2[idx2])))
+            if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
                 out[idxOut] = in1[idx1];
                 ++idx1;
@@ -127,7 +127,7 @@ struct
             }
             else
             {
-                if (std::invoke(__comp, std::invoke(__proj2, in2[idx2]), std::invoke(__proj1, in1[idx1])))
+                if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
                 {
                     out[idxOut] = in2[idx2];
                     ++idxOut;
