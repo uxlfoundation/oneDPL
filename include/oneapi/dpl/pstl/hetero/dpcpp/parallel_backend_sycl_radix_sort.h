@@ -296,10 +296,10 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 
                 // Accumulate 4 radix states from 4 columns
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
                 {
                     _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
+                    for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
                     {
                         __count_arr[__r] += static_cast<_CountT>(
                             __slm_buckets[__views.__get_bucket_idx(__wg_size, __radix_base + __r, __col_base + __c)]);
@@ -319,7 +319,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 if (__self_lidx < __radix_states)
                 {
                     for ( std::uint32_t __wg_id = 1; __wg_id < __wg_size / __packing_ratio; ++__wg_id)
-                    __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)] += __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, __wg_id)];
+                        __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)] += __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, __wg_id)];
                     //write final count to global memory
                     __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)];
                 }
