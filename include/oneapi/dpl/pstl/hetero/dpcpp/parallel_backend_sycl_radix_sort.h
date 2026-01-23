@@ -313,14 +313,30 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 {
                     __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] = __count_arr[__r];
                 }
-
                 __dpl_sycl::__group_barrier(__self_item);
+                
+                // Tree reduction: reduce 32 partial sums down to 1 per radix state
+                // Layout after partial accumulation: radix_id * 32 + wi_in_group
+                // Each WI is responsible for 4 radix states (__radix_base to __radix_base+3)
+                std::uint32_t __num_partial_sums = __wg_size / __packing_ratio;  // 32
+                for (std::uint32_t __stride = __num_partial_sums >> 1; __stride > 0; __stride >>= 1)
+                {
+                    // Each WI reduces its assigned radix states
+                    if (__wi_in_group < __stride)
+                    {
+                        _ONEDPL_PRAGMA_UNROLL
+                        for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                        {
+                            __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] +=
+                                __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group + __stride)];
+                        }
+                    }
+                    __dpl_sycl::__group_barrier(__self_item);
+                }
 
+                // Write final count to global memory (only first 16 WIs, one per radix state)
                 if (__self_lidx < __radix_states)
                 {
-                    for ( std::uint32_t __wg_id = 1; __wg_id < __wg_size / __packing_ratio; ++__wg_id)
-                        __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)] += __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, __wg_id)];
-                    //write final count to global memory
                     __count_rng[(__segments + 1) * __self_lidx + __wgroup_idx] = __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)];
                 }
 
