@@ -37,7 +37,7 @@ namespace __internal
 template <typename _ForwardIterator, typename _OutputIterator>
 _OutputIterator
 __brick_uninitialized_move(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
-                           /*vector=*/std::false_type) noexcept
+                           /*vector=*/::std::false_type) noexcept
 {
     using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
     for (; __first != __last; ++__first, (void)++__result)
@@ -50,11 +50,11 @@ __brick_uninitialized_move(_ForwardIterator __first, _ForwardIterator __last, _O
 template <typename _RandomAccessIterator, typename _OutputIterator>
 _OutputIterator
 __brick_uninitialized_move(_RandomAccessIterator __first, _RandomAccessIterator __last, _OutputIterator __result,
-                           /*vector=*/std::true_type) noexcept
+                           /*vector=*/::std::true_type) noexcept
 {
-    using __ValueType = typename std::iterator_traits<_OutputIterator>::value_type;
-    using _ReferenceType1 = typename std::iterator_traits<_RandomAccessIterator>::reference;
-    using _ReferenceType2 = typename std::iterator_traits<_OutputIterator>::reference;
+    using __ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
+    using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
 
     const auto __n = __last - __first;
     auto __it_out = __unseq_backend::__simd_walk_n(
