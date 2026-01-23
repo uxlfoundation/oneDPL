@@ -97,6 +97,7 @@ struct
 
         const auto n1 = std::ranges::size(r_1);
         const auto n2 = std::ranges::size(r_2);
+        const auto nOut = std::ranges::size(r_out);
 
         std::size_t idx1 = 0;
         std::size_t idx2 = 0;
@@ -118,16 +119,26 @@ struct
 
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
-                out[idxOut] = in1[idx1];
-                ++idx1;
-                ++idxOut;
+                if (idxOut < nOut)
+                {
+                    out[idxOut] = in1[idx1];
+                    ++idx1;
+                    ++idxOut;
+                }
+                else
+                    break;
             }
             else
             {
                 if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
                 {
-                    out[idxOut] = in2[idx2];
-                    ++idxOut;
+                    if (idxOut < nOut)
+                    {
+                        out[idxOut] = in2[idx2];
+                        ++idxOut;
+                    }
+                    else
+                        break;
                 }
                 else
                     ++idx1;
@@ -135,16 +146,13 @@ struct
             }
         }
 
-        if (idx2 < n2)
-        {
-            const auto remaining_space = std::ranges::size(r_out) - idxOut;
-            const auto remaining_input = n2 - idx2;
-            const auto to_copy = std::min(remaining_space, remaining_input);
-            std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
+        const auto remaining_space = nOut - idxOut;
+        const auto remaining_input = n2 - idx2;
+        const auto to_copy = std::min(remaining_space, remaining_input);
+        std::copy(in2 + idx2, in2 + idx2 + to_copy, out + idxOut);
 
-            idx2 += to_copy;
-            idxOut += to_copy;
-        }
+        idx2 += to_copy;
+        idxOut += to_copy;
 
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
