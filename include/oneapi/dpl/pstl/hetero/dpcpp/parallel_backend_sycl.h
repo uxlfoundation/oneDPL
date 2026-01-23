@@ -1031,7 +1031,6 @@ oneapi::dpl::__ranges::__internal::__rng_set_operations_result<_Range1, _Range2,
 
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce>;
     using _ReduceOp = std::plus<_SizeOfRange3>;
-    //using _ReduceOp = oneapi::dpl::__ranges::__internal::__combine_set_operation_offsets<_Range1, _Range2, _Range3>;
 
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;

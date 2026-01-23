@@ -396,20 +396,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 {
 };
 
-namespace oneapi::dpl::__ranges::__internal
-{
-
-template <typename _Range1, typename _Range2, typename _Range3>
-struct __combine_set_operation_offsets;
-
-} // namespace oneapi::dpl::__ranges::__internal
-
-template <typename _Range1, typename _Range2, typename _Range3>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__ranges::__internal::__combine_set_operation_offsets, _Range1, _Range2, _Range3)> : std::true_type
-{
-};
-
 namespace oneapi::dpl::experimental::ranges::__internal
 {
 
