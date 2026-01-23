@@ -24,14 +24,6 @@
 #include "support/utils.h"
 #include "support/utils_invoke.h"       // for CLONE_TEST_POLICY macro
 
-#define LIMITED_TBB_MAX_ALLOWED_PARALLELISM 0
-
-#if LIMITED_TBB_MAX_ALLOWED_PARALLELISM
-#    include <oneapi/tbb/global_control.h>
-#endif
-
-#define LOG_TESTING_OUTPUT 0
-
 #if _ENABLE_STD_RANGES_TESTING
 
 static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
@@ -701,28 +693,7 @@ private:
         auto&& C_with_padding = cont_out();
         auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
 
-#if LOG_TESTING_OUTPUT
-        std::cout << "=========================================================================" << std::endl;
-
-        std::cout << "A : (";
-        for (auto v : A)
-            std::cout << v << ", ";
-        std::cout << ")" << std::endl;
-
-        std::cout << "B : (";
-        for (auto v : B)
-            std::cout << v << ", ";
-        std::cout << ")" << std::endl;
-#endif
-
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
-
-#if LOG_TESTING_OUTPUT
-        std::cout << "Result : (";
-        for (auto v : C)
-            std::cout << v << ", ";
-        std::cout << ")" << std::endl;
-#endif
 
         // Check padding data
         EXPECT_TRUE(check_padding<mode>(C_with_padding),

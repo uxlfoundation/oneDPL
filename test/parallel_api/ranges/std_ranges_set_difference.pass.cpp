@@ -142,11 +142,6 @@ main()
 {
     bool bProcessed = false;
 
-#if LIMITED_TBB_MAX_ALLOWED_PARALLELISM
-    // Limited the amount of threads in TBB
-    oneapi::tbb::global_control gl_control(oneapi::tbb::global_control::max_allowed_parallelism, 1);
-#endif
-
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;

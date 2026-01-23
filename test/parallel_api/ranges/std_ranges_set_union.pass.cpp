@@ -105,20 +105,6 @@ struct
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
-#if LOG_TESTING_OUTPUT
-        std::cout << "Serial set_union checker called: \n" <<
-            "  r_1 size: " << n1 << "\n" <<
-            "  r_2 size: " << n2 << "\n" <<
-            "  r_out size: " << nOut << "\n";
-        std::cout << "r_1 : (";
-        std::for_each(in1, in1 + n1, [](const auto& v) { std::cout << v << ", "; });
-        std::cout << ")\n";
-
-        std::cout << "r_2 : (";
-        std::for_each(in2, in2 + n2, [](const auto& v) { std::cout << v << ", "; });
-        std::cout << ")\n";
-#endif
-
         while (idx1 < n1 && idx2 < n2 && idxOut < nOut)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
@@ -158,14 +144,6 @@ struct
             idxOut += to_copy;
         }
 
-#if LOG_TESTING_OUTPUT
-        std::cout << "r_out : (";
-        std::for_each(out, out + idxOut, [](const auto& v) { std::cout << v << ", "; });
-        std::cout << ")\n";
-
-        std::cout << "Offsets: in1 = " << idx1 << ", in2 = " << idx2 << ", out = " << idxOut << std::endl;
-#endif
-
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
 } set_union_checker;
@@ -176,11 +154,6 @@ int
 main()
 {
     bool bProcessed = false;
-
-#if LIMITED_TBB_MAX_ALLOWED_PARALLELISM
-    // Limited the amount of threads in TBB
-    oneapi::tbb::global_control gl_control(oneapi::tbb::global_control::max_allowed_parallelism, 1);
-#endif
 
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;

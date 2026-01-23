@@ -3305,18 +3305,11 @@ __is_great_that_set_algo_cut_off(Size size)
     return size > __set_algo_cut_off;
 }
 
-// KSATODO required to remove in the end of development all debug code linked with this macro
-#define DUMP_PARALLEL_SET_OP_WORK 0
-
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
 //  - the second field contains the amount of processed (i.e. skipped) items in the end
 template <typename _DifferenceTypeCommon>
 using _ReachedOffset = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-static std::size_t _s_SetRangeImplCounter = 0;
-#endif
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceTypeCommon>
@@ -3341,18 +3334,6 @@ struct _SetRangeImpl
                 return _Data{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
             return _Data{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
         }
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        template <typename OStream>
-        friend OStream&
-        operator<<(OStream& os, const _Data& data)
-        {
-            os << "__pos = " << data.__pos << ", "
-               << "__len = " << data.__len << ", "
-               << "__buf_pos = " << data.__buf_pos;
-            return os;
-        }
-#endif
     };
 
     //                                       [.........................)
@@ -3371,26 +3352,6 @@ struct _SetRangeImpl
     // [0]: describes processing data in temporary windowed buffer and temporary result buffer
     // [1]: describes mask data in temporary windowed buffer and temporary result buffer
     std::array<_Data, __data_size> __data;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-    // For debug purposes only (should be places after!!! __pos, __len, __buf_pos fields due used aggregate initialization)
-    std::size_t __counter = _s_SetRangeImplCounter++;
-#endif
-
-#if DUMP_PARALLEL_SET_OP_WORK
-    template <typename OStream>
-    friend OStream&
-    operator<<(OStream& os, const _SetRangeImpl& data)
-    {
-        os << "__counter = " << data.__counter
-           << ", processing data : (" << data.__processing_data << ")";
-
-        if constexpr (__Bounded)
-            os << ", mask data : (" << data.__mask_data << ")";
-
-        return os;
-    }
-#endif
 };
 
 // The structure __set_op_offsets_full should be used when we apriory know
@@ -3417,30 +3378,6 @@ struct __set_op_unbounded_offsets_eval
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-template <typename OStream, typename Iterator, typename ValueType = std::iterator_traits<Iterator>::value_type>
-OStream&
-dump_buffer(OStream& os, Iterator first, Iterator last)
-{
-#if 1
-    bool bCommaNeeded = false;
-
-    os << "(";
-    for (auto it = first; it != last; ++it)
-    {
-        if (bCommaNeeded)
-            os << ", ";
-
-        os << (ValueType)*it;
-
-        bCommaNeeded = true;
-    }
-    os << ")";
-#endif
-    return os;
-}
-#endif
 
 template <bool __Bounded>
 struct __mask_buffers;
@@ -3521,18 +3458,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
-
-#if DUMP_PARALLEL_SET_OP_WORK
-    std::cout << "=================================================================\n"
-              << "__parallel_set_op :"
-              << "\n\t__n1 = " << __n1 << " : ";
-    dump_buffer(std::cout, __first1, __last1);
-    std::cout << "\n\t__n2 = " << __n2 << " : ";
-    dump_buffer(std::cout, __first2, __last2);
-    std::cout << "\n\t__n_out = " << __n_out
-              << "\n\t__buf_size = " << __buf_size
-              << "\n\t__mask_buf_size = " << __mask_buf_size << "\n";
-#endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
     __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);
@@ -3619,18 +3544,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                     const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
                     const auto __buf_raw_data_to   = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
 
-#if DUMP_PARALLEL_SET_OP_WORK
-                    const auto __items = __buf_raw_data_to - __buf_raw_data_from;
-                    std::cout << "ST.4:\n"
-                                << "\t__brick_move_destroy - data("
-                                << "srcFrom = " << __buf_raw_data_from - __buf_raw_data_begin << ", "
-                                << "srcTo = " << __buf_raw_data_to - __buf_raw_data_begin << ", "
-                                << "dstTo = " << __result_from - __result1 << ") : writes " << __items
-                                << " data items : ";
-                    dump_buffer(std::cout, __buf_raw_data_from, __buf_raw_data_to);
-                    std::cout << "\n";
-#endif
-
                     // Copy results data into results range to have final output
                     __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
                 }
@@ -3650,17 +3563,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                     // Evaluate mask pointers to current data chunk in temporary buffer
                     const auto __buf_mask_rng_raw_data_from = __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos;
                     const auto __buf_mask_rng_raw_data_to   = __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos + __s_mask_data.__len;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    const auto __items = __buf_mask_rng_raw_data_to - __buf_mask_rng_raw_data_from;
-                    std::cout << "\t__brick_move_destroy - mask("
-                                << "srcFrom = " << __buf_mask_rng_raw_data_from - __buf_mask_rng_raw_data_begin << ", "
-                                << "srcTo = " << __buf_mask_rng_raw_data_to - __buf_mask_rng_raw_data_begin << ", "
-                                << "dstTo = " << __buf_mask_rng_res_raw_data_from - __buf_mask_rng_res_raw_data_begin
-                                << ") : writes " << __items << " mask items : ";
-                    dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_raw_data_from), int>(std::cout, __buf_mask_rng_raw_data_from, __buf_mask_rng_raw_data_to);
-                    std::cout << "\n";
-#endif
 
                     // Copy mask to result mask buffer to have information about used items in input ranges
                     __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng_raw_data_from,
@@ -3706,18 +3608,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
                     if constexpr (!__Bounded)
                     {
-                        _SetRange __sr_result1{__new_processing_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                        std::cout << "ST.1.1:\n"
-                                  << "\t\t src data : ";
-                        dump_buffer(std::cout, __b, __e);
-                        std::cout << "\n"
-                                  << "\t\t -> (" << __sr_result1 << ")"
-                                  << "\n";
-#endif
-
-                        return __sr_result1;
+                        return _SetRange{__new_processing_data};
                     }
                     else
                     {
@@ -3726,18 +3617,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                             0,                                                          // length of mask in temporary mask buffer
                             __mask_size_func((__b - __first1), (__bb - __first2))};     // position in temporary mask buffer
 
-                        _SetRange __sr_result1{__new_processing_data, __new_mask_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                        std::cout << "ST.1.1:\n"
-                                  << "\t\t src data : ";
-                        dump_buffer(std::cout, __b, __e);
-                        std::cout << "\n"
-                                  << "\t\t -> (" << __sr_result1 << ")"
-                                  << "\n";
-#endif
-
-                        return __sr_result1;
+                        return _SetRange{__new_processing_data, __new_mask_data};
                     }
                 }
 
@@ -3785,27 +3665,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                 assert(__new_processing_data.__buf_pos <= __buf_size);
                 assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
 
-#if DUMP_PARALLEL_SET_OP_WORK
-                std::cout << "ST.1.2:\n";
-                std::cout << "\t\t src data1 : ";
-                dump_buffer(std::cout, __b, __e);
-                std::cout << "\n";
-                std::cout << "\t\t src data2 : ";
-                dump_buffer(std::cout, __bb, __ee);
-                std::cout << "\n";
-                std::cout << "\t\t result : ";
-                dump_buffer(std::cout, __buffer_b, __res);
-                std::cout << "\n";
-#endif
-
                 if constexpr (!__Bounded)
                 {
-                    _SetRange __sr_result1{__new_processing_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "\t\t <- (" << __sr_result1 << ")" << "\n";
-#endif
-                    return __sr_result1;
+                    return _SetRange{__new_processing_data};
                 }
                 else
                 {
@@ -3818,16 +3680,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                     assert(__new_mask_data.__buf_pos <= __mask_buf_size);
                     assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
 
-                    _SetRange __sr_result1{__new_processing_data, __new_mask_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "\t\t mask : ";
-                    dump_buffer<decltype(std::cout), decltype(__mask_b), int>(std::cout, __mask_b, __mask_b + __buf_len);
-                    std::cout << "\n";
-                    std::cout << "\t\t <- (" << __sr_result1 << ")" << "\n";
-#endif
-
-                    return __sr_result1;
+                    return _SetRange{__new_processing_data, __new_mask_data};
                 }
             },
 /* ST.2 */  [](const _SetRange& __a, const _SetRange& __b)                  // _Cp __combine    step 2 : __combine(__initial, (1))
@@ -3837,28 +3690,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
                 if constexpr (!__Bounded)
                 {
-                    _SetRange __sr_result2{_SetRange::_Data::combine(__a.__data[0], __b.__data[0])};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "ST.2:\n"
-                              << "\t__a = (" << __a << ")\n"
-                              << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << __sr_result2 << ")" << "\n";
-#endif
-                    return __sr_result2;
+                    return _SetRange{_SetRange::_Data::combine(__a.__data[0], __b.__data[0])};
                 }
                 else
                 {
-                    _SetRange __sr_result2{_SetRange::_Data::combine(__a.__data[0], __b.__data[0]),
-                                           _SetRange::_Data::combine(__a.__data[1], __b.__data[1])};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "ST.2:\n"
-                              << "\t__a = (" << __a << ")\n"
-                              << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << __sr_result2 << ")" << "\n";
-#endif
-                    return __sr_result2;
+                    return _SetRange{_SetRange::_Data::combine(__a.__data[0], __b.__data[0]),
+                                     _SetRange::_Data::combine(__a.__data[1], __b.__data[1])};
                 }
             },
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
@@ -3867,23 +3704,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                std::cout << "ST.3:\n" << "\t\t <- (" << __total << ") " << "\n";
-#endif
                 __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
             });
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        // Dump mask into std::cout for debug purposes
-        std::cout << "\n\tMASK: ";
-        dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_res_raw_data_begin), int>(std::cout, __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __mask_buf_size);
-        std::cout << "\n";
-
-        std::cout << "\n\tRESULT: ";
-        dump_buffer(std::cout, __result1, __result2);
-        std::cout << "\n";
-#endif
 
         // Evaluate reached offsets in input ranges
         const auto __reached_positions = __reached_positions_evaluator(
