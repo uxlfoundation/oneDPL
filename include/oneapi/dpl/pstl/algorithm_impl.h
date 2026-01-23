@@ -3648,11 +3648,134 @@ struct __set_intersection_offsets
             return {__n1, __n2};
         }
 
-        // KSATODO implementation required
-        assert(!"not implemented yet");
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
 
-        return {__n1, __n2};
+        using _CountsType = _Counts<_DifferenceTypeCommon>;
+
+        // Calculate counts through transform_iterator
+        auto __tr_first = oneapi::dpl::make_transform_iterator(
+            __mask,
+            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType
+            {
+                // (mask & 0x10) == 0x10
+                const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceTypeCommon __data1 = __is_eq_data1 ? 1 : 0;
+
+                // (mask & 0x01) == 0x01
+                const bool __is_eq_data2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceTypeCommon __data2 = __is_eq_data2 ? 1 : 0;
+
+                // (mask & 0x11) == 0x11
+                const bool __is_using_both = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceTypeCommon __data3 = __is_using_both ? 1 : 0;
+
+                return { __data1, __data2, __data3 };
+            }
+        );
+
+        using _PrefixBuf = __par_backend::__buffer<_CountsType>;
+        _PrefixBuf __prefix_summ_buf(__req_mask_size);
+
+        auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
+        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
+
+        // Calculate prefix summs of counts
+        __pattern_transform_scan(
+            __parallel_tag<_IsVector>{}, __exec,
+            __tr_first, __tr_first + __req_mask_size,
+            __prefix_summ_buf_it_b,
+            oneapi::dpl::identity{},
+            _CountsType{},
+            _PlusCounts<_DifferenceTypeCommon>{},
+            /* _Inclusive */ std::true_type{});
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\tTransform iterator over __mask buffer created:\n";
+        std::cout << "\t\t__prefix_summ_buf: ";
+        dump_buffer(std::cout, __prefix_summ_buf_it_b, __prefix_summ_buf_it_e);
+        std::cout << "\n";
+#endif
+
+        auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
+        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
+#endif
+
+        // Find the position where output size limit is reached
+        auto it_prefix_summ_buf = __pattern_find_if(
+            __parallel_tag<_IsVector>{}, __exec,
+            it_prefix_summ_buf_b, it_prefix_summ_buf_e,
+            [__reachedOutPos](const _CountsType& __count) {
+                return __count.__data3 == __reachedOutPos + 1; // We should try to find the next processed position
+            });
+
+        // Initially we assume that we processed all first data range
+        _DifferenceType1 __n1_reached = __n1;
+        _DifferenceType1 __n2_reached = __n2;
+        if (it_prefix_summ_buf != it_prefix_summ_buf_e)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
+#endif
+            // But if we found the next processed position we use it
+            __n1_reached = it_prefix_summ_buf->__data1 - 1;
+            __n2_reached = it_prefix_summ_buf->__data2 - 1;
+        }
+#if 0
+        else
+        {
+            it_prefix_summ_buf_e = it_prefix_summ_buf_b + (__req_mask_size - 1);
+
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "not found : using last data item" << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
+#endif
+            // But if we found the next processed position we use it
+            __n1_reached = it_prefix_summ_buf->__data1 - 1;
+            __n2_reached = it_prefix_summ_buf->__data2 - 1;
+        }
+#endif
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\t<- Returning reached offsets : { " << __n1_reached << ", " << __n2_reached << " }\n";
+#endif
+
+        return {__n1_reached, __n2_reached};
     }
+
+  protected:
+    template <typename _DifferenceTypeCommon>
+    struct _Counts
+    {
+        _DifferenceTypeCommon __data1 = 0;    // (mask & 0x10) == 0x10: data item from the first range is used
+        _DifferenceTypeCommon __data2 = 0;    // (mask & 0x01) == 0x01: data item from the second range is used
+        _DifferenceTypeCommon __data3 = 0;    // (mask & 0x11) == 0x11: data item saved to output range
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        template <typename OStream>
+        friend OStream&
+        operator<<(OStream& os, const _Counts& data)
+        {
+            os << "(" << data.__data1 << ", " << data.__data2 << ", " << data.__data3 << ")";
+            return os;
+        }
+#endif
+    };
+
+    template <typename _DifferenceTypeCommon>
+    struct _PlusCounts
+    {
+        _Counts<_DifferenceTypeCommon>
+        operator()(const _Counts<_DifferenceTypeCommon>& __lhs, const _Counts<_DifferenceTypeCommon>& __rhs) const
+        {
+            return { __lhs.__data1 + __rhs.__data1,
+                     __lhs.__data2 + __rhs.__data2,
+                     __lhs.__data3 + __rhs.__data3 };
+        }
+    };
 };
 
 struct __set_symmetric_difference_offsets
