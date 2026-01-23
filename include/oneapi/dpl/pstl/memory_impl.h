@@ -42,7 +42,7 @@ __brick_uninitialized_move(_ForwardIterator __first, _ForwardIterator __last, _O
     using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
     for (; __first != __last; ++__first, (void)++__result)
     {
-        new (std::addressof(*__result)) _ValueType(std::move(*__first));
+        ::new (::std::addressof(*__result)) _ValueType(::std::move(*__first));
     }
     return __result;
 }
@@ -96,9 +96,8 @@ __brick_uninitialized_copy(_ForwardIterator __first, _ForwardIterator __last, _O
     using _ValueType = typename ::std::iterator_traits<_OutputIterator>::value_type;
     for (; __first != __last; ++__first, (void)++__result)
     {
-        ::new (std::addressof(*__result)) _ValueType(*__first);
+        ::new (::std::addressof(*__result)) _ValueType(*__first);
     }
-
     return __result;
 }
 
@@ -111,12 +110,9 @@ __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator 
     using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
     using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
 
-    const auto __n = __last - __first;
-
-    return __unseq_backend::__simd_walk_n(
-        __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); }, __first,
-        __result);
-}
+    return __unseq_backend::__simd_walk_n(__last - __first,
+        [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); },
+        __first, __result);}
 
 template <typename _ExecutionPolicy>
 struct __op_uninitialized_copy<_ExecutionPolicy>
