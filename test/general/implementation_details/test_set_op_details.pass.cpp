@@ -324,7 +324,7 @@ test_set_intersection_construct()
     {
         const Container cont1       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const Container cont2       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
+        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
         const Container contOutExp  = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}                      };
 
         Container contOut(evalContainerSize(cont1, cont2));
@@ -353,7 +353,7 @@ test_set_intersection_construct()
     {
         const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12                      };
+        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,        D1,        D1};
         const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
         Container contOut(evalContainerSize(cont1, cont2));
 
@@ -411,7 +411,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {                               };
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer maskExp = {                               };
+        const MaskContainer maskExp = {       D2,        D2,        D2};
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
@@ -435,7 +435,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2       = {                               };
-        const MaskContainer maskExp = {                               };
+        const MaskContainer maskExp = {       D1,        D1,        D1};
         const Container contOutExp  = {                               };
         Container contOut(evalContainerSize(cont1, cont2));
 
@@ -459,7 +459,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {           {2, 0, 1}           };
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer maskExp = {       D2,       D12           };
+        const MaskContainer maskExp = {       D2,       D12,        D2};
         const Container contOutExp  = {           {2, 0, 1}           };
         Container contOut(evalContainerSize(cont1, cont2));
 
