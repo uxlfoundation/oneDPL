@@ -317,8 +317,7 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                                           }) -
                          1);
             },
-            [](_Tp) // _Ap __apex
-            {});
+            [](_Tp) {});
         return __result + (__last - __first);
     });
 }
