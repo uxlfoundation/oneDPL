@@ -192,8 +192,25 @@ log_value_to_stream(TStream& os, const TValue& value)
     log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value));
 }
 
+template <typename TStream, typename... T>
+void
+log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value)
+{
+    using std_tuple_t = typename oneapi::dpl::__internal::tuple<T...>::tuple_type;
+    std_tuple_t std_tuple = value;
+
+    bool bCommaNeeded = false;
+
+    os << "(";
+    std::apply([&os](const auto&... elems) {
+        ((log_value_to_stream(os, elems), os << ", "), ...);
+    }, std_tuple);
+    os << ")";
+}
+
 template <typename TStream, typename Tag, typename TValue>
-void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+void
+log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
 {
     if (bCommaNeeded)
         os << ",";
