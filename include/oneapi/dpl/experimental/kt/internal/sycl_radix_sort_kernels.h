@@ -498,8 +498,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // 2. Chained scan. Synchronization between work-groups.
         if (__sub_group_group_id < __bin_summary_sub_group_size && __wg_id != 0)
         {
-            using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                                        sycl::access::address_space::global_space>;
+            using _GlobalAtomicT =
+                sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                 sycl::access::address_space::global_space>;
             // 2.1. Read the histograms scanned across work-groups
             _GlobOffsetT __prev_group_hist_sum = 0;
             _GlobOffsetT __prev_group_hist;
