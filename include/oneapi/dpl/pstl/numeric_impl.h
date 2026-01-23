@@ -302,19 +302,14 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
 
     return __internal::__except_handler([&]() {
         __par_backend::__parallel_strict_scan(
-            __backend_tag{},
-            std::forward<_ExecutionPolicy>(__exec),
-            __n,                                                                                                        // _Index __n
-            __init,                                                                                                     // _Tp __initial
-            [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __len)                    // _Rp __reduce
-            {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, __init,
+            [__first, __unary_op, __binary_op, __result](_DifferenceType __i, _DifferenceType __len) {
                 return __internal::__brick_transform_scan(__first + __i, __first + (__i + __len), __result + __i,
                                                           __unary_op, _Tp{}, __binary_op, _Inclusive(), _IsVector{})
                     .second;
             },
-            __binary_op,                                                                                                // _Cp __combine
-            [__result, &__binary_op](_DifferenceType __i, _DifferenceType __len, _Tp __initial)                         // _Sp __scan
-            {
+            __binary_op,
+            [__result, &__binary_op](_DifferenceType __i, _DifferenceType __len, _Tp __initial) {
                 return *(::std::transform(__result + __i, __result + __i + __len, __result + __i,
                                           [&__initial, &__binary_op](const _Tp& __x) {
                                               _ONEDPL_PRAGMA_FORCEINLINE
@@ -322,9 +317,8 @@ __pattern_transform_scan(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                                           }) -
                          1);
             },
-            [](_Tp)                                                                                                     // _Ap __apex
-            {
-            });
+            [](_Tp) // _Ap __apex
+            {});
         return __result + (__last - __first);
     });
 }

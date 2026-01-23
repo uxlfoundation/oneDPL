@@ -1551,27 +1551,24 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         _DifferenceType __m{};
         // 2. Elements that doesn't satisfy pred are moved to result
         __par_backend::__parallel_strict_scan(
-            __backend_tag{},
-            std::forward<_ExecutionPolicy>(__exec),
-            __n,                                                                                                        // _Index __n
-            _DifferenceType(0),                                                                                         // _Tp __initial
-            [__mask](_DifferenceType __i, _DifferenceType __len)                                                        // _Rp __reduce
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
+            __n,                                                 // _Index __n
+            _DifferenceType(0),                                  // _Tp __initial
+            [__mask](_DifferenceType __i, _DifferenceType __len) // _Rp __reduce
             {
                 return __internal::__brick_count(
                     __mask + __i, __mask + __i + __len, [](bool __val) { return __val; }, _IsVector{});
             },
-            ::std::plus<_DifferenceType>(),                                                                             // _Cp __combine
-            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial)                                  // _Sp __scan
+            ::std::plus<_DifferenceType>(),                                            // _Cp __combine
+            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) // _Sp __scan
             {
                 __internal::__brick_copy_by_mask</*bounded*/ false>(
                     __first + __i, __len, __result + __initial, __len, __mask + __i,
                     [](_RandomAccessIterator __x, _Tp* __z) { ::new (std::addressof(*__z)) _Tp(std::move(*__x)); },
                     _IsVector{});
             },
-            [&__m](_DifferenceType __total)                                                                             // _Ap __apex
-            {
-                __m = __total;
-            });
+            [&__m](_DifferenceType __total) // _Ap __apex
+            { __m = __total; });
 
         // 3. Elements from result are moved to [first, last)
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
