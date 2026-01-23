@@ -3610,24 +3610,6 @@ struct __set_difference_offsets
             return {__lhs.__eq + __rhs.__eq, __lhs.__bit + __rhs.__bit};
         }
     };
-
-    template <typename _DifferenceTypeCommon>
-    struct _Result
-    {
-        _DifferenceTypeCommon __index = 0;
-        _DifferenceTypeCommon __bit10_before = 0;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        template <typename OStream>
-        friend OStream&
-        operator<<(OStream& os, const _Result& data)
-        {
-            os << "__index = " << data.__index << ", "
-               << "__bit10_before = " << data.__bit10_before;
-            return os;
-        }
-#endif
-    };
 };
 
 struct __set_intersection_offsets
