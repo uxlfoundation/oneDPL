@@ -3725,19 +3725,6 @@ struct __set_intersection_offsets
             __n1_reached = it_prefix_summ_buf->__data1 - 1;
             __n2_reached = it_prefix_summ_buf->__data2 - 1;
         }
-#if 0
-        else
-        {
-            it_prefix_summ_buf_e = it_prefix_summ_buf_b + (__req_mask_size - 1);
-
-#if DUMP_PARALLEL_SET_OP_WORK
-            std::cout << "not found : using last data item" << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
-#endif
-            // But if we found the next processed position we use it
-            __n1_reached = it_prefix_summ_buf->__data1 - 1;
-            __n2_reached = it_prefix_summ_buf->__data2 - 1;
-        }
-#endif
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "\t<- Returning reached offsets : { " << __n1_reached << ", " << __n2_reached << " }\n";
