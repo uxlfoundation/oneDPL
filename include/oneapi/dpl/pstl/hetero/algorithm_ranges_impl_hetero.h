@@ -828,12 +828,10 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         return 1;
     }
 
-    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+    return oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)), __pred);
-
-    return __res.get(); // is a blocking call
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)), __pred)[0];
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
@@ -843,19 +841,32 @@ std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::range
 __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
+    using _Size = oneapi::dpl::__ranges::__common_size_t<_R, _OutRange>;
+    _Size __n = oneapi::dpl::__ranges::__size(__r);
+    _Size __n_out = oneapi::dpl::__ranges::__size(__out_r);
+    if (__n == 0 || __n_out == 0)
+        return {std::ranges::begin(__r), std::ranges::begin(__out_r)};
+
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
+
+#if 0
+    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
+        oneapi::dpl::__ranges::views::all_write(__out_r), __pred_2);
 
     auto __beg = std::ranges::begin(__r);
     auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
     auto __beg_out = std::ranges::begin(__out_r);
 
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
+    return {__end, __beg_out + __idx};
+#else
+    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
         oneapi::dpl::__ranges::views::all_write(__out_r), __pred_2);
 
-    return {__end, __beg_out + __idx};
+    return {std::ranges::begin(__r) + __stops[1], std::ranges::begin(__out_r) + __stops[0]};
+#endif
 }
-
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------

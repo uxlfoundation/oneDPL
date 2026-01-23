@@ -813,7 +813,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
 }
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
+std::array<oneapi::dpl::__internal::__difference_t<_Range1>, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                        _Range2&& __result, _BinaryPredicate __pred)
 {
@@ -826,17 +826,20 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     // can simply copy the input range to the output.
     assert(__n > 1);
 
+    std::array<_Size1, 2> __ret;
+
     sycl::queue __q_local = __exec.queue();
 
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
-                                                             std::forward<_Range2>(__result), __n, _GenMask{__pred},
-                                                             _WriteOp{_Assign{}},
-                                                             /*_IsUniquePattern=*/std::true_type{});
+        _Size1 __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{}).get();
+        __ret = {__stop_out, __n};
     }
     else
     {
@@ -845,8 +848,10 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred},
             unseq_backend::__copy_by_mask<_Assign, 1>{_Assign{}});
 
-        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+        __event.wait_and_throw();
+        __payload.__copy_result(__ret.data(), __ret.size());
     }
+    return __ret;
 }
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
