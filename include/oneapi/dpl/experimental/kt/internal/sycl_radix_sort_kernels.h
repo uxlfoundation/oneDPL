@@ -184,7 +184,7 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _InRngPack, _OutRngPack>
 {
-    using _LocOffsetT = ::std::uint32_t;
+    using _LocOffsetT = ::std::uint16_t;
     using _GlobOffsetT = ::std::uint32_t;
     using _AtomicIdT = ::std::uint32_t;
 
@@ -193,14 +193,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     static constexpr bool __has_values = !::std::is_void_v<_ValT>;
 
     static constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-
-    template <typename _T, ::std::uint16_t _N>
-    using _SimdT = __dpl_esimd::__ns::simd<_T, _N>;
-
-    using _LocOffsetSimdT = _SimdT<_LocOffsetT, __data_per_work_item>;
-    using _GlobOffsetSimdT = _SimdT<_GlobOffsetT, __data_per_work_item>;
-    using _LocHistT = _SimdT<_LocOffsetT, __bin_count>;
-    using _GlobHistT = _SimdT<_GlobOffsetT, __bin_count>;
 
     static constexpr ::std::uint32_t __sub_group_size = 32;
     static constexpr ::std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
