@@ -62,14 +62,10 @@ inline constexpr int medium_size = (1<<17) + 10; //128K
 // It also usually results in using single-work-group specializations for device policies.
 inline constexpr int small_size = 2025;
 
-#if 0
 #if TEST_DPCPP_BACKEND_PRESENT
 inline constexpr std::array<int, 3> big_sz = {/*serial*/ small_size, /*par*/ medium_size, /*device*/ big_size};
 #else
 inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ medium_size};
-#endif
-#else
-inline constexpr std::array<int, 3> big_sz = {10, 20, 30};//, 40, 50, 60, 120, 250};
 #endif
 
 enum TestDataMode
