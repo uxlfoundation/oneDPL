@@ -39,7 +39,6 @@
 //      namespace oneapi::dpl::__internal
 //      namespace oneapi::dpl::__internal::__ranges
 //      namespace oneapi::dpl::ranges::__internal
-//      namespace oneapi::dpl::__ranges::__internal
 //      namespace oneapi::dpl::experimental::ranges::__internal
 //      namespace oneapi::dpl::__par_backend_hetero
 //      namespace oneapi::dpl::unseq_backend
@@ -451,7 +450,7 @@ struct __gen_count_mask;
 template <typename _GenMask, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
-template <int32_t __offset, typename _Assign, bool IsBounded>
+template <int32_t __offset, typename _Assign>
 struct __write_to_id_if;
 
 template <typename _Assign>
@@ -559,9 +558,9 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <int32_t __offset, typename _Assign, bool IsBounded>
+template <int32_t __offset, typename _Assign>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if, __offset,
-                                                       _Assign, IsBounded)>
+                                                       _Assign)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };
