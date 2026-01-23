@@ -805,6 +805,7 @@ std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                        _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)
 {
+    assert(__n_out > 0 && __n > 0);
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
     std::array<_Size, 2> __ret;
@@ -844,7 +845,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     }
 
     assert(__ret[0] >= 1 && __n_out >= __ret[0]);
-    assert(__ret[1] > 1 && __n >= __ret[1]);
+    assert(__ret[1] >= 1 && __n >= __ret[1]);
+    assert(__ret[1] >= __ret[0]);
     assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
 }
@@ -958,6 +960,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     assert(__ret[0] >= 0 && __n_out >= __ret[0]);
     assert(__ret[1] > 0 && __n >= __ret[1]);
+    assert(__ret[1] >= __ret[0]);
     assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
 }
