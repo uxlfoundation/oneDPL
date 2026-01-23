@@ -17,23 +17,22 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
-void test_mixed_types_host()
+void
+test_mixed_types_host()
 {
     std::vector<test_std_ranges::A> vec_a = {{1}, {2}, {3}};
     std::vector<test_std_ranges::B> vec_b = {{2}, {3}};
 
-    bool exp_res = std::ranges::includes(vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    const bool exp_res = std::ranges::includes(vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
-    bool seq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    const bool seq_res       = oneapi::dpl::ranges::includes(oneapi::dpl::execution::seq,       vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    const bool unseq_res     = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq,     vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    const bool par_res       = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par,       vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    const bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+
     EXPECT_EQ(seq_res, exp_res, "wrong result with seq policy");
-
-    bool unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(unseq_res, exp_res, "wrong result with unseq policy");
-
-    bool par_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_res, exp_res, "wrong result with par policy");
-
-    bool par_unseq_res = oneapi::dpl::ranges::includes(oneapi::dpl::execution::par_unseq, vec_a, vec_b, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
     EXPECT_EQ(par_unseq_res, exp_res, "wrong result with par_unseq policy");
 }
 
