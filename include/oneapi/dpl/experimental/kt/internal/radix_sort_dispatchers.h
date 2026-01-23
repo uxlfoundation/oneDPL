@@ -260,7 +260,7 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     // TODO: consider adding a more versatile API, e.g. passing special kernel_config parameters for histogram computation
     // ESIMD work-group size: 64 XVEs ~ 2048 SIMD lanes
     // SYCL work-group size: Programming model enables 1024, so 128 required for PVC-1550 full concurrency. 10x HW oversubscription
-    constexpr ::std::uint32_t __hist_work_group_count = std::is_same_v<_KtTag, __sycl_tag> ? 128 * 10 : 32;
+    constexpr ::std::uint32_t __hist_work_group_count = std::is_same_v<_KtTag, __sycl_tag> ? 128 * 10 : 64;
     constexpr ::std::uint32_t __hist_work_group_size = std::is_same_v<_KtTag, __sycl_tag> ? 1024 : 64;
     __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
                                                      __hist_work_group_size, _RadixSortHistogram>()(
