@@ -878,17 +878,9 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         std::size_t __wg_size_scan = 1024;
         std::size_t __wg_size_reorder = 256;
 
-        if (__n < 1 << 14)
-        {
-            __keys_per_wi_count = 8;
-        }
-        else if (__n < 1 << 16)
+        if (__n < 1 << 20)
         {
             __keys_per_wi_count = 16;
-        }
-        else if (__n < 1 << 20)
-        {
-            __keys_per_wi_count = 32;
         }
 
 //        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
