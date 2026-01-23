@@ -812,31 +812,29 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
-std::array<oneapi::dpl::__internal::__difference_t<_Range1>, 2>
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
+std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
-                       _Range2&& __result, _BinaryPredicate __pred)
+                       _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
 
-    _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
     // We expect at least two elements to perform unique_copy.  With fewer we
     // can simply copy the input range to the output.
     assert(__n > 1);
 
-    std::array<_Size1, 2> __ret;
+    std::array<_Size, 2> __ret;
 
     sycl::queue __q_local = __exec.queue();
 
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        _Size1 __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
+        _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{}).get();
         __ret = {__stop_out, __n};
@@ -851,6 +849,10 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());
     }
+
+    assert(__ret[0] >= 1 && __n_out >= __ret[0]);
+    assert(__ret[1] > 1 && __n >= __ret[1]);
+    assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
 }
 
