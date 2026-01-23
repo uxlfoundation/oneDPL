@@ -100,14 +100,10 @@ int
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
+    unique_copy_checker.test_self();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
-
-#if TEST_DPCPP_BACKEND_PRESENT
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out;
-#else
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out_lim;
-#endif
 
     // input generator with a fair chance of repeating the previous value
     auto repeat_sometimes = [](auto i) {
@@ -122,15 +118,13 @@ main()
     
     auto equal_tens = [](auto i, auto j) { return i/10 == j/10; };
 
-    unique_copy_checker.test_self();
-
-    test_range_algo<0, int, test_mode>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<1, int, test_mode, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
-    test_range_algo<2, int, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
-    test_range_algo<3, int, test_mode, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
-    test_range_algo<5, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
-    test_range_algo<6, int, test_mode, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
+    test_range_algo<0, int, data_in_out_lim>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<1, int, data_in_out_lim, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
+    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
+    test_range_algo<3, int, data_in_out_lim, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
+    test_range_algo<5, P2, data_in_out_lim>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
+    test_range_algo<6, int, data_in_out_lim, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
