@@ -703,9 +703,26 @@ private:
 
 #if LOG_TESTING_OUTPUT
         std::cout << "=========================================================================" << std::endl;
+
+        std::cout << "A : (";
+        for (auto v : A)
+            std::cout << v << ", ";
+        std::cout << ")" << std::endl;
+
+        std::cout << "B : (";
+        for (auto v : B)
+            std::cout << v << ", ";
+        std::cout << ")" << std::endl;
 #endif
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+
+#if LOG_TESTING_OUTPUT
+        std::cout << "Result : (";
+        for (auto v : C)
+            std::cout << v << ", ";
+        std::cout << ")" << std::endl;
+#endif
 
         // Check padding data
         EXPECT_TRUE(check_padding<mode>(C_with_padding),
@@ -739,12 +756,6 @@ private:
                     (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
-#if LOG_TESTING_OUTPUT
-        std::cout << "Result : (";
-        for (auto v : C)
-            std::cout << v << ", ";
-        std::cout << ")" << std::endl;
-#endif
         auto n = std::ranges::size(expected_view);
         EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("output mismatch with ")
                     + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
