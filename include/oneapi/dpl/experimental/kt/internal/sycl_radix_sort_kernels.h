@@ -222,28 +222,60 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             return __work_group_size * __data_per_work_item * sizeof(_KeyT);
     }
 
+    // Helper functions for SLM layout calculation
+    static constexpr ::std::uint32_t
+    __get_slm_subgroup_hists_offset()
+    {
+        return 0; // Sub-group histograms start at the beginning
+    }
+
+    static constexpr ::std::uint32_t
+    __get_slm_group_hist_offset()
+    {
+        constexpr ::std::uint32_t __reorder_size = __calc_reorder_slm_size();
+        return ::std::max(__work_item_all_hists_size, __reorder_size); // After max(sub-group hists, reorder space)
+    }
+
+    static constexpr ::std::uint32_t
+    __get_slm_global_incoming_offset()
+    {
+        return __get_slm_group_hist_offset() + __group_hist_size; // After group histogram
+    }
+
+    static constexpr ::std::uint32_t
+    __get_slm_global_fix_offset()
+    {
+        return __get_slm_global_incoming_offset() + __global_hist_size; // After global incoming histogram
+    }
+
     static constexpr ::std::uint32_t
     __calc_slm_alloc()
     {
-        // SLM usage:
-        // 1. Getting offsets:
-        //      1.1 Scan histograms for each work-item: __work_item_all_hists_size
-        //      1.2 Scan group histogram: __group_hist_size
-        //      1.3 Accumulate group histogram from previous groups: __global_hist_size
-        // 2. Reorder keys in SLM:
-        //      2.1 Reorder key-value pairs: __reorder_size (overlaps with histogram space)
-        //      2.2 Place global offsets into SLM for lookup: __global_hist_size (after all histograms)
-        //      During reorder, we need the old histograms + global_fix simultaneously
+        // SLM Layout Visualization:
+        //
+        // Phase 1 (Offset Calculation):
+        // ┌────────────────────────┬─────────────┬──────────────────┐
+        // │   Sub-group Hists      │ Group Hist  │ Global Incoming  │
+        // │ __work_item_all_hists  │ __group_    │ __global_hist    │
+        // │        _size           │ hist_size   │     _size        │
+        // └────────────────────────┴─────────────┴──────────────────┘
+        //                                 |               |
+        //                                 v               v
+        // Phase 2 (Reorder):
+        // ┌────────────────────────┬─────────────┬──────────────────┬─────────────────┐
+        // │   Reorder Space        │ Group Hist  │ Global Incoming  │  Global Fix     │
+        // │ max(__work_item_all_   │ __group_    │ __global_hist    │ __global_hist   │
+        // │ hists_size,__reorder   │ hist_size   │     _size        │     _size       │
+        // │     _size)             │             │                  │                 │
+        // └────────────────────────┴─────────────┴──────────────────┴─────────────────┘
+        //
         constexpr ::std::uint32_t __reorder_size = __calc_reorder_slm_size();
-        constexpr ::std::uint32_t __offset_calc_substage_slm =
-            __work_item_all_hists_size + __group_hist_size + __global_hist_size;
-        constexpr ::std::uint32_t __reorder_substage_slm =
-            __offset_calc_substage_slm + __global_hist_size; // Need space for old histograms + global_fix
 
-        constexpr ::std::uint32_t __slm_size = ::std::max(__offset_calc_substage_slm, __reorder_substage_slm);
-        // Workaround: Align SLM allocation at 2048 byte border to avoid internal compiler error.
-        // The error happens when allocating 65 * 1024 bytes, when e.g. T=int, DataPerWorkItem=256, WorkGroupSize=64
-        // TODO: use __slm_size once the issue with SLM allocation has been fixed
+        // TODO: does starting alignment significantly matter for correctness and performance? If so we may need
+        // padding between regions
+        constexpr ::std::uint32_t __slm_size = ::std::max(__work_item_all_hists_size, __reorder_size) +
+                                               __group_hist_size + __global_hist_size + __global_hist_size;
+
         return oneapi::dpl::__internal::__dpl_ceiling_div(__slm_size, 2048) * 2048;
     }
 
@@ -347,15 +379,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             __slm_offset[__i] = 0;
         }
         // TODO: sub-group barrier ? maybe not for simd architectures
-        // sub-group barrier or no?
 
-        //_ScanSimdT __remove_right_lanes, __lane_id(0, 1);
         constexpr std::uint32_t __sub_group_full_bitmask = 0x7fffffff;
         static_assert(__sub_group_size == 32);
         // lower bits than my current will be set meaning we only preserve left lanes
         std::uint32_t __remove_right_lanes = __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
 
-        //static_assert(__data_per_work_item % __bins_per_step == 0);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
@@ -380,11 +409,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     __rank_global(sycl::nd_item<1> __idx, std::uint32_t __wg_id, _LocOffsetT* __slm_subgroup_hists,
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
     {
-        // SLM layout (in bytes):
-        // [0 ... work_item_all_hists_size): Sub-group histograms (_LocOffsetT)
-        // [work_item_all_hists_size ... work_item_all_hists_size + group_hist_size): Group histogram (_LocOffsetT)
-        // [work_item_all_hists_size + group_hist_size ... ): Global incoming histogram (_GlobOffsetT)
-
+        // TODO: This exists in the ESIMD KT and was ported but are we not limiting max input size to
+        // 2^30 ~ 1 billion elements. We use 32-bit indexing / histogram which may already be too small
+        // but are then reserving the two upper bits for lookback flags.
         constexpr ::std::uint32_t __global_accumulated = 0x40000000;
         constexpr ::std::uint32_t __hist_updated = 0x80000000;
         constexpr ::std::uint32_t __global_offset_mask = 0x3fffffff;
@@ -436,7 +463,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
             // Write the histogram to global memory, bypassing caches, to ensure cross-work-group visibility.
-            // TODO: write to L2 if only one stack is used for better performance
             if (__wg_id != 0)
             {
                 // Copy the histogram, local to this WG
@@ -574,6 +600,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             auto __global_fix = __slm_global_fix[__bin];
             auto __out_idx = __global_fix + __slm_idx;
 
+            // TODO we need to figure out how to relax this for full unrolling
             if (__out_idx < __n)
                 __out_pack.__keys_rng()[__out_idx] = __key;
             if constexpr (__has_values)
@@ -622,25 +649,27 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
         }
 
-        // Get raw SLM pointer and create typed pointers for different regions
+        // Get raw SLM pointer and create typed pointers for different regions using helper functions
         unsigned char* __slm_raw = __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get();
-        _LocOffsetT* __slm_subgroup_hists = reinterpret_cast<_LocOffsetT*>(__slm_raw);
-        _LocOffsetT* __slm_group_hist = reinterpret_cast<_LocOffsetT*>(__slm_raw + __work_item_all_hists_size);
+        _LocOffsetT* __slm_subgroup_hists =
+            reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_subgroup_hists_offset());
+        _LocOffsetT* __slm_group_hist = reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_group_hist_offset());
         _GlobOffsetT* __slm_global_incoming =
-            reinterpret_cast<_GlobOffsetT*>(__slm_raw + __work_item_all_hists_size + __group_hist_size);
+            reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_incoming_offset());
 
         __rank_local(__idx, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset);
         __rank_global(__idx, __wg_id, __slm_subgroup_hists, __slm_group_hist, __slm_global_incoming);
 
-        // For reorder phase, reinterpret SLM as key/value storage and global_fix. This probably violates strict aliasing
-        _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
+        // For reorder phase, reinterpret the sub-group histogram space as key/value storage
+        // The reorder space overlaps with the sub-group histogram region (reinterpret_cast)
+        _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw + __get_slm_subgroup_hists_offset());
         _ValT* __slm_vals = nullptr;
         if constexpr (__has_values)
         {
-            __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __wg_size * __data_per_work_item * sizeof(_KeyT));
+            __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __get_slm_subgroup_hists_offset() +
+                                                  __wg_size * __data_per_work_item * sizeof(_KeyT));
         }
-        _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __work_item_all_hists_size +
-                                                                         __group_hist_size + __global_hist_size);
+        _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
 
         __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __slm_subgroup_hists, __slm_group_hist,
                              __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
