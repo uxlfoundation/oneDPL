@@ -228,30 +228,6 @@ __simd_count(_Index __index, _DifferenceType __n, _Pred __pred) noexcept
     return __count;
 }
 
-template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _BinaryPredicate>
-_OutputIterator
-__simd_unique_copy(_InputIterator __first, _DifferenceType __n, _OutputIterator __result,
-                   _BinaryPredicate __pred) noexcept
-{
-    if (__n == 0)
-        return __result;
-
-    _DifferenceType __cnt = 1;
-    __result[0] = __first[0];
-
-    _ONEDPL_PRAGMA_SIMD
-    for (_DifferenceType __i = 1; __i < __n; ++__i)
-    {
-        _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-        if (!__pred(__first[__i], __first[__i - 1]))
-        {
-            __result[__cnt] = __first[__i];
-            ++__cnt;
-        }
-    }
-    return __result + __cnt;
-}
-
 template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _Assigner>
 _OutputIterator
 __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _Assigner __assigner) noexcept
@@ -263,23 +239,35 @@ __simd_assign(_InputIterator __first, _DifferenceType __n, _OutputIterator __res
     return __result + __n;
 }
 
-template <class _InputIterator, class _DifferenceType, class _OutputIterator, class _UnaryPredicate>
-_DifferenceType
-__simd_copy_if(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _UnaryPredicate __pred) noexcept
+template <bool __Bounded, class _InIterator, class _DifferenceType, class _OutIterator, class _IndexPredicate>
+std::pair<_DifferenceType, _DifferenceType>
+__simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
+                      _IndexPredicate __pred) noexcept
 {
-    _DifferenceType __cnt = 0;
-
-    _ONEDPL_PRAGMA_SIMD
+    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan
+    _DifferenceType __stop = __n;
+    bool __suitable;
+    _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable))
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        _ONEDPL_PRAGMA_SIMD_ORDERED_MONOTONIC(__cnt : 1)
-        if (__pred(__first[__i]))
+        __suitable = __pred(__first, __i);
+        __write_pos += __suitable;
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
+        if (__suitable)
         {
-            __result[__cnt] = __first[__i];
-            ++__cnt;
+            if constexpr (__Bounded)
+            {
+                if (__write_pos < __n_out)
+                    __result[__write_pos] = __first[__i];
+                if (__write_pos == __n_out) // together with __suitable, the conditions are true for only one index
+                    __stop = __i;
+            }
+            else
+                __result[__write_pos] = __first[__i];
         }
     }
-    return __cnt;
+    _DifferenceType __cnt = __write_pos + 1;
+    return {__stop, __cnt < __n_out ? __cnt : __n_out};
 }
 
 template <typename _Iterator, typename _DifferenceType, typename _IndexPredicate>
@@ -302,24 +290,24 @@ _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
                     bool* __mask, _Assigner __assign) noexcept
 {
-    std::make_signed_t<_DifferenceType> __cnt = -1; // to use inclusive scan of the mask
+    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan of the mask
     _DifferenceType __stop = __n;
-    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __cnt)
+    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __write_pos)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
-        __cnt += __mask[__i];
-        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__cnt)
+        __write_pos += __mask[__i];
+        _ONEDPL_PRAGMA_SIMD_INCLUSIVE_SCAN(__write_pos)
         if (__mask[__i])
         {
             if constexpr (__Bounded)
             {
-                if (__cnt < __n_out)
-                    __assign(__first + __i, __result + __cnt);
-                if (__cnt == __n_out) // together with the mask, the conditions are true for only one index
+                if (__write_pos < __n_out)
+                    __assign(__first + __i, __result + __write_pos);
+                if (__write_pos == __n_out) // together with the mask, the conditions are true for only one index
                     __stop = __i;
             }
             else
-                __assign(__first + __i, __result + __cnt);
+                __assign(__first + __i, __result + __write_pos);
         }
     }
     return __stop;
