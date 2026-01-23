@@ -508,9 +508,9 @@ template <typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
     : __parallel_copy_if_single_group_base
 {
-    template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
+    template <typename _InRng, typename _OutRng, typename _Size, typename _IndexPred, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _UnaryOp __unary_op,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _IndexPred __pred,
                _Assign __assign, std::size_t __max_wg_size)
     {
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
@@ -538,7 +538,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                     _ValueType* __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
-                        __lacc[__idx] = __unary_op(__in_rng[__idx]);
+                        __lacc[__idx] = __pred(__in_rng, __idx);
                     }
                     if (__item_id == 0)
                     {
@@ -819,16 +819,22 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-
-    // We expect at least two elements to perform unique_copy.  With fewer we
-    // can simply copy the input range to the output.
-    assert(__n > 1);
-
     std::array<_Size, 2> __ret;
-
     sycl::queue __q_local = __exec.queue();
 
-    if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    constexpr std::uint16_t __max_elem_per_item = 2;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_copy_single_wg_kernel<_CustomName>>;
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, false>{__pred}, _Assign{}, __max_wg_size);
+    }
+    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
@@ -939,8 +945,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(__q_local, std::forward<_InRng>(__in_rng),
-            std::forward<_OutRng>(__out_rng), __n, __n_out, __pred, __assign, __max_wg_size);
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
     }
     else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
