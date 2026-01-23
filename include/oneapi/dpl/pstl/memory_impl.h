@@ -18,7 +18,6 @@
 
 #include <iterator>
 #include <type_traits>
-#include <tuple>
 
 #include "memory_fwd.h"
 #include "unseq_backend_simd.h"
@@ -56,12 +55,9 @@ __brick_uninitialized_move(_RandomAccessIterator __first, _RandomAccessIterator 
     using _ReferenceType1 = typename ::std::iterator_traits<_RandomAccessIterator>::reference;
     using _ReferenceType2 = typename ::std::iterator_traits<_OutputIterator>::reference;
 
-    const auto __n = __last - __first;
-    auto __it_out = __unseq_backend::__simd_walk_n(
-        __n, [](_ReferenceType1 __x, _ReferenceType2 __y) { new (std::addressof(__y)) __ValueType(std::move(__x)); },
+    return __unseq_backend::__simd_walk_n(__last - __first,
+        [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(::std::move(__x)); },
         __first, __result);
-
-    return {__first + __n, __it_out};
 }
 
 template <typename _Iterator>
@@ -112,7 +108,8 @@ __brick_uninitialized_copy(_RandomAccessIterator __first, _RandomAccessIterator 
 
     return __unseq_backend::__simd_walk_n(__last - __first,
         [](_ReferenceType1 __x, _ReferenceType2 __y) { ::new (::std::addressof(__y)) __ValueType(__x); },
-        __first, __result);}
+        __first, __result);
+}
 
 template <typename _ExecutionPolicy>
 struct __op_uninitialized_copy<_ExecutionPolicy>
