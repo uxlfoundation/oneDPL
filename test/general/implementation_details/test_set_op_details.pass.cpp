@@ -43,8 +43,9 @@ constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D2 = oneapi::dpl::__util
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_union_construct()
+test_set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
@@ -61,6 +62,7 @@ test_set_union_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -84,6 +86,7 @@ test_set_union_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -96,8 +99,9 @@ test_set_union_construct()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_union_construct_edge_cases()
+test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
@@ -114,6 +118,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -137,6 +142,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -160,6 +166,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -183,6 +190,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -206,6 +214,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -229,6 +238,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -252,6 +262,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -275,6 +286,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -298,6 +310,7 @@ test_set_union_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -311,8 +324,9 @@ test_set_union_construct_edge_cases()
 }
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.intersection
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_intersection_construct()
+test_set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     constexpr auto CopyFromFirstRange = std::true_type{};
     constexpr auto CopyFromSecondRange = std::false_type{};
@@ -333,6 +347,7 @@ test_set_intersection_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -361,6 +376,7 @@ test_set_intersection_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -374,8 +390,9 @@ test_set_intersection_construct()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_intersection_construct_edge_cases()
+test_set_intersection_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     constexpr auto CopyFromFirstRange = std::true_type{};
     constexpr auto CopyFromSecondRange = std::false_type{};
@@ -395,6 +412,7 @@ test_set_intersection_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -419,6 +437,7 @@ test_set_intersection_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -443,6 +462,7 @@ test_set_intersection_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -467,6 +487,7 @@ test_set_intersection_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -480,8 +501,9 @@ test_set_intersection_construct_edge_cases()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_difference_construct()
+test_set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     constexpr auto CopyFromFirstRange = std::true_type{};
     constexpr auto CopyFromSecondRange = std::false_type{};
@@ -501,6 +523,7 @@ test_set_difference_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -524,6 +547,7 @@ test_set_difference_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -536,8 +560,9 @@ test_set_difference_construct()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_difference_construct_edge_cases()
+test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
@@ -554,6 +579,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -577,6 +603,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -600,6 +627,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -623,6 +651,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -646,6 +675,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -669,6 +699,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -692,6 +723,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -715,6 +747,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -738,6 +771,7 @@ test_set_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -750,8 +784,9 @@ test_set_difference_construct_edge_cases()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_symmetric_difference_construct()
+test_set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     constexpr auto CopyFromFirstRange = std::true_type{};
     constexpr auto CopyFromSecondRange = std::false_type{};
@@ -771,6 +806,7 @@ test_set_symmetric_difference_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -794,6 +830,7 @@ test_set_symmetric_difference_construct()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -806,8 +843,9 @@ test_set_symmetric_difference_construct()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
 void
-test_set_symmetric_difference_construct_edge_cases()
+test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
 {
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
@@ -824,6 +862,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -847,6 +886,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -870,6 +910,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -893,6 +934,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -916,6 +958,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -939,6 +982,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -962,6 +1006,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -985,6 +1030,7 @@ test_set_symmetric_difference_construct_edge_cases()
         auto mask_b = mask.data();
 
         auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+            __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -997,20 +1043,35 @@ test_set_symmetric_difference_construct_edge_cases()
     }
 }
 
+template <class _IsVector, typename _ExecutionPolicy>
+void
+run_tests(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec)
+{
+    test_set_union_construct(__tag, __exec);
+    test_set_union_construct_edge_cases(__tag, __exec);
+
+    test_set_intersection_construct(__tag, __exec);
+    test_set_intersection_construct_edge_cases(__tag, __exec);
+
+    test_set_difference_construct(__tag, __exec);
+    test_set_difference_construct_edge_cases(__tag, __exec);
+
+    test_set_symmetric_difference_construct(__tag, __exec);
+    test_set_symmetric_difference_construct_edge_cases(__tag, __exec);
+}
+
 int
 main()
 {
-    test_set_union_construct();
-    test_set_union_construct_edge_cases();
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::true_type>{}, oneapi::dpl::execution::seq);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::true_type>{}, oneapi::dpl::execution::par);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::true_type>{}, oneapi::dpl::execution::par_unseq);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::true_type>{}, oneapi::dpl::execution::unseq);
 
-    test_set_intersection_construct();
-    test_set_intersection_construct_edge_cases();
-
-    test_set_difference_construct();
-    test_set_difference_construct_edge_cases();
-
-    test_set_symmetric_difference_construct();
-    test_set_symmetric_difference_construct_edge_cases();
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::false_type>{}, oneapi::dpl::execution::seq);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::false_type>{}, oneapi::dpl::execution::par);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::false_type>{}, oneapi::dpl::execution::par_unseq);
+    run_tests(oneapi::dpl::__internal::__parallel_tag<std::false_type>{}, oneapi::dpl::execution::unseq);
 
     return TestUtils::done();
 }
