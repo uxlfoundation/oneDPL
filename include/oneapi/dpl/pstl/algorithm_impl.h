@@ -3426,17 +3426,17 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
     using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceTypeCommon>;
 
-    const _DifferenceType1         __n1 = __last1 - __first1;       // Size of first input range
-    const _DifferenceType2         __n2 = __last2 - __first2;       // Size of second input range
-    const _DifferenceTypeCommon __n_out = __result2 - __result1;    // Size of output range
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
+    const _DifferenceTypeCommon __n_out = __result2 - __result1;
 
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);

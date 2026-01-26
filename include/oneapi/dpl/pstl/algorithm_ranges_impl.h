@@ -967,9 +967,9 @@ struct __set_op_bounded_offsets_evaluator
     template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
     struct _Counts
     {
-        _DifferenceType1   __processed1 = 0;    // Counter of processed items from the first range
-        _DifferenceType2   __processed2 = 0;    // Counter of processed items from the second range
-        _DifferenceTypeOut __processedOut = 0;  // Counter of items included to output range
+        _DifferenceType1 __processed1 = 0;     // Counter of processed items from the first range
+        _DifferenceType2 __processed2 = 0;     // Counter of processed items from the second range
+        _DifferenceTypeOut __processedOut = 0; // Counter of items included to output range
 
 #if DUMP_PARALLEL_SET_OP_WORK
         template <typename OStream>
