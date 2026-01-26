@@ -3677,7 +3677,11 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
-                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
+
+                if constexpr (!__Bounded)
+                    __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+                else
+                    __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
             });
 
         // Evaluate reached offsets in input ranges
