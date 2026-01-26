@@ -255,12 +255,26 @@ enum class __parallel_set_op_mask : std::uint8_t
     eBoth = eData1 | eData2 // mask for both input data items usage
 };
 
+inline std::nullptr_t
+__set_iterator_mask(std::nullptr_t, __parallel_set_op_mask)
+{
+    return nullptr;
+}
+
 inline
 __parallel_set_op_mask*
 __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state)
 {
     *__mask = __state;
     return ++__mask;
+}
+
+template <class _IsVector, typename _ExecutionPolicy, typename _Size>
+std::nullptr_t
+__set_iterator_mask_n(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&&, std::nullptr_t,
+                      __parallel_set_op_mask, _Size)
+{
+    return nullptr;
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _Size>
