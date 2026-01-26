@@ -61,7 +61,7 @@ test_set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __ta
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -85,7 +85,7 @@ test_set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __ta
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -117,7 +117,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -141,7 +141,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -165,7 +165,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -189,7 +189,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -213,7 +213,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -237,7 +237,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -261,7 +261,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -285,7 +285,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -309,7 +309,7 @@ test_set_union_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag<_IsV
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -346,7 +346,7 @@ test_set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVecto
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -356,12 +356,12 @@ test_set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVecto
             CopyFromFirstRange,
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
-        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_bounded_construct");
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_construct");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
 
         // Truncate output from out till the end to avoid compare error
         contOut.erase(out, contOut.end());
-        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_bounded_construct");
+        EXPECT_EQ_RANGES(contOutExp, contOut, "wrong result of result contOut after __set_intersection_construct");
     }
 
     // the first case - output range has enough capacity - SWAP input ranges data
@@ -375,7 +375,7 @@ test_set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVecto
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -411,7 +411,7 @@ test_set_intersection_construct_edge_cases(oneapi::dpl::__internal::__parallel_t
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -436,7 +436,7 @@ test_set_intersection_construct_edge_cases(oneapi::dpl::__internal::__parallel_t
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -461,7 +461,7 @@ test_set_intersection_construct_edge_cases(oneapi::dpl::__internal::__parallel_t
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -486,7 +486,7 @@ test_set_intersection_construct_edge_cases(oneapi::dpl::__internal::__parallel_t
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -522,7 +522,7 @@ test_set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector>
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -546,7 +546,7 @@ test_set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector>
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -578,7 +578,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -602,7 +602,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -626,7 +626,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -650,7 +650,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -674,7 +674,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -698,7 +698,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -722,7 +722,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -746,7 +746,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -770,7 +770,7 @@ test_set_difference_construct_edge_cases(oneapi::dpl::__internal::__parallel_tag
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -805,7 +805,7 @@ test_set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -829,7 +829,7 @@ test_set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -861,7 +861,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -885,7 +885,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -909,7 +909,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -933,7 +933,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -957,7 +957,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -981,7 +981,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -1005,7 +1005,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
@@ -1029,7 +1029,7 @@ test_set_symmetric_difference_construct_edge_cases(oneapi::dpl::__internal::__pa
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+        auto [out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             __tag, __exec,
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),

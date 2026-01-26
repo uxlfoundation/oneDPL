@@ -4052,7 +4052,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
             auto __mask,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
-            return oneapi::dpl::__utils::__set_union_bounded_construct(
+            return oneapi::dpl::__utils::__set_union_construct(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
@@ -4160,7 +4160,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    auto __mask,                                                                 // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
-                    return oneapi::dpl::__utils::__set_intersection_bounded_construct(
+                    return oneapi::dpl::__utils::__set_intersection_construct(
                         __tag, std::forward<_ExecutionPolicy>(__exec),
                         __first1, __last1,                                                      // bounds for data1
                         __first2, __last2,                                                      // bounds for data2
@@ -4201,7 +4201,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     auto __mask,                                                                // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
-                    return oneapi::dpl::__utils::__set_intersection_bounded_construct(
+                    return oneapi::dpl::__utils::__set_intersection_construct(
                         __tag, std::forward<_ExecutionPolicy>(__exec),
                         __first2, __last2,                                                      // bounds for data1
                         __first1, __last1,                                                      // bounds for data2
@@ -4311,7 +4311,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                 auto __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
-                return oneapi::dpl::__utils::__set_difference_bounded_construct(
+                return oneapi::dpl::__utils::__set_difference_construct(
                     __tag, std::forward<_ExecutionPolicy>(__exec),
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
@@ -4396,7 +4396,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                auto __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
-                return oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
+                return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                     __tag, std::forward<_ExecutionPolicy>(__exec),
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
