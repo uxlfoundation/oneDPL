@@ -27,10 +27,47 @@ namespace dpl
 namespace __omp_backend
 {
 
+// Chunk size selection strategy for parallel for algorithms
+// It primarily depends on a functor complexity, which is out of our control,
+// but some tuning is still possible based on the input size and number of threads
+inline std::size_t
+__get_optimal_chunk_size(std::size_t __size, int __num_threads)
+{
+    // Minimal/multiple are selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+    constexpr std::size_t __min_chunk = 64;
+    constexpr std::size_t __multiple_chunk = 64;
+
+    // TODO: investigate if a larger max chunk size makes sense
+    constexpr std::size_t __max_chunk = 16384;
+
+    constexpr std::size_t __large_size_optimal_chunk = 2048;
+
+    // Fill in all threads.
+    // It prioritizes performance with complex functors.
+    // Trivial functors perform much better with larger chunks and using a portion of available threads,
+    // but due to a small overall execution time the impact is not that significant.
+    if (__size <= __max_chunk)
+    {
+        return std::max(__min_chunk, (__size / __num_threads) / __multiple_chunk * __multiple_chunk);
+    }
+    else if (__size <= 2097152)
+    {
+        return std::min(__max_chunk, (__size / __num_threads) / __multiple_chunk * __multiple_chunk);
+    }
+    // When reaching ~1-4M elements, the optimal chunk is smaller
+    // It is probably due to exhausted L1/L2 caches requiring different memory access patterns
+    else
+    {
+        return __large_size_optimal_chunk;
+    }
+}
+
 template <class _Index, class _Fp>
 void
-__parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grainsize)
+__parallel_for_body(_Index __first, _Index __last, _Fp __f)
 {
+    std::size_t __grainsize = __get_optimal_chunk_size(__last - __first, omp_get_max_threads());
+
     // initial partition of the iteration space into chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
 
@@ -49,14 +86,13 @@ __parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grains
 
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
-__parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
-               std::size_t __grainsize = __default_chunk_size)
+__parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f)
 {
     if (omp_in_parallel())
     {
         // we don't create a nested parallel region in an existing parallel
         // region: just create tasks
-        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f);
     }
     else
     {
@@ -65,7 +101,7 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         _ONEDPL_PRAGMA(omp parallel)
         _ONEDPL_PRAGMA(omp single nowait)
         {
-            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f);
         }
     }
 }
