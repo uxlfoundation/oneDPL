@@ -632,8 +632,8 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    [[maybe_unused]] auto [__first1,  __last1,      __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
-    [[maybe_unused]] auto [__first2,  __last2,      __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
+    [[maybe_unused]] auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
+    [[maybe_unused]] auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
     [[maybe_unused]] auto [__result1, __result2, __n_out] = oneapi::dpl::__ranges::__get_range_bounds_n(__out_r);
 
     if (__n_out == 0)
@@ -777,8 +777,8 @@ __set_union_return_t<_R1, _R2, _OutRange>
 __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
     // 1. Main set_union operation
