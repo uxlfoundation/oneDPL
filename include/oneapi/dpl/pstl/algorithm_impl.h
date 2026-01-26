@@ -3871,7 +3871,10 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.3:\n" << "\t\t <- (" << __total << ") " << "\n";
 #endif
-                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
+                if constexpr (!__Bounded)
+                    __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+                else
+                    __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
             });
 
 #if DUMP_PARALLEL_SET_OP_WORK
