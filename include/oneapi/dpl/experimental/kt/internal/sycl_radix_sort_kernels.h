@@ -593,13 +593,15 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             auto __global_fix = __slm_global_fix[__bin];
             auto __out_idx = __global_fix + __slm_idx;
 
-            // TODO we need to figure out how to relax this for full unrolling
-            if (__out_idx < __n)
+            // TODO: we need to figure out how to relax this bounds checking for full unrolling
+            bool __output_mask = __out_idx < __n;
+            if (__output_mask)
                 __out_pack.__keys_rng()[__out_idx] = __key;
             if constexpr (__has_values)
             {
                 auto __val = __slm_vals[__slm_idx];
-                __out_pack.__vals_rng()[__out_idx] = __val;
+                if (__output_mask)
+                    __out_pack.__vals_rng()[__out_idx] = __val;
             }
         }
     }
