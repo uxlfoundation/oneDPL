@@ -3683,17 +3683,14 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _SetUnionOp,
-          class _ReachedPositionsEvaluator,
-          class _Compare, class _Proj1, class _Proj2>
+          class _OutputIterator, class _SetUnionOp, class _ReachedPositionsEvaluator, class _Compare, class _Proj1,
+          class _Proj2>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-__parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                        _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                        _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                        _OutputIterator __result1, _OutputIterator __result2,
-                        _SetUnionOp __set_union_op,
-                        _ReachedPositionsEvaluator __reached_positions_evaluator,
-                        _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+__parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                        _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                        _OutputIterator __result1, _OutputIterator __result2, _SetUnionOp __set_union_op,
+                        _ReachedPositionsEvaluator __reached_positions_evaluator, _Compare __comp, _Proj1 __proj1,
+                        _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
