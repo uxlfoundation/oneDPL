@@ -3403,13 +3403,13 @@ struct __set_op_unbounded_offsets_eval
 {
     template <class _IsVector, class _ExecutionPolicy, 
               typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
-              class _SizeFunction, class _MaskSizeFunction>
+              class _SizeFunction, class _MaskSizeFunction, typename _MaskIterator>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&&,
-               [[maybe_unused]]_DifferenceType1 __n1, [[maybe_unused]] _DifferenceType2 __n2, [[maybe_unused]] _DifferenceTypeOut __n_out,
+               _DifferenceType1 __n1, _DifferenceType2 __n2, [[maybe_unused]] _DifferenceTypeOut __n_out,
                [[maybe_unused]] _SizeFunction __size_func,
                _MaskSizeFunction,
-               oneapi::dpl::__utils::__parallel_set_op_mask*,
+               _MaskIterator,
                _DifferenceTypeOut) const
     {
         assert(__size_func(__n1, __n2) <= __n_out);
@@ -4049,7 +4049,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
             _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result,
-            oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+            auto __mask,
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
             return oneapi::dpl::__utils::__set_union_bounded_construct(
@@ -4157,7 +4157,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _T* __result,
-                   oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
+                   auto __mask,                                                                 // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
@@ -4198,7 +4198,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _T* __result,                                                               // results
-                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask,                       // source data usage masks
+                    auto __mask,                                                                // source data usage masks
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
@@ -4308,7 +4308,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _T* __result,
-                oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+                auto __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_difference_bounded_construct(
@@ -4393,7 +4393,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _Tp* __result,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+               auto __mask,
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(

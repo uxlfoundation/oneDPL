@@ -1068,7 +1068,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
            _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result,
-            oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+            auto __mask,
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_union_bounded_construct(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
@@ -1265,7 +1265,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _Tp* __result,
-                   oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
+                   auto __mask, // source data usage masks
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
@@ -1306,7 +1306,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _Tp* __result,
-                    oneapi::dpl::__utils::__parallel_set_op_mask* __mask, // source data usage masks
+                    auto __mask, // source data usage masks
                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_bounded_construct(
@@ -1528,7 +1528,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _T* __result,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+               auto __mask,
                _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
             {
                 return oneapi::dpl::__utils::__set_difference_bounded_construct(
@@ -1719,7 +1719,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
            _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
            _Tp* __result,
-            oneapi::dpl::__utils::__parallel_set_op_mask* __mask,
+            auto __mask,
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
         {
             return oneapi::dpl::__utils::__set_symmetric_difference_bounded_construct(
