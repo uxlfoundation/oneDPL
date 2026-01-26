@@ -868,6 +868,9 @@ struct __set_op_bounded_offsets_evaluator
         const auto __req_size = __size_func(__n1, __n2);
         const auto __req_mask_size = __mask_size_func(__n1, __n2);
 
+        // Our reached output position should not exceed requested mask output size
+        assert(__reachedOutPos <= __req_mask_size);
+
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "=== __set_intersection_offsets call ===" << std::endl;
         std::cout << "__n1 = " << __n1 << ", __n2 = " << __n2 << ", __n_out = " << __n_out
@@ -928,20 +931,21 @@ struct __set_op_bounded_offsets_evaluator
         std::cout << "\tTransform iterator over __mask buffer created:\n";
         std::cout << "\t\t__prefix_summ_buf: ";
         dump_buffer(std::cout, __prefix_summ_buf_it_b, __prefix_summ_buf_it_e);
-        std::cout << "\n";
+        std::cout << "\n\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
 #endif
 
         auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
         auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
 
-#if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
-#endif
+        // At leas __reachedOutPos first position are not interested for us,
+        // but if __reachedOutPos == 0 we should start from the beginning
+        auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
+        assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
 
         // Find the position where output size limit is reached
         auto it_prefix_summ_buf = __pattern_find_if(
             __parallel_tag<_IsVector>{}, __exec,
-            it_prefix_summ_buf_b, it_prefix_summ_buf_e,
+            it_prefix_summ_buf_start, it_prefix_summ_buf_e,   
             [__reachedOutPos](const _CountsType& __count) {
                 return __count.__processedOut == __reachedOutPos + 1; // We should try to find the next processed position
             });
@@ -952,9 +956,6 @@ struct __set_op_bounded_offsets_evaluator
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
-#endif
-
-#if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "\t<- Evaluated reached offsets : { " << __n1_reached << ", " << __n2_reached << " }\n";
 #endif
 
