@@ -398,14 +398,14 @@ __set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __
 }
 
 template <class _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
+          typename _OutputIterator, typename _MaskIterator, typename _CopyConstructRange, typename _Compare,
+          typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag,
-                                     _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                                     _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                     _ForwardIterator2 __last2, _OutputIterator __result,
-                                     _MaskIterator __mask, _CopyConstructRange __cc_range,
-                                     _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+                                     _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
+                                     _MaskIterator __mask, _CopyConstructRange __cc_range, _Compare __comp,
+                                     _Proj1 __proj1, _Proj2 __proj2)
 {
     // This implementation should be aligned with https://eel.is/c++draft/set.symmetric.difference
 

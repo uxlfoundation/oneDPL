@@ -4234,7 +4234,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                    __result + __n1 + __n2,
                    [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                      _Tp* __result, mask __mask, _Compare __comp,
+                      _Tp* __result, auto __mask, _Compare __comp,
                       oneapi::dpl::identity, oneapi::dpl::identity) {
                        return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
