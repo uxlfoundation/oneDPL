@@ -847,6 +847,197 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
                              typename _Tag::__is_vector{});
 }
 
+template <class _IncludeToOutputPred, class _EvalReachedPosPred>
+struct __set_op_bounded_offsets_evaluator
+{
+    _IncludeToOutputPred __include_to_output_pred;
+    _EvalReachedPosPred __eval_reached_pos_pred;
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        assert(__n_out > 0);
+
+        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+        const auto __req_size = __size_func(__n1, __n2);
+        const auto __req_mask_size = __mask_size_func(__n1, __n2);
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "=== __set_intersection_offsets call ===" << std::endl;
+        std::cout << "__n1 = " << __n1 << ", __n2 = " << __n2 << ", __n_out = " << __n_out
+                  << ", __reachedOutPos = " << __reachedOutPos << ", __req_size = " << __req_size << "\n";
+#endif
+
+        // No output size limits - return the end of the first and second input buffers
+        if (__n_out >= __req_size)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t<- No output size limits - return the end of the first and second input buffers: {__n1, __n2}\n";
+#endif
+            return {__n1, __n2};
+        }
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+
+        using _CountsType = _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+
+        // Calculate counts through transform_iterator
+        auto __tr_first = oneapi::dpl::make_transform_iterator(
+            __mask,
+            [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType
+            {
+                // (mask & 0x10) == 0x10
+                const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceType1 __processed1 = __is_eq_data1 ? 1 : 0;
+
+                // (mask & 0x01) == 0x01
+                const bool __is_eq_data2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceType2 __processed2 = __is_eq_data2 ? 1 : 0;
+
+                const _DifferenceTypeOut __processedOut = __include_to_output_pred(__m) ? 1 : 0;
+
+                return { __processed1, __processed2, __processedOut };
+            }
+        );
+
+        using _PrefixBuf = __par_backend::__buffer<_CountsType>;
+        _PrefixBuf __prefix_summ_buf(__req_mask_size);
+
+        auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
+        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
+
+        // Calculate prefix summs of counts
+        __pattern_transform_scan(
+            __tag, __exec,
+            __tr_first, __tr_first + __req_mask_size,
+            __prefix_summ_buf_it_b,
+            oneapi::dpl::identity{},
+            _CountsType{},
+            std::plus<_CountsType>{},
+            /* _Inclusive */ std::true_type{});
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\tTransform iterator over __mask buffer created:\n";
+        std::cout << "\t\t__prefix_summ_buf: ";
+        dump_buffer(std::cout, __prefix_summ_buf_it_b, __prefix_summ_buf_it_e);
+        std::cout << "\n";
+#endif
+
+        auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
+        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
+#endif
+
+        // Find the position where output size limit is reached
+        auto it_prefix_summ_buf = __pattern_find_if(
+            __parallel_tag<_IsVector>{}, __exec,
+            it_prefix_summ_buf_b, it_prefix_summ_buf_e,
+            [__reachedOutPos](const _CountsType& __count) {
+                return __count.__processedOut == __reachedOutPos + 1; // We should try to find the next processed position
+            });
+
+        // Initially we assume that we processed all first data range
+        const auto [__n1_reached, __n2_reached] =
+            __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
+#endif
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "\t<- Evaluated reached offsets : { " << __n1_reached << ", " << __n2_reached << " }\n";
+#endif
+
+        return {__n1_reached, __n2_reached};
+    }
+
+  protected:
+
+    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
+    struct _Counts
+    {
+        _DifferenceType1   __processed1 = 0;    // Counter of processed items from the first range
+        _DifferenceType2   __processed2 = 0;    // Counter of processed items from the second range
+        _DifferenceTypeOut __processedOut = 0;  // Counter of items included to output range
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        template <typename OStream>
+        friend OStream&
+        operator<<(OStream& os, const _Counts& data)
+        {
+            os << "(" << data.__processed1 << ", " << data.__processed2 << ", " << data.__processedOut << ")";
+            return os;
+        }
+#endif
+
+        _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
+        operator+(const _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>& __other) const
+        {
+            return {__processed1 + __other.__processed1, __processed2 + __other.__processed2,
+                    __processedOut + __other.__processedOut};
+        }
+    };
+};
+
+// for bounded implementation of std::ranges::set_union
+struct __set_union_offsets
+{
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
+
+        // No output size limits - return the end of the first and second input buffers
+        if (__n_out >= __size_func(__n1, __n2))
+            return {__n1, __n2};
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+        using __parallel_set_op_mask_underlying_t =
+            std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+        auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
+                                 oneapi::dpl::__utils::__parallel_set_op_mask __state2) -> _Sizes {
+            assert(__state1 == __state2);
+            return _Sizes{
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1
+                    ? 1
+                    : 0,
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2
+                    ? 1
+                    : 0};
+        };
+
+        auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
+            return {__a.first + __b.first, __a.second + __b.second};
+        };
+
+        // transform_reduce
+        const _Sizes __res =
+            __pattern_transform_reduce(__parallel_tag<_IsVector>{}, __exec, __mask, __mask + __reachedOutPos,
+                                       __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
+                                       _Sizes{0, 0}, reduce_pred, transform_pred);
+
+        return {__res.first, __res.second};
+    }
+};
+
+
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
@@ -971,6 +1162,45 @@ __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R
     return __brick_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                     __comp, __proj1, __proj2, typename _Tag::__is_vector{});
 }
+
+// for bounded implementation of std::ranges::set_intersection
+struct __set_intersection_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
@@ -1175,6 +1405,45 @@ __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&
                                   __comp, __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
+// for bounded implementation of std::ranges::set_difference
+struct __set_difference_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
+
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
@@ -1368,6 +1637,49 @@ __pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& 
                                             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2,
                                             typename _Tag::__is_vector{});
 }
+
+// for bounded implementation of std::ranges::set_symmetric_difference
+struct __set_symmetric_difference_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                   __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            assert(it_prefix_summ_buf != it_prefix_summ_buf_b);
+
+            --it_prefix_summ_buf;
+            return {it_prefix_summ_buf->__processed1, it_prefix_summ_buf->__processed2};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
