@@ -3441,39 +3441,27 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
 
-    __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);
+    __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
+    __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size);
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
-    return __internal::__except_handler([__tag, &__exec,
-                                        __n1, __n2, __n_out,
-                                         __first1, __last1,
-                                         __first2, __last2,
-                                         __result1, __result2,
-                                         __comp, __proj1, __proj2,
-                                         __size_func,
-                                         __mask_size_func,
-                                         __set_union_op,
-                                         __reached_positions_evaluator,
-                                         &__buf,
-                                         &__mask_bufs,
-                                         __buf_size,
-                                         __mask_buf_size]() 
-    {
+    return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, __first2, __last2,
+                                         __result1, __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
+                                         __set_union_op, __reached_positions_evaluator, &__buf, &__mask_bufs,
+                                         __buf_size, __mask_buf_size]() {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
-    
+
         // Temporary "window"-organized mask of used items in input ranges
         auto __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
         auto __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
 
-        _DifferenceTypeCommon __res_reachedOutPos = 0;   // offset to the first unprocessed item from output range
+        _DifferenceTypeCommon __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         // Scan predicate
-        auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
-        {
+        auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s) {
             // Copy source data taking into account output range limits
             if (!__s.__data[0].empty())
             {
@@ -3482,7 +3470,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 if constexpr (!__Bounded)
                 {
                     __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_begin + __s_data.__buf_pos,
-                                                                      __buf_raw_data_begin + (__s_data.__buf_pos + __s_data.__len),
+                                                                      __buf_raw_data_begin +
+                                                                          (__s_data.__buf_pos + __s_data.__len),
                                                                       __result1 + __s_data.__pos, _IsVector{});
                 }
                 else
@@ -3518,16 +3507,22 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                     // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
                     // Evalueate output range boundaries for current data chunk
-                    const auto __result_from = oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos, __result2);
-                    const auto __result_to = oneapi::dpl::__utils::__advance_clamped(__result1,   __s_data.__pos + __s_data.__len, __result2);
+                    const auto __result_from =
+                        oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos, __result2);
+                    const auto __result_to =
+                        oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
                     const auto __result_remaining = __result_to - __result_from;
 
                     // Evaluate pointers to current data chunk in temporary buffer
-                    const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-                    const auto __buf_raw_data_to   = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
+                    const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(
+                        __buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
+                    const auto __buf_raw_data_to = oneapi::dpl::__utils::__advance_clamped(
+                        __buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len),
+                        __buf_raw_data_end);
 
                     // Copy results data into results range to have final output
-                    __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
+                    __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to,
+                                                                      __result_from, _IsVector{});
                 }
             }
 
@@ -3540,11 +3535,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                     const auto __s_mask_data = __s.__data[1];
 
                     // Evalueate output mask range boundaries for current data chunk
-                    const auto __buf_mask_rng_res_raw_data_from = __buf_mask_rng_res_raw_data_begin + __s_mask_data.__pos;
+                    const auto __buf_mask_rng_res_raw_data_from =
+                        __buf_mask_rng_res_raw_data_begin + __s_mask_data.__pos;
 
                     // Evaluate mask pointers to current data chunk in temporary buffer
                     const auto __buf_mask_rng_raw_data_from = __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos;
-                    const auto __buf_mask_rng_raw_data_to   = __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos + __s_mask_data.__len;
+                    const auto __buf_mask_rng_raw_data_to =
+                        __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos + __s_mask_data.__len;
 
                     // Copy mask to result mask buffer to have information about used items in input ranges
                     __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng_raw_data_from,
@@ -3555,36 +3552,35 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         };
 
         __par_backend::__parallel_strict_scan(
-            __backend_tag{},
-            __exec,
-            __n1,
-            _SetRange(),
-            [=, &__mask_bufs](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange
-            {
+            __backend_tag{}, __exec, __n1, _SetRange(),
+            [=, &__mask_bufs](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange {
                 //[__b; __e) - a subrange of the first sequence, to reduce
                 _RandomAccessIterator1 __b = __first1 + __i;
                 _RandomAccessIterator1 __e = __first1 + (__i + __len);
 
                 //try searching for the first element which not equal to *__b
                 if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1,
+                                                          __proj1);
 
                 //try searching for the first element which not equal to *__e
                 if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1,
+                                                          __proj1);
 
                 //check is [__b; __e) empty
                 if (__e - __b < 1)
                 {
                     _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
-                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                        __bb =
+                            __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
                                                                       __b, __comp, __proj2, __proj1);
 
                     typename _SetRange::_Data __new_processing_data{
-                        0,                                                          // position in output range
-                        0,                                                          // length of data in temporary buffer
-                        __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
+                        0,                                                 // position in output range
+                        0,                                                 // length of data in temporary buffer
+                        __size_func((__b - __first1), (__bb - __first2))}; // position in temporary buffer
 
                     if constexpr (!__Bounded)
                     {
@@ -3593,9 +3589,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                     else
                     {
                         typename _SetRange::_Data __new_mask_data{
-                            0,                                                          // position in mask buffer
-                            0,                                                          // length of mask in temporary mask buffer
-                            __mask_size_func((__b - __first1), (__bb - __first2))};     // position in temporary mask buffer
+                            0, // position in mask buffer
+                            0, // length of mask in temporary mask buffer
+                            __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
 
                         return _SetRange{__new_processing_data, __new_mask_data};
                     }
@@ -3611,7 +3607,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 if (__e != __last1)
                     __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
                                                                  __proj2, __proj1);
-
 
                 const _DifferenceTypeCommon __buf_pos = __size_func(__b - __first1, __bb - __first2);
                 const _DifferenceTypeCommon __buf_len = __size_func(__e - __b, __ee - __bb);
@@ -3633,10 +3628,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 }
 
                 // Prepare processed data info
-                const typename _SetRange::_Data __new_processing_data{
-                    0,
-                    __res - __buffer_b,
-                    __buf_pos};
+                const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
                 assert(__new_processing_data.__pos <= __buf_size);
                 assert(__new_processing_data.__buf_pos <= __buf_size);
                 assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
@@ -3648,10 +3640,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 else
                 {
                     // Prepare processed mask info
-                    const typename _SetRange::_Data __new_mask_data{
-                        0,
-                        __mask_e - __mask_b,
-                        __buf_mask_pos};
+                    const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
                     assert(__new_mask_data.__pos <= __mask_buf_size);
                     assert(__new_mask_data.__buf_pos <= __mask_buf_size);
                     assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
@@ -3659,8 +3648,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                     return _SetRange{__new_processing_data, __new_mask_data};
                 }
             },
-            [](const _SetRange& __a, const _SetRange& __b)
-            {
+            [](const _SetRange& __a, const _SetRange& __b) {
                 if constexpr (!__Bounded)
                 {
                     return _SetRange{_SetRange::_Data::combine(__a.__data[0], __b.__data[0])};
@@ -3671,10 +3659,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                      _SetRange::_Data::combine(__a.__data[1], __b.__data[1])};
                 }
             },
-            __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
-/* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
-             &__res_reachedOutPos, &__scan](const _SetRange& __total)
-            {
+            __scan,
+            [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan](const _SetRange& __total) {
                 //final scan
                 __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
@@ -3685,18 +3671,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             });
 
         // Evaluate reached offsets in input ranges
-        const auto __reached_positions = __reached_positions_evaluator(
-            __tag, __exec,
-            __n1, __n2, __n_out,
-            __size_func,
-            __mask_size_func,
-            __buf_mask_rng_res_raw_data_begin,
-            __res_reachedOutPos);
+        const auto __reached_positions =
+            __reached_positions_evaluator(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func,
+                                          __buf_mask_rng_res_raw_data_begin, __res_reachedOutPos);
 
-        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            { __first1 + __reached_positions.first,
-              __first2 + __reached_positions.second,
-              __result1 + __res_reachedOutPos };
+        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+            __first1 + __reached_positions.first, __first2 + __reached_positions.second,
+            __result1 + __res_reachedOutPos};
     });
 }
 
