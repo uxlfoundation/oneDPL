@@ -1248,7 +1248,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op(
+            return __internal::__parallel_set_op</*_Bounded*/true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __left_bound_seq_1, __last1,                    // bounds for data1
                 __first2, __last2,                              // bounds for data2
@@ -1289,7 +1289,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op(
+            return __internal::__parallel_set_op</*_Bounded*/true>(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __first1, __last1,                                                              // bounds for data1
                 __left_bound_seq_2, __last2,                                                    // bounds for data2
@@ -1517,7 +1517,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
     {
-        return __parallel_set_op(
+        return __parallel_set_op</*_Bounded*/true>(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
