@@ -324,8 +324,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
-                auto __res_acc =
-                    __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+                auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
