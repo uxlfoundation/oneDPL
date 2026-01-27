@@ -553,7 +553,7 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
 
 template <typename _ValueT>
 void
-__copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __seg_start, const std::size_t __seg_end,
+__copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __seg_start, std::size_t __seg_end,
                              const std::size_t __wg_size, _ValueT* __input, _ValueT* __output)
 {
     // item info
