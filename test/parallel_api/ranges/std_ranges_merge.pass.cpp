@@ -21,18 +21,16 @@ struct merge_checker_fn
 {
     template<std::ranges::random_access_range _R1, std::ranges::random_access_range _R2, std::ranges::random_access_range _ROut,
     typename Comp  = std::ranges::less, typename Proj1 = std::identity, typename Proj2 = std::identity>
-    std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>,
-                              std::ranges::borrowed_iterator_t<_R2>, 
-                              std::ranges::borrowed_iterator_t<_ROut>>
-    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    auto operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
-        auto it_1 = std::ranges::begin(r_1);
-        auto it_1_e = std::ranges::end(r_1);
-
-        auto it_2 = std::ranges::begin(r_2);
-        auto it_2_e = std::ranges::end(r_2);
+        using ret_type = std::ranges::merge_result<std::ranges::borrowed_iterator_t<decltype(r_1)>,
+            std::ranges::borrowed_iterator_t<decltype(r_2)>, std::ranges::borrowed_iterator_t<decltype(r_out)>>;
 
         auto it_out = std::ranges::begin(r_out);
+        auto it_1 = std::ranges::begin(r_1);
+        auto it_2 = std::ranges::begin(r_2);
+        auto it_1_e = std::ranges::end(r_1);
+        auto it_2_e = std::ranges::end(r_2);
         auto it_out_e = std::ranges::end(r_out);
 
         while(it_1 != it_1_e && it_2 != it_2_e)
@@ -51,20 +49,18 @@ struct merge_checker_fn
                 return ret_type{it_1, it_2, it_out};
         }
 
-        if (it_1 == it_1_e)
+        if(it_1 == it_1_e)
         {
-            auto __res_copy2 = std::ranges::copy(it_2, it_2 + std::min(it_2_e - it_2, it_out_e - it_out), it_out);
-            it_2 = __res_copy2.in;
-            it_out = __res_copy2.out;
+            for(; it_2 != it_2_e && it_out != it_out_e; ++it_2, (void) ++it_out)
+                *it_out = *it_2;
         }
         else
         {
-            auto __res_copy1 = std::ranges::copy(it_1, it_1 + std::min(it_1_e - it_1, it_out_e - it_out), it_out);
-            it_1 = __res_copy1.in;
-            it_out = __res_copy1.out;
+            for(; it_1 != it_1_e && it_out != it_out_e; ++it_1, (void) ++it_out)
+                *it_out = *it_1;
         }
 
-        return {it_1, it_2, it_out};
+        return ret_type{it_1, it_2, it_out};
     }
 } merge_checker;
 #endif //_ENABLE_STD_RANGES_TESTING
