@@ -301,18 +301,12 @@ struct __subgroup_radix_sort
                                 {
                                     const uint16_t __idx = __wi * __block_size + __i;
                                     if (__idx < __n)
+                                    {
                                         __src[__idx] = ::std::move(__exchange_lacc[__idx]);
-                                }
-
-                                //destroy values in exchange buffer
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    if (__idx < __n)
                                         __exchange_lacc[__idx].~_ValT();
+                                    }
                                 }
-                            }
+                           }
                             else
                             {
                                 _ONEDPL_PRAGMA_UNROLL
