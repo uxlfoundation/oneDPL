@@ -284,11 +284,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr decltype(__wgroup_size) __iters_per_witem = 16;
-        auto __size_per_wg = __iters_per_witem * __wgroup_size;
-        auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
-        // Storage for the results of scan for each workgroup
+        constexpr std::size_t __iters_per_witem = 16;
+        std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
 
+        // Storage for the results of scan for each workgroup
         __combined_storage<_Type> __temp_and_result{__q, __n_groups + 1, /*result size*/ 2};
 
         _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
@@ -325,8 +325,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
-                auto __res_acc =
-                    __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+                auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
