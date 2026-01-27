@@ -3311,22 +3311,22 @@ __is_great_that_set_algo_cut_off(Size size)
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
 //  - the second field contains the amount of processed (i.e. skipped) items in the end
-template <typename _DifferenceTypeCommon>
-using _ReachedOffset = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+template <typename _DifferenceType>
+using _ReachedOffset = std::pair<_DifferenceType, _DifferenceType>;
 
 #if DUMP_PARALLEL_SET_OP_WORK
 static std::size_t _s_SetRangeImplCounter = 0;
 #endif
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
-template <bool __Bounded, typename _DifferenceTypeCommon>
+template <bool __Bounded, typename _DifferenceType>
 struct _SetRangeImpl
 {
     struct _Data
     {
-        _DifferenceTypeCommon __pos{};     // Offset in output range w/o limitation to output data size
-        _DifferenceTypeCommon __len{};     // Length in temporary buffer w/o limitation to output data size
-        _DifferenceTypeCommon __buf_pos{}; // Position in temporary buffer w/o limitation to output data size
+        _DifferenceType __pos{};           // Offset in output range w/o limitation to output data size
+        _DifferenceType __len{};           // Length in temporary buffer w/o limitation to output data size
+        _DifferenceType __buf_pos{};       // Position in temporary buffer w/o limitation to output data size
 
         bool
         empty() const
@@ -3507,17 +3507,17 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
-    using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceTypeCommon>;
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
 
-    const _DifferenceType1         __n1 = __last1 - __first1;       // Size of first input range
-    const _DifferenceType2         __n2 = __last2 - __first2;       // Size of second input range
-    const _DifferenceTypeCommon __n_out = __result2 - __result1;    // Size of output range
+    const _DifferenceType1   __n1 = __last1 - __first1;     // Size of first input range
+    const _DifferenceType2   __n2 = __last2 - __first2;     // Size of second input range
+    const _DifferenceType __n_out = __result2 - __result1;  // Size of output range
 
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
@@ -3562,7 +3562,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         auto __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
         auto __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
 
-        _DifferenceTypeCommon __res_reachedOutPos = 0;   // offset to the first unprocessed item from output range
+        _DifferenceType __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         // Scan predicate
         auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s)
@@ -3753,13 +3753,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                                                                  __proj2, __proj1);
 
 
-                const _DifferenceTypeCommon __buf_pos = __size_func(__b - __first1, __bb - __first2);
-                const _DifferenceTypeCommon __buf_len = __size_func(__e - __b, __ee - __bb);
+                const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
+                const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
 
                 auto __buffer_b = __buf_raw_data_begin + __buf_pos;
                 auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
 
-                const _DifferenceTypeCommon __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
+                const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
 
                 auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
 
@@ -3770,7 +3770,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                                                         __mask_b,               // iterator usage masks
                                                         __comp, __proj1, __proj2);
 
-                [[maybe_unused]] const _DifferenceTypeCommon __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
+                [[maybe_unused]] const _DifferenceType __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
                 if constexpr (__Bounded)
                 {
                     assert(__mask_e - __mask_b <= __buf_mask_len);
@@ -3922,7 +3922,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -4012,7 +4012,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                  __result1 + __to_walk_in_r1 + __to_walk_in_r2};
     }
 
-    auto __size_fnc = [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m) { return __n + __m; };
+    auto __size_fnc = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
     auto __mask_size_fnc = __size_fnc;
 
     const auto __m1 = __left_bound_seq_1 - __first1;
@@ -4222,7 +4222,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
     const auto __n1 = __last1 - __first1;
     const auto __n2 = __last2 - __first2;
@@ -4253,11 +4253,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 __left_bound_seq_1, __last1,            // bounds for data1
                 __first2, __last2,                      // bounds for data2
                 __result, __result + __n1 + __n2,       // bounds for results w/o limitation
-                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                // _SizeFunction __size_func
+                [](_DifferenceType __n, _DifferenceType __m)                                                // _SizeFunction __size_func
                 {
                     return std::min(__n, __m);
                 },
-                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                // _MaskSizeFunction __mask_size_fnc
+                [](_DifferenceType __n, _DifferenceType __m)                                                // _MaskSizeFunction __mask_size_fnc
                 {
                     return __n + __m;
                 },
@@ -4294,11 +4294,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 __first1, __last1,                                  // bounds for data1
                 __left_bound_seq_2, __last2,                        // bounds for data2
                 __result, __result + __n1 + __n2,                   // bounds for results w/o limitation
-                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                    // _SizeFunction __size_func
+                [](_DifferenceType __n, _DifferenceType __m)                                                    // _SizeFunction __size_func
                 {
                     return std::min(__n, __m);
                 },
-                [](_DifferenceTypeCommon __n, _DifferenceTypeCommon __m)                                                   // _MaskSizeFunction __mask_size_fnc
+                [](_DifferenceType __n, _DifferenceType __m)                                                   // _MaskSizeFunction __mask_size_fnc
                 {
                     return __n + __m;
                 },
