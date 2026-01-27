@@ -568,7 +568,6 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
@@ -591,7 +590,6 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
         const int r_size = max_n;
-
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
