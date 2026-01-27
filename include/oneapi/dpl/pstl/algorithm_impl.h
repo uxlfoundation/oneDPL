@@ -3905,9 +3905,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, class _SetUnionOp,
-          class _ReachedPositionsEvaluator,
+template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
+          class _RandomAccessIterator2, class _OutputIterator, class _SetUnionOp, class _ReachedPositionsEvaluator,
           class _Compare, class _Proj1, class _Proj2>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
@@ -3933,29 +3932,23 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
     {
-        const auto __to_walk_in_r1 = std::min(__n1, __n_out);
+        auto __last1_tmp = !__Bounded ? __last1 : __first1 + std::min(__n1, __n_out);
 
-        _OutputIterator __result_finish =
-            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
-                                              __first1 + __to_walk_in_r1, __result1, __copy_range);
+        _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1_tmp, __result1, __copy_range);
 
-        return { __first1 + __to_walk_in_r1,
-                 /*data2 empty*/ __first2,
-                 __result_finish            };
+        return {__last1_tmp, __first2, __result_finish};
     }
 
     // {} {2}: parallel copying just second sequence
     if (__n1 == 0)
     {
-        const auto __to_walk_in_r2 = std::min(__n2, __n_out);
+        auto __last2_tmp = !__Bounded ? __last2 : __first2 + std::min(__n2, __n_out);
 
-        _OutputIterator __result_finish =
-            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
-                                              __first2 + __to_walk_in_r2, __result1, __copy_range);
+        _OutputIterator __result_finish = __internal::__pattern_walk2_brick(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2_tmp, __result1, __copy_range);
 
-        return { /*data1 empty*/ __first1,
-                 __first2 + __to_walk_in_r2,
-                 __result_finish             };
+        return {__first1, __last2_tmp, __result_finish};
     }
 
     // testing  whether the sequences are intersected
@@ -3965,24 +3958,23 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_1 == __last1)
     {
-        const auto __to_walk_in_r1 = std::min(__n1, __n_out);
-        const auto __to_walk_in_r2 = std::min(__n2, __n_out > __to_walk_in_r1 ? __n_out - __to_walk_in_r1 : 0);
+        auto __last1_tmp = !__Bounded ? __last1 : __first1 + std::min(__n1, __n_out);
+        auto __n1_tmp = __last1_tmp - __first1;
+
+        auto __last2_tmp = !__Bounded ? __last2 : __first2 + std::min(__n2, __n_out > __n1_tmp ? __n_out - __n1_tmp : 0);
+        auto __n2_tmp = __last2_tmp - __first2;
 
         //{1} < {2}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __first1 + __to_walk_in_r1, __result1,
-                                                  __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1_tmp, __result1, __copy_range);
             },
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __first2 + __to_walk_in_r2,
-                                                  __result1 + __to_walk_in_r1, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2_tmp, __result1 + __n1_tmp, __copy_range);
             });
 
-        return { __first1  + __to_walk_in_r1,
-                 __first2  + __to_walk_in_r2,
-                 __result1 + __to_walk_in_r1 + __to_walk_in_r2 };
+        return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
     }
 
     // testing  whether the sequences are intersected
@@ -3992,24 +3984,23 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     if (__left_bound_seq_2 == __last2)
     {
-        const auto __to_walk_in_r2 = std::min(__n2, __n_out);
-        const auto __to_walk_in_r1 = std::min(__n1, __n_out > __to_walk_in_r2 ? __n_out - __to_walk_in_r2 : 0);
+        auto __last2_tmp = !__Bounded ? __last2 : __first2 + std::min(__n2, __n_out);
+        auto __n2_tmp = __last2_tmp - __first2;
+
+        auto __last1_tmp = !__Bounded ? __last1 : __first1 + std::min(__n1, __n_out > __n2_tmp ? __n_out - __n2_tmp : 0);
+        auto __n1_tmp = __last1_tmp - __first1;
 
         //{2} < {1}: seq2 is wholly greater than seq1, so, do parallel copying seq1 and seq2
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __first2 + __to_walk_in_r2, __result1,
-                                                  __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __last2_tmp, __result1, __copy_range);
             },
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __first1 + __to_walk_in_r1,
-                                                  __result1 + __to_walk_in_r2, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __last1_tmp, __result1 + __n2_tmp, __copy_range);
             });
 
-        return { __first1  + __to_walk_in_r1,
-                 __first2  + __to_walk_in_r2,
-                 __result1 + __to_walk_in_r1 + __to_walk_in_r2};
+        return {__last1_tmp, __last2_tmp, __result1 + __n1_tmp + __n2_tmp};
     }
 
     auto __size_fnc = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
@@ -4030,7 +4021,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             },
             [=, &__exec, &__finish]
             {
-                __finish = __internal::__parallel_set_op</*_Bounded*/false>(
+                __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec,
                     __left_bound_seq_1, __last1,            // bounds for data1
                     __first2, __last2,                      // bounds for data2
@@ -4060,7 +4051,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             },
             [=, &__exec, &__finish]
             {
-                __finish = __internal::__parallel_set_op</*_Bounded*/false>(
+                __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec,
                     __first1, __last1,                      // bounds for data1
                     __left_bound_seq_2, __last2,            // bounds for data2
@@ -4074,7 +4065,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         return __finish;
     }
 
-    return __internal::__parallel_set_op</*_Bounded*/false>(
+    return __internal::__parallel_set_op<__Bounded>(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,                                  // bounds for data1
         __first2, __last2,                                  // bounds for data2
@@ -4148,7 +4139,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
-    return __parallel_set_union_op(
+    return __parallel_set_union_op</*__Bounded*/false>(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __first1, __last1,                                      // bounds for data1
         __first2, __last2,                                      // bounds for data2
@@ -4248,7 +4239,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*_Bounded*/false>(
+            return __internal::__parallel_set_op</*__Bounded*/false>(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __left_bound_seq_1, __last1,            // bounds for data1
                 __first2, __last2,                      // bounds for data2
@@ -4289,7 +4280,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*_Bounded*/false>(
+            return __internal::__parallel_set_op</*__Bounded*/false>(
                 __tag, std::forward<_ExecutionPolicy>(__exec),
                 __first1, __last1,                                  // bounds for data1
                 __left_bound_seq_2, __last2,                        // bounds for data2
@@ -4405,7 +4396,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
     {
-        return __parallel_set_op</*_Bounded*/false>(
+        return __parallel_set_op</*__Bounded*/false>(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
@@ -4492,7 +4483,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
 
-        return __internal::__parallel_set_union_op(
+        return __internal::__parallel_set_union_op</*__Bounded*/false>(
             __tag, std::forward<_ExecutionPolicy>(__exec),
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
