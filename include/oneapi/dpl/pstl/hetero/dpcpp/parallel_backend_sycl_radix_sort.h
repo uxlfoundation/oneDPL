@@ -30,12 +30,6 @@
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
-#define _ONEDPL_RADIX_WORKLOAD_TUNING 1
-//To achieve better performance, number of segments and work-group size are variated depending on a number of elements:
-//1. 32K...512K  - number of segments is increased up to 8 times
-//2. 512K...2M   - number of segments is increased up up 4 times
-//3. 2M... - work-group size (count phase) is increased up to 128
-
 namespace oneapi
 {
 namespace dpl
@@ -723,7 +717,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 //-----------------------------------------------------------------------
 
 template <typename _CustomName, std::uint32_t __radix_bits, bool __is_ascending>
-struct __parallel_radix_sort_iteration
+struct __parallel_multi_group_radix_sort
 {
     template <typename... _Name>
     using __count_phase = __radix_sort_count_kernel<__radix_bits, __is_ascending, _Name...>;
@@ -732,72 +726,93 @@ struct __parallel_radix_sort_iteration
     template <typename... _Name>
     using __reorder_phase = __radix_sort_reorder_kernel<__radix_bits, __is_ascending, _Name...>;
 
-    template <typename _InRange, typename _OutRange, typename _TmpBuf, typename _Proj>
-    static sycl::event
-    submit(sycl::queue& __q, std::size_t __wg_size_count, std::size_t __wg_size_scan, std::size_t __wg_size_reorder, std::size_t __segments, std::uint32_t __radix_iter, bool __input_is_first, _InRange&& __in_rng,
-           _OutRange&& __out_rng, _TmpBuf& __tmp_buf, sycl::event __dependency_event, _Proj __proj)
+
+    template <typename _InRange, typename _Proj>
+    sycl::event
+    operator()(sycl::queue& __q, _InRange&& __in_rng, _Proj __proj)
     {
         using _RadixCountKernel =
-            __internal::__kernel_name_generator<__count_phase, _CustomName, std::decay_t<_InRange>,
-                                                ::std::decay_t<_TmpBuf>, _Proj>;
+            __internal::__kernel_name_generator<__count_phase, _CustomName, std::decay_t<_InRange>, _Proj>;
         using _RadixLocalScanKernel =
-            __internal::__kernel_name_generator<__local_scan_phase, _CustomName, std::decay_t<_TmpBuf>>;
+            __internal::__kernel_name_generator<__local_scan_phase, _CustomName>;
         using _RadixReorderKernel =
-            __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>,
-                                                std::decay_t<_OutRange>, _Proj>;
+            __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>, _Proj>;
 
-        std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
-        // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
-        // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        std::size_t __scan_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_scan);
-#if _ONEDPL_RADIX_WORKLOAD_TUNING
-        ::std::size_t __count_wg_size = __wg_size_count;
-#else
-        ::std::size_t __count_wg_size = __max_sg_size;
-#endif
-        std::size_t __reorder_wg_size = __wg_size_reorder;
+        using _ValueT = oneapi::dpl::__internal::__value_t<_InRange>;
+        using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _InRange>;
 
+        constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
         const ::std::uint32_t __radix_states = 1 << __radix_bits;
+        const ::std::size_t __n = __in_rng.size();
 
-        // correct __count_wg_size according to local memory limit in count phase
-        using _CounterType = typename ::std::decay_t<_TmpBuf>::value_type;
-        const auto __max_count_wg_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-            __q, sizeof(_CounterType) * __radix_states, __count_wg_size);
-        __count_wg_size = static_cast<::std::size_t>((__max_count_wg_size / __radix_states)) * __radix_states;
+        using _CounterType = std::uint32_t;
+        std::size_t __wg_size_count = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
+                __q, sizeof(_CounterType) * __radix_states, std::size_t(128));
+        // work-group size must be a power of 2 because of the tree reduction
+        __wg_size_count =
+            sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__wg_size_count), ::std::size_t(__radix_states));
+        std::size_t __wg_size_scan = oneapi::dpl::__internal::__max_work_group_size(__q, 1024);;
+        std::size_t __wg_size_reorder = 256;
+        std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
-        // work-group size must be a power of 2 and not less than the number of states.
-        // TODO: Check how to get rid of that restriction.
-        __count_wg_size =
-            sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__count_wg_size), ::std::size_t(__radix_states));
+        std::size_t __keys_per_wi_count = 64;
+        if (__n < 1 << 20)
+        {
+            __keys_per_wi_count = 16;
+        }
 
+        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 
-        //std::cout<<"Radix sort iteration parameters: "
-        //         << "__count_wg_size=" << __count_wg_size
-        //         << ", __scan_wg_size=" << __scan_wg_size
-        //         << ", __reorder_wg_size=" << __reorder_wg_size
-        //         << ", __reorder_sg_size=" << __reorder_sg_size
-        //         << std::endl;
-        // Compute the radix position for the given iteration
-        ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
+        // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
+        // 'No operation' flag specifies whether to skip re-order phase if the all keys are the same (lie in one bin)
+        const ::std::size_t __tmp_buf_size = __segments * __radix_states + __radix_states + 1 /*no_op flag*/;
+        // memory for storing count and offset values
+        sycl::buffer<_CounterType, 1> __tmp_buf{sycl::range<1>(__tmp_buf_size)};
 
-        // 1. Count Phase
-        sycl::event __count_event = __radix_sort_count_submit<_RadixCountKernel, __radix_bits, __is_ascending>(
-            __q, __segments, __count_wg_size, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf, __dependency_event, __proj
-        );
+        // memory for storing values sorted for an iteration
+        oneapi::dpl::__par_backend_hetero::__buffer<_ValueT> __out_buffer_holder{__n};
+        auto __out_rng = oneapi::dpl::__ranges::all_view<_ValueT, __par_backend_hetero::access_mode::read_write>(
+            __out_buffer_holder.get_buffer());
 
-        // 2. Scan Phase
-        std::size_t __scan_size = __input_is_first ? oneapi::dpl::__ranges::__size(__in_rng) : oneapi::dpl::__ranges::__size(__out_rng);
-        sycl::event __scan_event = __radix_sort_scan_submit<_RadixLocalScanKernel, __radix_bits>(
-            __q, __scan_wg_size, __segments, __tmp_buf, __scan_size, __count_event
-        );
+        // iterations per each bucket
+        assert("Number of iterations must be even" && __radix_iters % 2 == 0);
+        // TODO: radix for bool can be made using 1 iteration (x2 speedup against current implementation)
+        sycl::event __dependency_event;
+        for (::std::uint32_t __radix_iter = 0; __radix_iter < __radix_iters; ++__radix_iter)
+        {
+            // TODO: convert to ordered type once at the first iteration and convert back at the last one
+            bool __input_is_first = (__radix_iter % 2 == 0);
 
-        // 3. Reorder Phase
-        sycl::event __reorder_event =
-            __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
-                __q, __segments, __reorder_wg_size, __reorder_min_sg_size, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf, __scan_event, __proj
+            //std::cout<<"Radix sort iteration parameters: "
+            //         << "__wg_size_count=" << __wg_size_count
+            //         << ", __wg_size_scan=" << __wg_size_scan
+            //         << ", __wg_size_reorder=" << __wg_size_reorder
+            //         << ", __reorder_min_sg_size=" << __reorder_min_sg_size
+            //         << std::endl;
+            // Compute the radix position for the given iteration
+            ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
+
+            // 1. Count Phase
+            __dependency_event = __radix_sort_count_submit<_RadixCountKernel, __radix_bits, __is_ascending>(
+                __q, __segments, __wg_size_count, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf, __dependency_event, __proj
             );
 
-        return __reorder_event;
+            // 2. Scan Phase
+            std::size_t __scan_size = __input_is_first ? oneapi::dpl::__ranges::__size(__in_rng) : oneapi::dpl::__ranges::__size(__out_rng);
+            __dependency_event = __radix_sort_scan_submit<_RadixLocalScanKernel, __radix_bits>(
+                __q, __wg_size_scan, __segments, __tmp_buf, __scan_size, __dependency_event
+            );
+
+            // 3. Reorder Phase
+            __dependency_event =
+                __radix_sort_reorder_submit<_RadixReorderKernel, __radix_bits, __is_ascending>(
+                    __q, __segments, __wg_size_reorder, __reorder_min_sg_size, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf, __dependency_event, __proj
+                );
+
+        }
+
+
+        return __dependency_event;
     }
 }; // struct __parallel_radix_sort_iteration
 
@@ -873,45 +888,8 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
             __q_local, std::forward<_Range>(__in_rng), __proj);
     else
     {
-        constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
-        const ::std::uint32_t __radix_states = 1 << __radix_bits;
-
-        std::size_t __wg_size_count = 128;
-        std::size_t __keys_per_wi_count = 64;
-        std::size_t __wg_size_scan = 1024;
-        std::size_t __wg_size_reorder = 256;
-
-        if (__n < 1 << 20)
-        {
-            __keys_per_wi_count = 16;
-        }
-
-//        std::cout<<"Using work-group size: "<<__wg_size<<"\n";
-        const ::std::size_t __segments = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
-//        std::cout<<"using segments: "<<__segments<<"\n";
-
-        // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
-        // 'No operation' flag specifies whether to skip re-order phase if the all keys are the same (lie in one bin)
-        const ::std::size_t __tmp_buf_size = __segments * __radix_states + __radix_states + 1 /*no_op flag*/;
-        // memory for storing count and offset values
-        sycl::buffer<::std::uint32_t, 1> __tmp_buf{sycl::range<1>(__tmp_buf_size)};
-
-        // memory for storing values sorted for an iteration
-        oneapi::dpl::__par_backend_hetero::__buffer<_ValueT> __out_buffer_holder{__n};
-        auto __out_rng = oneapi::dpl::__ranges::all_view<_ValueT, __par_backend_hetero::access_mode::read_write>(
-            __out_buffer_holder.get_buffer());
-
-        // iterations per each bucket
-        assert("Number of iterations must be even" && __radix_iters % 2 == 0);
-        // TODO: radix for bool can be made using 1 iteration (x2 speedup against current implementation)
-        for (::std::uint32_t __radix_iter = 0; __radix_iter < __radix_iters; ++__radix_iter)
-        {
-            // TODO: convert to ordered type once at the first iteration and convert back at the last one
-            bool __input_is_first = (__radix_iter % 2 == 0);
-            __event = __parallel_radix_sort_iteration<_RadixSortKernel, __radix_bits, __is_ascending>::submit(
-                __q_local, __wg_size_count, __wg_size_scan, __wg_size_reorder, __segments, __radix_iter, __input_is_first,
-                __in_rng, __out_rng, __tmp_buf, __event, __proj);
-        }
+        __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
+            __q_local, std::forward<_Range>(__in_rng), __proj);
     }
 
     return __future{std::move(__event)};
