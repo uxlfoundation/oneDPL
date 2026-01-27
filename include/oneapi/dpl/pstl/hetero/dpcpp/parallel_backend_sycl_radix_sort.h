@@ -558,33 +558,19 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 {
     // item info
     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-    static constexpr std::uint32_t __unroll_elements = 4 / sizeof(_ValueT);
 
     // in chunks of __wg_size * __unroll_elements, copy values from input to output
-    const std::size_t __seg_size = __seg_end - __seg_start;
-    const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
-    for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_start + __full_rounds * __wg_size * __unroll_elements;
-         __val_idx += __wg_size * __unroll_elements)
-    {
-        _ONEDPL_PRAGMA_UNROLL
-        for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
-        {
-            __output[__val_idx + __unroll] = std::move(__input[__val_idx + __unroll]);
-        }
-    }
+    const ::std::uint16_t __residual = (__seg_end - __seg_start) % __wg_size;
+    __seg_end -= __residual;
 
-    // handle remainder - at most one partial block
+    // find offsets for the same values within a segment and fill the resulting buffer
+    for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end; __val_idx += __wg_size)
+        __output[__val_idx] = std::move(__input[__val_idx]);
+
+    if (__residual > 0 && __self_lidx < __residual)
     {
-        const ::std::size_t __val_idx = __seg_start + __full_rounds * __wg_size * __unroll_elements + __self_lidx * __unroll_elements;
-        _ONEDPL_PRAGMA_UNROLL
-        for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
-        {
-            ::std::size_t __curr_idx = __val_idx + __unroll;
-            if (__curr_idx < __seg_end)
-            {
-                __output[__curr_idx] = std::move(__input[__curr_idx]);
-            }
-        }
+        const ::std::size_t __val_idx = __seg_end + __self_lidx;
+        __output[__val_idx] = std::move(__input[__val_idx]);
     }
 }
 
