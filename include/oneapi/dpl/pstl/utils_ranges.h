@@ -140,8 +140,6 @@ __empty(_Range&& __rng)
 
 namespace __internal
 {
-template <typename _R>
-using __iterator_t = decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()));
 
 template <typename _R>
 auto
@@ -149,7 +147,8 @@ get_value_type(int) -> typename ::std::decay_t<_R>::value_type;
 
 template <typename _R>
 auto
-get_value_type(long) -> typename std::iterator_traits<std::decay_t<__iterator_t<_R>>>::value_type;
+get_value_type(long) -> typename std::iterator_traits<
+                         std::decay_t<decltype(oneapi::dpl::__ranges::__begin(std::declval<_R&>()))>>::value_type;
 
 template <typename _It>
 auto
@@ -834,23 +833,6 @@ __get_subscription_view(_View&& __view)
     return __subscription_impl_view_simple<_ViewInstance>(__view);
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
-
-// Returns begin and end of the range
-template <typename T>
-auto
-__get_range_bounds(std::vector<T>&& __rng)
-{
-    return std::make_tuple(__rng.begin(), __rng.end());
-}
-
-
-// Returns begin, end and size of the range
-template <typename T>
-auto
-__get_range_bounds_n(std::vector<T>&& __rng)
-{
-    return std::make_tuple(__rng.begin(), __rng.end(), __rng.size());
-}
 
 // Returns begin and end of the range
 template <typename _Range>
