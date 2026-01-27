@@ -3573,8 +3573,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 {
                     _RandomAccessIterator2 __bb = __last2;
                     if (__b != __last1)
-                        __bb =
-                            __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
                                                                       __b, __comp, __proj2, __proj1);
 
                     typename _SetRange::_Data __new_processing_data{
@@ -3866,7 +3865,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
 }
 
 template <typename _IsVector>
-struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyConstructRange __cc_range
+struct __BrickCopyConstruct
 {
     template <typename _ForwardIterator, typename _OutputIterator>
     _OutputIterator
@@ -4092,11 +4091,9 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                         _RandomAccessIterator3 __result,
-                         _Compare __comp)
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                         _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
@@ -4201,14 +4198,14 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
+    using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op</*__Bounded*/false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2,
                    [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                      _Tp* __result, auto __mask, _Compare __comp,
+                      _T* __result, auto __mask, _Compare __comp,
                       oneapi::dpl::identity, oneapi::dpl::identity) {
                        return oneapi::dpl::__utils::__set_symmetric_difference_construct(
                            __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
