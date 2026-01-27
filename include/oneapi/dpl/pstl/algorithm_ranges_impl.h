@@ -1652,12 +1652,12 @@ __pattern_mismatch(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2
 {
     static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
 
-    auto [__first1, __last1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__first2, __last2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
 
     const auto& [first, second] = oneapi::dpl::__internal::__pattern_mismatch(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
-        oneapi::dpl::__internal::__binary_op{__pred, __proj1, __proj2});
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + std::ranges::size(__r1), __first2,
+        __first2 + std::ranges::size(__r2), oneapi::dpl::__internal::__binary_op{__pred, __proj1, __proj2});
 
     return {first, second};
 }
