@@ -863,6 +863,8 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
                              typename _Tag::__is_vector{});
 }
 
+#define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER 1
+
 template <class _IncludeToOutputPred, class _EvalReachedPosPred>
 struct __set_op_bounded_offsets_evaluator
 {
@@ -888,8 +890,10 @@ struct __set_op_bounded_offsets_evaluator
         assert(__reachedOutPos <= __req_mask_size);
 
         // No output size limits - return the end of the first and second input buffers
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER
         if (__n_out >= __req_size)
             return {__n1, __n2};
+#endif
 
         // Calculate reached positions in the first and second input buffers using the __mask buffer
 
@@ -977,8 +981,10 @@ struct __set_union_offsets
         using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
 
         // No output size limits - return the end of the first and second input buffers
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER
         if (__n_out >= __size_func(__n1, __n2))
             return {__n1, __n2};
+#endif
 
         // Calculate reached positions in the first and second input buffers using the __mask buffer
         using __parallel_set_op_mask_underlying_t =
