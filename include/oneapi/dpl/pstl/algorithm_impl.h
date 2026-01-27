@@ -4012,6 +4012,9 @@ struct __set_union_offsets
                _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
+        return {__n1, __n2};
+
+#if 0
         using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
 
         // No output size limits - return the end of the first and second input buffers
@@ -4049,6 +4052,7 @@ struct __set_union_offsets
                                        _Sizes{0, 0}, reduce_pred, transform_pred);
 
         return {__res.first, __res.second};
+#endif
     }
 };
 
