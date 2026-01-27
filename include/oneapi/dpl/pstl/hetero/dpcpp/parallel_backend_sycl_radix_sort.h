@@ -202,7 +202,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
 
-    static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
 
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng1);
@@ -228,6 +227,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
+                static constexpr std::uint32_t __unroll_elements = 4 / sizeof(_ValueT);
 
                 // Select input range based on __input_is_first
                 _ValueT* __val_rng = __input_is_first ? &__val_rng1[0] : &__val_rng2[0];
@@ -558,7 +558,7 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 {
     // item info
     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-    static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
+    static constexpr std::uint32_t __unroll_elements = 4 / sizeof(_ValueT);
 
     // in chunks of __wg_size * __unroll_elements, copy values from input to output
     const std::size_t __seg_size = __seg_end - __seg_start;
