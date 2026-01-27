@@ -4144,7 +4144,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __first1, __last1,                                      // bounds for data1
         __first2, __last2,                                      // bounds for data2
         __result, __result + __n1 + __n2,                       // bounds for results w/o limitation
-        [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+        [](__parallel_tag<_IsVector> __tag, auto&& __exec,
             _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
             _Tp* __result,
@@ -4152,7 +4152,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
             _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
         {
             return oneapi::dpl::__utils::__set_union_construct(
-                __tag, std::forward<_ExecutionPolicy>(__exec),
+                __tag, std::forward<decltype(__exec)>(__exec),
                 __first1, __last1,                              // bounds for data1
                 __first2, __last2,                              // bounds for data2
                 __result,                                       // results
@@ -4252,7 +4252,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                [](__parallel_tag<_IsVector> __tag, auto&& __exec,
                     _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _T* __result,
@@ -4260,7 +4260,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __tag, std::forward<_ExecutionPolicy>(__exec),
+                        __tag, std::forward<decltype(__exec)>(__exec),
                         __first1, __last1,                                                      // bounds for data1
                         __first2, __last2,                                                      // bounds for data2
                         __result,                                                               // results
@@ -4293,7 +4293,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                [](__parallel_tag<_IsVector> __tag, auto&& __exec,
                    _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                         // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _T* __result,                                                               // results
@@ -4301,7 +4301,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __tag, std::forward<_ExecutionPolicy>(__exec),
+                        __tag, std::forward<decltype(__exec)>(__exec),
                         __first2, __last2,                                                      // bounds for data1
                         __first1, __last1,                                                      // bounds for data2
                         __result,                                                               // results
@@ -4403,7 +4403,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             __result, __result + __n1 + __n2,               // bounds for results w/o limitation
             [](_DifferenceType __n, _DifferenceType) { return __n; },
             [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-            [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+            [](__parallel_tag<_IsVector> __tag, auto&& __exec,
                _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _T* __result,
@@ -4411,7 +4411,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_difference_construct(
-                    __tag, std::forward<_ExecutionPolicy>(__exec),
+                    __tag, std::forward<decltype(__exec)>(__exec),
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
                     __result,                                                       // results
@@ -4488,7 +4488,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             __first1, __last1,                              // bounds for data1
             __first2, __last2,                              // bounds for data2
             __result, __result + __n1 + __n2,               // bounds for results w/o limitation
-            [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+            [](__parallel_tag<_IsVector> __tag, auto&& __exec,
                _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _Tp* __result,
@@ -4496,7 +4496,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
             {
                 return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    __tag, std::forward<_ExecutionPolicy>(__exec),
+                    __tag, std::forward<decltype(__exec)>(__exec),
                     __first1, __last1,                                              // bounds for data1
                     __first2, __last2,                                              // bounds for data2
                     __result,                                                       // results
