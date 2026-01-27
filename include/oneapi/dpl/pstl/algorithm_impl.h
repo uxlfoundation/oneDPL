@@ -3897,6 +3897,161 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forwa
                                          typename _Tag::__is_vector{});
 }
 
+#define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER 1
+
+template <class _IncludeToOutputPred, class _EvalReachedPosPred>
+struct __set_op_bounded_offsets_evaluator
+{
+    _IncludeToOutputPred __include_to_output_pred;
+    _EvalReachedPosPred __eval_reached_pos_pred;
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        assert(__n_out > 0);
+
+        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+
+        const auto __req_size = __size_func(__n1, __n2);
+        const auto __req_mask_size = __mask_size_func(__n1, __n2);
+
+        // Our reached output position should not exceed requested mask output size
+        assert(__reachedOutPos <= __req_mask_size);
+
+        // No output size limits - return the end of the first and second input buffers
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER
+        if (__n_out >= __req_size)
+            return {__n1, __n2};
+#endif
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+
+        using _CountsType = _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+
+        // Calculate counts through transform_iterator
+        auto __tr_first = oneapi::dpl::make_transform_iterator(
+            __mask, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType {
+                // (mask & 0x10) == 0x10
+                const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceType1 __processed1 = __is_eq_data1 ? 1 : 0;
+
+                // (mask & 0x01) == 0x01
+                const bool __is_eq_data2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                const _DifferenceType2 __processed2 = __is_eq_data2 ? 1 : 0;
+
+                const _DifferenceTypeOut __processedOut = __include_to_output_pred(__m) ? 1 : 0;
+
+                return {__processed1, __processed2, __processedOut};
+            });
+
+        using _PrefixBuf = __par_backend::__buffer<_CountsType>;
+        _PrefixBuf __prefix_summ_buf(__req_mask_size);
+
+        auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
+        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
+
+        // Calculate prefix summs of counts
+        __pattern_transform_scan(__tag, __exec, __tr_first, __tr_first + __req_mask_size, __prefix_summ_buf_it_b,
+                                 oneapi::dpl::identity{}, _CountsType{}, std::plus<_CountsType>{},
+                                 /* _Inclusive */ std::true_type{});
+
+        auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
+        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
+
+        // At leas __reachedOutPos first position are not interested for us,
+        // but if __reachedOutPos == 0 we should start from the beginning
+        auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
+        assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
+
+        // Find the position where output size limit is reached
+        auto it_prefix_summ_buf =
+            __pattern_find_if(__parallel_tag<_IsVector>{}, __exec, it_prefix_summ_buf_start, it_prefix_summ_buf_e,
+                              [__reachedOutPos](const _CountsType& __count) {
+                                  return __count.__processedOut ==
+                                         __reachedOutPos + 1; // We should try to find the next processed position
+                              });
+
+        // Initially we assume that we processed all first data range
+        const auto [__n1_reached, __n2_reached] =
+            __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
+
+        return {__n1_reached, __n2_reached};
+    }
+
+  protected:
+    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
+    struct _Counts
+    {
+        _DifferenceType1 __processed1 = 0;     // Counter of processed items from the first range
+        _DifferenceType2 __processed2 = 0;     // Counter of processed items from the second range
+        _DifferenceTypeOut __processedOut = 0; // Counter of items included to output range
+
+        _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
+        operator+(const _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>& __other) const
+        {
+            return {__processed1 + __other.__processed1, __processed2 + __other.__processed2,
+                    __processedOut + __other.__processedOut};
+        }
+    };
+};
+
+// for bounded implementation of std::ranges::set_union
+struct __set_union_offsets
+{
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
+
+        // No output size limits - return the end of the first and second input buffers
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER
+        if (__n_out >= __size_func(__n1, __n2))
+            return {__n1, __n2};
+#endif
+
+        // Calculate reached positions in the first and second input buffers using the __mask buffer
+        using __parallel_set_op_mask_underlying_t =
+            std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+        auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
+                                 oneapi::dpl::__utils::__parallel_set_op_mask __state2) -> _Sizes {
+            assert(__state1 == __state2);
+            return _Sizes{
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1
+                    ? 1
+                    : 0,
+                (__parallel_set_op_mask_underlying_t)__state1 &
+                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2
+                    ? 1
+                    : 0};
+        };
+
+        auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
+            return {__a.first + __b.first, __a.second + __b.second};
+        };
+
+        // transform_reduce
+        const _Sizes __res =
+            __pattern_transform_reduce(__parallel_tag<_IsVector>{}, __exec, __mask, __mask + __reachedOutPos,
+                                       __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
+                                       _Sizes{0, 0}, reduce_pred, transform_pred);
+
+        return {__res.first, __res.second};
+    }
+};
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _Compare>
 _OutputIterator
@@ -3912,7 +4067,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
-    return __parallel_set_union_op</*__Bounded*/false>(
+    return __parallel_set_union_op</*__Bounded*/true>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                __result + __n1 + __n2,
                [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
@@ -3924,7 +4079,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                        __mask, __BrickCopyConstruct<_IsVector>(), __comp, oneapi::dpl::identity{},
                        oneapi::dpl::identity{});
                },
-               __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+               __set_union_offsets{}, //__set_op_unbounded_offsets_eval{},
+               __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
 }
 
@@ -3965,6 +4121,45 @@ __pattern_set_intersection(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1,
                                                 typename _Tag::__is_vector{});
 }
 
+// for bounded implementation of std::ranges::set_intersection
+struct __set_intersection_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
@@ -4002,7 +4197,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/false>(
+            return __internal::__parallel_set_op</*__Bounded*/true>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
                        __result, __result + __n1 + __n2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
@@ -4017,7 +4212,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
                                oneapi::dpl::identity{});
                        },
-                       __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                       __set_intersection_offsets{}, //__set_op_unbounded_offsets_eval{},
+                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
     }
@@ -4027,7 +4223,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/false>(
+            return __internal::__parallel_set_op</*__Bounded*/true>(
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                        __result, __result + __n1 + __n2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
@@ -4042,7 +4238,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
                                oneapi::dpl::identity{});
                        },
-                       __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                       __set_intersection_offsets{}, //__set_op_unbounded_offsets_eval{},
+                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
     }
@@ -4087,6 +4284,45 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _
                                               typename _Tag::__is_vector{});
 }
 
+// for bounded implementation of std::ranges::set_difference
+struct __set_difference_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
@@ -4125,7 +4361,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
     {
-        return __parallel_set_op</*__Bounded*/false>(
+        return __parallel_set_op</*__Bounded*/true>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2, [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
@@ -4137,7 +4373,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                            __result, __mask, __BrickCopyConstruct<_IsVector>(), __comp, oneapi::dpl::identity{},
                            oneapi::dpl::identity{});
                    },
-                   __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                   __set_difference_offsets{}, //__set_op_unbounded_offsets_eval{},
+                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     }
 
@@ -4182,6 +4419,49 @@ __pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 _
                                                         typename _Tag::__is_vector{});
 }
 
+// for bounded implementation of std::ranges::set_symmetric_difference
+struct __set_symmetric_difference_offsets
+{
+    struct _IncludeToOutputPred
+    {
+        bool
+        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
+        {
+            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                   __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
+        }
+    };
+
+    struct _EvalReachedPosPred
+    {
+        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        std::tuple<_DifferenceType1, _DifferenceType2>
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
+                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        {
+            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+                return {__n1, __n2};
+
+            assert(it_prefix_summ_buf != it_prefix_summ_buf_b);
+
+            --it_prefix_summ_buf;
+            return {it_prefix_summ_buf->__processed1, it_prefix_summ_buf->__processed2};
+        }
+    };
+
+    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+    std::pair<_DifferenceType1, _DifferenceType2>
+    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+    {
+        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+    }
+
+    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
+};
+
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
@@ -4199,7 +4479,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
-        return __internal::__parallel_set_union_op</*__Bounded*/false>(
+        return __internal::__parallel_set_union_op</*__Bounded*/true>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2,
                    [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
@@ -4211,7 +4491,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                            __result, __mask, __BrickCopyConstruct<_IsVector>(), __comp, oneapi::dpl::identity{},
                            oneapi::dpl::identity{});
                    },
-                   __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                   __set_symmetric_difference_offsets{}, //__set_op_unbounded_offsets_eval{},
+                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     });
 }
