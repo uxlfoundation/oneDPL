@@ -227,7 +227,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
-                static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
+                static constexpr std::uint32_t __unroll_elements = 8;
 
                 // Select input range based on __input_is_first
                 _ValueT* __val_rng = __input_is_first ? &__val_rng1[0] : &__val_rng2[0];
