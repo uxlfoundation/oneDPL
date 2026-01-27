@@ -201,7 +201,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
-    static constexpr std::uint32_t __unroll_elements = 4;
+
+    static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
 
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng1);
@@ -550,35 +551,40 @@ struct __peer_prefix_helper<__radix_states, _OffsetT, __peer_prefix_algo::subgro
 };
 #endif // _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT
 
-template <typename _Range1, typename _Range2>
+template <typename _ValueT>
 void
-__copy_kernel_for_radix_sort(const std::size_t __elem_per_segment, std::size_t __sg_size, sycl::nd_item<1> __self_item,
-                             _Range1& __rng1, _Range2& __rng2, bool __input_is_first)
+__copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __seg_start, const std::size_t __seg_end,
+                             const std::size_t __wg_size, _ValueT* __input, _ValueT* __output)
 {
     // item info
     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-    const ::std::size_t __wgroup_idx = __self_item.get_group(0);
-    const ::std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
-    const ::std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
+    static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
 
-    using _ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
-    // Select input/output ranges based on __input_is_first
-    _ValueT* __input_rng = __input_is_first ? &__rng1[0] : &__rng2[0];
-    _ValueT* __output_rng = __input_is_first ? &__rng2[0] : &__rng1[0];
-
-    ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
-    // ensure that each work item in a subgroup does the same number of loop iterations
-    const ::std::uint16_t __residual = (__seg_end - __seg_start) % __sg_size;
-    __seg_end -= __residual;
-
-    // find offsets for the same values within a segment and fill the resulting buffer
-    for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end; __val_idx += __sg_size)
-        __output_rng[__val_idx] = std::move(__input_rng[__val_idx]);
-
-    if (__residual > 0 && __self_lidx < __residual)
+    // in chunks of __wg_size * __unroll_elements, copy values from input to output
+    const std::size_t __seg_size = __seg_end - __seg_start;
+    const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
+    for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __seg_start + __full_rounds * __wg_size * __unroll_elements;
+         __val_idx += __wg_size * __unroll_elements)
     {
-        const ::std::size_t __val_idx = __seg_end + __self_lidx;
-        __output_rng[__val_idx] = std::move(__input_rng[__val_idx]);
+        _ONEDPL_PRAGMA_UNROLL
+        for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+        {
+            __output[__val_idx + __unroll] = std::move(__input[__val_idx + __unroll]);
+        }
+    }
+
+    // handle remainder - at most one partial block
+    {
+        const ::std::size_t __val_idx = __seg_start + __full_rounds * __wg_size * __unroll_elements + __self_lidx * __unroll_elements;
+        _ONEDPL_PRAGMA_UNROLL
+        for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+        {
+            ::std::size_t __curr_idx = __val_idx + __unroll;
+            if (__curr_idx < __seg_end)
+            {
+                __output[__curr_idx] = std::move(__input[__curr_idx]);
+            }
+        }
     }
 }
 
@@ -627,20 +633,20 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 // Select input/output ranges based on __input_is_first
-                _ValueT* __input_rng = __input_is_first ? &__rng1[0] : &__rng2[0];
-                _ValueT* __output_rng = __input_is_first ? &__rng2[0] : &__rng1[0];
-
-                auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
-                if (__no_op_flag)
-                {
-                    __copy_kernel_for_radix_sort(__elem_per_segment, __wg_size, __self_item, __rng1, __rng2, __input_is_first);
-                    return;
-                }
+                _ValueT* __input = __input_is_first ? &__rng1[0] : &__rng2[0];
+                _ValueT* __output = __input_is_first ? &__rng2[0] : &__rng1[0];
 
                 const std::size_t __self_lidx = __self_item.get_local_id(0);
                 const std::size_t __segment_idx = __self_item.get_group(0);
                 const std::size_t __seg_start = __elem_per_segment * __segment_idx;
                 const std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
+
+                auto& __no_op_flag = __offset_rng[__no_op_flag_idx];
+                if (__no_op_flag)
+                {
+                    __copy_kernel_for_radix_sort(__self_item, __seg_start, __seg_end, __wg_size, __input, __output);
+                    return;
+                }
 
                 auto __sub_group = __self_item.get_sub_group();
                 const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
@@ -663,7 +669,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 _OffsetT __local_counts[__radix_states] = {0};
                 for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
                 {
-                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input_rng[__idx]));
+                    auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
                     ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
                 }
 
@@ -715,10 +721,10 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 // Phase 4: Scatter pass - re-read and write to output
                 for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
                 {
-                    _ValueT __in_val = __input_rng[__idx];
+                    _ValueT __in_val = __input[__idx];
                     std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(
                         __order_preserving_cast<__is_ascending>(std::invoke(__proj, __in_val)), __radix_offset);
-                    __output_rng[__offsets[__bucket]++] = std::move(__in_val);
+                    __output[__offsets[__bucket]++] = std::move(__in_val);
                 }
             });
     });
