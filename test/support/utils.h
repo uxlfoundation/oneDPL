@@ -162,9 +162,14 @@ std::string log_value_title(TagActual)
 
 template <typename TStream, typename TValue>
 std::enable_if_t<!IsOutputStreamable<TValue, TStream>::value>
-log_value_to_stream(TStream& os, const TValue& value)
+log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
 {
+    if (bCommaNeeded)
+        os << ",";
+
     os << "(unable to log value)";
+
+    bCommaNeeded = true;
 }
 
 template <typename TValue>
@@ -173,39 +178,53 @@ constexpr bool is_char_type_v =
 
 template <typename TStream, typename TValue>
 std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_char_type_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value)
+log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
 {
+    if (bCommaNeeded)
+        os << ",";
+
     os << value;
+
+    bCommaNeeded = true;
 }
 
 template <typename TStream, typename TValue>
 std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_char_type_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value)
+log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
 {
+    if (bCommaNeeded)
+        os << ",";
+
     os << static_cast<int>(value);
+
+    bCommaNeeded = true;
 }
 
 template <typename TStream, typename TValue>
 std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value)
+log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
 {
-    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value));
+    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value), bCommaNeeded);
 }
 
 template <typename TStream, typename... T>
 void
-log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value)
+log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value, bool& bCommaNeeded)
 {
     using std_tuple_t = typename oneapi::dpl::__internal::tuple<T...>::tuple_type;
     std_tuple_t std_tuple = value;
 
-    bool bCommaNeeded = false;
+    if (bCommaNeeded)
+        os << ",";
 
+    bool bInternalCommaNeeded = false;
     os << "(";
-    std::apply([&os](const auto&... elems) {
-        ((log_value_to_stream(os, elems), os << ", "), ...);
+    std::apply([&os, &bInternalCommaNeeded](const auto&... elems) {
+        ((log_value_to_stream(os, elems, bInternalCommaNeeded), os << ", "), ...);
     }, std_tuple);
     os << ")";
+
+    bCommaNeeded = true;
 }
 
 template <typename TStream, typename Tag, typename TValue>
@@ -214,9 +233,11 @@ log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
 {
     if (bCommaNeeded)
         os << ",";
+
     os << log_value_title(Tag{});
 
-    log_value_to_stream(os, value);
+    bool bInternalCommaNeeded = false;
+    log_value_to_stream(os, value, bInternalCommaNeeded);
 }
 
 // Do not change signature to const T&.
