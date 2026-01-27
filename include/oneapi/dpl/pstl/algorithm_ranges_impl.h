@@ -1035,12 +1035,12 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
     return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/true>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
                __result2,
-               [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+               [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _Tp* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
                   _Proj2 __proj2) {
                    return oneapi::dpl::__utils::__set_union_construct(
-                       __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+                       __tag, std::forward<decltype(__exec)>(__exec), __first1, __last1, __first2, __last2, __result,
                        __mask, oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
                },
                __set_union_offsets{}, __comp, __proj1, __proj2)
@@ -1216,13 +1216,13 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __result1, __result2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                       [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                       [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                           _RandomAccessIterator2 __last2, _Tp* __result,
                           auto __mask, // source data usage masks
                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
-                               __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                               __tag, std::forward<decltype(__exec)>(__exec), __first1, __last1, __first2, __last2,
                                __result, __mask, oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
                                /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
                        },
@@ -1241,12 +1241,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __result1, __result2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                       [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                       [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                           _RandomAccessIterator2 __last2, _Tp* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
                           _Proj2 __proj2) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
-                               __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first1, __last1,
+                               __tag, std::forward<decltype(__exec)>(__exec), __first2, __last2, __first1, __last1,
                                __result, __mask, oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
                                /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
                        },
@@ -1444,11 +1444,11 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
                    __result2, [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                   [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                   [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                       _T* __result, auto __mask, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                        return oneapi::dpl::__utils::__set_difference_construct(
-                           __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
+                           __tag, std::forward<decltype(__exec)>(__exec), __first1, __last1, __first2, __last2,
                            __result, __mask, __BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
                    },
                    __set_difference_offsets{}, __comp, __proj1, __proj2)
@@ -1623,12 +1623,12 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/true>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
                __result2,
-               [](__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+               [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _Tp* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
                   _Proj2 __proj2) {
                    return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                       __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
+                       __tag, std::forward<decltype(__exec)>(__exec), __first1, __last1, __first2, __last2, __result,
                        __mask, oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
                },
                __set_symmetric_difference_offsets{}, __comp, __proj1, __proj2)
