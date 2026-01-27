@@ -227,7 +227,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
-                static constexpr std::uint32_t __unroll_elements = 4 / sizeof(_ValueT);
+                static constexpr std::uint32_t __unroll_elements = 16 / sizeof(_ValueT);
 
                 // Select input range based on __input_is_first
                 _ValueT* __val_rng = __input_is_first ? &__val_rng1[0] : &__val_rng2[0];
@@ -252,21 +252,21 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     __slm_counts[__views.__get_bucket32_idx(__wg_size, __i, __self_lidx)] = 0;
                 }
 
-                // Strided coalesced reads: all work-items read consecutive elements
-                // Compute how many full iterations we can do without bounds checking
+                // Fully strided reads: each work-item reads 1 element at a time with stride __wg_size
+                // This maximizes memory coalescing across the wavefront while maintaining unroll benefits
                 const std::size_t __seg_size = __seg_end - __seg_start;
                 const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
                 const std::size_t __full_end = __seg_start + __full_rounds * __wg_size * __unroll_elements;
 
                 // Full iterations - no bounds checking needed
-                for (::std::size_t __val_idx = __seg_start + __self_lidx * __unroll_elements; __val_idx < __full_end;
-                     __val_idx += __wg_size * __unroll_elements)
+                for (::std::size_t __base_idx = __seg_start + __self_lidx; __base_idx < __full_end;
+                     __base_idx += __wg_size * __unroll_elements)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
                         auto __val = __order_preserving_cast<__is_ascending>(
-                            std::invoke(__proj, __val_rng[__val_idx + __unroll]));
+                            std::invoke(__proj, __val_rng[__base_idx + __unroll * __wg_size]));
                         ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                         ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                     }
@@ -274,10 +274,10 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 // Remainder - at most one partial block
                 {
-                    const ::std::size_t __val_idx = __full_end + __self_lidx * __unroll_elements;
+                    const ::std::size_t __base_idx = __full_end + __self_lidx;
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
-                        ::std::size_t __curr_idx = __val_idx + __unroll;
+                        ::std::size_t __curr_idx = __base_idx + __unroll * __wg_size;
                         if (__curr_idx < __seg_end)
                         {
                             auto __val = __order_preserving_cast<__is_ascending>(
