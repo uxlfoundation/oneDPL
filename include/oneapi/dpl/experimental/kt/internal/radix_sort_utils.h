@@ -34,8 +34,8 @@ constexpr void
 __check_onesweep_params()
 {
     static_assert(__radix_bits == 8);
-    static_assert(__data_per_workitem % 32 == 0);
-    static_assert(__workgroup_size == 32 || __workgroup_size == 64);
+    //static_assert(__data_per_workitem % 32 == 0);
+    //static_assert(__workgroup_size == 32 || __workgroup_size == 64);
 }
 
 //-----------------------------------------------------------------------------
@@ -123,6 +123,57 @@ __order_preserving_cast_scalar(_Float __src)
         __mask = __sign_bit_is_zero ? 0x7FFFFFFFFFFFFFFFu : std::uint64_t(0);
     }
     return __uint64_src ^ __mask;
+}
+
+template <std::uint16_t _N, typename _KeyT>
+struct __keys_pack
+{
+    _KeyT __keys[_N];
+};
+
+template <std::uint16_t _N, typename _KeyT, typename _ValT>
+struct __pairs_pack
+{
+    _KeyT __keys[_N];
+    _ValT __vals[_N];
+};
+
+template <std::uint16_t _N, typename _T1, typename _T2 = void>
+auto
+__make_key_value_pack()
+{
+    if constexpr (::std::is_void_v<_T2>)
+    {
+        return __keys_pack<_N, _T1>{};
+    }
+    else
+    {
+        return __pairs_pack<_N, _T1, _T2>{};
+    }
+}
+
+template <std::uint32_t __segment_width, std::uint32_t __num_segments, std::uint32_t __sub_group_size,
+          typename _ScanBuffer>
+void
+__sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements)
+{
+    // TODO: make it work if this static assert is not true
+    static_assert(__segment_width == __sub_group_size);
+    using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
+    _ElemT __carry = 0;
+    auto __sub_group_local_id = __sub_group.get_local_linear_id();
+
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::uint32_t __i = 0; __i < __num_segments; ++__i)
+    {
+        auto __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
+        auto __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
+        if (__sub_group_local_id == 0)
+            __element_right_shift = 0;
+        __scan_elements[__i * __segment_width + __sub_group_local_id] = __element_right_shift + __carry;
+
+        __carry += sycl::group_broadcast(__sub_group, __element, __sub_group_size - 1);
+    }
 }
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl

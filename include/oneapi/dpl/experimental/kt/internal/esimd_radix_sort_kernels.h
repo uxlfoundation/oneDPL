@@ -391,10 +391,15 @@ template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::s
 //                                     __work_group_size, _InRngPack, _OutRngPack>
 template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
-struct __radix_sort_onesweep_kernel
+struct __radix_sort_onesweep_kernel;
+
+template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
+          ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
+struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _InRngPack, _OutRngPack>
 {
     using _LocOffsetT = ::std::uint16_t;
     using _GlobOffsetT = ::std::uint32_t;
+    using _AtomicIdT = ::std::uint32_t;
 
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
@@ -457,7 +462,7 @@ struct __radix_sort_onesweep_kernel
     _OutRngPack __out_pack;
 
     __radix_sort_onesweep_kernel(::std::uint32_t __n, ::std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
-                                 _GlobOffsetT* __p_group_hists, const _InRngPack& __in_pack,
+                                 _GlobOffsetT* __p_group_hists, _AtomicIdT* /*__p_atomic_id*/, const _InRngPack& __in_pack,
                                  const _OutRngPack& __out_pack)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
           __in_pack(__in_pack), __out_pack(__out_pack)

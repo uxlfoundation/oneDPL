@@ -17,11 +17,13 @@
 #define _ONEDPL_KT_SUB_GROUP_SCAN_H
 
 #include <cstdint>
+#include <type_traits>
 
 #include "../../../../pstl/utils.h"
 #include "../../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
-#include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h"
+#include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
+//#include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h"
 
 namespace oneapi::dpl::experimental::kt
 {
@@ -32,6 +34,38 @@ namespace gpu
 namespace __impl
 {
 
+template <typename _T>
+struct __is_lazy_ctor_storage : std::false_type
+{
+};
+
+template <typename _T>
+struct __is_lazy_ctor_storage<oneapi::dpl::__internal::__lazy_ctor_storage<_T>> : std::true_type
+{
+};
+
+template <typename _T, bool __is_lazy>
+struct __scan_input_type
+{
+    using type = _T;
+};
+
+template <typename _T>
+struct __scan_input_type<_T, true>
+{
+    using type = typename _T::__value_type;
+};
+
+template <typename _T>
+decltype(auto)
+__extract_scan_input(_T& __value)
+{
+    if constexpr (__is_lazy_ctor_storage<std::decay_t<_T>>::value)
+        return (__value.__v);
+    else
+        return (__value);
+}
+
 //
 // An optimized scan in a sycl::sub_group performed in local registers.
 // Input is accepted in the form of an array in sub-group strided order. Formally, for some index i in __input,
@@ -41,26 +75,28 @@ namespace __impl
 // the sub-group. This layout is to align with optimal loads from global memory without extra data movement.
 // The scan results are updated in __input.
 //
-template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputType, typename _SubGroup,
+template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputTypeWrapped, typename _SubGroup,
           typename _BinaryOperation>
-_InputType
+auto
 __sub_group_scan(const _SubGroup& __sub_group,
-                 oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __input[__iters_per_item],
+                 _InputTypeWrapped __input[__iters_per_item],
                  _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
 {
+    using _InputType = typename __scan_input_type<std::decay_t<_InputTypeWrapped>,
+                                                  __is_lazy_ctor_storage<std::decay_t<_InputTypeWrapped>>::value>::type;
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
     oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
     oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
     if (__is_full)
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
-                                                            /*__init_present*/ false>(__sub_group, __input[0].__v,
+                                                            /*__init_present*/ false>(__sub_group, __extract_scan_input(__input[0]),
                                                                                       __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
-                                                                /*__init_present*/ true>(__sub_group, __input[__i].__v,
+                                                                /*__init_present*/ true>(__sub_group, __extract_scan_input(__input[__i]),
                                                                                          __binary_op, __carry);
         }
     }
@@ -73,22 +109,24 @@ __sub_group_scan(const _SubGroup& __sub_group,
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
                                                                         /*__init_present*/ false>(
-                __sub_group, __input[__i].__v, __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
+                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry,
+                __items_in_scan - __i * __sub_group_size);
         }
         else if (__limited_iters_per_item > 1)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
                                                                 /*__init_present*/ false>(
-                __sub_group, __input[__i++].__v, __binary_op, __carry);
+                __sub_group, __extract_scan_input(__input[__i++]), __binary_op, __carry);
             for (; __i < __limited_iters_per_item - 1; ++__i)
             {
                 oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
                                                                     /*__init_present*/ true>(
-                    __sub_group, __input[__i].__v, __binary_op, __carry);
+                    __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry);
             }
             oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size, /*__is_inclusive*/ true,
                                                                         /*__init_present*/ true>(
-                __sub_group, __input[__i].__v, __binary_op, __carry, __items_in_scan - __i * __sub_group_size);
+                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry,
+                __items_in_scan - __i * __sub_group_size);
         }
     }
     return __carry.__v;

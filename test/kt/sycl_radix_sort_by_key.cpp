@@ -40,7 +40,7 @@ void test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
     {
         sycl::buffer<KeyT> keys(actual_keys.data(), actual_keys.size());
         sycl::buffer<ValueT> values(actual_values.data(), actual_values.size());
-        oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, param).wait();
+        oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, param).wait();
     }
 
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
@@ -71,8 +71,9 @@ void test_usm(sycl::queue q, std::size_t size, KernelParam param)
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
     std::stable_sort(expected_first, expected_first + size, CompareKey<isAscending>{});
 
-    oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(
-        q, keys.get_data(), keys.get_data() + size, values.get_data(), param).wait();
+    oneapi::dpl::experimental::kt::gpu::radix_sort_by_key<isAscending, RadixBits>(
+        q, keys.get_data(), keys.get_data() + size, values.get_data(), param)
+        .wait();
 
     std::vector<KeyT> actual_keys(size);
     std::vector<ValueT> actual_values(size);

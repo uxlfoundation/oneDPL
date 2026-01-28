@@ -170,11 +170,13 @@ template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __da
 struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
                                        oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _GlobalHistT>
+  private:
+    // ESIMD kernel dispatch
+    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT, typename _AtomicIdT>
     sycl::event
-    operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
-               _GlobalHistT* __p_group_hists, ::std::uint32_t __sweep_work_group_count, ::std::size_t __n,
-               ::std::uint32_t __stage, const sycl::event& __e) const
+    __submit_esimd(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
+                   _GlobalHistT* __p_group_hists, _AtomicIdT* __p_atomic_id, ::std::uint32_t __sweep_work_group_count,
+                   ::std::size_t __n, ::std::uint32_t __stage, const sycl::event& __e) const
     {
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -184,12 +186,63 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                 oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
             }
             __cgh.depends_on(__e);
-            __radix_sort_onesweep_kernel<_KtTag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
-                                         ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>
-                __kernel(__n, __stage, __p_global_hist, __p_group_hists, ::std::forward<_InRngPack>(__in_pack),
-                         ::std::forward<_OutRngPack>(__out_pack));
+            __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item,
+                                         __work_group_size, ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>
+                __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id,
+                         ::std::forward<_InRngPack>(__in_pack), ::std::forward<_OutRngPack>(__out_pack));
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
+    }
+
+    // SYCL kernel dispatch
+    template <typename _InRngPack, typename _OutRngPack, typename _GlobalHistT, typename _AtomicIdT>
+    sycl::event
+    __submit_sycl(sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, _GlobalHistT* __p_global_hist,
+                  _GlobalHistT* __p_group_hists, _AtomicIdT* __p_atomic_id, ::std::uint32_t __sweep_work_group_count,
+                  ::std::size_t __n, ::std::uint32_t __stage, const sycl::event& __e) const
+    {
+        using _KernelType =
+            __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
+                                         __work_group_size, ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>;
+        constexpr ::std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
+        constexpr ::std::uint32_t __slm_size_elements = __slm_size_bytes / sizeof(::std::uint32_t);
+
+        sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
+        return __q.submit([&](sycl::handler& __cgh) {
+            sycl::local_accessor<unsigned char, 1> __slm_accessor(__slm_size_bytes, __cgh);
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
+            if constexpr (::std::decay_t<_InRngPack>::__has_values)
+            {
+                oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__vals_rng(), __out_pack.__vals_rng());
+            }
+            __cgh.depends_on(__e);
+            _KernelType __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id,
+                                 ::std::forward<_InRngPack>(__in_pack), ::std::forward<_OutRngPack>(__out_pack),
+                                 __slm_accessor);
+            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
+        });
+    }
+
+  public:
+    template <typename _KtTag, typename _InRngPack, typename _OutRngPack, typename _GlobalHistT, typename _AtomicIdT>
+    sycl::event
+    operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack,
+               _GlobalHistT* __p_global_hist, _GlobalHistT* __p_group_hists, _AtomicIdT* __p_atomic_id,
+               ::std::uint32_t __sweep_work_group_count, ::std::size_t __n, ::std::uint32_t __stage,
+               const sycl::event& __e) const
+    {
+        if constexpr (std::is_same_v<_KtTag, __sycl_tag>)
+        {
+            return __submit_sycl(__q, ::std::forward<_InRngPack>(__in_pack), ::std::forward<_OutRngPack>(__out_pack),
+                                 __p_global_hist, __p_group_hists, __p_atomic_id, __sweep_work_group_count, __n,
+                                 __stage, __e);
+        }
+        else
+        {
+            return __submit_esimd(__q, ::std::forward<_InRngPack>(__in_pack), ::std::forward<_OutRngPack>(__out_pack),
+                                  __p_global_hist, __p_group_hists, __p_atomic_id, __sweep_work_group_count, __n,
+                                  __stage, __e);
+        }
     }
 };
 
