@@ -3560,6 +3560,144 @@ protected:
     }
 };
 
+template <bool __Bounded, typename _Tag, typename _ExecutionPolicy,
+          typename _SetRange,
+          typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _OutputIterator,
+          typename _SizeFunction,
+          typename _MaskSizeFunction,
+          typename _SetUnionOp,
+          typename _Compare, typename _Proj1, typename _Proj2,
+          typename _T>
+struct _ParallelSetOpStrictScanPred
+{
+    _Tag                       __tag;
+    _ExecutionPolicy           __exec;
+
+    _RandomAccessIterator1     __first1;
+    _RandomAccessIterator1     __last1;
+    _RandomAccessIterator2     __first2;
+    _RandomAccessIterator2     __last2;
+    _SizeFunction              __size_func;
+    _MaskSizeFunction          __mask_size_func;
+    _SetUnionOp                __set_union_op;
+
+    _Compare                   __comp;
+    _Proj1                     __proj1;
+    _Proj2                     __proj2;
+
+    _T*                        __buf_raw_data_begin;
+    __mask_buffers<__Bounded>& __mask_bufs;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
+
+    _SetRange
+    operator()(_DifferenceType1 __i, _DifferenceType1 __len) const
+    {
+        //[__b; __e) - a subrange of the first sequence, to reduce
+        _RandomAccessIterator1 __b = __first1 + __i;
+        _RandomAccessIterator1 __e = __first1 + (__i + __len);
+
+        //try searching for the first element which not equal to *__b
+        if (__b != __first1)
+            __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+
+        //try searching for the first element which not equal to *__e
+        if (__e != __last1)
+            __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+
+        //check is [__b; __e) empty
+        if (__e - __b < 1)
+        {
+            _RandomAccessIterator2 __bb = __last2;
+            if (__b != __last1)
+                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b, __comp, __proj2, __proj1);
+
+            typename _SetRange::_Data __new_processing_data{
+                0,                                                 // position in output range
+                0,                                                 // length of data in temporary buffer
+                __size_func((__b - __first1), (__bb - __first2))}; // position in temporary buffer
+
+#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+            if constexpr (!__Bounded)
+#else
+            if constexpr (true)
+#endif
+            {
+                return _SetRange{__new_processing_data};
+            }
+            else
+            {
+                typename _SetRange::_Data __new_mask_data{
+                    0, // position in mask buffer
+                    0, // length of mask in temporary mask buffer
+                    __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
+
+                return _SetRange{__new_processing_data, __new_mask_data};
+            }
+        }
+
+        //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
+        _RandomAccessIterator2 __bb = __first2;
+        if (__b != __first1)
+            __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
+                                                                __b, __comp, __proj2, __proj1);
+
+        _RandomAccessIterator2 __ee = __last2;
+        if (__e != __last1)
+            __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
+                                                            __proj2, __proj1);
+
+        const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
+        const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
+
+        auto __buffer_b = __buf_raw_data_begin + __buf_pos;
+        auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
+
+        const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
+
+        auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
+
+        auto [__res, __mask_e] =
+            __set_union_op(__tag, __exec, __b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
+
+#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+        [[maybe_unused]] const _DifferenceType __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
+        if constexpr (__Bounded)
+        {
+            assert(__mask_e - __mask_b <= __buf_mask_len);
+        }
+#endif
+
+        // Prepare processed data info
+        const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
+        //assert(__new_processing_data.__pos <= __buf_size);
+        //assert(__new_processing_data.__buf_pos <= __buf_size);
+        //assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
+
+#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+        if constexpr (!__Bounded)
+#else
+        if constexpr (true)
+#endif
+        {
+            return _SetRange{__new_processing_data};
+        }
+        else
+        {
+            // Prepare processed mask info
+            const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
+            //assert(__new_mask_data.__pos <= __mask_buf_size);
+            //assert(__new_mask_data.__buf_pos <= __mask_buf_size);
+            //assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
+
+            return _SetRange{__new_processing_data, __new_mask_data};
+        }
+    }
+};
+
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
@@ -3599,8 +3737,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                          __set_union_op, __reached_positions_evaluator, &__buf, &__mask_bufs,
                                          __buf_size, __mask_buf_size]() {
         // Buffer raw data begin/end pointers
-        const auto __buf_raw_data_begin = __buf.get();
-        const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
+        _T* __buf_raw_data_begin = __buf.get();
+        _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         // Temporary "window"-organized mask of used items in input ranges
         auto __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
@@ -3611,112 +3749,27 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), _OutputIterator> __scan_pred{__buf_raw_data_begin, __buf_raw_data_end, __result1, __result2};
 
+        _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
+                                     _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
+                                     _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
+            __reduce_pred{__tag,
+                          __exec,
+                          __first1,
+                          __last1,
+                          __first2,
+                          __last2,
+                          __size_func,
+                          __mask_size_func,
+                          __set_union_op,
+                          __comp,
+                          __proj1,
+                          __proj2,
+                          __buf_raw_data_begin,
+                          __mask_bufs};
+
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, __exec, __n1, _SetRange(),
-            [=, &__mask_bufs](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange {
-                //[__b; __e) - a subrange of the first sequence, to reduce
-                _RandomAccessIterator1 __b = __first1 + __i;
-                _RandomAccessIterator1 __e = __first1 + (__i + __len);
-
-                //try searching for the first element which not equal to *__b
-                if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1,
-                                                          __proj1);
-
-                //try searching for the first element which not equal to *__e
-                if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1,
-                                                          __proj1);
-
-                //check is [__b; __e) empty
-                if (__e - __b < 1)
-                {
-                    _RandomAccessIterator2 __bb = __last2;
-                    if (__b != __last1)
-                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                      __b, __comp, __proj2, __proj1);
-
-                    typename _SetRange::_Data __new_processing_data{
-                        0,                                                 // position in output range
-                        0,                                                 // length of data in temporary buffer
-                        __size_func((__b - __first1), (__bb - __first2))}; // position in temporary buffer
-
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-                    if constexpr (!__Bounded)
-#else
-                    if constexpr (true)
-#endif
-                    {
-                        return _SetRange{__new_processing_data};
-                    }
-                    else
-                    {
-                        typename _SetRange::_Data __new_mask_data{
-                            0, // position in mask buffer
-                            0, // length of mask in temporary mask buffer
-                            __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
-
-                        return _SetRange{__new_processing_data, __new_mask_data};
-                    }
-                }
-
-                //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
-                _RandomAccessIterator2 __bb = __first2;
-                if (__b != __first1)
-                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                     __b, __comp, __proj2, __proj1);
-
-                _RandomAccessIterator2 __ee = __last2;
-                if (__e != __last1)
-                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
-                                                                 __proj2, __proj1);
-
-                const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-                const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
-
-                auto __buffer_b = __buf_raw_data_begin + __buf_pos;
-                auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
-
-                const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
-
-                auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
-
-                auto [__res, __mask_e] =
-                    __set_union_op(__tag, __exec, __b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
-
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-                [[maybe_unused]] const _DifferenceType __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
-                if constexpr (__Bounded)
-                {
-                    assert(__mask_e - __mask_b <= __buf_mask_len);
-                }
-#endif
-
-                // Prepare processed data info
-                const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
-                assert(__new_processing_data.__pos <= __buf_size);
-                assert(__new_processing_data.__buf_pos <= __buf_size);
-                assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
-
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-                if constexpr (!__Bounded)
-#else
-                if constexpr (true)
-#endif
-                {
-                    return _SetRange{__new_processing_data};
-                }
-                else
-                {
-                    // Prepare processed mask info
-                    const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
-                    assert(__new_mask_data.__pos <= __mask_buf_size);
-                    assert(__new_mask_data.__buf_pos <= __mask_buf_size);
-                    assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
-
-                    return _SetRange{__new_processing_data, __new_mask_data};
-                }
-            },
+            __reduce_pred,
             _SetRangeCombiner<__Bounded, _DifferenceType>{},
             __scan_pred,
             [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan_pred](const _SetRange& __total) {
