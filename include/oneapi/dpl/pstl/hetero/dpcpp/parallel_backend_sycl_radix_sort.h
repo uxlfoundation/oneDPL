@@ -156,10 +156,9 @@ struct __index_views
     std::uint32_t
     __get_bucket_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
+        // radix states are stored contiguously for each work-item
+        // experimentally, cache locality from this layout is better than avoiding bank conflicts
         return __wg_id * __radix_states + __radix_id;
-        // std::uint32_t __lane = __radix_id / __packing_ratio;
-        // std::uint32_t __pack = __radix_id % __packing_ratio;
-        // return __lane * (__workgroup_size * __packing_ratio) + __wg_id * __packing_ratio + __pack;
     }
 
     std::uint32_t
@@ -660,13 +659,6 @@ struct __parallel_multi_group_radix_sort
         {
             // TODO: convert to ordered type once at the first iteration and convert back at the last one
             bool __input_is_first = (__radix_iter % 2 == 0);
-
-            //std::cout<<"Radix sort iteration parameters: "
-            //         << "__wg_size_count=" << __wg_size_count
-            //         << ", __wg_size_scan=" << __wg_size_scan
-            //         << ", __wg_size_reorder=" << __wg_size_reorder
-            //         << ", __reorder_min_sg_size=" << __reorder_min_sg_size
-            //         << std::endl;
             // Compute the radix position for the given iteration
             ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
 
