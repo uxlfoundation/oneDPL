@@ -525,15 +525,36 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 2: Compute subgroup prefix (first 16 threads)
-                if (__self_lidx < __radix_states)
+                // Phase 2: Compute subgroup prefix (one subgroup per radix state)
+                if (__sg_id < __radix_states)
                 {
-                    _OffsetT __sum = 0;
-                    for (std::uint32_t __sg = 0; __sg < __num_subgroups; ++__sg)
+                    const std::uint32_t __my_radix_state = __sg_id;
+                    _OffsetT __running_sum = 0;
+
+                    // Process counts in chunks of subgroup size
+                    for (std::uint32_t __base = 0; __base < __num_subgroups; __base += __sg_size)
                     {
-                        _OffsetT __val = __slm_counts[__sg * __radix_states + __self_lidx];
-                        __slm_counts[__num_subgroups * __radix_states + __sg * __radix_states + __self_lidx] = __sum;
-                        __sum += __val;
+                        const std::uint32_t __sg_idx = __base + __sg_local_id;
+
+                        // Load count (0 if out of bounds)
+                        _OffsetT __val = (__sg_idx < __num_subgroups)
+                            ? __slm_counts[__sg_idx * __radix_states + __my_radix_state]
+                            : 0;
+
+                        // Exclusive scan within chunk
+                        _OffsetT __local_prefix = __dpl_sycl::__exclusive_scan_over_group(
+                            __sub_group, __val, __dpl_sycl::__plus<_OffsetT>());
+
+                        // Add running sum from previous chunks
+                        _OffsetT __prefix = __running_sum + __local_prefix;
+
+                        // Write prefix back
+                        if (__sg_idx < __num_subgroups)
+                            __slm_counts[__num_subgroups * __radix_states + __sg_idx * __radix_states + __my_radix_state] = __prefix;
+
+                        // Update running sum: broadcast the last element's total
+                        _OffsetT __chunk_total = __local_prefix + __val;
+                        __running_sum += __dpl_sycl::__group_broadcast(__sub_group, __chunk_total, __sg_size - 1);
                     }
                 }
 
