@@ -465,18 +465,23 @@ private:
                       (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
         }
 
-        EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+        //check that the inputs match
+        auto n_in_exp = std::ranges::size(in_exp_view);
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
+                    (std::string("input mismatch with ") + typeid(Algo).name() + sizes).c_str());
 
-        //check result
+//        EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
+//                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+        //check that the outputs match
         auto n = std::ranges::size(out_exp_view);
         EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
                     (std::string("output mismatch with ") + typeid(Algo).name() + sizes).c_str());
 
-        //check result
-        auto n_in_exp = std::ranges::size(in_exp_view);
-        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
-                    (std::string("input mismatch with ") + typeid(Algo).name() + sizes).c_str());
+#if 1
+        EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
+                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+#endif
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
