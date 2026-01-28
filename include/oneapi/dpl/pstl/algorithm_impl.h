@@ -3479,7 +3479,7 @@ struct __mask_buffers
 #endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
 template <bool __Bounded, class _IsVector, typename RawDataPtr, typename _OutputIterator>
-struct ScanPred
+struct _ScanPred
 {
     RawDataPtr      __buf_raw_data_begin;
     RawDataPtr      __buf_raw_data_end;
@@ -3609,7 +3609,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _DifferenceType __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         // Scan predicate
-        ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), _OutputIterator> __scan_pred{__buf_raw_data_begin, __buf_raw_data_end, __result1, __result2};
+        _ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), _OutputIterator> __scan_pred{__buf_raw_data_begin, __buf_raw_data_end, __result1, __result2};
 
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, __exec, __n1, _SetRange(),
