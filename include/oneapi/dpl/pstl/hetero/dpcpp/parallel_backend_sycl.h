@@ -273,7 +273,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
         // This value matches the current practical limit for GPUs, but may need to be re-evaluated in the future.
         __wgroup_size = std::min(__wgroup_size, (std::size_t)1024);
 
-#if _ONEDPL_COMPILE_KERNEL
+#if 0 // _ONEDPL_COMPILE_KERNEL
         //Actually there is one kernel_bundle for the all kernels of the pattern.
         auto __kernels = __internal::__kernel_compiler<_LocalScanKernel, _GroupScanKernel>::__compile(__q);
         auto __kernel_1 = __kernels[0];
@@ -284,7 +284,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr std::size_t __iters_per_witem = 2; //16;
+        constexpr std::size_t __iters_per_witem = 16;
         std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
         std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
 
@@ -299,11 +299,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             auto __temp_acc = __get_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
             auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
             __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if 0 // _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
             __cgh.use_kernel_bundle(__kernel_1.get_kernel_bundle());
 #endif
             __cgh.parallel_for<_LocalScanKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+#if 0 // _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                 __kernel_1,
 #endif
                 sycl::nd_range<1>(__n_groups * __wgroup_size, __wgroup_size), [=](sycl::nd_item<1> __item) {
@@ -327,11 +327,11 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                 auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
                 auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
-#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+#if 0 // _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
 #endif
                 __cgh.parallel_for<_GroupScanKernel>(
-#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+#if 0 // _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
                     __kernel_2,
 #endif
                     // TODO: try to balance work between several workgroups instead of one
