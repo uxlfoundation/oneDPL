@@ -3484,18 +3484,28 @@ struct ScanPred
             // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
             // Evalueate output range boundaries for current data chunk
-            const auto __result_from = oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos, __result2);
-            const auto __result_to = oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
+            const auto __result_from = __advance_clamped(__result1, __s_data.__pos, __result2);
+            const auto __result_to = __advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
             const auto __result_remaining = __result_to - __result_from;
 
             // Evaluate pointers to current data chunk in temporary buffer
-            const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-            const auto __buf_raw_data_to = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
+            const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
+            const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
 
             // Copy results data into results range to have final output
-            __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from,
-                                                              _IsVector{});
+            __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
         }
+    }
+
+protected:
+
+    // Move it1 forward by n, but not beyond it2
+    template <typename _RandomAccessIterator,
+            typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
+    _RandomAccessIterator
+    __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
+    {
+        return it1 + (it2 >= it1 ? std::min(it2 - it1, n) : 0);
     }
 };
 
