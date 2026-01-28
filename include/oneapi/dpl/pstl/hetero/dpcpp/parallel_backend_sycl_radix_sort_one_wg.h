@@ -31,8 +31,7 @@
 template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
-template <typename _KernelNameBase, uint16_t __block_size = 16,
-          std::uint32_t __radix = 4, bool __is_asc = true>
+template <typename _KernelNameBase, uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
@@ -46,15 +45,12 @@ struct __subgroup_radix_sort
         using __call_2_t = std::integral_constant<::std::uint16_t, 2>;
         using __is_asc_t = std::integral_constant<bool, __is_asc>;
 
-        using _SortKernelLoc =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
-                _KernelNameBase, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
-        using _SortKernelPartGlob =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
-                _KernelNameBase, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
-        using _SortKernelGlob =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__radix_sort_one_wg_kernel<
-                _KernelNameBase, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
+        using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __radix_sort_one_wg_kernel<_KernelNameBase, __block_size_t, __radix_t, __call_0_t, __is_asc_t>>;
+        using _SortKernelPartGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __radix_sort_one_wg_kernel<_KernelNameBase, __block_size_t, __radix_t, __call_1_t, __is_asc_t>>;
+        using _SortKernelGlob = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __radix_sort_one_wg_kernel<_KernelNameBase, __block_size_t, __radix_t, __call_2_t, __is_asc_t>>;
 
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
 
@@ -74,7 +70,7 @@ struct __subgroup_radix_sort
                                                                 ::std::false_type{} /*No SLM*/,
                                                                 ::std::true_type{} /*SLM*/);
         return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
-                                                            ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
+                                                        ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
     }
 
   private:
@@ -154,7 +150,7 @@ struct __subgroup_radix_sort
         const auto __req_slm_size_val = sizeof(_T) * __n_uniform;
 
         if (__req_slm_size_val + __req_slm_size_counters <= __max_slm_size)
-            return ::std::make_pair(true, true);  //the values and the counters are placed in SLM
+            return ::std::make_pair(true, true); //the values and the counters are placed in SLM
         if (__req_slm_size_counters <= __max_slm_size)
             return ::std::make_pair(false, true); //the counters are placed in SLM, the values - in the global memory
         return ::std::make_pair(false, false);    //the values and the counters are placed in the global memory
@@ -195,7 +191,7 @@ struct __subgroup_radix_sort
                             __storage() {}
                         } __values;
                         uint16_t __wi = __it.get_local_linear_id();
-                        
+
                         constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
@@ -275,7 +271,6 @@ struct __subgroup_radix_sort
                             //3. "re-order" phase
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-
                             //3.1 data exchange
                             if (__begin_bit == 0) //the first sort iteration
                             {
@@ -312,7 +307,7 @@ struct __subgroup_radix_sort
                                         __exchange_lacc[__idx].~_ValT();
                                     }
                                 }
-                           }
+                            }
                             else
                             {
                                 _ONEDPL_PRAGMA_UNROLL
