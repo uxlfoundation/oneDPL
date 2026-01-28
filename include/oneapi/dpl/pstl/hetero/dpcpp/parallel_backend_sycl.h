@@ -284,7 +284,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr std::size_t __iters_per_witem = 16;
+        constexpr std::size_t __iters_per_witem = 12; //16;
         std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
         std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
 
