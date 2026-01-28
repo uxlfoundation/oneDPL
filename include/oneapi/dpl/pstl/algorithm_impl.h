@@ -3478,6 +3478,78 @@ struct __mask_buffers
 };
 #endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
+template <bool __Bounded, class _IsVector, typename RawDataPtr, typename _OutputIterator>
+struct ScanPred
+{
+    RawDataPtr      __buf_raw_data_begin;
+    RawDataPtr      __buf_raw_data_end;
+    _OutputIterator __result1;
+    _OutputIterator __result2;
+
+    template <typename _DifferenceType1, typename _SetRange>
+    void
+    operator()(_DifferenceType1, _DifferenceType1, const _SetRange& __s) const
+    {
+        const auto __s_data = __s.__data[0];
+
+#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+        if constexpr (!__Bounded)
+#else
+        if constexpr (true)
+#endif
+        {
+            __brick_move_destroy<__parallel_tag<_IsVector>>{}(
+                __buf_raw_data_begin + __s_data.__buf_pos, __buf_raw_data_begin + (__s_data.__buf_pos + __s_data.__len),
+                __result1 + __s_data.__pos, _IsVector{});
+        }
+        else
+        {
+            // Work schema of copying data from temporary buffer to output range:
+            //
+            //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
+            //                                              |
+            //                                              |                                          +<-(__buf_raw_data_begin + __s.__buf_pos + __s.__len)
+            //                                              | <--- what to copy w/o output limits ---->|
+            //                                              V                                          V
+            // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+            //                                              |                             |            |
+            //                                              |<----- __out_remaining ----->|            |
+            //                                              |                             |            |
+            //                                               \                             \            \
+            //                                                \ We shoult `move/destroy`    \            \
+            //                                                 \  this data from temporary   \            \
+            //                                                  \   buffer to output range    \            \
+            //                                                   \     (__s.__len)             \            \
+            //                                                    |                             |            |
+            //                                                    V                             V            V
+            // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
+            //                      ^                             ^                             ^            ^
+            //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
+            //                      |                (__output_write_pos_begin)                 |            |
+            //                      |                                                           \____________/
+            //                      |                                                           |      ^
+            //                      |                                                           |      this data no longer fit into output range
+            //                      |                                                           |
+            //                      |                                                           |<-(__output_write_pos_end)
+            //                      |                                                           |
+            // Output range bounds: +<-(__result1)                                              +<-(__result2)
+
+            // Evalueate output range boundaries for current data chunk
+            const auto __result_from = oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos, __result2);
+            const auto __result_to = oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
+            const auto __result_remaining = __result_to - __result_from;
+
+            // Evaluate pointers to current data chunk in temporary buffer
+            const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
+            const auto __buf_raw_data_to = oneapi::dpl::__utils::__advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
+
+            // Copy results data into results range to have final output
+            __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from,
+                                                              _IsVector{});
+        }
+    }
+};
+
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
@@ -3527,101 +3599,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _DifferenceType __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         // Scan predicate
-        auto __scan = [=](_DifferenceType1, _DifferenceType1, const _SetRange& __s) {
-            // Copy source data taking into account output range limits
-            if (!__s.__data[0].empty())
-            {
-                const auto __s_data = __s.__data[0];
-
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-                if constexpr (!__Bounded)
-#else
-                if constexpr (true)
-#endif
-                {
-                    __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_begin + __s_data.__buf_pos,
-                                                                      __buf_raw_data_begin +
-                                                                          (__s_data.__buf_pos + __s_data.__len),
-                                                                      __result1 + __s_data.__pos, _IsVector{});
-                }
-                else
-                {
-                    // Work schema of copying data from temporary buffer to output range:
-                    //
-                    //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
-                    //                                              |
-                    //                                              |                                          +<-(__buf_raw_data_begin + __s.__buf_pos + __s.__len)
-                    //                                              | <--- what to copy w/o output limits ---->|
-                    //                                              V                                          V
-                    // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-                    //                                              |                             |            |
-                    //                                              |<----- __out_remaining ----->|            |
-                    //                                              |                             |            |
-                    //                                               \                             \            \
-                    //                                                \ We shoult `move/destroy`    \            \
-                    //                                                 \  this data from temporary   \            \
-                    //                                                  \   buffer to output range    \            \
-                    //                                                   \     (__s.__len)             \            \
-                    //                                                    |                             |            |
-                    //                                                    V                             V            V
-                    // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
-                    //                      ^                             ^                             ^            ^
-                    //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
-                    //                      |                (__output_write_pos_begin)                 |            |
-                    //                      |                                                           \____________/
-                    //                      |                                                           |      ^
-                    //                      |                                                           |      this data no longer fit into output range
-                    //                      |                                                           |
-                    //                      |                                                           |<-(__output_write_pos_end)
-                    //                      |                                                           |
-                    // Output range bounds: +<-(__result1)                                              +<-(__result2)
-
-                    // Evalueate output range boundaries for current data chunk
-                    const auto __result_from =
-                        oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos, __result2);
-                    const auto __result_to =
-                        oneapi::dpl::__utils::__advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
-                    const auto __result_remaining = __result_to - __result_from;
-
-                    // Evaluate pointers to current data chunk in temporary buffer
-                    const auto __buf_raw_data_from = oneapi::dpl::__utils::__advance_clamped(
-                        __buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-                    const auto __buf_raw_data_to = oneapi::dpl::__utils::__advance_clamped(
-                        __buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len),
-                        __buf_raw_data_end);
-
-                    // Copy results data into results range to have final output
-                    __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to,
-                                                                      __result_from, _IsVector{});
-                }
-            }
-
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-            // Copy mask data without size limits
-            if constexpr (__Bounded)
-            {
-                // Copy mask state to output mask buffer: no size limits applied here
-                if (!__s.__data[1].empty())
-                {
-                    const auto __s_mask_data = __s.__data[1];
-
-                    // Evalueate output mask range boundaries for current data chunk
-                    const auto __buf_mask_rng_res_raw_data_from =
-                        __buf_mask_rng_res_raw_data_begin + __s_mask_data.__pos;
-
-                    // Evaluate mask pointers to current data chunk in temporary buffer
-                    const auto __buf_mask_rng_raw_data_from = __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos;
-                    const auto __buf_mask_rng_raw_data_to =
-                        __buf_mask_rng_raw_data_begin + __s_mask_data.__buf_pos + __s_mask_data.__len;
-
-                    // Copy mask to result mask buffer to have information about used items in input ranges
-                    __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_mask_rng_raw_data_from,
-                                                                      __buf_mask_rng_raw_data_to,
-                                                                      __buf_mask_rng_res_raw_data_from, _IsVector{});
-                }
-            }
-#endif
-        };
+        ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), _OutputIterator> __scan_pred{__buf_raw_data_begin, __buf_raw_data_end, __result1, __result2};
 
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, __exec, __n1, _SetRange(),
@@ -3730,10 +3708,10 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 }
             },
             _SetRangeCombiner<__Bounded, _DifferenceType>{},
-            __scan,
-            [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan](const _SetRange& __total) {
+            __scan_pred,
+            [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan_pred](const _SetRange& __total) {
                 //final scan
-                __scan(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
+                __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
                 if constexpr (!__Bounded)
