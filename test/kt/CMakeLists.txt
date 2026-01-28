@@ -101,8 +101,16 @@ endfunction()
 function(_generate_sort_tests _variant _key_value_pairs)
     set(_base_file_all "radix_sort" "radix_sort_out_of_place")
     set(_base_file_by_key_all "radix_sort_by_key" "radix_sort_by_key_out_of_place")
-    set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
-    set(_work_group_size_all "64")
+    
+    # Variant-specific configurations
+    if (${_variant} STREQUAL "sycl")
+        set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
+        set(_work_group_size_all "1024")
+    else() # esimd
+        set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
+        set(_work_group_size_all "64")
+    endif()
+    
     set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double")
 
     foreach (_data_per_work_item ${_data_per_work_item_all})
@@ -140,8 +148,8 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
     _generate_sort_tests("sycl" TRUE) # radix_sort_by_key, random
 
     # Pin some cases to track them
-    _generate_sort_test("sycl" "radix_sort_by_key_out_of_place" "96" "64" "uint32_t" "uint32_t" 1000)
-    _generate_sort_test("sycl" "radix_sort" "384" "64" "int32_t" "" 1000)
+    _generate_sort_test("sycl" "radix_sort_by_key_out_of_place" "3" "1024" "uint32_t" "uint32_t" 1000)
+    _generate_sort_test("sycl" "radix_sort" "12" "1024" "int32_t" "" 1000)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
