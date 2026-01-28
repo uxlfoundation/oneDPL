@@ -150,23 +150,26 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
+// Helper for SLM indexing in count kernel. Layout stores radix states contiguously per work-item
+// for cache locality during counting, then reorganizes for reduction.
 template <std::uint32_t __packing_ratio, std::uint32_t __radix_states>
 struct __index_views
 {
+    // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
-    __get_bucket_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
+    __get_bucket_idx(std::uint32_t, std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
-        // radix states are stored contiguously for each work-item
-        // experimentally, cache locality from this layout is better than avoiding bank conflicts
         return __wg_id * __radix_states + __radix_id;
     }
 
+    // Index for packed uint32 counters (4 uint8s packed): [wg_id][radix_id_lane]
     std::uint32_t
-    __get_bucket32_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
+    __get_bucket32_idx(std::uint32_t, std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
     {
         return __wg_id * (__radix_states / __packing_ratio) + __radix_id_lane;
     }
 
+    // Index for reduction phase: [radix_id][partial_sum_id]
     std::uint32_t
     __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
@@ -228,9 +231,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
                 __index_views<__packing_ratio, __radix_states> __views;
 
-                // Private array for partial sums - only 4 registers needed per WI
                 _CountT __count_arr[__packing_ratio] = {0};
-                // 1.2. count per witem: count values and write result to private count array
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
                 // reset SLM buckets
@@ -334,7 +335,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                         __slm_counts[__views.__get_count_idx(__wg_size, __self_lidx, 0)];
                 }
 
-                // 3.0 side work: reset 'no operation flag', which specifies whether to skip re-order phase
+                // Reset 'no operation flag' (indicates all keys are in one bin, skip reorder)
                 if (__wgroup_idx == 0 && __self_lidx == 0)
                 {
                     auto& __no_op_flag = __count_rng[__no_op_flag_idx];
@@ -403,14 +404,10 @@ void
 __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __seg_start, std::size_t __seg_end,
                              const std::size_t __wg_size, _ValueT* __input, _ValueT* __output)
 {
-    // item info
     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-
-    // in chunks of __wg_size * __unroll_elements, copy values from input to output
     const ::std::uint16_t __residual = (__seg_end - __seg_start) % __wg_size;
     __seg_end -= __residual;
 
-    // find offsets for the same values within a segment and fill the resulting buffer
     for (::std::size_t __val_idx = __seg_start + __self_lidx; __val_idx < __seg_end; __val_idx += __wg_size)
         __output[__val_idx] = std::move(__input[__val_idx]);
 
@@ -623,7 +620,6 @@ struct __parallel_multi_group_radix_sort
         __wg_size_count =
             sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__wg_size_count), ::std::size_t(__radix_states));
         std::size_t __wg_size_scan = oneapi::dpl::__internal::__max_work_group_size(__q, 1024);
-        ;
         std::size_t __wg_size_reorder = 256;
         std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
@@ -677,7 +673,7 @@ struct __parallel_multi_group_radix_sort
 
         return __dependency_event;
     }
-}; // struct __parallel_radix_sort_iteration
+}; // struct __parallel_multi_group_radix_sort
 
 // sorting by just one work group
 #include "parallel_backend_sycl_radix_sort_one_wg.h"
