@@ -725,13 +725,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
     // Select block size based on input size (block_size = elements per work-item)
     // Larger block sizes reduce register spills but require more registers per work-item
-    if (__n <= 256)
-        __event = __subgroup_radix_sort<_RadixSortKernel, 1, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= 512)
-        __event = __subgroup_radix_sort<_RadixSortKernel, 2, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= 1024)
+    if (__n <= 1024)
         __event = __subgroup_radix_sort<_RadixSortKernel, 4, __radix_bits, __is_ascending>{}(
             __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
     else if (__n <= 2048)
