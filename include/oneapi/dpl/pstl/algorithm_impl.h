@@ -3312,12 +3312,12 @@ struct _SetRangeImpl
             return __len == 0;
         }
 
-        static _Data
-        combine(const _Data& __a, const _Data& __b)
+        _Data
+        combine_with(const _Data& __other) const
         {
-            if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-                return _Data{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
-            return _Data{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+            if (__other.__buf_pos > __buf_pos || ((__other.__buf_pos == __buf_pos) && !__other.empty()))
+                return _Data{__pos + __len + __other.__pos, __other.__len, __other.__buf_pos};
+            return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
         }
     };
 
@@ -3337,6 +3337,30 @@ struct _SetRangeImpl
     // [0]: describes processing data in temporary windowed buffer and temporary result buffer
     // [1]: describes mask data in temporary windowed buffer and temporary result buffer
     std::array<_Data, __data_size> __data;
+};
+
+template <bool __Bounded, typename _DifferenceType>
+struct _SetRangeCombiner
+{
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
+
+    _SetRange
+    operator()(const _SetRange& __a, const _SetRange& __b) const
+    {
+#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+        if constexpr (!__Bounded)
+#else
+        if constexpr (true)
+#endif
+        {
+            return {__a.__data[0].combine_with(__b.__data[0])};
+        }
+        else
+        {
+            return {__a.__data[0].combine_with(__b.__data[0]),
+                    __a.__data[1].combine_with(__b.__data[1])};
+        }
+    }
 };
 
 // The structure __set_op_offsets_full should be used when we apriory know
@@ -3705,21 +3729,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                     return _SetRange{__new_processing_data, __new_mask_data};
                 }
             },
-            [](const _SetRange& __a, const _SetRange& __b) {
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-                if constexpr (!__Bounded)
-#else
-                if constexpr (true)
-#endif
-                {
-                    return _SetRange{_SetRange::_Data::combine(__a.__data[0], __b.__data[0])};
-                }
-                else
-                {
-                    return _SetRange{_SetRange::_Data::combine(__a.__data[0], __b.__data[0]),
-                                     _SetRange::_Data::combine(__a.__data[1], __b.__data[1])};
-                }
-            },
+            _SetRangeCombiner<__Bounded, _DifferenceType>{},
             __scan,
             [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan](const _SetRange& __total) {
                 //final scan
