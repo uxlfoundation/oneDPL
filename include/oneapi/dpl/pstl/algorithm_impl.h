@@ -3365,11 +3365,11 @@ using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 // __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                                                                         false
+#define IMPLEMENT_SET_OP_AS_BOUNDED                                                                         true
 #if IMPLEMENT_NON_RANGE_SET_OP_AS_BOUNDED
-#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                         0
+#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                         1
 #    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                       0
+#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                       1
 #        if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 #            define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS                    0
 #            if ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS
