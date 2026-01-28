@@ -822,6 +822,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     std::array<_Size, 2> __ret;
     sycl::queue __q_local = __exec.queue();
 
+#if 0
     constexpr std::uint16_t __max_elem_per_item = 2;
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
@@ -846,6 +847,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         __ret = {__stop_out, __n};
     }
     else
+#endif
     {
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
