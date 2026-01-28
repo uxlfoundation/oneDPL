@@ -86,14 +86,6 @@ __max_sub_group_size(const sycl::queue& __q)
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
     return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
 }
-
-inline std::size_t
-__min_sub_group_size(const sycl::queue& __q)
-{
-    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
-    return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.front();
-}
 #endif // _ONEDPL_USE_SUB_GROUPS
 
 inline std::uint32_t
