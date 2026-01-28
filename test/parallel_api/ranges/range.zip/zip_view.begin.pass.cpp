@@ -65,7 +65,6 @@ void test() {
   {
     // all underlying iterators should be at the begin position
     dpl_ranges::zip_view v(SizedRandomAccessView{buffer}, std::views::iota(0), std::ranges::single_view(2.));
-    using value_t = std::ranges::range_value_t<decltype(v)>;
     std::same_as<tuple_type<int&, int, double&>> decltype(auto) val = *v.begin();
     assert(val == std::make_tuple(1, 0, 2.0));
     assert(&(std::get<0>(val)) == &buffer[0]);
