@@ -553,14 +553,6 @@ struct __set_operations_result
     }
 };
 
-// Move it1 forward by n, but not beyond it2
-template <typename _RandomAccessIterator, typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
-_RandomAccessIterator
-__advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2)
-{
-    return it1 + (it2 >= it1 ? std::min(it2 - it1, n) : 0);
-}
-
 } // namespace __utils
 } // namespace dpl
 } // namespace oneapi
