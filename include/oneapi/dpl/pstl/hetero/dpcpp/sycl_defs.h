@@ -88,8 +88,6 @@
 #define _ONEDPL_LIBSYCL_COLLECTIVES_PRESENT                   (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_LIBSYCL_PROGRAM_PRESENT                       (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_LIBSYCL_KNOWN_IDENTITY_PRESENT                (_ONEDPL_LIBSYCL_VERSION == 50200)
-#define _ONEDPL_LIBSYCL_SUB_GROUP_MASK_PRESENT                                                                         \
-    (SYCL_EXT_ONEAPI_SUB_GROUP_MASK >= 1 && _ONEDPL_LIBSYCL_VERSION >= 50700)
 
 // Compilation of a kernel is requiried to obtain valid work_group_size
 // when target devices are CPU or FPGA emulator. Since CPU and GPU devices
