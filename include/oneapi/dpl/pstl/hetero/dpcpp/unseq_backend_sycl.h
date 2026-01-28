@@ -953,7 +953,10 @@ struct __scan
         constexpr auto __shift = _Inclusive{} ? 0 : 1;
 
         _Size __adjusted_global_id = __local_id + __size_per_wg * __group_id;
-        auto __adder = __local_acc[0];
+        auto __adder = _Tp{__known_identity<_BinaryOperation, _Tp>};
+        if (__group_id == 0)
+            __use_init(__init, __adder, __bin_op);
+
         for (auto __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
         {
             if (__adjusted_global_id < __n)
@@ -963,13 +966,18 @@ struct __scan
 
             // the result of __unary_op must be convertible to _Tp
             _Tp __old_value = __unary_op(__local_id, __local_acc);
-            if (__iter > 0 && __local_id == 0)
-                __old_value = __bin_op(__adder, __old_value);
-            else if (__adjusted_global_id == 0)
-                __use_init(__init, __old_value, __bin_op);
-
+            __dpl_sycl::__group_barrier(__item);
+#if 1
             __local_acc[__local_id] =
-                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __old_value, __bin_op);
+                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __old_value, __bin_op, __adder);
+#else
+            for (_Size __i = __local_id; __i > 0; --__i)
+            {
+                __old_value = __bin_op(__unary_op(__i - 1, __local_acc), __old_value);
+            }
+            __dpl_sycl::__group_barrier(__item);
+            __local_acc[__local_id] = __bin_op(__adder, __old_value);
+#endif
             __dpl_sycl::__group_barrier(__item);
 
             __adder = __local_acc[__wgroup_size - 1];
