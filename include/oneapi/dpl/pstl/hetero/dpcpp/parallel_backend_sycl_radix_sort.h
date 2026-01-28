@@ -525,10 +525,9 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Phase 2: Compute subgroup prefix (one subgroup per radix state)
-                if (__sg_id < __radix_states)
+                // Phase 2: Compute subgroup prefix (subgroups loop through radix states)
+                for (std::uint32_t __radix_state = __sg_id; __radix_state < __radix_states; __radix_state += __num_subgroups)
                 {
-                    const std::uint32_t __my_radix_state = __sg_id;
                     _OffsetT __running_sum = 0;
 
                     // Process counts in chunks of subgroup size
@@ -538,7 +537,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                         // Load count (0 if out of bounds)
                         _OffsetT __val = (__sg_idx < __num_subgroups)
-                            ? __slm_counts[__sg_idx * __radix_states + __my_radix_state]
+                            ? __slm_counts[__sg_idx * __radix_states + __radix_state]
                             : 0;
 
                         // Exclusive scan within chunk
@@ -550,7 +549,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                         // Write prefix back
                         if (__sg_idx < __num_subgroups)
-                            __slm_counts[__num_subgroups * __radix_states + __sg_idx * __radix_states + __my_radix_state] = __prefix;
+                            __slm_counts[__num_subgroups * __radix_states + __sg_idx * __radix_states + __radix_state] = __prefix;
 
                         // Update running sum: broadcast the last element's total
                         _OffsetT __chunk_total = __local_prefix + __val;
