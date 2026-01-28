@@ -84,8 +84,13 @@ __apply_to_tuples_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence
     (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
 }
 
-auto __gen_lambda = [](auto&&...) {};
-template <typename _F, typename _Tuple, typename _ReturnAdapter = decltype(__gen_lambda)>
+struct __gen_lambda
+{
+    template <class... _Ts>
+    decltype(auto) operator()(_Ts&&...) const {}
+};
+
+template <typename _F, typename _Tuple, typename _ReturnAdapter = __gen_lambda>
 decltype(auto)
 __apply_to_tuple(_F __f, _Tuple& __t, _ReturnAdapter __tr = {})
 {
