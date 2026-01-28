@@ -10,8 +10,6 @@
 #ifndef _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
 #define _ONEDPL_KT_RADIX_SORT_SUBMITTERS_H
 
-// #define DEBUG_SYCL_KT 1
-
 #include <cstdint>
 #include <utility>
 #include <type_traits>
@@ -103,21 +101,6 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
         constexpr std::uint32_t __max_slm_bytes = 1 << 16;
         constexpr std::uint32_t __num_histograms =
             std::min(__max_histograms, std::uint32_t(__max_slm_bytes / (__hist_buffer_size * sizeof(std::uint32_t))));
-
-#ifdef DEBUG_SYCL_KT
-        std::printf("[HOST] Histogram kernel config:\n");
-        std::printf("  - Global size: %u\n", __hist_work_group_count * __hist_work_group_size);
-        std::printf("  - Work group size: %u\n", __hist_work_group_size);
-        std::printf("  - Work group count: %u\n", __hist_work_group_count);
-        std::printf("  - Sub-group size: %u\n", __sub_group_size);
-        std::printf("  - Radix bits: %u\n", __radix_bits);
-        std::printf("  - Bin count: %u\n", __bin_count);
-        std::printf("  - Stage count: %u\n", __stage_count);
-        std::printf("  - Num histograms: %u\n", __num_histograms);
-        std::printf("  - SLM allocated: %lu bytes\n",
-                    (unsigned long)(__hist_buffer_size * __num_histograms * sizeof(std::uint32_t)));
-        std::printf("  - Input size: %zu\n", __n);
-#endif
 
         sycl::nd_range<1> __nd_range(__hist_work_group_count * __hist_work_group_size, __hist_work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -223,24 +206,6 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                                          __work_group_size, ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>;
         constexpr ::std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
         constexpr ::std::uint32_t __slm_size_elements = __slm_size_bytes / sizeof(::std::uint32_t);
-
-#ifdef DEBUG_SYCL_KT
-        constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-        std::printf("[HOST] Onesweep kernel config (stage %u):\n", __stage);
-        std::printf("  - Global size: %u\n", __sweep_work_group_count * __work_group_size);
-        std::printf("  - Work group size: %u\n", __work_group_size);
-        std::printf("  - Work group count: %u\n", __sweep_work_group_count);
-        std::printf("  - Sub-group size: %u\n", _KernelType::__sub_group_size);
-        std::printf("  - Data per work item: %u\n", __data_per_work_item);
-        std::printf("  - Radix bits: %u\n", __radix_bits);
-        std::printf("  - Bin count: %u\n", __bin_count);
-        std::printf("  - SLM allocated: %u bytes\n", __slm_size_bytes);
-        std::printf("  - Global histogram size: %lu bytes\n", (unsigned long)(__bin_count * sizeof(_GlobalHistT)));
-        std::printf("  - Group histograms size: %lu bytes\n",
-                    (unsigned long)(__sweep_work_group_count * __bin_count * sizeof(_GlobalHistT)));
-        std::printf("  - Input size: %zu\n", __n);
-        std::printf("  - Has values: %s\n", _KernelType::__has_values ? "true" : "false");
-#endif
 
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {

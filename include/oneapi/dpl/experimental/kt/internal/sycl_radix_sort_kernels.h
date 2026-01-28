@@ -54,14 +54,6 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
     const std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
     const std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
-#ifdef DEBUG_SYCL_KT
-    const std::uint32_t __num_groups = __idx.get_group_range(0);
-    if (__local_id == 0 && __group_id == __num_groups - 1)
-    {
-        sycl::ext::oneapi::experimental::printf("[HISTOGRAM WG %u] Starting global histogram kernel\n", __group_id);
-    }
-#endif
-
     std::uint32_t __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
 
     // 0. Early exit - important for small inputs as we intentionally oversubscribe the hardware
@@ -79,13 +71,6 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
     }
 
     sycl::group_barrier(__idx.get_group());
-
-#ifdef DEBUG_SYCL_KT
-    if (__local_id == 0 && __group_id == __idx.get_group_range(0) - 1)
-    {
-        sycl::ext::oneapi::experimental::printf("[HISTOGRAM WG %u] SLM initialized\n", __group_id);
-    }
-#endif
 
     for (std::uint32_t __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
          __wi_offset += __device_wide_step)
@@ -110,14 +95,6 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
                 __keys[__i] = (__key_idx < __n) ? __keys_rng[__key_idx] : __sort_identity<_KeyT, __is_ascending>();
             }
         }
-
-#ifdef DEBUG_SYCL_KT
-        if (__local_id == 0 && __group_id == __idx.get_group_range(0) - 1)
-        {
-            sycl::ext::oneapi::experimental::printf("[histogram wg %u] keys read at offset %u\n", __group_id,
-                                                    __wi_offset);
-        }
-#endif
 
         // 3. Accumulate histogram to SLM
         // SLM uses a blocked layout where each bin contains _NumHistograms sub-bins that are used to reduce contention
@@ -145,13 +122,6 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
 
     sycl::group_barrier(__idx.get_group());
 
-#ifdef DEBUG_SYCL_KT
-    if (__local_id == 0 && __group_id == __idx.get_group_range(0) - 1)
-    {
-        sycl::ext::oneapi::experimental::printf("[HISTOGRAM WG %u] Histogram accumulated to SLM\n", __group_id);
-    }
-#endif
-
     // 4. Reduce group-local histograms from SLM into global histograms in global memory
     for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
     {
@@ -167,45 +137,39 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
         _AtomicRef __global_hist_ref(__p_global_offset[__i]);
         __global_hist_ref.fetch_add(__reduced_bincount);
     }
-
-#ifdef DEBUG_SYCL_KT
-    if (__local_id == 0 && __group_id == __idx.get_group_range(0) - 1)
-    {
-        sycl::ext::oneapi::experimental::printf("[HISTOGRAM WG %u] Histogram kernel complete\n", __group_id);
-    }
-#endif
 }
 
-template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
+template <typename _KtTag, bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
 struct __radix_sort_onesweep_kernel;
 
-template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
-struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _InRngPack, _OutRngPack>
+template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
+          std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
+struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
+                                    _InRngPack, _OutRngPack>
 {
-    using _LocOffsetT = ::std::uint16_t;
-    using _GlobOffsetT = ::std::uint32_t;
-    using _AtomicIdT = ::std::uint32_t;
+    using _LocOffsetT = std::uint16_t;
+    using _GlobOffsetT = std::uint32_t;
+    using _AtomicIdT = std::uint32_t;
 
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
-    static constexpr bool __has_values = !::std::is_void_v<_ValT>;
+    static constexpr bool __has_values = !std::is_void_v<_ValT>;
 
-    static constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
+    static constexpr std::uint32_t __bin_count = 1 << __radix_bits;
 
-    static constexpr ::std::uint32_t __sub_group_size = 32;
-    static constexpr ::std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
-    static constexpr ::std::uint32_t __data_per_sub_group = __data_per_work_item * __sub_group_size;
+    static constexpr std::uint32_t __sub_group_size = 32;
+    static constexpr std::uint32_t __num_sub_groups_per_work_group = __work_group_size / __sub_group_size;
+    static constexpr std::uint32_t __data_per_sub_group = __data_per_work_item * __sub_group_size;
 
-    static constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+    static constexpr std::uint32_t __bit_count = sizeof(_KeyT) * 8;
     static constexpr _LocOffsetT __mask = __bin_count - 1;
-    static constexpr ::std::uint32_t __hist_stride = __bin_count * sizeof(_LocOffsetT);
-    static constexpr ::std::uint32_t __work_item_all_hists_size = __num_sub_groups_per_work_group * __hist_stride;
-    static constexpr ::std::uint32_t __group_hist_size = __hist_stride; // _LocOffsetT
-    static constexpr ::std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
+    static constexpr std::uint32_t __hist_stride = __bin_count * sizeof(_LocOffsetT);
+    static constexpr std::uint32_t __work_item_all_hists_size = __num_sub_groups_per_work_group * __hist_stride;
+    static constexpr std::uint32_t __group_hist_size = __hist_stride; // _LocOffsetT
+    static constexpr std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
 
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __calc_reorder_slm_size()
     {
         if constexpr (__has_values)
@@ -215,32 +179,32 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     // Helper functions for SLM layout calculation
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __get_slm_subgroup_hists_offset()
     {
         return 0; // Sub-group histograms start at the beginning
     }
 
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __get_slm_group_hist_offset()
     {
-        constexpr ::std::uint32_t __reorder_size = __calc_reorder_slm_size();
-        return ::std::max(__work_item_all_hists_size, __reorder_size); // After max(sub-group hists, reorder space)
+        constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
+        return std::max(__work_item_all_hists_size, __reorder_size); // After max(sub-group hists, reorder space)
     }
 
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __get_slm_global_incoming_offset()
     {
         return __get_slm_group_hist_offset() + __group_hist_size; // After group histogram
     }
 
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __get_slm_global_fix_offset()
     {
         return __get_slm_global_incoming_offset() + __global_hist_size; // After global incoming histogram
     }
 
-    static constexpr ::std::uint32_t
+    static constexpr std::uint32_t
     __calc_slm_alloc()
     {
         // SLM Layout Visualization:
@@ -248,8 +212,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // Phase 1 (Offset Calculation):
         // ┌────────────────────────┬─────────────┬──────────────────┐
         // │   Sub-group Hists      │ Group Hist  │ Global Incoming  │
-        // │ __work_item_all_hists  │ __group_    │ __global_hist    │
-        // │        _size           │ hist_size   │     _size        │
+        // │ max(__work_item_all_   │ __group_    │ __global_hist    │
+        // │ hists_size,__reorder   |             |                  |
+        // |     _size              │ hist_size   │     _size        │
         // └────────────────────────┴─────────────┴──────────────────┘
         //                                 |               |
         //                                 v               v
@@ -261,18 +226,18 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // │     _size)             │             │                  │                 │
         // └────────────────────────┴─────────────┴──────────────────┴─────────────────┘
         //
-        constexpr ::std::uint32_t __reorder_size = __calc_reorder_slm_size();
+        constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
 
         // TODO: does starting alignment significantly matter for correctness and performance? If so we may need
         // padding between regions
-        constexpr ::std::uint32_t __slm_size = ::std::max(__work_item_all_hists_size, __reorder_size) +
-                                               __group_hist_size + __global_hist_size + __global_hist_size;
+        constexpr std::uint32_t __slm_size = std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size +
+                                             __global_hist_size + __global_hist_size;
 
         return oneapi::dpl::__internal::__dpl_ceiling_div(__slm_size, 2048) * 2048;
     }
 
-    const ::std::uint32_t __n;
-    const ::std::uint32_t __stage;
+    const std::uint32_t __n;
+    const std::uint32_t __stage;
     _GlobOffsetT* __p_global_hist;
     _GlobOffsetT* __p_group_hists;
     _AtomicIdT* __p_atomic_id;
@@ -280,7 +245,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
 
-    __radix_sort_onesweep_kernel(::std::uint32_t __n, ::std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
+    __radix_sort_onesweep_kernel(std::uint32_t __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
                                  _GlobOffsetT* __p_group_hists, _AtomicIdT* __p_atomic_id, const _InRngPack& __in_pack,
                                  const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
@@ -307,13 +272,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     __load(_T __elements[__data_per_work_item], const _InSeq& __in_seq, _GlobOffsetT __glob_offset,
            std::uint32_t __local_offset) const
     {
-        //static_assert(__data_per_work_item % __data_per_step == 0);
         bool __is_full_block = (__glob_offset + __data_per_sub_group) <= __n;
         auto __offset = __glob_offset + __local_offset;
         if (__is_full_block)
         {
             _ONEDPL_PRAGMA_UNROLL
-            for (::std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
                 __elements[__i] = __in_seq[__offset + __i * __sub_group_size];
             }
@@ -321,7 +285,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         else
         {
             _ONEDPL_PRAGMA_UNROLL
-            for (::std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
                 auto __idx = __offset + __i * __sub_group_size;
                 if constexpr (__sort_identity_residual)
@@ -402,11 +366,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
     {
         // TODO: This exists in the ESIMD KT and was ported but are we not limiting max input size to
-        // 2^30 ~ 1 billion elements. We use 32-bit indexing / histogram which may already be too small
+        // 2^30 ~ 1 billion elements? We use 32-bit indexing / histogram which may already be too small
         // but are then reserving the two upper bits for lookback flags.
-        constexpr ::std::uint32_t __global_accumulated = 0x40000000;
-        constexpr ::std::uint32_t __hist_updated = 0x80000000;
-        constexpr ::std::uint32_t __global_offset_mask = 0x3fffffff;
+        constexpr std::uint32_t __global_accumulated = 0x40000000;
+        constexpr std::uint32_t __hist_updated = 0x80000000;
+        constexpr std::uint32_t __global_offset_mask = 0x3fffffff;
 
         _GlobOffsetT* __p_this_group_hist = __p_group_hists + __bin_count * __wg_id;
         _GlobOffsetT* __p_prev_group_hist = __p_this_group_hist - __bin_count;
@@ -416,8 +380,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // requires radix_bits >= 5 for sub-group size of 32.
         static_assert(__bin_count % __sub_group_size == 0);
 
-        constexpr ::std::uint32_t __bin_summary_sub_group_size = __bin_count / __sub_group_size;
-        constexpr ::std::uint32_t __bin_width = __sub_group_size;
+        constexpr std::uint32_t __bin_summary_sub_group_size = __bin_count / __sub_group_size;
+        constexpr std::uint32_t __bin_width = __sub_group_size;
 
         auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
         auto __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
@@ -434,7 +398,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             // 1.1. Vector scan of the same bins across different histograms.
             std::uint32_t __slm_bin_hist_summary_offset = __sub_group_id * __bin_width;
 
-            for (::std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
+            for (std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
                  __s++, __slm_bin_hist_summary_offset += __bin_count)
             {
                 auto __slm_idx = __slm_bin_hist_summary_offset + __sub_group_local_id;
@@ -609,12 +573,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     [[sycl::reqd_sub_group_size(__sub_group_size)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
-        const ::std::uint32_t __local_tid = __idx.get_local_linear_id();
-        const ::std::uint32_t __wg_size = __idx.get_local_range(0);
-        const ::std::uint32_t __sg_id = __idx.get_sub_group().get_group_linear_id();
-        const ::std::uint32_t __sg_local_id = __idx.get_sub_group().get_local_id();
+        const std::uint32_t __local_tid = __idx.get_local_linear_id();
+        const std::uint32_t __wg_size = __idx.get_local_range(0);
+        const std::uint32_t __sg_id = __idx.get_sub_group().get_group_linear_id();
+        const std::uint32_t __sg_local_id = __idx.get_sub_group().get_local_id();
 
-        const ::std::uint32_t __num_wgs = __idx.get_group_range(0);
+        const std::uint32_t __num_wgs = __idx.get_group_range(0);
         using _AtomicRefT = sycl::atomic_ref<_AtomicIdT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                              sycl::access::address_space::global_space>;
         _AtomicRefT __atomic_id_ref(*__p_atomic_id);
@@ -627,9 +591,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
         __wg_id = sycl::group_broadcast(__idx.get_group(), __wg_id);
 
-        // TODO: Right now storing a full sub-group histogram contiguously in SLM. Consider evaluating
-        // approach where each sub-group's bins are interleaved
-        const ::std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
+        const std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
 
         auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
         _LocOffsetT __bins[__data_per_work_item];
@@ -672,7 +634,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         __reorder_slm_to_glob(__idx, __values_pack, __slm_global_fix, __slm_keys, __slm_vals);
     }
 };
-
 
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
