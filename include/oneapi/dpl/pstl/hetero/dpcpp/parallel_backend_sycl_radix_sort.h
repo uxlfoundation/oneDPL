@@ -454,8 +454,8 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         oneapi::dpl::__ranges::__require_access(__hdl, __rng1, __rng2);
 
         // Minimal SLM: only for subgroup coordination (no value buffering)
-        // Layout: [subgroup_counts: num_sg * 16] [subgroup_prefix: num_sg * 16]
-        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states * 2, __hdl);
+        // Single region reused: first stores subgroup totals, then overwritten with prefix sums
+        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states, __hdl);
 
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -516,6 +516,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 __dpl_sycl::__group_barrier(__self_item);
 
                 // Phase 2: Compute subgroup prefix (subgroups loop through radix states)
+                // Reuses the same SLM region: reads totals, computes prefix, writes back in-place
                 for (std::uint32_t __radix_state = __sg_id; __radix_state < __radix_states;
                      __radix_state += __num_subgroups)
                 {
@@ -537,10 +538,9 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                         // Add running sum from previous chunks
                         _OffsetT __prefix = __running_sum + __local_prefix;
 
-                        // Write prefix back
+                        // Write prefix back to same location (safe: all reads complete before any writes)
                         if (__sg_idx < __num_subgroups)
-                            __slm_counts[__num_subgroups * __radix_states + __sg_idx * __radix_states + __radix_state] =
-                                __prefix;
+                            __slm_counts[__sg_idx * __radix_states + __radix_state] = __prefix;
 
                         // Update running sum: broadcast the last element's total
                         _OffsetT __chunk_total = __local_prefix + __val;
@@ -554,16 +554,13 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 _OffsetT __offsets[__radix_states];
                 const std::size_t __scan_size = __segments + 1;
                 _OffsetT __scanned_bin = 0;
-                __offsets[0] = __offset_rng[__segment_idx] +
-                               __slm_counts[__num_subgroups * __radix_states + __sg_id * __radix_states] +
-                               __wi_prefix[0];
+                __offsets[0] = __offset_rng[__segment_idx] + __slm_counts[__sg_id * __radix_states] + __wi_prefix[0];
 
                 for (std::uint32_t __b = 1; __b < __radix_states; ++__b)
                 {
                     __scanned_bin += __offset_rng[__b * __scan_size - 1];
                     __offsets[__b] = __scanned_bin + __offset_rng[__segment_idx + __scan_size * __b] +
-                                     __slm_counts[__num_subgroups * __radix_states + __sg_id * __radix_states + __b] +
-                                     __wi_prefix[__b];
+                                     __slm_counts[__sg_id * __radix_states + __b] + __wi_prefix[__b];
                 }
 
                 // Phase 4: Scatter pass - re-read and write to output
