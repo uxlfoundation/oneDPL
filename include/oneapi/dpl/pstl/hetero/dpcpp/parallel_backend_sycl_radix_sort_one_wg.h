@@ -169,7 +169,7 @@ struct __subgroup_radix_sort
             uint16_t __n = __src.size();
             constexpr std::uint16_t __unroll_factor = 4;
             assert(__n <= __block_size * __wg_size);
-            assert(__block_size <= __unroll_factor); 
+            assert(__unroll_factor <= __block_size); 
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
             using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _RangeIn>;
 
