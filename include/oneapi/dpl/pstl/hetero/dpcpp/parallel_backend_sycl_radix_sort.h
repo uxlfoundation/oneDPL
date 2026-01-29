@@ -689,10 +689,6 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
     assert(__n > 1);
 
-    // types
-    using _ValueT = oneapi::dpl::__internal::__value_t<_Range>;
-    using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _Range>;
-
     // radix bits represent number of processed bits in each value during one iteration
     constexpr ::std::uint32_t __radix_bits = 4;
 
