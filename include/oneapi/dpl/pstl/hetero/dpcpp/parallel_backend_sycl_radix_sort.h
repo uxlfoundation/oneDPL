@@ -221,7 +221,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 // Most elements can be processed without bounds checking fully unrolled, experimentally determined
                 static constexpr std::uint32_t __unroll_elements = 8;
 
-
                 // Select input range based on __input_is_first
                 _ValueT* __val_rng = __input_is_first ? &__val_rng1[0] : &__val_rng2[0];
                 // item info
