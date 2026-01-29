@@ -40,9 +40,7 @@ struct View : std::ranges::view_base {
 };
 
 #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
-void testCTAD() {
-  using t1 = std::ranges::owning_view<Container>;
-  auto var = dpl_ranges::zip_view(Container{});
+void testCTAD() {  
   static_assert(std::is_same_v<decltype(dpl_ranges::zip_view(Container{})),
                                dpl_ranges::zip_view<std::ranges::owning_view<Container>>>);
 
