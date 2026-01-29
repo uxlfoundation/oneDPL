@@ -79,7 +79,7 @@ main()
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     auto zip_view_sort = dpl_ranges::views::zip(data, data);
 
-    oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
+    [[maybe_unused]] oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
 
     std::sort(zip_view_sort.begin(), zip_view_sort.begin() + max_n,
         [](const auto& val1, const auto& val2) { return std::get<0>(val1) > std::get<0>(val2); });
