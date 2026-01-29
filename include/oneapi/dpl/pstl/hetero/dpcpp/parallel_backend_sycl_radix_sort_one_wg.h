@@ -224,7 +224,6 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
                                     {
-                                        const uint16_t __val_idx = __wi * __block_size + __i;
                                         const uint16_t __bin =__get_bucket</*mask*/ __bin_count - 1>(
                                                     __order_preserving_cast<__is_asc>(
                                                         std::invoke(__proj, __values.__v[__i])),
@@ -239,7 +238,6 @@ struct __subgroup_radix_sort
 
                                 for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
                                 {
-                                    const uint16_t __val_idx = __wi * __block_size + __i;
                                     const uint16_t __bin = __get_bucket</*mask*/ __bin_count - 1>(
                                                   __order_preserving_cast<__is_asc>(
                                                       std::invoke(__proj, __values.__v[__i])),
@@ -305,14 +303,12 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
                                     {
-                                        std::uint16_t __val_idx = __wi * __block_size + __i;
                                         const uint16_t __r = __indices[__i];
                                         new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
                                     }
                                 }
                                 for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
                                 {
-                                    std::uint16_t __val_idx = __wi * __block_size + __i;
                                     const uint16_t __r = __indices[__i];
                                     new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
                                 }
@@ -324,14 +320,12 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
                                     {
-                                        std::uint16_t __val_idx = __wi * __block_size + __i;
                                         const uint16_t __r = __indices[__i];
                                         __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
                                     }
                                 }
                                 for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
                                 {
-                                    std::uint16_t __val_idx = __wi * __block_size + __i;
                                     const uint16_t __r = __indices[__i];
                                     __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
                                 }
