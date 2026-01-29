@@ -9,8 +9,8 @@
 #include <random>
 
 int main() {
-    constexpr size_t wg_size = 256;
-    constexpr int num_test_patterns = 10000;
+    constexpr size_t wg_size = 1024;
+    constexpr int num_test_patterns = 100000;
 
     std::random_device rd;
     std::mt19937 gen(rd());

@@ -18,12 +18,12 @@
 #include <algorithm>
 
 int main() {
-    constexpr size_t work_group_size = 256;
+    constexpr size_t work_group_size = 1024;
     constexpr size_t elements_per_wg = 1024;  // Process 1024 elements per work group
     constexpr size_t iters_per_wg = elements_per_wg / work_group_size;  // 4 iterations
     constexpr size_t n_work_groups = 4;
     constexpr size_t n_elements = elements_per_wg * n_work_groups;
-    constexpr int num_test_patterns = 10000;
+    constexpr int num_test_patterns = 1000000;
 
     std::random_device rd;
     std::mt19937 gen(rd());
