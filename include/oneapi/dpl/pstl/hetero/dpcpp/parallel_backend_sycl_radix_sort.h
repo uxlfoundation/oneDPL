@@ -620,12 +620,13 @@ struct __parallel_multi_group_radix_sort
         std::size_t __wg_size_reorder = oneapi::dpl::__internal::__max_work_group_size(__q, 256);
         std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
-        std::size_t __keys_per_wi_count = 64;
-        static_assert(__keys_per_wi_count < std::numeric_limits<unsigned char>::max(),
+        constexpr std::size_t __keys_per_wi_count_max = 64;
+        static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
                           "Too large keys per work-item may cause overflow in counting phase");
-        if (__n < 1 << 20)
+        std::size_t __keys_per_wi_count = sycl::min(std::size_t(16), __keys_per_wi_count_max);
+        if (__n >= 1 << 20)
         {
-            __keys_per_wi_count = 16;
+            __keys_per_wi_count = __keys_per_wi_count_max;
         }
 
         const ::std::size_t __segments =
