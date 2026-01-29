@@ -51,7 +51,8 @@ rst_epilog = """
 # ones.
 extensions = [
     'sphinx-prompt',
-    'sphinx_substitution_extensions'
+    'sphinx_substitution_extensions',
+    'sphinx.ext.githubpages'
 	]
 
 docbundle_settings = {
@@ -59,7 +60,7 @@ docbundle_settings = {
 }
 
 # The master toctree document.
-master_doc = 'index'
+#master_doc = 'index'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
