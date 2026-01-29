@@ -61,7 +61,7 @@ __order_preserving_cast(_UInt __val)
 }
 
 template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
+          ::std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
 ::std::make_unsigned_t<_Int>
 __order_preserving_cast(_Int __val)
 {
@@ -622,7 +622,7 @@ struct __parallel_multi_group_radix_sort
 
         constexpr std::size_t __keys_per_wi_count_max = 64;
         static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
-                          "Too large keys per work-item may cause overflow in counting phase");
+                      "Too large keys per work-item may cause overflow in counting phase");
         std::size_t __keys_per_wi_count = sycl::min(std::size_t(16), __keys_per_wi_count_max);
         if (__n >= 1 << 20)
         {
