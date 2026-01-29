@@ -3716,22 +3716,21 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                           __buf_raw_data_begin,
                           __mask_bufs};
 
-        _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;                          
+        _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;
 
-        __par_backend::__parallel_strict_scan(
-            __backend_tag{}, __exec, __n1, _SetRange(),
-            __reduce_pred,
-            __combine_pred,
-            __scan_pred,
-            [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan_pred](const _SetRange& __total) {
-                //final scan
-                __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
+        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedOutPos,
+                            &__scan_pred](const _SetRange& __total) {
+            //final scan
+            __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-                if constexpr (!__Bounded)
-                    __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
-                else
-                    __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
-            });
+            if constexpr (!__Bounded)
+                __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+            else
+                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
+        };
+
+        __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
+                                              __scan_pred, __apex_pred);
 
         // Evaluate reached offsets in input ranges
         const auto __reached_positions =
