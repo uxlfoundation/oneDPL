@@ -148,13 +148,19 @@ struct __subgroup_radix_sort
 
     static constexpr std::uint16_t __bin_count = 1 << __radix;
 
+    static constexpr std::size_t
+    __get_counter_buf_size(std::uint16_t __wg_size)
+    {
+        return __wg_size * __bin_count + 1;
+    }
+
     template <typename _T, typename _Size>
     auto
     __check_slm_size(const sycl::queue& __q, _Size __n, std::uint16_t __wg_size)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
-        const auto __counter_buf_sz = __wg_size * __bin_count + 1;
+        const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
         const auto __req_slm_size_counters = __counter_buf_sz * sizeof(uint32_t);
 
         // Pessimistically only use half of the memory to take into account
@@ -190,7 +196,7 @@ struct __subgroup_radix_sort
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
             using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _RangeIn>;
 
-            const auto __counter_buf_sz = __wg_size * __bin_count + 1;
+            const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
             _TempBuf<_ValT, _SLM_tag_val> __buf_val(__block_size * __wg_size);
             _TempBuf<std::uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
