@@ -1010,6 +1010,146 @@ class discard_iterator
     difference_type __my_position_;
 };
 
+template <typename _Iter>
+class direct_iterator
+{
+  public:
+    typedef typename ::std::iterator_traits<_Iter>::value_type value_type;
+    typedef typename ::std::iterator_traits<_Iter>::difference_type difference_type;
+    typedef typename ::std::iterator_traits<_Iter>::reference reference;
+
+    using iterator_category = std::random_access_iterator_tag;
+
+    using iterator = direct_iterator<_Iter>;
+    using pointer = iterator;
+
+    using is_passed_directly = ::std::true_type;
+
+    direct_iterator(_Iter iter) noexcept : __iter(iter) {}
+    direct_iterator() noexcept = default;
+    ~direct_iterator() noexcept = default;
+    direct_iterator(const direct_iterator&) noexcept = default;
+    direct_iterator&
+    operator=(const direct_iterator&) noexcept = default;
+
+    bool
+    operator==(const direct_iterator& other) const noexcept
+    {
+        return __iter == other.__iter;
+    }
+    bool
+    operator!=(const direct_iterator& other) const noexcept
+    {
+        return __iter != other.__iter;
+    }
+
+    iterator
+    operator+(difference_type offset) const noexcept
+    {
+        return iterator(__iter + offset);
+    }
+
+    iterator
+    operator-(difference_type offset) const noexcept
+    {
+        return iterator(__iter - offset);
+    }
+
+    difference_type
+    operator-(iterator other) const noexcept
+    {
+        return __iter - other.__iter;
+    }
+
+    bool
+    operator<(iterator other) const noexcept
+    {
+        return __iter < other.__iter;
+    }
+
+    bool
+    operator>(iterator other) const noexcept
+    {
+        return __iter > __iter;
+    }
+
+    bool
+    operator<=(iterator other) const noexcept
+    {
+        return __iter <= other.__iter;
+    }
+
+    bool
+    operator>=(iterator other) const noexcept
+    {
+        return __iter >= other.__iter;
+    }
+
+    iterator&
+    operator++() noexcept
+    {
+        ++__iter;
+        return *this;
+    }
+
+    iterator
+    operator++(int) noexcept
+    {
+        iterator other = *this;
+        ++(*this);
+        return other;
+    }
+
+    iterator&
+    operator--() noexcept
+    {
+        --__iter;
+        return *this;
+    }
+
+    iterator
+    operator--(int) noexcept
+    {
+        iterator other = *this;
+        --(*this);
+        return other;
+    }
+
+    iterator&
+    operator+=(difference_type offset) noexcept
+    {
+        __iter += offset;
+        return *this;
+    }
+
+    iterator&
+    operator-=(difference_type offset) noexcept
+    {
+        __iter -= offset;
+        return *this;
+    }
+
+    reference operator*() const noexcept { return *__iter; }
+
+    reference operator[](difference_type offset) const noexcept { return reference(*(*this + offset)); }
+
+    friend iterator
+    operator+(difference_type n, iterator iter)
+    {
+        return iter.__iter + n;
+    }
+
+  private:
+    _Iter __iter;
+};
+
+template <typename Iterator>
+direct_iterator<Iterator>
+make_direct_iterator(Iterator iterator)
+{
+    return direct_iterator<Iterator>(iterator);
+}
+
 } // namespace dpl
 } // namespace oneapi
 
