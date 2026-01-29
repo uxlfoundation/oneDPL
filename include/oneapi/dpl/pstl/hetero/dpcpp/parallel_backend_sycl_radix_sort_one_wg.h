@@ -130,6 +130,22 @@ struct __subgroup_radix_sort
         }
     }
 
+    template <typename _ValueT, typename _Wi, typename _Dst, typename _Src>
+    static void
+    __block_store(const _Wi __wi, _Dst& __dst, _Src& __src, const uint32_t __n)
+    {
+        _ONEDPL_PRAGMA_UNROLL
+        for (uint16_t __i = 0; __i < __block_size; ++__i)
+        {
+            const uint16_t __idx = __wi * __block_size + __i;
+            if (__idx < __n)
+            {
+                __dst[__idx] = ::std::move(__src[__idx]);
+                __src[__idx].~_ValueT();
+            }
+        }
+    }
+
     static constexpr uint16_t __bin_count = 1 << __radix;
 
     template <typename _T, typename _Size>
@@ -296,16 +312,7 @@ struct __subgroup_radix_sort
                             if (__begin_bit == __end_bit - __radix)
                             {
                                 // the last iteration - writing out the result
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    if (__idx < __n)
-                                    {
-                                        __src[__idx] = ::std::move(__exchange_lacc[__idx]);
-                                        __exchange_lacc[__idx].~_ValT();
-                                    }
-                                }
+                                __block_store<_ValT>(__wi, __src, __exchange_lacc, __n);
                             }
                             else
                             {
