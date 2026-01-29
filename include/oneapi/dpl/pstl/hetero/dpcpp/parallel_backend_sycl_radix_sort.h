@@ -218,7 +218,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
+                // Most elements can be processed without bounds checking fully unrolled, experimentally determined
                 static constexpr std::uint32_t __unroll_elements = 8;
+
 
                 // Select input range based on __input_is_first
                 _ValueT* __val_rng = __input_is_first ? &__val_rng1[0] : &__val_rng2[0];
