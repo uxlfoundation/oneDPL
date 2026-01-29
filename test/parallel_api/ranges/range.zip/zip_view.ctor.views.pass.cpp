@@ -62,7 +62,7 @@ constexpr void constructorTest(auto&& buffer1, auto&& buffer2) {
   auto [i, j] = *v.begin();
   assert(i == buffer1[0]);
   assert(j == buffer2[0]);
-};
+}
 
 int test() {
 
