@@ -3306,17 +3306,19 @@ struct _SetRangeImpl
         _DifferenceType __len{};           // Length in temporary buffer w/o limitation to output data size
         _DifferenceType __buf_pos{};       // Position in temporary buffer w/o limitation to output data size
 
-        bool
+        inline bool
         empty() const
         {
             return __len == 0;
         }
 
-        _Data
+        inline _Data
         combine_with(const _Data& __other) const
         {
-            if (__other.__buf_pos > __buf_pos || ((__other.__buf_pos == __buf_pos) && !__other.empty()))
-                return _Data{__pos + __len + __other.__pos, __other.__len, __other.__buf_pos};
+            const auto __other_buf_pos = __other.__buf_pos;
+
+            if (__other_buf_pos > __buf_pos || ((__other_buf_pos == __buf_pos) && !__other.empty()))
+                return _Data{__pos + __len + __other.__pos, __other.__len, __other_buf_pos};
             return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
         }
     };
