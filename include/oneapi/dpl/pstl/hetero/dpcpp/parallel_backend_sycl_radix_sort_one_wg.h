@@ -167,9 +167,8 @@ struct __subgroup_radix_sort
         operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, uint16_t __wg_size, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
-            constexpr std::uint16_t __unroll_factor = 4;
             assert(__n <= __block_size * __wg_size);
-            assert(__block_size <= __unroll_factor); 
+
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
             using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _RangeIn>;
 
@@ -199,10 +198,6 @@ struct __subgroup_radix_sort
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
                         // TODO: check if the barrier can be removed
                         __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
-                        const std::uint16_t __elements_in_wi =
-                            (__n > (__wi + 1) * __block_size) ? __block_size : (__n - __wi * __block_size);
-                        const std::uint16_t __full_unrolled_iters = __elements_in_wi / __unroll_factor;
-                        const std::uint16_t __remainder = __elements_in_wi - __full_unrolled_iters * __unroll_factor;
 
                         for (uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
@@ -219,45 +214,23 @@ struct __subgroup_radix_sort
                                 for (uint16_t __i = 0; __i < __bin_count; ++__i)
                                     __pcounter[__i * __wg_size] = 0;
 
-                                for (uint16_t __iter = 0; __iter < __full_unrolled_iters; ++__iter)
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
-                                    {
-                                        const uint16_t __val_idx = __wi * __block_size + __i;
-                                        const uint16_t __bin =__get_bucket</*mask*/ __bin_count - 1>(
-                                                    __order_preserving_cast<__is_asc>(
-                                                        std::invoke(__proj, __values.__v[__i])),
-                                                    __begin_bit);
-
-                                        //"counting" and local offset calculation
-                                        __counters[__i] = &__pcounter[__bin * __wg_size];
-                                        __indices[__i] = *__counters[__i];
-                                        *__counters[__i] = __indices[__i] + 1;
-                                    }
-                                }
-
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
-                                {
-                                    const uint16_t __val_idx = __wi * __block_size + __i;
-                                    const uint16_t __bin = __get_bucket</*mask*/ __bin_count - 1>(
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    const uint16_t __bin =
+                                        __idx < __n
+                                            ? __get_bucket</*mask*/ __bin_count - 1>(
                                                   __order_preserving_cast<__is_asc>(
                                                       std::invoke(__proj, __values.__v[__i])),
-                                                  __begin_bit);
+                                                  __begin_bit)
+                                            : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;
 
                                     //"counting" and local offset calculation
                                     __counters[__i] = &__pcounter[__bin * __wg_size];
                                     __indices[__i] = *__counters[__i];
                                     *__counters[__i] = __indices[__i] + 1;
                                 }
-
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor + __remainder; __i < __block_size; ++__i)
-                                {
-                                    __counters[__i] = &__pcounter[(__bin_count -1) * __wg_size];
-                                    __indices[__i] = *__counters[__i];
-                                    *__counters[__i] = __indices[__i] + 1;
-                                }
-
                                 __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
                                 //2. scan phase
@@ -300,40 +273,22 @@ struct __subgroup_radix_sort
                             //3.1 data exchange
                             if (__begin_bit == 0) //the first sort iteration
                             {
-                                for (uint16_t __iter = 0; __iter < __full_unrolled_iters; ++__iter)
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
-                                    {
-                                        std::uint16_t __val_idx = __wi * __block_size + __i;
-                                        const uint16_t __r = __indices[__i];
-                                        new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
-                                    }
-                                }
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
-                                {
-                                    std::uint16_t __val_idx = __wi * __block_size + __i;
                                     const uint16_t __r = __indices[__i];
-                                    new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
+                                    if (__r < __n)
+                                        new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
                                 }
                             }
                             else
                             {
-                                for (uint16_t __iter = 0; __iter < __full_unrolled_iters; ++__iter)
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
-                                    {
-                                        std::uint16_t __val_idx = __wi * __block_size + __i;
-                                        const uint16_t __r = __indices[__i];
-                                        __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
-                                    }
-                                }
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
-                                {
-                                    std::uint16_t __val_idx = __wi * __block_size + __i;
                                     const uint16_t __r = __indices[__i];
-                                    __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
+                                    if (__r < __n)
+                                        __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
                                 }
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
@@ -341,38 +296,25 @@ struct __subgroup_radix_sort
                             if (__begin_bit == __end_bit - __radix)
                             {
                                 // the last iteration - writing out the result
-                                for (uint16_t __iter = 0; __iter < __full_unrolled_iters; ++__iter)
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
                                     {
-                                        const uint16_t __val_idx = __wi * __block_size + __i;
-                                        __src[__val_idx] = ::std::move(__exchange_lacc[__val_idx]);
-                                        __exchange_lacc[__val_idx].~_ValT();
+                                        __src[__idx] = ::std::move(__exchange_lacc[__idx]);
+                                        __exchange_lacc[__idx].~_ValT();
                                     }
-                                }
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
-                                {
-                                    const uint16_t __val_idx = __wi * __block_size + __i;
-                                    __src[__val_idx] = ::std::move(__exchange_lacc[__val_idx]);
-                                    __exchange_lacc[__val_idx].~_ValT();
                                 }
                             }
                             else
                             {
-                                for (uint16_t __iter = 0; __iter < __full_unrolled_iters; ++__iter)
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i =  __iter * __unroll_factor; __i <  (__iter + 1) * __unroll_factor; ++__i)
-                                    {
-                                        const uint16_t __val_idx = __wi * __block_size + __i;
-                                        __values.__v[__i] = ::std::move(__exchange_lacc[__val_idx]);
-                                    }
-                                }
-                                for (uint16_t __i = __full_unrolled_iters * __unroll_factor; __i < __full_unrolled_iters * __unroll_factor + __remainder; ++__i)
-                                {
-                                    const uint16_t __val_idx = __wi * __block_size + __i;
-                                    __values.__v[__i] = ::std::move(__exchange_lacc[__val_idx]);
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
+                                        __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
                                 }
                                 __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
                             }
