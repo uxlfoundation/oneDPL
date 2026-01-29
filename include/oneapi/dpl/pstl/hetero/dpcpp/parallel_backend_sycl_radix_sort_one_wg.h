@@ -31,7 +31,7 @@
 template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
-template <typename _KernelNameBase, uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
+template <typename _KernelNameBase, std::uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
@@ -56,9 +56,9 @@ struct __subgroup_radix_sort
 
         // Calculate work group size based on input size and block size
         // Round up to ensure we have enough work items to cover all elements
-        const uint16_t __n = __src.size();
-        uint16_t __wg_size = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __block_size);
-        __wg_size = std::min<uint16_t>(__wg_size, __max_wg_size);
+        const std::uint16_t __n = __src.size();
+        std::uint16_t __wg_size = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __block_size);
+        __wg_size = std::min<std::uint16_t>(__wg_size, __max_wg_size);
 
         //check SLM size
         const auto __SLM_available = __check_slm_size<_KeyT>(__q, __n, __wg_size);
@@ -80,10 +80,10 @@ struct __subgroup_radix_sort
     template <typename _KeyT>
     class _TempBuf<_KeyT, ::std::true_type /*shared local memory buffer*/>
     {
-        uint16_t __buf_size;
+        std::uint16_t __buf_size;
 
       public:
-        _TempBuf(uint16_t __n) : __buf_size(__n) {}
+        _TempBuf(std::uint16_t __n) : __buf_size(__n) {}
         auto
         get_acc(sycl::handler& __cgh)
         {
@@ -103,14 +103,14 @@ struct __subgroup_radix_sort
         sycl::buffer<_KeyT> __buf;
 
       public:
-        _TempBuf(uint16_t __n) : __buf(__n) {}
+        _TempBuf(std::uint16_t __n) : __buf(__n) {}
         auto
         get_acc(sycl::handler& __cgh)
         {
             return sycl::accessor(__buf, __cgh, sycl::read_write, __dpl_sycl::__no_init{});
         }
 
-        inline static constexpr auto
+        inline constexpr static auto
         get_fence()
         {
             return __dpl_sycl::__fence_space_global;
@@ -122,9 +122,9 @@ struct __subgroup_radix_sort
     __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const uint32_t __n)
     {
         _ONEDPL_PRAGMA_UNROLL
-        for (uint16_t __i = 0; __i < __block_size; ++__i)
+        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const uint16_t __idx = __wi * __block_size + __i;
+            const std::uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
                 new (&__values[__i]) _ValueT(__src[__idx]);
         }
@@ -135,9 +135,9 @@ struct __subgroup_radix_sort
     __block_store(const _Wi __wi, _Dst& __dst, _Src& __src, const uint32_t __n)
     {
         _ONEDPL_PRAGMA_UNROLL
-        for (uint16_t __i = 0; __i < __block_size; ++__i)
+        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const uint16_t __idx = __wi * __block_size + __i;
+            const std::uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
             {
                 __dst[__idx] = ::std::move(__src[__idx]);
@@ -146,11 +146,11 @@ struct __subgroup_radix_sort
         }
     }
 
-    static constexpr uint16_t __bin_count = 1 << __radix;
+    static constexpr std::uint16_t __bin_count = 1 << __radix;
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(const sycl::queue& __q, _Size __n, uint16_t __wg_size)
+    __check_slm_size(const sycl::queue& __q, _Size __n, std::uint16_t __wg_size)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -180,7 +180,8 @@ struct __subgroup_radix_sort
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         sycl::event
-        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, uint16_t __wg_size, _SLM_tag_val, _SLM_counter)
+        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::uint16_t __wg_size, _SLM_tag_val,
+                   _SLM_counter)
         {
             std::uint16_t __n = __src.size();
             assert(__block_size * __wg_size <= 65535);
