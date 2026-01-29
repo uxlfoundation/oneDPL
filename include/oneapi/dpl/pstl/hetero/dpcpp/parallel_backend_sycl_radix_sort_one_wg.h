@@ -182,7 +182,8 @@ struct __subgroup_radix_sort
         sycl::event
         operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, uint16_t __wg_size, _SLM_tag_val, _SLM_counter)
         {
-            uint16_t __n = __src.size();
+            std::uint16_t __n = __src.size();
+            assert(__block_size * __wg_size <= 65535);
             assert(__n <= __block_size * __wg_size);
 
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
@@ -190,7 +191,7 @@ struct __subgroup_radix_sort
 
             const auto __counter_buf_sz = __wg_size * __bin_count + 1;
             _TempBuf<_ValT, _SLM_tag_val> __buf_val(__block_size * __wg_size);
-            _TempBuf<uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
+            _TempBuf<std::uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
             return __q.submit([&](sycl::handler& __cgh) {
@@ -206,35 +207,35 @@ struct __subgroup_radix_sort
                             _ValT __v[__block_size];
                             __storage() {}
                         } __values;
-                        uint16_t __wi = __it.get_local_linear_id();
+                        std::uint16_t __wi = __it.get_local_linear_id();
 
-                        constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
+                        constexpr std::uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
                         // TODO: check if the barrier can be removed
                         __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                        for (uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
+                        for (std::uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
-                            uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
+                            std::uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
                                 //pointers(by performance reasons) to bucket's counters
-                                uint32_t* __counters[__block_size];
+                                std::uint32_t* __counters[__block_size];
 
                                 //1. "counting" phase
                                 //counter initialization
                                 auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
 
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __bin_count; ++__i)
+                                for (std::uint16_t __i = 0; __i < __bin_count; ++__i)
                                     __pcounter[__i * __wg_size] = 0;
 
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    const uint16_t __bin =
+                                    const std::uint16_t __idx = __wi * __block_size + __i;
+                                    const std::uint16_t __bin =
                                         __idx < __n
                                             ? __get_bucket</*mask*/ __bin_count - 1>(
                                                   __order_preserving_cast<__is_asc>(
@@ -254,20 +255,20 @@ struct __subgroup_radix_sort
                                     //TODO: probably can be further optimized
 
                                     //scan contiguous numbers
-                                    uint16_t __bin_sum[__bin_count];
+                                    std::uint16_t __bin_sum[__bin_count];
                                     __bin_sum[0] = __counter_lacc[__wi * __bin_count];
 
                                     _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 1; __i < __bin_count; ++__i)
+                                    for (std::uint16_t __i = 1; __i < __bin_count; ++__i)
                                         __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
                                     __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
                                     //exclusive scan local sum
-                                    uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
-                                        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
+                                    std::uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
+                                        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<std::uint16_t>());
                                     //add to local sum, generate exclusive scan result
                                     _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 0; __i < __bin_count; ++__i)
+                                    for (std::uint16_t __i = 0; __i < __bin_count; ++__i)
                                         __counter_lacc[__wi * __bin_count + __i + 1] = __sum_scan + __bin_sum[__i];
 
                                     if (__wi == 0)
@@ -276,7 +277,7 @@ struct __subgroup_radix_sort
                                 }
 
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
                                     // a global index is a local offset plus a global base index
                                     __indices[__i] += *__counters[__i];
@@ -290,9 +291,9 @@ struct __subgroup_radix_sort
                             if (__begin_bit == 0) //the first sort iteration
                             {
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    const uint16_t __r = __indices[__i];
+                                    const std::uint16_t __r = __indices[__i];
                                     if (__r < __n)
                                         new (&__exchange_lacc[__r]) _ValT(::std::move(__values.__v[__i]));
                                 }
@@ -300,9 +301,9 @@ struct __subgroup_radix_sort
                             else
                             {
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    const uint16_t __r = __indices[__i];
+                                    const std::uint16_t __r = __indices[__i];
                                     if (__r < __n)
                                         __exchange_lacc[__r] = ::std::move(__values.__v[__i]);
                                 }
@@ -317,9 +318,9 @@ struct __subgroup_radix_sort
                             else
                             {
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    const std::uint16_t __idx = __wi * __block_size + __i;
                                     if (__idx < __n)
                                         __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
                                 }
