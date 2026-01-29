@@ -278,15 +278,13 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // All WIs participate - each handles 4 radix states from 4 columns
-                // This distributes work evenly and reduces register pressure
-                const std::uint32_t __wis_per_radix_group = __wg_size / __counter_lanes; // 128/4 = 32
-                const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group; // 0-3
-                const std::uint32_t __radix_base = __radix_group * __packing_ratio;      // 0, 4, 8, or 12
-                const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group; // 0-31
-                const std::uint32_t __col_base = __wi_in_group * __packing_ratio;        // 0, 4, 8, ..., 124
+                const std::uint32_t __wis_per_radix_group = __wg_size / __counter_lanes;
+                const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group;
+                const std::uint32_t __radix_base = __radix_group * __packing_ratio;
+                const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group;
+                const std::uint32_t __col_base = __wi_in_group * __packing_ratio;
 
-                // Accumulate 4 radix states from 4 columns
+                // Accumulate __packing_ratio radix states from __packing_ratio columns
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
                 {
@@ -299,7 +297,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // All WIs write their 4 partial sums to SLM
+                // All WIs write their __packing_ratio partial sums to SLM
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
                 {
