@@ -199,7 +199,6 @@ struct __subgroup_radix_sort
                         // TODO: check if the barrier can be removed
                         __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                        _ONEDPL_PRAGMA_UNROLL
                         for (uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
                             uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
