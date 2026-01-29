@@ -3622,9 +3622,6 @@ struct _ParallelSetOpStrictScanPred
 
         // Prepare processed data info
         const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
-        //assert(__new_processing_data.__pos <= __buf_size);
-        //assert(__new_processing_data.__buf_pos <= __buf_size);
-        //assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
 
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
         if constexpr (!__Bounded)
@@ -3638,9 +3635,6 @@ struct _ParallelSetOpStrictScanPred
         {
             // Prepare processed mask info
             const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
-            //assert(__new_mask_data.__pos <= __mask_buf_size);
-            //assert(__new_mask_data.__buf_pos <= __mask_buf_size);
-            //assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
 
             return _SetRange{__new_processing_data, __new_mask_data};
         }
