@@ -209,7 +209,8 @@ struct __subgroup_radix_sort
                         } __values;
                         std::uint16_t __wi = __it.get_local_linear_id();
 
-                        constexpr std::uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
+                        constexpr std::uint16_t __end_bit =
+                            sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
@@ -218,6 +219,9 @@ struct __subgroup_radix_sort
 
                         for (std::uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
+                            const bool __is_first_iter = (__begin_bit == 0);
+                            const bool __is_last_iter = (__begin_bit == __end_bit - __radix);
+
                             std::uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
                                 //pointers(by performance reasons) to bucket's counters
@@ -265,7 +269,8 @@ struct __subgroup_radix_sort
 
                                     //exclusive scan local sum
                                     std::uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
-                                        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<std::uint16_t>());
+                                        __it.get_group(), __bin_sum[__bin_count - 1],
+                                        __dpl_sycl::__plus<std::uint16_t>());
                                     //add to local sum, generate exclusive scan result
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (std::uint16_t __i = 0; __i < __bin_count; ++__i)
@@ -288,7 +293,7 @@ struct __subgroup_radix_sort
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
                             //3.1 data exchange
-                            if (__begin_bit == 0) //the first sort iteration
+                            if (__is_first_iter)
                             {
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (std::uint16_t __i = 0; __i < __block_size; ++__i)
@@ -310,9 +315,9 @@ struct __subgroup_radix_sort
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                            if (__begin_bit == __end_bit - __radix)
+                            if (__is_last_iter)
                             {
-                                // the last iteration - writing out the result
+                                //last iteration - write out the result
                                 __block_store<_ValT>(__wi, __src, __exchange_lacc, __n);
                             }
                             else
