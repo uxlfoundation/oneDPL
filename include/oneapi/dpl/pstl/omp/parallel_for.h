@@ -31,42 +31,28 @@ namespace __omp_backend
 // It primarily depends on a functor complexity, which is out of our control,
 // but some tuning is still possible based on the input size and number of threads
 inline std::size_t
-__get_optimal_chunk_size(std::size_t __size, int __num_threads)
+__get_chunk_for_any_workload(std::size_t __size, int __num_threads)
 {
-    // Minimal/multiple are selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
-    constexpr std::size_t __min_chunk = 64;
+    // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+    // Min/Max are found empirically
+    constexpr std::size_t __min_chunk = 256;
+    constexpr std::size_t __max_chunk = 16384;
     constexpr std::size_t __multiple_chunk = 64;
 
-    // TODO: investigate if a larger max chunk size makes sense
-    constexpr std::size_t __max_chunk = 16384;
-
-    constexpr std::size_t __large_size_optimal_chunk = 2048;
-
-    // Fill in all threads.
-    // It prioritizes performance with complex functors.
-    // Trivial functors perform much better with larger chunks and using a portion of available threads,
-    // but due to a small overall execution time the impact is not that significant.
-    if (__size <= __max_chunk)
-    {
-        return std::max(__min_chunk, (__size / __num_threads) / __multiple_chunk * __multiple_chunk);
-    }
-    else if (__size <= 2097152)
-    {
-        return std::min(__max_chunk, (__size / __num_threads) / __multiple_chunk * __multiple_chunk);
-    }
-    // When reaching ~1-4M elements, the optimal chunk is smaller
-    // It is probably due to exhausted L1/L2 caches requiring different memory access patterns
-    else
-    {
-        return __large_size_optimal_chunk;
-    }
+    // Aim for 3 tasks per thread for better load balancing
+    std::size_t __grainsize = __size / (__num_threads * 3);
+    if (__grainsize < __min_chunk)
+        __grainsize = __min_chunk;
+    else if (__grainsize > __max_chunk)
+        __grainsize = __max_chunk;
+    return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
 }
 
 template <class _Index, class _Fp>
 void
 __parallel_for_body(_Index __first, _Index __last, _Fp __f)
 {
-    std::size_t __grainsize = __get_optimal_chunk_size(__last - __first, omp_get_max_threads());
+    std::size_t __grainsize = __get_chunk_for_any_workload(__last - __first, omp_get_num_threads());
 
     // initial partition of the iteration space into chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
