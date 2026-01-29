@@ -462,7 +462,6 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 _ValueT* __input = __input_is_first ? &__rng1[0] : &__rng2[0];
                 _ValueT* __output = __input_is_first ? &__rng2[0] : &__rng1[0];
 
-                const std::size_t __self_lidx = __self_item.get_local_id(0);
                 const std::size_t __segment_idx = __self_item.get_group(0);
                 const std::size_t __seg_start = __elem_per_segment * __segment_idx;
                 const std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
