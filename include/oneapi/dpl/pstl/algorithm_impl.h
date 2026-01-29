@@ -3716,10 +3716,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                           __buf_raw_data_begin,
                           __mask_bufs};
 
+        _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;                          
+
         __par_backend::__parallel_strict_scan(
             __backend_tag{}, __exec, __n1, _SetRange(),
             __reduce_pred,
-            _SetRangeCombiner<__Bounded, _DifferenceType>{},
+            __combine_pred,
             __scan_pred,
             [__n_out, __result1, __result2, &__res_reachedOutPos, &__scan_pred](const _SetRange& __total) {
                 //final scan
