@@ -3680,15 +3680,19 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                           __set_union_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin,
                           __mask_bufs};
 
-        auto __apex_pred = [ [[maybe_unused]] __n_out, &__res_reachedOutPos, &__scan_pred ](const _SetRange& __total)
-        {
+        auto __apex_pred = [__n_out, &__res_reachedOutPos, &__scan_pred](const _SetRange& __total) {
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
             if constexpr (!__Bounded)
+            {
+                (void)__n_out;
                 __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+            }
             else
+            {
                 __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
+            }
         };
 
         __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
