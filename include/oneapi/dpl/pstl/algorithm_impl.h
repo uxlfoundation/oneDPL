@@ -3437,12 +3437,9 @@ struct __mask_buffers<false>
 template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
 struct _ScanPred
 {
-    RawDataPtr __buf_raw_data_begin;
-    RawDataPtr __buf_raw_data_end;
-    MaskDataPtr __buf_mask_rng_raw_data_begin;
-    MaskDataPtr __buf_mask_rng_res_raw_data_begin;
-    _OutputIterator __result1;
-    _OutputIterator __result2;
+    RawDataPtr __buf_raw_data_begin, __buf_raw_data_end;
+    MaskDataPtr __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin;
+    _OutputIterator __result1, __result2;
 
     template <typename _DifferenceType1, typename _SetRange>
     void
