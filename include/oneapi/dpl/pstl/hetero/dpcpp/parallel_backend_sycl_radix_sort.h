@@ -464,9 +464,9 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange, typename _OutputRange,
           typename _OffsetRange, typename _OffsetT, typename _Proj>
 void
-__radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng, _OffsetT* __slm_counts,
-                          sycl::nd_item<1> __self_item, sycl::sub_group __sub_group, _Proj __proj,
-                          std::uint32_t __radix_offset, std::size_t __segments, std::size_t __segment_idx,
+__radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng,
+                          _OffsetT* __slm_counts, sycl::nd_item<1> __self_item, sycl::sub_group __sub_group,
+                          _Proj __proj, std::uint32_t __radix_offset, std::size_t __segments, std::size_t __segment_idx,
                           std::size_t __wi_start, std::size_t __wi_end, std::uint32_t __sg_id,
                           std::uint32_t __sg_local_id, std::uint32_t __sg_size, std::uint32_t __num_subgroups)
 {
@@ -506,8 +506,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
             const std::uint32_t __sg_idx = __base + __sg_local_id;
 
             // Load count (0 if out of bounds)
-            _OffsetT __val =
-                (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
+            _OffsetT __val = (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
 
             // Exclusive scan within chunk
             _OffsetT __local_prefix =
