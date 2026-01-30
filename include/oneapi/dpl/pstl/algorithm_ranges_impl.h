@@ -1496,7 +1496,7 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
                 ++__it2;
                 ++__out_it;
             }
-            else 
+            else
                 break;
         }
         else
