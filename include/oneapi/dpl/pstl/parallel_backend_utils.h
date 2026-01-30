@@ -267,8 +267,6 @@ __set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, 
     assert(__first1 <= __last1);
     assert(__first2 <= __last2);
 
-    // This implementation should be aligned with https://eel.is/c++draft/set.union
-
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
 
     for (; __first1 != __last1; ++__result)
@@ -315,8 +313,6 @@ __set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> 
                              _MaskIterator __mask, _CopyFunc _copy, _CopyFromFirstSet,
                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.intersection
-
     while (__first1 != __last1 && __first2 != __last2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
@@ -359,8 +355,6 @@ __set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __
                            _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask,
                            _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.difference
-
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     while (__first1 != __last1)
@@ -406,8 +400,6 @@ __set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<_Is
                                      _MaskIterator __mask, _CopyConstructRange __cc_range, _Compare __comp,
                                      _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.symmetric.difference
-
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     while (__first1 != __last1)
