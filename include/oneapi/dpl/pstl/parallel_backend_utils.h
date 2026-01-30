@@ -242,7 +242,7 @@ struct _MaskSize<true>
     {
         using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-        // For unbounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
+        // For bounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
         return _DifferenceType{__n} + _DifferenceType{__m};
     };
 };
