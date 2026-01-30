@@ -224,9 +224,9 @@ struct _MaskSize;
 template <>
 struct _MaskSize<false>
 {
-    template <typename _DifferenceType>
-    _DifferenceType
-    operator()(_DifferenceType, _DifferenceType) const
+    template <typename _DifferenceType1, typename _DifferenceType2>
+    std::common_type_t<_DifferenceType1, _DifferenceType2>
+    operator()(_DifferenceType1, _DifferenceType2) const
     {
         // For unbounded set operations, the maximum possible mask size is always zero
         return 0;
@@ -236,12 +236,14 @@ struct _MaskSize<false>
 template <>
 struct _MaskSize<true>
 {
-    template <typename _DifferenceType>
-    _DifferenceType
-    operator()(_DifferenceType __n, _DifferenceType __m) const
+    template <typename _DifferenceType1, typename _DifferenceType2>
+    std::common_type_t<_DifferenceType1, _DifferenceType2>
+    operator()(_DifferenceType1 __n, _DifferenceType2 __m) const
     {
+        using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+
         // For unbounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
-        return __n + __m;
+        return _DifferenceType{__n} + _DifferenceType{__m};
     };
 };
 
