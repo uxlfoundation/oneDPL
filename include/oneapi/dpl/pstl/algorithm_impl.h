@@ -3578,23 +3578,14 @@ struct _ParallelSetOpStrictScanPred
                 __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
                                                                  __comp, __proj2, __proj1);
 
-            typename _SetRange::_Data __new_processing_data{
-                0,                                                          // position in output range
-                0,                                                          // length of data in temporary buffer
-                __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
-
             if constexpr (!__Bounded)
             {
-                return _SetRange{__new_processing_data};
+                return _SetRange{typename _SetRange::_Data{0, 0, __size_func((__b - __first1), (__bb - __first2))}};
             }
             else
             {
-                typename _SetRange::_Data __new_mask_data{
-                    0,                                                      // position in mask buffer
-                    0,                                                      // length of mask in temporary mask buffer
-                    __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
-
-                return _SetRange{__new_processing_data, __new_mask_data};
+                return _SetRange{typename _SetRange::_Data{0, 0, __size_func((__b - __first1), (__bb - __first2))},
+                                 typename _SetRange::_Data{0, 0, __mask_size_func((__b - __first1), (__bb - __first2))}};
             }
         }
 
@@ -3622,24 +3613,16 @@ struct _ParallelSetOpStrictScanPred
         auto [__res, __mask_e] =
             __set_union_op(__tag, __exec, __b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
 
-        if constexpr (__Bounded)
-        {
-            assert(__mask_e - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
-        }
-
-        // Prepare processed data info
-        const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
-
         if constexpr (!__Bounded)
         {
-            return _SetRange{__new_processing_data};
+            return _SetRange{typename _SetRange::_Data{0, __res - __buffer_b, __buf_pos}};
         }
         else
         {
-            // Prepare processed mask info
-            const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
+            assert(__mask_e - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
 
-            return _SetRange{__new_processing_data, __new_mask_data};
+            return _SetRange{typename _SetRange::_Data{0, __res - __buffer_b, __buf_pos},
+                             typename _SetRange::_Data{0, __mask_e - __mask_b, __buf_mask_pos}};
         }
     }
 };
