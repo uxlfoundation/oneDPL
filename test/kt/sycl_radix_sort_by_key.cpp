@@ -95,7 +95,7 @@ int main()
 {
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params, std::false_type{});
 
     if (run_test)
     {

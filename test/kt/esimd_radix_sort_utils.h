@@ -31,13 +31,54 @@
 #    define LOG_TEST_INFO 0
 #endif
 
-template <typename KernelParam, typename KeyT, typename ValueT = void>
-bool can_run_test(sycl::queue q, KernelParam param)
+// Helper to calculate SLM usage for ESIMD kernel
+template <typename KernelParam, typename KeyT, typename ValueT, typename IsEsimdTag>
+std::size_t
+calculate_slm_size(KernelParam param, std::true_type /*is_esimd*/)
 {
-    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    // ESIMD kernel uses simple reorder buffer
     std::size_t slm_alloc_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
         slm_alloc_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+    return slm_alloc_size;
+}
+
+// Helper to calculate SLM usage for SYCL kernel
+template <typename KernelParam, typename KeyT, typename ValueT, typename IsEsimdTag>
+std::size_t
+calculate_slm_size(KernelParam param, std::false_type /*is_esimd*/)
+{
+    // SYCL kernel has more complex SLM layout
+    using _LocOffsetT = std::uint16_t;
+    using _GlobOffsetT = std::uint32_t;
+
+    constexpr std::uint32_t __radix_bits = 8; // Typical radix bits
+    constexpr std::uint32_t __bin_count = 1 << __radix_bits;
+    constexpr std::uint32_t __sub_group_size = 32;
+
+    const std::uint32_t __num_sub_groups = param.workgroup_size / __sub_group_size;
+    const std::uint32_t __work_item_all_hists_size = __num_sub_groups * __bin_count * sizeof(_LocOffsetT);
+    const std::uint32_t __group_hist_size = __bin_count * sizeof(_LocOffsetT);
+    const std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
+
+    std::uint32_t __reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
+    if constexpr (!std::is_void_v<ValueT>)
+        __reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+
+    // SLM layout: max(histograms, reorder) + group_hist + 2 * global_hist
+    const std::uint32_t __slm_size =
+        std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size + 2 * __global_hist_size;
+
+    // Align to 2048 bytes as done in the kernel
+    return (((__slm_size + 2047) / 2048) * 2048);
+}
+
+template <typename KernelParam, typename KeyT, typename ValueT = void, typename IsEsimdTag = std::true_type>
+bool
+can_run_test(sycl::queue q, KernelParam param, IsEsimdTag is_esimd = IsEsimdTag{})
+{
+    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    std::size_t slm_alloc_size = calculate_slm_size<KernelParam, KeyT, ValueT, IsEsimdTag>(param, is_esimd);
 
     // skip tests with error: LLVM ERROR: SLM size exceeds target limits
     // TODO: get rid of that check: it is useless for AOT case. Proper configuration must be provided at compile time.
