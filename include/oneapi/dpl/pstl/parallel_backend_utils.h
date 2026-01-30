@@ -218,6 +218,33 @@ struct __serial_move_merge
     }
 };
 
+template <bool _Bounded>
+struct _MaskSize;
+
+template <>
+struct _MaskSize<false>
+{
+    template <typename _DifferenceType>
+    _DifferenceType
+    operator()(_DifferenceType, _DifferenceType) const
+    {
+        // For unbounded set operations, the maximum possible mask size is always zero
+        return 0;
+    };
+};
+
+template <>
+struct _MaskSize<true>
+{
+    template <typename _DifferenceType>
+    _DifferenceType
+    operator()(_DifferenceType __n, _DifferenceType __m) const
+    {
+        // For unbounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
+        return __n + __m;
+    };
+};
+
 enum class __parallel_set_op_mask : std::uint8_t
 {
     eData1 = 0x10,          // mask for first input data item usage
