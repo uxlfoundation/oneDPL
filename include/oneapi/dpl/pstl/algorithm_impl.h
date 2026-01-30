@@ -3891,28 +3891,32 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                           __buf_raw_data_begin,
                           __mask_bufs};
 
+        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedOutPos,
+                            &__scan_pred](const _SetRange& __total) {
+            //final scan
+            __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
+
+            if constexpr (!__Bounded)
+                __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+            else
+                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
+
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "ST.3:\n" << "\t\t <- (" << __total << ") " << "\n"
+                      << "\n\t\t -> __res_reachedOutPos = " << __res_reachedOutPos << "\n";
+#endif
+        };
+
         __par_backend::__parallel_strict_scan(
             __backend_tag{},
             __exec,
-            __n1,                                                                                                           // _Index __n
-            _SetRange(),                                                                                                    // _Tp __initial
-/* ST.1 */  __reduce_pred,                                                                                                  // _Rp __reduce     step 1 : __reduce(0, __n)
+            __n1,                           // _Index __n
+            _SetRange(),                    // _Tp __initial
+/* ST.1 */  __reduce_pred,                  // _Rp __reduce     step 1 : __reduce(0, __n)
 /* ST.2 */  __combine_pred,                 // _Cp __combine    step 2 : __combine(__initial, (1))
-/* ST.4 */  __scan_pred,                                                                                                                    // _Sp __scan_pred  step 4 : __scan_pred(0, __n, __initial)
-/* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
-             &__res_reachedOutPos, &__scan_pred](const _SetRange& __total)
-            {
-                // final scan
-                __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
+/* ST.4 */  __scan_pred,                    // _Sp __scan_pred  step 4 : __scan_pred(0, __n, __initial)
+/* ST.3 */  __apex_pred);                   // _Ap __apex       step 3 : __apex((2))
 
-#if DUMP_PARALLEL_SET_OP_WORK
-                std::cout << "ST.3:\n" << "\t\t <- (" << __total << ") " << "\n";
-#endif
-                if constexpr (!__Bounded)
-                    __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
-                else
-                    __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
-            });
 
 #if DUMP_PARALLEL_SET_OP_WORK
         // Dump mask into std::cout for debug purposes
