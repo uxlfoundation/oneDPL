@@ -3452,8 +3452,6 @@ struct _ScanPred
         }
         else
         {
-            // const oneapi::dpl::__internal::_SetRangeImpl<true, long long>::_Data
-            //decltype(__s.__data[0])::dummy;
             // Processed data
             __move_processed_data_bounded(__s.__data[0]);
 
