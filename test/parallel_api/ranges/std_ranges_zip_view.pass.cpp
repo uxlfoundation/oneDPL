@@ -144,7 +144,6 @@ main()
     std::vector<int> keys_exp(keys);
 
     auto exec = TestUtils::get_dpcpp_test_policy();
-    using Policy = decltype(exec);
     {
         using namespace test_std_ranges;
         usm_subrange<int> cont_vals(exec, vals.data(), n);
