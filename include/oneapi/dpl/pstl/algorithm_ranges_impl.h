@@ -927,7 +927,7 @@ struct __set_op_bounded_offsets_evaluator
         auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
         auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
 
-        // At leas __reachedOutPos first position are not interested for us,
+        // At least __reachedOutPos first position are not interested for us,
         // but if __reachedOutPos == 0 we should start from the beginning
         auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
         assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);

@@ -3505,7 +3505,7 @@ struct _ScanPred
         //                      |                                                           |
         // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
-        // Evalueate output range boundaries for current data chunk
+        // Evaluate output range boundaries for current data chunk
         const auto __result_from = __advance_clamped(__result1, __data.__pos, __result2);
         const auto __result_to = __advance_clamped(__result1, __data.__pos + __data.__len, __result2);
         const auto __result_remaining = __result_to - __result_from;
