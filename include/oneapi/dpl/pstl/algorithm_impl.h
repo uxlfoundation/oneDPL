@@ -3535,12 +3535,10 @@ struct _ParallelSetOpStrictScanPred
     _Tag __tag;
     _ExecutionPolicy __exec;
 
-    _RandomAccessIterator1 __first1;
-    _RandomAccessIterator1 __last1;
-    _RandomAccessIterator2 __first2;
-    _RandomAccessIterator2 __last2;
-    _SizeFunction __size_func;
-    _MaskSizeFunction __mask_size_func;
+    _RandomAccessIterator1 __first1, __last1;
+    _RandomAccessIterator2 __first2, __last2;
+    _SizeFunction __size_func;          // Processing set data size function
+    _MaskSizeFunction __mask_size_func; // Mask data size function
     _SetUnionOp __set_union_op;
 
     _Compare __comp;
