@@ -228,6 +228,14 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                 const ::std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
 
+                // Subgroup info for SG-strided memory access pattern
+                auto __sub_group = __self_item.get_sub_group();
+                const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
+                const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
+                const std::uint32_t __num_subgroups = __wg_size / __sg_size;
+                // Compute subgroup base from work item ID to handle variable subgroup sizes
+                const ::std::size_t __sg_base = (__self_lidx - __sg_local_id);
+
                 std::uint8_t* __slm_buckets = &__count_lacc[0];
                 _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
                 __index_views<__packing_ratio, __radix_states> __views;
@@ -242,33 +250,41 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     __slm_counts[__views.__get_bucket32_idx(__wg_size, __i, __self_lidx)] = 0;
                 }
 
-                // Fully strided reads: each work-item reads 1 element at a time with stride __wg_size
-                // This maximizes memory coalescing across the wavefront while maintaining unroll benefits
+                // SG-strided reads: each subgroup handles a contiguous chunk of the segment
+                // Within each chunk, work items access memory with stride __sg_size for coalescing
                 const std::size_t __seg_size = __seg_end - __seg_start;
-                const std::size_t __full_rounds = __seg_size / (__wg_size * __unroll_elements);
-                const std::size_t __full_end = __seg_start + __full_rounds * __wg_size * __unroll_elements;
+                const std::size_t __elems_per_sg = __seg_size / __num_subgroups;
+                const std::size_t __sg_id = __sg_base / __sg_size;
+                const std::size_t __sg_chunk_start = __seg_start + __sg_id * __elems_per_sg;
+                // Last subgroup gets any remainder elements
+                const std::size_t __sg_chunk_end =
+                    (__sg_id == __num_subgroups - 1) ? __seg_end : __sg_chunk_start + __elems_per_sg;
+
+                const std::size_t __sg_chunk_size = __sg_chunk_end - __sg_chunk_start;
+                const std::size_t __full_rounds = __sg_chunk_size / (__sg_size * __unroll_elements);
+                const std::size_t __full_end = __sg_chunk_start + __full_rounds * __sg_size * __unroll_elements;
 
                 // Full iterations - no bounds checking needed
-                for (::std::size_t __base_idx = __seg_start + __self_lidx; __base_idx < __full_end;
-                     __base_idx += __wg_size * __unroll_elements)
+                for (::std::size_t __base_idx = __sg_chunk_start + __sg_local_id; __base_idx < __full_end;
+                     __base_idx += __sg_size * __unroll_elements)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
                         auto __val = __order_preserving_cast<__is_ascending>(
-                            std::invoke(__proj, __val_rng[__base_idx + __unroll * __wg_size]));
+                            std::invoke(__proj, __val_rng[__base_idx + __unroll * __sg_size]));
                         ::std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
                         ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
                     }
                 }
 
-                // Remainder - at most one partial block
+                // Remainder - at most one partial block per subgroup
                 {
-                    const ::std::size_t __base_idx = __full_end + __self_lidx;
+                    const ::std::size_t __base_idx = __full_end + __sg_local_id;
                     for (::std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
                     {
-                        ::std::size_t __curr_idx = __base_idx + __unroll * __wg_size;
-                        if (__curr_idx < __seg_end)
+                        ::std::size_t __curr_idx = __base_idx + __unroll * __sg_size;
+                        if (__curr_idx < __sg_chunk_end)
                         {
                             auto __val =
                                 __order_preserving_cast<__is_ascending>(std::invoke(__proj, __val_rng[__curr_idx]));
