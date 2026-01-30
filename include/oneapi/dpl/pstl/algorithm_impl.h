@@ -3291,7 +3291,7 @@ __is_great_that_set_algo_cut_off(Size size)
     return size > __set_algo_cut_off;
 }
 
-// _ReachedOffset - desrcibes reached offset in input range
+// _ReachedOffset - describes reached offset in input range
 //  - the first field contains the amount of processed items
 //  - the second field contains the amount of processed (i.e. skipped) items in the end
 template <typename _DifferenceType>
@@ -3487,7 +3487,7 @@ struct _ScanPred
         //                                              |<----- __out_remaining ----->|            |
         //                                              |                             |            |
         //                                              |                             |            |
-        //                                              |   We shoult `move/destroy`  +-----+      +-----+
+        //                                              |   We should `move/destroy`  +-----+      +-----+
         //                                              |     this data from temporary      |            |
         //                                              |       buffer to output range      |            |
         //                                              +-----+    (__s.__len)              |            |
