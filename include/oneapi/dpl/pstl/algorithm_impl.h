@@ -3452,6 +3452,8 @@ struct _ScanPred
         }
         else
         {
+            // const oneapi::dpl::__internal::_SetRangeImpl<true, long long>::_Data
+            //decltype(__s.__data[0])::dummy;
             // Processed data
             __move_processed_data_bounded(__s.__data[0]);
 
@@ -3462,17 +3464,18 @@ struct _ScanPred
 
   protected:
 
-    template <typename ItFrom, typename ItTo>
+    template <typename _Data, typename ItFrom, typename ItTo>
     void
-    __move_data_no_bounds(auto __s_data, ItFrom __from, ItTo __to) const
+    __move_data_no_bounds(_Data __data, ItFrom __from, ItTo __to) const
     {
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__from + __s_data.__buf_pos,
-                                                          __from + __s_data.__buf_pos + __s_data.__len,
-                                                          __to + __s_data.__pos, _IsVector{});
+        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__from + __data.__buf_pos,
+                                                          __from + __data.__buf_pos + __data.__len,
+                                                          __to + __data.__pos, _IsVector{});
     }
 
-    inline void
-    __move_processed_data_bounded(auto __s_data) const
+    template <typename _Data>
+    void
+    __move_processed_data_bounded(_Data __data) const
     {
         // Work schema of copying data from temporary buffer to output range:
         //
@@ -3505,13 +3508,13 @@ struct _ScanPred
         // Output range bounds: +<-(__result1)                                              +<-(__result2)
 
         // Evalueate output range boundaries for current data chunk
-        const auto __result_from = __advance_clamped(__result1, __s_data.__pos, __result2);
-        const auto __result_to = __advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
+        const auto __result_from = __advance_clamped(__result1, __data.__pos, __result2);
+        const auto __result_to = __advance_clamped(__result1, __data.__pos + __data.__len, __result2);
         const auto __result_remaining = __result_to - __result_from;
 
         // Evaluate pointers to current data chunk in temporary buffer
-        const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-        const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
+        const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __data.__buf_pos, __buf_raw_data_end);
+        const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __data.__buf_pos + std::min(__result_remaining, __data.__len), __buf_raw_data_end);
 
         // Copy results data into results range to have final output
         __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
