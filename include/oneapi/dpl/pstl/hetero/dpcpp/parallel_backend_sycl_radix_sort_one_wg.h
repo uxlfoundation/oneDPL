@@ -119,7 +119,7 @@ struct __subgroup_radix_sort
 
     template <typename _ValueT, typename _Wi, typename _Src, typename _Values>
     static void
-    __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const uint32_t __n)
+    __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const std::uint32_t __n)
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
@@ -132,12 +132,12 @@ struct __subgroup_radix_sort
 
     template <typename _ValueT, typename _Wi, typename _Src, typename _Exchange>
     static void
-    __block_load_to_exchange(const _Wi __wi, const _Src& __src, _Exchange& __exchange, const uint32_t __n)
+    __block_load_to_exchange(const _Wi __wi, const _Src& __src, _Exchange& __exchange, const std::uint32_t __n, std::uint16_t __wg_size)
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const std::uint16_t __idx = __wi * __block_size + __i;
+            const std::uint16_t __idx = __wg_size * __i + __wi;
             if (__idx < __n)
                 new (&__exchange[__idx]) _ValueT(__src[__idx]);
         }
@@ -145,12 +145,12 @@ struct __subgroup_radix_sort
 
     template <typename _ValueT, typename _Wi, typename _Dst, typename _Src>
     static void
-    __block_store_from_exchange(const _Wi __wi, _Dst& __dst, _Src& __src, const uint32_t __n)
+    __block_store_from_exchange(const _Wi __wi, _Dst& __dst, _Src& __src, const std::uint32_t __n, std::uint16_t __wg_size)
     {
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const std::uint16_t __idx = __wi * __block_size + __i;
+            const std::uint16_t __idx = __wg_size * __i + __wi;
             if (__idx < __n)
             {
                 __dst[__idx] = ::std::move(__src[__idx]);
@@ -233,7 +233,7 @@ struct __subgroup_radix_sort
                             sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //copy(move) values construction
-                        __block_load_to_exchange<_ValT>(__wi, __src, __exchange_lacc, __n);
+                        __block_load_to_exchange<_ValT>(__wi, __src, __exchange_lacc, __n, __wg_size);
                         // TODO: check if the barrier can be removed
                         __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
@@ -341,7 +341,7 @@ struct __subgroup_radix_sort
                             if (__is_last_iter)
                             {
                                 //last iteration - write out the result
-                                __block_store_from_exchange<_ValT>(__wi, __src, __exchange_lacc, __n);
+                                __block_store_from_exchange<_ValT>(__wi, __src, __exchange_lacc, __n, __wg_size);
                             }
                             else
                             {
