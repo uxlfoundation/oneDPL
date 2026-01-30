@@ -130,29 +130,35 @@ struct __subgroup_radix_sort
         }
     }
 
-    template <typename _ValueT, typename _Wi, typename _Src, typename _Exchange>
+    template <typename _ValueT, typename _Src, typename _Exchange>
     static void
-    __block_load_to_exchange(const _Wi __wi, const _Src& __src, _Exchange& __exchange, const std::uint32_t __n,
-                             std::uint16_t __wg_size)
+    __block_load_to_exchange(const _Src& __src, _Exchange& __exchange, const std::uint32_t __n,
+                             const std::uint16_t __wi, const std::uint16_t __sg_size,
+                             const std::uint16_t __sg_local_id)
     {
+        // Compute base from work item ID to handle variable subgroup sizes correctly
+        std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const std::uint16_t __idx = __wg_size * __i + __wi;
+            const std::uint16_t __idx = __sg_base + __sg_size * __i + __sg_local_id;
             if (__idx < __n)
                 new (&__exchange[__idx]) _ValueT(__src[__idx]);
         }
     }
 
-    template <typename _ValueT, typename _Wi, typename _Dst, typename _Src>
+    template <typename _ValueT, typename _Dst, typename _Src>
     static void
-    __block_store_from_exchange(const _Wi __wi, _Dst& __dst, _Src& __src, const std::uint32_t __n,
-                                std::uint16_t __wg_size)
+    __block_store_from_exchange(_Dst& __dst, _Src& __src, const std::uint32_t __n,
+                                const std::uint16_t __wi, const std::uint16_t __sg_size,
+                                const std::uint16_t __sg_local_id)
     {
+        // Compute base from work item ID to handle variable subgroup sizes correctly
+        std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const std::uint16_t __idx = __wg_size * __i + __wi;
+            const std::uint16_t __idx = __sg_base + __sg_size * __i + __sg_local_id;
             if (__idx < __n)
             {
                 __dst[__idx] = ::std::move(__src[__idx]);
@@ -231,7 +237,11 @@ struct __subgroup_radix_sort
                             __storage() {}
                         } __values;
                         std::uint16_t __wi = __it.get_local_linear_id();
-
+                        //subgroup info for SG-strided memory access
+                        sycl::sub_group __sg = __it.get_sub_group();
+                        const std::uint16_t __sg_size = __sg.get_local_linear_range();
+                        const std::uint16_t __sg_local_id = __sg.get_local_linear_id();
+                        
                         constexpr std::uint16_t __end_bit =
                             sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
@@ -239,7 +249,8 @@ struct __subgroup_radix_sort
                         {
                             //load data to SLM buffer
                             //copy(move) values construction
-                            __block_load_to_exchange<_ValT>(__wi, __src, __exchange_lacc, __n, __wg_size);
+                            __block_load_to_exchange<_ValT>(__src, __exchange_lacc, __n, __wi, __sg_size,
+                                                            __sg_local_id);
                             // TODO: check if the barrier can be removed
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
@@ -370,7 +381,8 @@ struct __subgroup_radix_sort
                             if (__is_last_iter)
                             {
                                 //last iteration - write out the result
-                                __block_store_from_exchange<_ValT>(__wi, __src, __exchange_lacc, __n, __wg_size);
+                                __block_store_from_exchange<_ValT>(__src, __exchange_lacc, __n, __wi, __sg_size,
+                                                                   __sg_local_id);
                             }
                             else
                             {
