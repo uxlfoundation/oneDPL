@@ -26,6 +26,10 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+#    if TEST_DPCPP_BACKEND_PRESENT
+#        include "oneapi/dpl/pstl/hetero/dpcpp/execution_sycl_defs.h"
+#    endif
+
 static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
