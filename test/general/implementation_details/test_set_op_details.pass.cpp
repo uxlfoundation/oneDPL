@@ -35,7 +35,7 @@ evalMaskSize(const Container1& cont1, const Container2& cont2)
     return cont1.size() + cont2.size();
 }
 
-// For details please see decsciption of the enum oneapi::dpl::__utils::__parallel_set_op_mask
+// For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
 using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
