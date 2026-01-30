@@ -3594,7 +3594,6 @@ struct _ParallelSetOpStrictScanPred
                                                          __proj2, __proj1);
 
         const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-        const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
 
         auto __buffer_b = __buf_raw_data_begin + __buf_pos;
 
