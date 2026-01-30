@@ -230,7 +230,7 @@ struct _MaskSize<false>
     {
         // For unbounded set operations, the maximum possible mask size is always zero
         return 0;
-    };
+    }
 };
 
 template <>
@@ -244,7 +244,7 @@ struct _MaskSize<true>
 
         // For bounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
         return _DifferenceType{__n} + _DifferenceType{__m};
-    };
+    }
 };
 
 enum class __parallel_set_op_mask : std::uint8_t
