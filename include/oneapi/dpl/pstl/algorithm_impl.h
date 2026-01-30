@@ -3329,8 +3329,8 @@ struct _SetRangeImpl
     //                                       ^                         ^
     //                                       +<-(buf_pos)              +<-(buf_pos + __len)
     //                                       |                         |
-    //                                        \                         \
-    //                                         \                         \
+    //                                       +--+                      +--+
+    //                                          |                         |
     //                                          |<-(__pos)                |<-(__pos + __len)
     //                                          V                         V
     // Temporary result buffer:    OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
@@ -3485,18 +3485,18 @@ struct _ScanPred
         //                                              |                             |            |
         //                                              |<----- __out_remaining ----->|            |
         //                                              |                             |            |
-        //                                               \                             \            \
-        //                                                \ We shoult `move/destroy`    \            \
-        //                                                 \  this data from temporary   \            \
-        //                                                  \   buffer to output range    \            \
-        //                                                   \     (__s.__len)             \            \
+        //                                              |                             |            |
+        //                                              |   We shoult `move/destroy`  +-----+      +-----+
+        //                                              |     this data from temporary      |            |
+        //                                              |       buffer to output range      |            |
+        //                                              +-----+    (__s.__len)              |            |
         //                                                    |                             |            |
         //                                                    V                             V            V
         // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
         //                      ^                             ^                             ^            ^
         //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
         //                      |                (__output_write_pos_begin)                 |            |
-        //                      |                                                           \____________/
+        //                      |                                                           +____________+
         //                      |                                                           |      ^
         //                      |                                                           |      this data no longer fit into output range
         //                      |                                                           |
