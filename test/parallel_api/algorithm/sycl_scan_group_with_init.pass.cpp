@@ -23,6 +23,10 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
+// Kernel names
+class SyclScanKernel;
+class CustomScanKernel;
+
 // Test SYCL inclusive_scan_over_group with init parameter against custom implementation
 template<typename Policy>
 void
@@ -59,7 +63,7 @@ test_scan_with_init(Policy&& exec, std::size_t wg_size, std::size_t num_iteratio
                 auto in = in_buf.get_access<sycl::access::mode::read>(h);
                 auto out = out_buf.get_access<sycl::access::mode::write>(h);
 
-                h.parallel_for(sycl::nd_range<1>(wg_size, wg_size), [=](sycl::nd_item<1> item) {
+                h.parallel_for<SyclScanKernel>(sycl::nd_range<1>(wg_size, wg_size), [=](sycl::nd_item<1> item) {
                     auto lid = item.get_local_id(0);
                     int value = in[lid];
 
@@ -86,7 +90,7 @@ test_scan_with_init(Policy&& exec, std::size_t wg_size, std::size_t num_iteratio
                 auto out = out_buf.get_access<sycl::access::mode::write>(h);
                 sycl::local_accessor<int, 1> local_acc(sycl::range<1>(wg_size), h);
 
-                h.parallel_for(sycl::nd_range<1>(wg_size, wg_size), [=](sycl::nd_item<1> item) {
+                h.parallel_for<CustomScanKernel>(sycl::nd_range<1>(wg_size, wg_size), [=](sycl::nd_item<1> item) {
                     auto lid = item.get_local_id(0);
                     int value = in[lid];
 

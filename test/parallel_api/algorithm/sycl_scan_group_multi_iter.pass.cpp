@@ -23,6 +23,9 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 
+// Kernel name
+class MultiIterScanKernel;
+
 // Test multi-iteration scan pattern matching oneDPL's unseq_backend_sycl.h implementation
 template<typename Policy>
 void
@@ -61,9 +64,8 @@ test_multi_iter_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_per_w
                 auto output_acc = output_buf.get_access<sycl::access::mode::write>(cgh);
                 sycl::local_accessor<int, 1> local_acc(sycl::range<1>(wg_size), cgh);
 
-                cgh.parallel_for(
-                    sycl::nd_range<1>(n_work_groups * wg_size, wg_size),
-                    [=](sycl::nd_item<1> item) {
+                cgh.parallel_for<MultiIterScanKernel>(
+                    sycl::nd_range<1>(n_work_groups * wg_size, wg_size), [=](sycl::nd_item<1> item) {
                         auto group = item.get_group();
                         auto local_id = item.get_local_id(0);
                         auto group_id = item.get_group(0);
@@ -109,8 +111,7 @@ test_multi_iter_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_per_w
                                 output_acc[adjusted_global_id] = local_acc[local_id];
                             }
                         }
-                    }
-                );
+                    });
             }).wait();
         }
 
