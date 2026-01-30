@@ -1098,7 +1098,7 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                // TODO: reqiired to remove this resHeteroMode and TestDataModeResolver
+                // TODO: required to remove this resHeteroMode and TestDataModeResolver
                 // after implementation range-based set operations for bounded output range with hetero policies
                 constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
 
