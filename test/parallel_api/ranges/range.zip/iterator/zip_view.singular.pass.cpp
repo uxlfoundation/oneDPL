@@ -23,6 +23,11 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+#if defined(_MSC_VER)
+  #pragma warning(push)
+  #pragma warning(disable : 4702) // unreachable code (MSVC)
+#endif
+
 #include <ranges>
 
 #include <tuple>
@@ -48,6 +53,7 @@ struct ThrowOnIncrementIterator {
     throw 5;
     return *this;
   }
+
   void operator++(int) { ++it_; }
 
   int& operator*() const { return *it_; }
@@ -90,6 +96,11 @@ void test() {
     assert(x == 1);
   }
 }
+
+#if defined(_MSC_VER)
+  #pragma warning(pop) //unreachable code
+#endif
+
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int main(int, char**) {
