@@ -469,7 +469,7 @@ private:
         }
 
         return true;
-    }    
+    }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
              TestDataMode mode = test_mode>
