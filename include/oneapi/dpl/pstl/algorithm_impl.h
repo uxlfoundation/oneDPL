@@ -3660,8 +3660,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
     __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size);
 
-    using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, __first2, __last2,
                                          __result1, __result2, __comp, __proj1, __proj2, __size_func, __set_union_op,
                                          __reached_positions_evaluator, &__buf, &__mask_bufs, __mask_size_func,
