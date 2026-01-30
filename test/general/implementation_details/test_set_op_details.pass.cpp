@@ -483,8 +483,6 @@ test_set_intersection_construct_edge_cases()
 void
 test_set_difference_construct()
 {
-    constexpr auto CopyFromFirstRange = std::true_type{};
-
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
 
@@ -752,8 +750,6 @@ test_set_difference_construct_edge_cases()
 void
 test_set_symmetric_difference_construct()
 {
-    constexpr auto CopyFromFirstRange = std::true_type{};
-
     using DataType = TestUtils::SetDataItem<int>;
     using Container = std::vector<DataType>;
 
