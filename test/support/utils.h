@@ -219,8 +219,11 @@ log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& val
 
     bool bInternalCommaNeeded = false;
     os << "(";
-    std::apply([&os, &bInternalCommaNeeded](const auto&... elems) {
-        ((log_value_to_stream(os, elems, bInternalCommaNeeded), os << ", "), ...);
+    constexpr std::size_t N = sizeof...(T);
+    std::size_t index = 0;
+    std::apply([&os, &bInternalCommaNeeded, &index](const auto&... elems) {
+        ((log_value_to_stream(os, elems, bInternalCommaNeeded),
+          os << (++index < N ? ", " : "")), ...);
     }, std_tuple);
     os << ")";
 
