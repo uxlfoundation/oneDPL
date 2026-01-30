@@ -785,13 +785,10 @@ using __set_union_return_t =
 
 // Bounded set union: performs set_union with output range capacity checking.
 // Truncates result if output range is too small.
-template<std::ranges::random_access_range _R1,
-         std::ranges::random_access_range _R2,
-         std::ranges::random_access_range _OutRange,
-         typename _Comp, typename _Proj1, typename _Proj2>
+template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+          std::ranges::random_access_range _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
-                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
@@ -858,9 +855,8 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-                             __comp, __proj1, __proj2,
-                             typename _Tag::__is_vector{});
+    return __brick_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r), __comp,
+                             __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
 template <class _IncludeToOutputPred, class _EvalReachedPosPred>
@@ -1010,9 +1006,8 @@ struct __set_union_offsets
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                    _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
@@ -1027,7 +1022,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2);
 
-    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/true>(
+    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/ true>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
                __result2,
                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
@@ -1592,9 +1587,8 @@ struct __set_symmetric_difference_offsets
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                                   _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                                   _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
