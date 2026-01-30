@@ -152,30 +152,6 @@ __make_key_value_pack()
     }
 }
 
-template <std::uint32_t __segment_width, std::uint32_t __num_segments, std::uint32_t __sub_group_size,
-          typename _ScanBuffer>
-void
-__sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements)
-{
-    // TODO: make it work if this static assert is not true
-    static_assert(__segment_width == __sub_group_size);
-    using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
-    _ElemT __carry = 0;
-    auto __sub_group_local_id = __sub_group.get_local_linear_id();
-
-    _ONEDPL_PRAGMA_UNROLL
-    for (std::uint32_t __i = 0; __i < __num_segments; ++__i)
-    {
-        auto __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
-        auto __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
-        if (__sub_group_local_id == 0)
-            __element_right_shift = 0;
-        __scan_elements[__i * __segment_width + __sub_group_local_id] = __element_right_shift + __carry;
-
-        __carry += sycl::group_broadcast(__sub_group, __element, __sub_group_size - 1);
-    }
-}
-
 } // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 #endif // _ONEDPL_KT_SYCL_RADIX_SORT_UTILS_H

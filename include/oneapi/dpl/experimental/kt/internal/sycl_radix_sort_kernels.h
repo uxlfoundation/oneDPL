@@ -37,7 +37,9 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
 {
     using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
     using _BinT = std::uint16_t;
-    using _GlobalHistT = std::uint32_t;
+    using _GlobOffsetT = std::uint32_t;
+
+    using _LocIdxT = std::uint32_t;
 
     constexpr std::uint32_t __hist_num_sub_groups = __hist_work_group_size / __sub_group_size;
     constexpr std::uint32_t __bin_count = 1 << __radix_bits;
@@ -54,25 +56,25 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
     const std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
     const std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
-    std::uint32_t __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
+    _GlobOffsetT __sub_group_start = (__group_id * __hist_num_sub_groups + __sub_group_id) * __hist_data_per_sub_group;
 
     // 0. Early exit - important for small inputs as we intentionally oversubscribe the hardware
     if ((__sub_group_start - __sub_group_id * __hist_data_per_sub_group) >= __n)
         return;
 
     // 1. Initialize group-local histograms in SLM
-    for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
+    for (_LocIdxT __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
     {
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __j = 0; __j < __num_histograms; ++__j)
+        for (_LocIdxT __j = 0; __j < __num_histograms; ++__j)
         {
             __slm[__i * __num_histograms + __j] = 0;
         }
     }
 
-    sycl::group_barrier(__idx.get_group());
+    __dpl_sycl::__group_barrier(__idx);
 
-    for (std::uint32_t __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
+    for (_GlobOffsetT __wi_offset = __sub_group_start + __sub_group_local_id; __wi_offset < __n;
          __wi_offset += __device_wide_step)
     {
         // Keys loaded with stride of sub-group size
@@ -108,29 +110,29 @@ __sycl_global_histogram(sycl::nd_item<1> __idx, std::size_t __n, const _KeysRng&
             {
                 _BinT __bucket = __get_bucket_scalar<__mask>(
                     __order_preserving_cast_scalar<__is_ascending>(__keys[__i]), __stage * __radix_bits);
-                _GlobalHistT __bin = __stage * __bin_count + __bucket;
+                _GlobOffsetT __bin = __stage * __bin_count + __bucket;
                 using _SLMAtomicRef =
-                    sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                    sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                      sycl::access::address_space::local_space>;
                 // Use sub group local id to randomize sub-bin selection for histogram accumulation
-                auto __slm_hist_idx = __sub_group_local_id % __num_histograms;
+                _LocIdxT __slm_hist_idx = __sub_group_local_id % __num_histograms;
                 _SLMAtomicRef __slm_ref(__slm[__bin * __num_histograms + __slm_hist_idx]);
                 __slm_ref.fetch_add(1);
             }
         }
     }
 
-    sycl::group_barrier(__idx.get_group());
+    __dpl_sycl::__group_barrier(__idx);
 
     // 4. Reduce group-local histograms from SLM into global histograms in global memory
-    for (std::uint32_t __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
+    for (_LocIdxT __i = __local_id; __i < __hist_buffer_size; __i += __hist_work_group_size)
     {
-        using _AtomicRef = sycl::atomic_ref<_GlobalHistT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+        using _AtomicRef = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                             sycl::access::address_space::global_space>;
-        _GlobalHistT __reduced_bincount = 0;
+        _GlobOffsetT __reduced_bincount = 0;
         // Blocked layout enables load vectorization from SLM
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __j = 0; __j < __num_histograms; ++__j)
+        for (_LocIdxT __j = 0; __j < __num_histograms; ++__j)
         {
             __reduced_bincount += __slm[__i * __num_histograms + __j];
         }
@@ -151,6 +153,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     using _LocOffsetT = std::uint16_t;
     using _GlobOffsetT = std::uint32_t;
     using _AtomicIdT = std::uint32_t;
+    using _LocIdxT = std::uint32_t;
+
+    using _SubGroupBitmaskT = std::uint32_t;
 
     using _KeyT = typename _InRngPack::_KeyT;
     using _ValT = typename _InRngPack::_ValT;
@@ -236,7 +241,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         return oneapi::dpl::__internal::__dpl_ceiling_div(__slm_size, 2048) * 2048;
     }
 
-    const std::uint32_t __n;
+    const _GlobOffsetT __n;
     const std::uint32_t __stage;
     _GlobOffsetT* __p_global_hist;
     _GlobOffsetT* __p_group_hists;
@@ -245,7 +250,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
 
-    __radix_sort_onesweep_kernel(std::uint32_t __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
+    __radix_sort_onesweep_kernel(_GlobOffsetT __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
                                  _GlobOffsetT* __p_group_hists, _AtomicIdT* __p_atomic_id, const _InRngPack& __in_pack,
                                  const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
@@ -273,7 +278,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
            std::uint32_t __local_offset) const
     {
         bool __is_full_block = (__glob_offset + __data_per_sub_group) <= __n;
-        auto __offset = __glob_offset + __local_offset;
+        _GlobOffsetT __offset = __glob_offset + __local_offset;
         if (__is_full_block)
         {
             _ONEDPL_PRAGMA_UNROLL
@@ -287,7 +292,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
             {
-                auto __idx = __offset + __i * __sub_group_size;
+                _GlobOffsetT __idx = __offset + __i * __sub_group_size;
                 if constexpr (__sort_identity_residual)
                 {
                     __elements[__i] = (__idx < __n) ? __in_seq[__idx] : __sort_identity<_T, __is_ascending>();
@@ -304,15 +309,15 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     static inline std::uint32_t
-    __match_bins(sycl::nd_item<1> __idx, std::uint32_t __bin)
+    __match_bins(const sycl::nd_item<1>& __idx, std::uint32_t __bin)
     {
         // start with all bits 1
-        auto __matched_bins = sycl::ext::oneapi::group_ballot(__idx.get_sub_group());
+        sycl::ext::oneapi::sub_group_mask __matched_bins = sycl::ext::oneapi::group_ballot(__idx.get_sub_group());
         _ONEDPL_PRAGMA_UNROLL
         for (int __i = 0; __i < __radix_bits; __i++)
         {
-            auto __bit = (__bin >> __i) & 1;
-            auto __sg_vote = sycl::ext::oneapi::group_ballot(__idx.get_sub_group(), static_cast<bool>(__bit));
+            bool __bit = static_cast<bool>((__bin >> __i) & 1);
+            sycl::ext::oneapi::sub_group_mask __sg_vote = sycl::ext::oneapi::group_ballot(__idx.get_sub_group(), __bit);
             // If we vote yes, then we want to set all bits that also voted yes. If no, then we want to
             // zero out the bits that said yes as they don't match and preserve others as we have no info on these.
             __matched_bins &= __bit ? __sg_vote : ~__sg_vote;
@@ -323,46 +328,47 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     inline auto
-    __rank_local(sycl::nd_item<1> __idx, _LocOffsetT __ranks[__data_per_work_item],
+    __rank_local(const sycl::nd_item<1>& __idx, _LocOffsetT __ranks[__data_per_work_item],
                  _LocOffsetT __bins[__data_per_work_item], _LocOffsetT* __slm_subgroup_hists,
                  std::uint32_t __sub_group_slm_offset) const
     {
         std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_id();
         _LocOffsetT* __slm_offset = __slm_subgroup_hists + __sub_group_slm_offset;
 
-        for (std::uint32_t __i = __idx.get_sub_group().get_local_id(); __i < __bin_count; __i += __sub_group_size)
+        for (_LocIdxT __i = __sub_group_local_id; __i < __bin_count; __i += __sub_group_size)
         {
             __slm_offset[__i] = 0;
         }
         // TODO: sub-group barrier ? maybe not for simd architectures
 
-        constexpr std::uint32_t __sub_group_full_bitmask = 0x7fffffff;
+        constexpr _SubGroupBitmaskT __sub_group_full_bitmask = 0x7fffffff;
         static_assert(__sub_group_size == 32);
         // lower bits than my current will be set meaning we only preserve left lanes
-        std::uint32_t __remove_right_lanes = __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
+        _SubGroupBitmaskT __remove_right_lanes =
+            __sub_group_full_bitmask >> (__sub_group_size - 1 - __sub_group_local_id);
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
             _LocOffsetT __bin = __bins[__i];
-            std::uint32_t __matched_bins = __match_bins(__idx, __bin);
-            std::uint32_t __pre_rank = __slm_offset[__bin];
-            auto __matched_left_lanes = __matched_bins & __remove_right_lanes;
-            std::uint32_t __this_round_rank = sycl::popcount(__matched_left_lanes);
-            std::uint32_t __this_round_count = sycl::popcount(__matched_bins);
-            auto __rank_after = __pre_rank + __this_round_rank;
-            auto __is_leader = __this_round_rank == __this_round_count - 1;
+            _SubGroupBitmaskT __matched_bins = __match_bins(__idx, __bin);
+            _LocOffsetT __pre_rank = __slm_offset[__bin];
+            _SubGroupBitmaskT __matched_left_lanes = __matched_bins & __remove_right_lanes;
+            _LocOffsetT __this_round_rank = sycl::popcount(__matched_left_lanes);
+            _LocOffsetT __this_round_count = sycl::popcount(__matched_bins);
+            _LocOffsetT __rank_after = __pre_rank + __this_round_rank;
+            bool __is_leader = __this_round_rank == __this_round_count - 1;
             if (__is_leader)
             {
                 __slm_offset[__bin] = __rank_after + 1;
             }
             __ranks[__i] = __rank_after;
         }
-        sycl::group_barrier(__idx.get_group());
+        __dpl_sycl::__group_barrier(__idx);
     }
 
     inline void
-    __rank_global(sycl::nd_item<1> __idx, std::uint32_t __wg_id, _LocOffsetT* __slm_subgroup_hists,
+    __rank_global(const sycl::nd_item<1>& __idx, std::uint32_t __wg_id, _LocOffsetT* __slm_subgroup_hists,
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
     {
         // TODO: This exists in the ESIMD KT and was ported but are we not limiting max input size to
@@ -392,138 +398,236 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // TODO: this single element array is a temporary workaround for sub group scan requiring an array
         _LocOffsetT __item_grf_hist_summary_arr[1] = {0};
         _LocOffsetT& __item_grf_hist_summary = __item_grf_hist_summary_arr[0];
-        _LocOffsetT __item_bin_count;
+        _LocOffsetT __item_bin_count = 0;
         if (__sub_group_id < __bin_summary_sub_group_size)
         {
             // 1.1. Vector scan of the same bins across different histograms.
-            std::uint32_t __slm_bin_hist_summary_offset = __sub_group_id * __bin_width;
-
-            for (std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
-                 __s++, __slm_bin_hist_summary_offset += __bin_count)
-            {
-                auto __slm_idx = __slm_bin_hist_summary_offset + __sub_group_local_id;
-                __item_grf_hist_summary += __slm_subgroup_hists[__slm_idx];
-                __slm_subgroup_hists[__slm_idx] = __item_grf_hist_summary;
-            }
-            __item_bin_count = __item_grf_hist_summary;
+            __item_bin_count = __intra_bin_scan_across_sub_groups<__bin_width>(
+                __sub_group_id, __sub_group_local_id, __item_grf_hist_summary, __slm_subgroup_hists);
 
             // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
-            // Only "__bin_width" pieces of the histogram are scanned at this stage.
-            // This histogram will be further used for calculation of offsets of keys already reordered in SLM,
-            // it does not participate in sycnhronization between work-groups.
-            __sub_group_scan<__sub_group_size, 1>(__idx.get_sub_group(), __item_grf_hist_summary_arr, std::plus<>{},
-                                                  __bin_width);
-
-            auto __write_idx = __sub_group_id * __bin_width + __sub_group_local_id;
-            __slm_group_hist[__write_idx] = __item_grf_hist_summary;
+            __inter_bin_scan_work_group_totals<__bin_width>(__idx, __sub_group_id, __sub_group_local_id,
+                                                            __item_grf_hist_summary_arr, __slm_group_hist);
 
             // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
-            // Write the histogram to global memory, bypassing caches, to ensure cross-work-group visibility.
-            if (__wg_id != 0)
-            {
-                // Copy the histogram, local to this WG
-                using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                                         sycl::access::address_space::global_space>;
-                _GlobalAtomicT __ref(__p_this_group_hist[__sub_group_id * __bin_width + __sub_group_local_id]);
-                __ref.store(__item_bin_count | __hist_updated);
-            }
-            else
-            {
-                // WG0 is a special case: it also retrieves the total global histogram and adds it to its local histogram
-                // This global histogram will be propagated to other work-groups through a chained scan at stage 2
-                using _GlobalAtomicT =
-                    sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                     sycl::access::address_space::global_space>;
-
-                auto __hist_idx = __sub_group_id * __bin_width + __sub_group_local_id;
-                _GlobOffsetT __global_hist = __p_global_hist[__hist_idx] & __global_offset_mask;
-                _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_count;
-                _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
-                __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
-                // Copy the global histogram to local memory to share with other work-items
-                __slm_global_incoming[__hist_idx] = __global_hist;
-            }
+            __output_work_group_chained_scan_partials<__bin_width, __global_accumulated, __hist_updated,
+                                                      __global_offset_mask>(__wg_id, __sub_group_id,
+                                                                            __sub_group_local_id, __item_bin_count,
+                                                                            __p_this_group_hist, __slm_global_incoming);
         }
-        sycl::group_barrier(__idx.get_group());
+        __dpl_sycl::__group_barrier(__idx);
 
-        auto __sub_group = __idx.get_sub_group();
-        auto __sub_group_group_id = __sub_group.get_group_linear_id();
+        sycl::sub_group __sub_group = __idx.get_sub_group();
+        std::uint32_t __sub_group_group_id = __sub_group.get_group_linear_id();
 
         // 1.4 One work-item finalizes scan performed at stage 1.2
         // by propagating prefixes accumulated after scanning individual "__bin_width" pieces.
         if (__sub_group_group_id == __bin_summary_sub_group_size + 1)
         {
-            __sub_group_cross_segment_exclusive_scan<__bin_width, __bin_summary_sub_group_size, __sub_group_size>(
-                __sub_group, __slm_group_hist);
+            __sub_group_cross_segment_exclusive_scan<__bin_width, __bin_summary_sub_group_size>(__sub_group,
+                                                                                                __slm_group_hist);
         }
 
-        sycl::group_barrier(__idx.get_group());
+        __dpl_sycl::__group_barrier(__idx);
 
         // 2. Chained scan. Synchronization between work-groups.
+        __work_group_chained_scan<__bin_width, __bin_summary_sub_group_size, __global_accumulated, __hist_updated,
+                                  __global_offset_mask>(__idx, __wg_id, __sub_group_group_id, __sub_group_local_id,
+                                                        __item_bin_count, __p_this_group_hist, __p_prev_group_hist,
+                                                        __slm_global_incoming);
+
+        __dpl_sycl::__group_barrier(__idx);
+    }
+
+    // 1.1. Vector scan of the same bins across different histograms.
+    // Each sub-group processes a portion of bins, scanning across all sub-group histograms.
+    template <std::uint32_t __bin_width>
+    inline _LocOffsetT
+    __intra_bin_scan_across_sub_groups(std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id,
+                                       _LocOffsetT& __item_grf_hist_summary, _LocOffsetT* __slm_subgroup_hists) const
+    {
+        _LocIdxT __slm_bin_hist_summary_offset = __sub_group_id * __bin_width;
+
+        for (std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
+             __s++, __slm_bin_hist_summary_offset += __bin_count)
+        {
+            _LocIdxT __slm_idx = __slm_bin_hist_summary_offset + __sub_group_local_id;
+            __item_grf_hist_summary += __slm_subgroup_hists[__slm_idx];
+            __slm_subgroup_hists[__slm_idx] = __item_grf_hist_summary;
+        }
+        return __item_grf_hist_summary;
+    }
+
+    // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
+    // Only "__bin_width" pieces of the histogram are scanned at this stage.
+    // This histogram will be further used for calculation of offsets of keys already reordered in SLM,
+    // it does not participate in synchronization between work-groups.
+    template <std::uint32_t __bin_width>
+    inline void
+    __inter_bin_scan_work_group_totals(const sycl::nd_item<1>& __idx, std::uint32_t __sub_group_id,
+                                       std::uint32_t __sub_group_local_id,
+                                       _LocOffsetT (&__item_grf_hist_summary_arr)[1],
+                                       _LocOffsetT* __slm_group_hist) const
+    {
+        __sub_group_scan<__sub_group_size, 1>(__idx.get_sub_group(), __item_grf_hist_summary_arr, std::plus<>{},
+                                              __bin_width);
+
+        _LocIdxT __write_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+        __slm_group_hist[__write_idx] = __item_grf_hist_summary_arr[0];
+    }
+
+    template <std::uint32_t __segment_width, std::uint32_t __num_segments, typename _ScanBuffer>
+    void
+    __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements) const
+    {
+        // TODO: make it work if this static assert is not true
+        static_assert(__segment_width == __sub_group_size);
+        using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
+        _ElemT __carry = 0;
+        auto __sub_group_local_id = __sub_group.get_local_linear_id();
+
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __i = 0; __i < __num_segments; ++__i)
+        {
+            auto __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
+            auto __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
+            if (__sub_group_local_id == 0)
+                __element_right_shift = 0;
+            __scan_elements[__i * __segment_width + __sub_group_local_id] = __element_right_shift + __carry;
+
+            __carry += sycl::group_broadcast(__sub_group, __element, __sub_group_size - 1);
+        }
+    }
+
+    // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
+    // Write the histogram to global memory, bypassing caches, to ensure cross-work-group visibility.
+    template <std::uint32_t __bin_width, std::uint32_t __global_accumulated, std::uint32_t __hist_updated,
+              std::uint32_t __global_offset_mask>
+    inline void
+    __output_work_group_chained_scan_partials(std::uint32_t __wg_id, std::uint32_t __sub_group_id,
+                                              std::uint32_t __sub_group_local_id, _LocOffsetT __item_bin_count,
+                                              _GlobOffsetT* __p_this_group_hist,
+                                              _GlobOffsetT* __slm_global_incoming) const
+    {
+        using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                sycl::access::address_space::global_space>;
+        _LocIdxT __hist_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+
+        if (__wg_id != 0)
+        {
+            // Copy the histogram, local to this WG
+            _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
+            __ref.store(__item_bin_count | __hist_updated);
+        }
+        else
+        {
+            // WG0 is a special case: it also retrieves the total global histogram and adds it to its local histogram
+            // This global histogram will be propagated to other work-groups through a chained scan at stage 2
+            _GlobOffsetT __global_hist = __p_global_hist[__hist_idx] & __global_offset_mask;
+            _GlobOffsetT __after_group_hist_sum = __global_hist + __item_bin_count;
+            _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
+            __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
+            // Copy the global histogram to local memory to share with other work-items
+            __slm_global_incoming[__hist_idx] = __global_hist;
+        }
+    }
+
+    // 2. Chained scan. Synchronization between work-groups.
+    // Each work-group (except WG0) looks back at previous work-groups' histograms to compute global offsets.
+    template <std::uint32_t __bin_width, std::uint32_t __bin_summary_sub_group_size, std::uint32_t __global_accumulated,
+              std::uint32_t __hist_updated, std::uint32_t __global_offset_mask>
+    inline void
+    __work_group_chained_scan(const sycl::nd_item<1>& __idx, std::uint32_t __wg_id, std::uint32_t __sub_group_group_id,
+                              std::uint32_t __sub_group_local_id, _LocOffsetT __item_bin_count,
+                              _GlobOffsetT* __p_this_group_hist, _GlobOffsetT* __p_prev_group_hist,
+                              _GlobOffsetT* __slm_global_incoming) const
+    {
         if (__sub_group_group_id < __bin_summary_sub_group_size && __wg_id != 0)
         {
             using _GlobalAtomicT =
                 sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                  sycl::access::address_space::global_space>;
+            sycl::sub_group __sub_group = __idx.get_sub_group();
+
             // 2.1. Read the histograms scanned across work-groups
             _GlobOffsetT __prev_group_hist_sum = 0;
             _GlobOffsetT __prev_group_hist;
             bool __is_not_accumulated = true;
+            _GlobOffsetT* __p_lookback_hist = __p_prev_group_hist;
             do
             {
-                auto __idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
-                _GlobalAtomicT __ref(__p_prev_group_hist[__idx]);
+                _LocIdxT __bin_idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+                _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
                 do
                 {
                     __prev_group_hist = __ref.load();
                 } while ((__prev_group_hist & __hist_updated) == 0);
                 __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
                 __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
-                __p_prev_group_hist -= __bin_count;
+                __p_lookback_hist -= __bin_count;
             } while (sycl::any_of_group(__sub_group, __is_not_accumulated));
 
-            _GlobOffsetT __after_group_hist_sum = 0;
             __prev_group_hist_sum &= __global_offset_mask;
-            __after_group_hist_sum = __prev_group_hist_sum + __item_bin_count;
-            auto __idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+            _GlobOffsetT __after_group_hist_sum = __prev_group_hist_sum + __item_bin_count;
+            _LocIdxT __bin_idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+
             // 2.2. Write the histogram scanned across work-group, updated with the current work-group data
-            _GlobalAtomicT __ref(__p_this_group_hist[__idx]);
+            _GlobalAtomicT __ref(__p_this_group_hist[__bin_idx]);
             __ref.store(__after_group_hist_sum | __hist_updated | __global_accumulated);
+
             // 2.3. Save the scanned histogram from previous work-groups locally
-            __slm_global_incoming[__idx] = __prev_group_hist_sum;
+            __slm_global_incoming[__bin_idx] = __prev_group_hist_sum;
         }
-        sycl::group_barrier(__idx.get_group());
+    }
+
+    void inline __propagate_ranks_across_sub_groups(_LocOffsetT (&__ranks)[__data_per_work_item],
+                                                    const _LocOffsetT (&__bins)[__data_per_work_item],
+                                                    _LocOffsetT* __slm_subgroup_hists, _LocOffsetT* __slm_group_hist,
+                                                    std::uint32_t __sub_group_id) const
+    {
+        // update ranks to reflect sub-group offsets in and across bins
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+        {
+            _LocOffsetT __bin = __bins[__i];
+            _LocOffsetT __group_incoming = __slm_group_hist[__bin];
+            _LocOffsetT __offset_in_bin =
+                (__sub_group_id == 0) ? 0 : __slm_subgroup_hists[(__sub_group_id - 1) * __bin_count + __bin];
+            _LocOffsetT __offset_across_bins = __group_incoming;
+            __ranks[__i] += __offset_in_bin + __offset_across_bins;
+        }
+    }
+
+    void inline __global_fix_to_slm(const sycl::nd_item<1>& __idx, _GlobOffsetT* __slm_global_fix,
+                                    _GlobOffsetT* __slm_global_incoming, _LocOffsetT* __slm_group_hist) const
+    {
+        const std::uint32_t __wg_size = __idx.get_local_range(0);
+        // compute __global_fix
+        for (_LocIdxT __i = __idx.get_local_id(); __i < __bin_count; __i += __wg_size)
+        {
+            // Note that this difference may be negative, but we use unsigned types. This is safe as wraparound for unsigned types
+            // is guaranteed.
+            __slm_global_fix[__i] = static_cast<_GlobOffsetT>(__slm_global_incoming[__i]) -
+                                    static_cast<_GlobOffsetT>(__slm_group_hist[__i]);
+        }
+        __dpl_sycl::__group_barrier(__idx);
     }
 
     template <typename _KVPack>
-    void inline __reorder_reg_to_slm(sycl::nd_item<1> __idx, const _KVPack& __pack,
+    void inline __reorder_reg_to_slm(const sycl::nd_item<1>& __idx, const _KVPack& __pack,
                                      _LocOffsetT (&__ranks)[__data_per_work_item],
                                      const _LocOffsetT (&__bins)[__data_per_work_item],
                                      _LocOffsetT* __slm_subgroup_hists, _LocOffsetT* __slm_group_hist,
                                      _GlobOffsetT* __slm_global_incoming, _GlobOffsetT* __slm_global_fix,
                                      _KeyT* __slm_keys, _ValT* __slm_vals) const
     {
-        auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
-        const auto __wg_size = __idx.get_local_range(0);
+        std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
 
         // 1. update ranks to reflect sub-group offsets in and across bins
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
-        {
-            auto __bin = __bins[__i];
-            auto __group_incoming = __slm_group_hist[__bin];
-            auto __offset_in_bin =
-                (__sub_group_id == 0) ? 0 : __slm_subgroup_hists[(__sub_group_id - 1) * __bin_count + __bin];
-            auto __offset_across_bins = __group_incoming;
-            __ranks[__i] += __offset_in_bin + __offset_across_bins;
-        }
+        __propagate_ranks_across_sub_groups(__ranks, __bins, __slm_subgroup_hists, __slm_group_hist, __sub_group_id);
 
         // 2. compute __global_fix
-        for (std::uint32_t __i = __idx.get_local_id(); __i < __bin_count; __i += __wg_size)
-        {
-            __slm_global_fix[__i] = __slm_global_incoming[__i] - static_cast<_GlobOffsetT>(__slm_group_hist[__i]);
-        }
-        sycl::group_barrier(__idx.get_group());
+        __global_fix_to_slm(__idx, __slm_global_fix, __slm_global_incoming, __slm_group_hist);
 
         // 3. Write keys (and values) to SLM at computed ranks
         _ONEDPL_PRAGMA_UNROLL
@@ -535,27 +639,27 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __slm_vals[__ranks[__i]] = __pack.__vals[__i];
             }
         }
-        sycl::group_barrier(__idx.get_group());
+        __dpl_sycl::__group_barrier(__idx);
     }
 
     template <typename _KVPack>
-    void inline __reorder_slm_to_glob(sycl::nd_item<1> __idx, _KVPack& __pack, _GlobOffsetT* __slm_global_fix,
+    void inline __reorder_slm_to_glob(const sycl::nd_item<1>& __idx, _KVPack& __pack, _GlobOffsetT* __slm_global_fix,
                                       _KeyT* __slm_keys, _ValT* __slm_vals) const
     {
-        auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
-        auto __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
+        std::uint32_t __sub_group_id = __idx.get_sub_group().get_group_linear_id();
+        std::uint32_t __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
 
         const _GlobOffsetT __keys_slm_offset = __data_per_sub_group * __sub_group_id;
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
-            auto __slm_idx = __keys_slm_offset + __i * __sub_group_size + __sub_group_local_id;
-            auto __key = __slm_keys[__slm_idx];
-            auto __bin = __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__key),
-                                                     __stage * __radix_bits);
-            auto __global_fix = __slm_global_fix[__bin];
-            auto __out_idx = __global_fix + __slm_idx;
+            _LocIdxT __slm_idx = __keys_slm_offset + __i * __sub_group_size + __sub_group_local_id;
+            _KeyT __key = __slm_keys[__slm_idx];
+            _LocIdxT __bin = __get_bucket_scalar<__mask>(__order_preserving_cast_scalar<__is_ascending>(__key),
+                                                         __stage * __radix_bits);
+            _GlobOffsetT __global_fix = __slm_global_fix[__bin];
+            _GlobOffsetT __out_idx = __global_fix + __slm_idx;
 
             // TODO: we need to figure out how to relax this bounds checking for full unrolling
             bool __output_mask = __out_idx < __n;
@@ -563,7 +667,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __out_pack.__keys_rng()[__out_idx] = __key;
             if constexpr (__has_values)
             {
-                auto __val = __slm_vals[__slm_idx];
+                _ValT __val = __slm_vals[__slm_idx];
                 if (__output_mask)
                     __out_pack.__vals_rng()[__out_idx] = __val;
             }
