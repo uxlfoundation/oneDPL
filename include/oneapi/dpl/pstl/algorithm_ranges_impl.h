@@ -943,12 +943,10 @@ struct __set_op_bounded_offsets_evaluator
         assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
 
         // Find the position where output size limit is reached
-        auto it_prefix_summ_buf = __pattern_find_if(
-            __parallel_tag<_IsVector>{}, __exec,
-            it_prefix_summ_buf_start, it_prefix_summ_buf_e,   
-            [__reachedOutPos](const _CountsType& __count) {
-                return __count.__processedOut == __reachedOutPos + 1; // We should try to find the next processed position
-            });
+        //  - we should try to find the next processed position so we use <= operation inside lower_bound predicate
+        auto it_prefix_summ_buf = std::lower_bound(
+            it_prefix_summ_buf_start, it_prefix_summ_buf_e, __reachedOutPos,
+            [](const auto& __count, const auto& __processedOut) { return __count.__processedOut <= __processedOut; });
 
         // Initially we assume that we processed all first data range
         const auto [__n1_reached, __n2_reached] =
