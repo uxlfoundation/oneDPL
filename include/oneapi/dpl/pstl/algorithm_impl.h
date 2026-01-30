@@ -3544,7 +3544,7 @@ struct _ParallelSetOpStrictScanPred
     _Proj1 __proj1;
     _Proj2 __proj2;
 
-    _T* __buf_raw_data_begin;
+    _T* __buf_raw_data_begin = nullptr;
     __mask_buffers<__Bounded>& __mask_bufs;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
