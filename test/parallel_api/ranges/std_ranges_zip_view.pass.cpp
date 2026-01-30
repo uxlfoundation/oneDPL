@@ -64,10 +64,23 @@ main()
 
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+// Suppress warnings about array bounds in GCC, due to static analysis limitations;
+// A false positive in case of std::sort call:
+// https://github.com/gcc-mirror/gcc/blob/releases/gcc-13/libstdc++-v3/include/bits/stl_algo.h#L1859
+#if defined(__GNUC__) || defined(__clang__)
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Warray-bounds"
+#elif defined(_MSC_VER)
+  #pragma warning(push)
+  #pragma warning(disable : 6385) // array bounds (MSVC)
+#endif
+
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
     auto zip_view = dpl_ranges::views::zip(data, std::views::iota(0, max_n)) | std::views::take(5);
+    assert(zip_view.size() == 5);
+    assert(zip_view.begin() + 5 == zip_view.end());
     std::ranges::for_each(zip_view, test_std_ranges::f_mutuable, [](auto&& val) ->decltype(auto) { return std::get<0>(val); });
     for(int i = 0; i < zip_view.size(); ++i)
         EXPECT_TRUE(std::get<0>(zip_view[i]) == i*i && std::get<1>(zip_view[i]) == i, "Wrong effect for std::ranges::for_each with zip_view.");
@@ -106,6 +119,13 @@ main()
         EXPECT_TRUE(std::get<0>(zip_view_sort[i]) == max_n - 1 - i && std::get<1>(zip_view_sort[i]) == max_n - 1 - i,
             "Wrong effect for oneapi::dpl::ranges::sort with zip_view.");
     }
+
+#if defined(__GNUC__) || defined(__clang__)
+  #pragma GCC diagnostic pop //Warray-bounds
+#elif defined(_MSC_VER)
+  #pragma warning(pop)
+#endif
+
 #if TEST_DPCPP_BACKEND_PRESENT
     {
     const char* err_msg = "Wrong effect for oneapi::dpl::ranges::sort with zip_view and a device policy.";
