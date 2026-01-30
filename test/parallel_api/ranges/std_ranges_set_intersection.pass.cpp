@@ -17,8 +17,7 @@
 
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
 
-void
-test_mixed_types_host()
+void test_mixed_types_host()
 {
     std::vector<test_std_ranges::A> r1 = {{1}, {2}, {3}};
     std::vector<test_std_ranges::B> r2 = {{0}, {2}, {2}, {3}};
