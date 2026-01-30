@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <array> // for std::array
+#include <array>
 
 #include "algorithm_fwd.h"
 
