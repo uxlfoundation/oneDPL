@@ -3362,25 +3362,6 @@ struct _SetRangeCombiner
     }
 };
 
-template <bool __Bounded, typename _DifferenceType>
-struct _SetRangeCombiner
-{
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
-
-    _SetRange
-    operator()(const _SetRange& __a, const _SetRange& __b) const
-    {
-        if constexpr (!__Bounded)
-        {
-            return {__a.__data[0].combine_with(__b.__data[0])};
-        }
-        else
-        {
-            return {__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])};
-        }
-    }
-};
-
 // The structure __set_op_offsets_full should be used when we apriory know
 // that output buffer is enough to keep all output data and all input data will be processed
 struct __set_op_unbounded_offsets_eval
