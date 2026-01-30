@@ -16,6 +16,8 @@
 #include "support/test_config.h"
 #include "support/utils.h"
 
+#if _ENABLE_STD_RANGES_TESTING
+
 #include <oneapi/dpl/pstl/parallel_backend_utils.h>
 
 #include <vector>
@@ -996,10 +998,14 @@ test_set_symmetric_difference_construct_edge_cases()
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
 }
+#endif // _ENABLE_STD_RANGES_TESTING
 
 int
 main()
 {
+    bool bProcessed = false;
+
+#if _ENABLE_STD_RANGES_TESTING
     test_set_union_construct();
     test_set_union_construct_edge_cases();
 
@@ -1012,5 +1018,8 @@ main()
     test_set_symmetric_difference_construct();
     test_set_symmetric_difference_construct_edge_cases();
 
-    return TestUtils::done();
+    bProcessed = true;
+#endif // _ENABLE_STD_RANGES_TESTING
+
+    return TestUtils::done(bProcessed);
 }
