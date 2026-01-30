@@ -81,6 +81,9 @@ main()
 
     [[maybe_unused]] oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
 
+    [[maybe_unused]] auto it1 = zip_view_sort.begin();
+    [[maybe_unused]] auto it2 = zip_view_sort.end();
+    assert(it2 - it1 == max_n);    
     std::sort(zip_view_sort.begin(), zip_view_sort.begin() + max_n,
         [](const auto& val1, const auto& val2) { return std::get<0>(val1) > std::get<0>(val2); });
 
@@ -120,7 +123,7 @@ main()
     std::vector<int> vals_exp(vals);
     std::vector<int> keys_exp(keys);
 
-    auto exec = TestUtils::default_dpcpp_policy;
+    auto exec = TestUtils::get_dpcpp_test_policy();
     using Policy = decltype(exec);
     {
         using namespace test_std_ranges;
