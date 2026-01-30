@@ -3642,6 +3642,159 @@ struct _ScanPred
     }
 };
 
+template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
+          typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
+struct _ParallelSetOpStrictScanPred
+{
+    _Tag __tag;
+    _ExecutionPolicy __exec;
+
+    _RandomAccessIterator1 __first1;
+    _RandomAccessIterator1 __last1;
+    _RandomAccessIterator2 __first2;
+    _RandomAccessIterator2 __last2;
+    _SizeFunction __size_func;
+    _MaskSizeFunction __mask_size_func;
+    _SetUnionOp __set_union_op;
+
+    _Compare __comp;
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    _T* __buf_raw_data_begin;
+    __mask_buffers<__Bounded>& __mask_bufs;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
+
+    _SetRange
+    operator()(_DifferenceType1 __i, _DifferenceType1 __len) const
+    {
+        //[__b; __e) - a subrange of the first sequence, to reduce
+        _RandomAccessIterator1 __b = __first1 + __i;
+        _RandomAccessIterator1 __e = __first1 + (__i + __len);
+
+        //try searching for the first element which not equal to *__b
+        if (__b != __first1)
+            __b +=
+                __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+
+        //try searching for the first element which not equal to *__e
+        if (__e != __last1)
+            __e +=
+                __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+
+        //check is [__b; __e) empty
+        if (__e - __b < 1)
+        {
+            _RandomAccessIterator2 __bb = __last2;
+            if (__b != __last1)
+                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
+                                                                 __comp, __proj2, __proj1);
+
+            typename _SetRange::_Data __new_processing_data{
+                0,                                                          // position in output range
+                0,                                                          // length of data in temporary buffer
+                __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
+
+            if constexpr (!__Bounded)
+            {
+#if DUMP_PARALLEL_SET_OP_WORK
+                std::cout << "ST.1.1:\n"
+                            << "\t\t src data : ";
+                dump_buffer(std::cout, __b, __e);
+                std::cout << "\n\t\t -> (" << _SetRange{__new_processing_data} << ")\n";
+#endif
+                return _SetRange{__new_processing_data};
+            }
+            else
+            {
+                typename _SetRange::_Data __new_mask_data{
+                    0,                                                      // position in mask buffer
+                    0,                                                      // length of mask in temporary mask buffer
+                    __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
+
+#if DUMP_PARALLEL_SET_OP_WORK
+                std::cout << "ST.1.1:\n"
+                          << "\t\t src data : ";
+                dump_buffer(std::cout, __b, __e);
+                std::cout << "\n\t\t -> (" << _SetRange{__new_processing_data, __new_mask_data} << ")\n";
+#endif
+                return _SetRange{__new_processing_data, __new_mask_data};
+            }
+        }
+
+        //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
+        _RandomAccessIterator2 __bb = __first2;
+        if (__b != __first1)
+            __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
+                                                             __comp, __proj2, __proj1);
+
+        _RandomAccessIterator2 __ee = __last2;
+        if (__e != __last1)
+            __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
+                                                         __proj2, __proj1);
+
+        const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
+        const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
+
+        auto __buffer_b = __buf_raw_data_begin + __buf_pos;
+        auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
+
+        const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
+
+        auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
+
+        auto [__res, __mask_e] =
+            __set_union_op(__tag, __exec, __b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
+
+        if constexpr (__Bounded)
+        {
+            assert(__mask_e - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
+        }
+
+        // Prepare processed data info
+        const typename _SetRange::_Data __new_processing_data{0, __res - __buffer_b, __buf_pos};
+
+#if DUMP_PARALLEL_SET_OP_WORK
+        std::cout << "ST.1.2:\n";
+        std::cout << "\t\t src data1 : ";
+        dump_buffer(std::cout, __b, __e);
+        std::cout << "\n";
+        std::cout << "\t\t src data2 : ";
+        dump_buffer(std::cout, __bb, __ee);
+        std::cout << "\n";
+        std::cout << "\t\t result : ";
+        dump_buffer(std::cout, __buffer_b, __res);
+        std::cout << "\n";
+#endif
+
+        if constexpr (!__Bounded)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t\t <- (" << _SetRange{__new_processing_data} << ")" << "\n";
+#endif
+            return _SetRange{__new_processing_data};
+        }
+        else
+        {
+            // Prepare processed mask info
+            const typename _SetRange::_Data __new_mask_data{0, __mask_e - __mask_b, __buf_mask_pos};
+
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t\t mask : ";
+            dump_buffer<decltype(std::cout), decltype(__mask_b), int>(std::cout, __mask_b, __mask_b + __buf_len);
+            std::cout << "\n";
+            std::cout << "\t\t <- (" << _SetRange{__new_processing_data, __new_mask_data} << ")" << "\n";
+#endif
+            return _SetRange{__new_processing_data, __new_mask_data};
+        }
+    }
+};
+
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
@@ -3726,166 +3879,24 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                         __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin,
                         __result1, __result2};
 
+        _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
+                                     _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
+                                     _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
+            __reduce_pred{__tag, __exec,
+                          __first1, __last1,
+                          __first2, __last2,
+                          __size_func, __mask_size_func,
+                          __set_union_op,
+                          __comp, __proj1, __proj2,
+                          __buf_raw_data_begin,
+                          __mask_bufs};
+
         __par_backend::__parallel_strict_scan(
             __backend_tag{},
             __exec,
             __n1,                                                                                                           // _Index __n
             _SetRange(),                                                                                                    // _Tp __initial
-/* ST.1 */  [=, &__mask_bufs](_DifferenceType1 __i, _DifferenceType1 __len) -> _SetRange                                    // _Rp __reduce     step 1 : __reduce(0, __n)
-            {                                                     // ^
-                                                                  // +-- __n <--__n1
-
-                //[__b; __e) - a subrange of the first sequence, to reduce
-                _RandomAccessIterator1 __b = __first1 + __i;
-                _RandomAccessIterator1 __e = __first1 + (__i + __len);
-
-                //try searching for the first element which not equal to *__b
-                if (__b != __first1)
-                    __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
-
-                //try searching for the first element which not equal to *__e
-                if (__e != __last1)
-                    __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
-
-                //check is [__b; __e) empty
-                if (__e - __b < 1)
-                {
-                    _RandomAccessIterator2 __bb = __last2;
-                    if (__b != __last1)
-                        __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                      __b, __comp, __proj2, __proj1);
-
-                    typename _SetRange::_Data __new_processing_data{
-                        0,                                                          // position in output range
-                        0,                                                          // length of data in temporary buffer
-                        __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
-
-                    if constexpr (!__Bounded)
-                    {
-                        _SetRange __sr_result1{__new_processing_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                        std::cout << "ST.1.1:\n"
-                                  << "\t\t src data : ";
-                        dump_buffer(std::cout, __b, __e);
-                        std::cout << "\n"
-                                  << "\t\t -> (" << __sr_result1 << ")"
-                                  << "\n";
-#endif
-
-                        return __sr_result1;
-                    }
-                    else
-                    {
-                        typename _SetRange::_Data __new_mask_data{
-                            0,                                                          // position in mask buffer
-                            0,                                                          // length of mask in temporary mask buffer
-                            __mask_size_func((__b - __first1), (__bb - __first2))};     // position in temporary mask buffer
-
-                        _SetRange __sr_result1{__new_processing_data, __new_mask_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                        std::cout << "ST.1.1:\n"
-                                  << "\t\t src data : ";
-                        dump_buffer(std::cout, __b, __e);
-                        std::cout << "\n"
-                                  << "\t\t -> (" << __sr_result1 << ")"
-                                  << "\n";
-#endif
-
-                        return __sr_result1;
-                    }
-                }
-
-                //try searching for "corresponding" subrange [__bb; __ee) in the second sequence
-                _RandomAccessIterator2 __bb = __first2;
-                if (__b != __first1)
-                    __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2,
-                                                                     __b, __comp, __proj2, __proj1);
-
-                _RandomAccessIterator2 __ee = __last2;
-                if (__e != __last1)
-                    __ee = __bb + __internal::__pstl_lower_bound(__bb, _DifferenceType2{0}, __last2 - __bb, __e, __comp,
-                                                                 __proj2, __proj1);
-
-
-                const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-                const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
-
-                auto __buffer_b = __buf_raw_data_begin + __buf_pos;
-                auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
-
-                const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
-
-                auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
-
-                auto [__res, __mask_e] = __set_union_op(__tag, __exec,
-                                                        __b, __e,               // bounds for data1
-                                                        __bb, __ee,             // bounds for data2
-                                                        __buffer_b,             // results
-                                                        __mask_b,               // iterator usage masks
-                                                        __comp, __proj1, __proj2);
-
-                [[maybe_unused]] const _DifferenceType __buf_mask_len = __mask_size_func(__e - __b, __ee - __bb);
-                if constexpr (__Bounded)
-                {
-                    assert(__mask_e - __mask_b <= __buf_mask_len);
-                }
-
-                // Prepare processed data info
-                const typename _SetRange::_Data __new_processing_data{
-                    0,                          // position in output range
-                    __res - __buffer_b,         // length of data in temporary buffer
-                    __buf_pos};                 // position in temporary buffer
-                assert(__new_processing_data.__pos <= __buf_size);
-                assert(__new_processing_data.__buf_pos <= __buf_size);
-                assert(__new_processing_data.__buf_pos + __new_processing_data.__len <= __buf_size);
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                std::cout << "ST.1.2:\n";
-                std::cout << "\t\t src data1 : ";
-                dump_buffer(std::cout, __b, __e);
-                std::cout << "\n";
-                std::cout << "\t\t src data2 : ";
-                dump_buffer(std::cout, __bb, __ee);
-                std::cout << "\n";
-                std::cout << "\t\t result : ";
-                dump_buffer(std::cout, __buffer_b, __res);
-                std::cout << "\n";
-#endif
-
-                if constexpr (!__Bounded)
-                {
-                    _SetRange __sr_result1{__new_processing_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "\t\t <- (" << __sr_result1 << ")" << "\n";
-#endif
-                    return __sr_result1;
-                }
-                else
-                {
-                    // Prepare processed mask info
-                    const typename _SetRange::_Data __new_mask_data{
-                        0,                          // position in mask buffer
-                        __mask_e - __mask_b,        // length of mask in temporary mask buffer
-                        __buf_mask_pos};            // position in temporary mask buffer
-                    assert(__new_mask_data.__pos <= __mask_buf_size);
-                    assert(__new_mask_data.__buf_pos <= __mask_buf_size);
-                    assert(__new_mask_data.__buf_pos + __new_mask_data.__len <= __mask_buf_size);
-
-                    _SetRange __sr_result1{__new_processing_data, __new_mask_data};
-
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "\t\t mask : ";
-                    dump_buffer<decltype(std::cout), decltype(__mask_b), int>(std::cout, __mask_b, __mask_b + __buf_len);
-                    std::cout << "\n";
-                    std::cout << "\t\t <- (" << __sr_result1 << ")" << "\n";
-#endif
-
-                    return __sr_result1;
-                }
-            },
+/* ST.1 */  __reduce_pred,                                                                                                  // _Rp __reduce     step 1 : __reduce(0, __n)
 /* ST.2 */  __combine_pred,                 // _Cp __combine    step 2 : __combine(__initial, (1))
 /* ST.4 */  __scan_pred,                                                                                                                    // _Sp __scan_pred  step 4 : __scan_pred(0, __n, __initial)
 /* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
