@@ -3488,13 +3488,13 @@ struct __mask_buffers<true>
     }
 
     oneapi::dpl::__utils::__parallel_set_op_mask*
-    get_buf_mask_rng_data(std::size_t __offset = 0)
+    get_buf_mask_rng_data(std::size_t __offset = 0) const
     {
         return __buf_mask_rng.get() + __offset;
     }
 
     oneapi::dpl::__utils::__parallel_set_op_mask*
-    get_buf_mask_rng_res_data()
+    get_buf_mask_rng_res_data() const
     {
         return __buf_mask_rng_res.get();
     }
@@ -3512,13 +3512,13 @@ struct __mask_buffers<false>
     }
 
     std::nullptr_t
-    get_buf_mask_rng_data(std::size_t = 0)
+    get_buf_mask_rng_data(std::size_t = 0) const
     {
         return nullptr;
     }
 
     std::nullptr_t
-    get_buf_mask_rng_res_data()
+    get_buf_mask_rng_res_data() const
     {
         return nullptr;
     }
