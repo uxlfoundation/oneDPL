@@ -3494,9 +3494,9 @@ struct __mask_buffers<true>
     }
 
     oneapi::dpl::__utils::__parallel_set_op_mask*
-    get_buf_mask_rng_res_data(std::size_t __offset = 0)
+    get_buf_mask_rng_res_data()
     {
-        return __buf_mask_rng_res.get() + __offset;
+        return __buf_mask_rng_res.get();
     }
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
@@ -3518,7 +3518,7 @@ struct __mask_buffers<false>
     }
 
     std::nullptr_t
-    get_buf_mask_rng_res_data(std::size_t = 0)
+    get_buf_mask_rng_res_data()
     {
         return nullptr;
     }
