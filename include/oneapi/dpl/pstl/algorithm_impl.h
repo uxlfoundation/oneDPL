@@ -3395,6 +3395,39 @@ struct _SetRangeImpl
 #endif
 };
 
+template <bool __Bounded, typename _DifferenceType>
+struct _SetRangeCombiner
+{
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
+
+    _SetRange
+    operator()(const _SetRange& __a, const _SetRange& __b) const
+    {
+        if constexpr (!__Bounded)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "ST.2:\n"
+                      << "\t__a = (" << __a << ")\n"
+                      << "\t__b = (" << __b << ")\n"
+                      << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0])} << ")" << "\n";
+#endif
+            return {__a.__data[0].combine_with(__b.__data[0])};
+        }
+        else
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "ST.2:\n"
+                      << "\t__a = (" << __a << ")\n"
+                      << "\t__b = (" << __b << ")\n"
+                      << "\t\t -> ("
+                      << _SetRange{__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])}
+                      << ")" << "\n";
+#endif
+            return {__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])};
+        }
+    }
+};
+
 // The structure __set_op_offsets_full should be used when we apriory know
 // that output buffer is enough to keep all output data and all input data will be processed
 struct __set_op_unbounded_offsets_eval
@@ -3672,6 +3705,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             }
         };
 
+        _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;
+
         __par_backend::__parallel_strict_scan(
             __backend_tag{},
             __exec,
@@ -3832,34 +3867,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                     return __sr_result1;
                 }
             },
-/* ST.2 */  [](const _SetRange& __a, const _SetRange& __b)                  // _Cp __combine    step 2 : __combine(__initial, (1))
-            {               //  ^                     ^
-                            //  |                     +-- result of step(1)
-                            //  +-- __initial <--_SetRange state
-
-                if constexpr (!__Bounded)
-                {
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "ST.2:\n"
-                              << "\t__a = (" << __a << ")\n"
-                              << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0])} << ")" << "\n";
-#endif
-                    return _SetRange{__a.__data[0].combine_with(__b.__data[0])};
-                }
-                else
-                {
-#if DUMP_PARALLEL_SET_OP_WORK
-                    std::cout << "ST.2:\n"
-                              << "\t__a = (" << __a << ")\n"
-                              << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0]),
-                                                          __a.__data[1].combine_with(__b.__data[1])} << ")" << "\n";
-#endif
-                    return _SetRange{__a.__data[0].combine_with(__b.__data[0]),
-                                     __a.__data[1].combine_with(__b.__data[1])};
-                }
-            },
+/* ST.2 */  __combine_pred,                 // _Cp __combine    step 2 : __combine(__initial, (1))
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
 /* ST.3 */  [__n_out, __result1,  __result2,                                                                                                // _Ap __apex       step 3 : __apex((2))
              &__res_reachedOutPos, &__scan](const _SetRange& __total)
