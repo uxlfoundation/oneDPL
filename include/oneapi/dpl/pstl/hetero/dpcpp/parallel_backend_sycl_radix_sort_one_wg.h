@@ -133,8 +133,7 @@ struct __subgroup_radix_sort
     template <typename _ValueT, typename _Src, typename _Exchange>
     static void
     __block_load_to_exchange(const _Src& __src, _Exchange& __exchange, const std::uint32_t __n,
-                             const std::uint16_t __wi, const std::uint16_t __sg_size,
-                             const std::uint16_t __sg_local_id)
+                             const std::uint16_t __wi, const std::uint16_t __sg_size, const std::uint16_t __sg_local_id)
     {
         // Compute base from work item ID to handle variable subgroup sizes correctly
         std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
@@ -149,9 +148,8 @@ struct __subgroup_radix_sort
 
     template <typename _ValueT, typename _Dst, typename _Src>
     static void
-    __block_store_from_exchange(_Dst& __dst, _Src& __src, const std::uint32_t __n,
-                                const std::uint16_t __wi, const std::uint16_t __sg_size,
-                                const std::uint16_t __sg_local_id)
+    __block_store_from_exchange(_Dst& __dst, _Src& __src, const std::uint32_t __n, const std::uint16_t __wi,
+                                const std::uint16_t __sg_size, const std::uint16_t __sg_local_id)
     {
         // Compute base from work item ID to handle variable subgroup sizes correctly
         std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
@@ -241,7 +239,7 @@ struct __subgroup_radix_sort
                         sycl::sub_group __sg = __it.get_sub_group();
                         const std::uint16_t __sg_size = __sg.get_local_linear_range();
                         const std::uint16_t __sg_local_id = __sg.get_local_linear_id();
-                        
+
                         constexpr std::uint16_t __end_bit =
                             sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
