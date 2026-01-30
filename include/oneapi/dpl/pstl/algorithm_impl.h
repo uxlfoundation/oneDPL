@@ -3328,18 +3328,20 @@ struct _SetRangeImpl
         _DifferenceType __len{};           // Length in temporary buffer w/o limitation to output data size
         _DifferenceType __buf_pos{};       // Position in temporary buffer w/o limitation to output data size
 
-        bool
+        inline bool
         empty() const
         {
             return __len == 0;
         }
 
-        static _Data
-        combine(const _Data& __a, const _Data& __b)
+        inline _Data
+        combine_with(const _Data& __other) const
         {
-            if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-                return _Data{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
-            return _Data{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+            const auto __other_buf_pos = __other.__buf_pos;
+
+            if (__other_buf_pos > __buf_pos || ((__other_buf_pos == __buf_pos) && !__other.empty()))
+                return _Data{__pos + __len + __other.__pos, __other.__len, __other_buf_pos};
+            return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3837,28 +3839,25 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
                 if constexpr (!__Bounded)
                 {
-                    _SetRange __sr_result2{_SetRange::_Data::combine(__a.__data[0], __b.__data[0])};
-
 #if DUMP_PARALLEL_SET_OP_WORK
                     std::cout << "ST.2:\n"
                               << "\t__a = (" << __a << ")\n"
                               << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << __sr_result2 << ")" << "\n";
+                              << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0])} << ")" << "\n";
 #endif
-                    return __sr_result2;
+                    return _SetRange{__a.__data[0].combine_with(__b.__data[0])};
                 }
                 else
                 {
-                    _SetRange __sr_result2{_SetRange::_Data::combine(__a.__data[0], __b.__data[0]),
-                                           _SetRange::_Data::combine(__a.__data[1], __b.__data[1])};
-
 #if DUMP_PARALLEL_SET_OP_WORK
                     std::cout << "ST.2:\n"
                               << "\t__a = (" << __a << ")\n"
                               << "\t__b = (" << __b << ")\n"
-                              << "\t\t -> (" << __sr_result2 << ")" << "\n";
+                              << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0]),
+                                                          __a.__data[1].combine_with(__b.__data[1])} << ")" << "\n";
 #endif
-                    return __sr_result2;
+                    return _SetRange{__a.__data[0].combine_with(__b.__data[0]),
+                                     __a.__data[1].combine_with(__b.__data[1])};
                 }
             },
 /* ST.4 */  __scan,                                                                                                                         // _Sp __scan       step 4 : __scan(0, __n, __initial)
