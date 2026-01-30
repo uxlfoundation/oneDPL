@@ -3366,7 +3366,7 @@ struct _SetRangeCombiner
 // that output buffer is enough to keep all output data and all input data will be processed
 struct __set_op_unbounded_offsets_eval
 {
-    template <class _IsVector, class _ExecutionPolicy, 
+    template <class _IsVector, class _ExecutionPolicy,
               typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
               class _SizeFunction, class _MaskSizeFunction, typename _MaskIterator>
     std::pair<_DifferenceType1, _DifferenceType2>
