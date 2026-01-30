@@ -135,7 +135,7 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     // Test with different work group sizes
-    constexpr std::size_t num_iterations = 100;
+    constexpr std::size_t num_iterations = 100000;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
 

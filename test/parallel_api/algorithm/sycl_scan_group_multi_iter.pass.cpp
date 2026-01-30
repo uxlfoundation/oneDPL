@@ -139,7 +139,7 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    constexpr std::size_t num_tests = 50;
+    constexpr std::size_t num_tests = 100000;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     auto q = policy.queue();
