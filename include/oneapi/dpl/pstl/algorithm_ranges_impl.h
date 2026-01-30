@@ -878,9 +878,6 @@ struct __set_op_bounded_offsets_evaluator
     {
         assert(__n_out > 0);
 
-        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
-        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
-
         const auto __req_size = __size_func(__n1, __n2);
         const auto __req_mask_size = __mask_size_func(__n1, __n2);
 
