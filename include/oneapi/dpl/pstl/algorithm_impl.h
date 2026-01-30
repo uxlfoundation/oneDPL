@@ -3486,7 +3486,7 @@ struct _ScanPred
         //                                              |<----- __out_remaining ----->|            |
         //                                              |                             |            |
         //                                               \                             \            \
-        //                                                \ We shoult `move/destroy`    \            \
+        //                                                \ We should `move/destroy`    \            \
         //                                                 \  this data from temporary   \            \
         //                                                  \   buffer to output range    \            \
         //                                                   \     (__s.__len)             \            \
