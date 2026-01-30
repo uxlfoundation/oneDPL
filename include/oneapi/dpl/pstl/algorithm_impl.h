@@ -3528,8 +3528,8 @@ struct _ScanPred
 };
 
 template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
-          typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
-          typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
+          typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _SetUnionOp,
+          typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictScanPred
 {
     _Tag __tag;
@@ -3538,7 +3538,6 @@ struct _ParallelSetOpStrictScanPred
     _RandomAccessIterator1 __first1, __last1;
     _RandomAccessIterator2 __first2, __last2;
     _SizeFunction __size_func;          // Processing set data size function
-    _MaskSizeFunction __mask_size_func; // Mask data size function
     _SetUnionOp __set_union_op;
 
     _Compare __comp;
@@ -3556,6 +3555,8 @@ struct _ParallelSetOpStrictScanPred
     _SetRange
     operator()(_DifferenceType1 __i, _DifferenceType1 __len) const
     {
+        oneapi::dpl::__utils::_MaskSize<__Bounded> __mask_size_func;
+
         //[__b; __e) - a subrange of the first sequence, to reduce
         _RandomAccessIterator1 __b = __first1 + __i;
         _RandomAccessIterator1 __e = __first1 + (__i + __len);
@@ -3628,16 +3629,14 @@ struct _ParallelSetOpStrictScanPred
 };
 
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
-          class _RandomAccessIterator2,
-          class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
+          class _RandomAccessIterator2, class _OutputIterator, class _SizeFunction, class _SetUnionOp,
           class _ReachedPositionsEvaluator, class _Compare, class _Proj1, class _Proj2>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                   _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                   _OutputIterator __result1, _OutputIterator __result2, _SizeFunction __size_func,
-                  _MaskSizeFunction __mask_size_func, _SetUnionOp __set_union_op,
-                  _ReachedPositionsEvaluator __reached_positions_evaluator, _Compare __comp, _Proj1 __proj1,
-                  _Proj2 __proj2)
+                  _SetUnionOp __set_union_op, _ReachedPositionsEvaluator __reached_positions_evaluator, _Compare __comp,
+                  _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3654,17 +3653,18 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const _DifferenceType __n_out = __result2 - __result1;
 
     const auto __buf_size = __size_func(__n1, __n2);
-    const auto __mask_buf_size = __mask_size_func(__n1, __n2);
-
     __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
+
+    oneapi::dpl::__utils::_MaskSize<__Bounded> __mask_size_func;
+    const auto __mask_buf_size = __mask_size_func(__n1, __n2);
     __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size);
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, __first2, __last2,
-                                         __result1, __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
-                                         __set_union_op, __reached_positions_evaluator, &__buf, &__mask_bufs,
-                                         __buf_size, __mask_buf_size]() {
+                                         __result1, __result2, __comp, __proj1, __proj2, __size_func, __set_union_op,
+                                         __reached_positions_evaluator, &__buf, &__mask_bufs, __mask_size_func,
+                                         __buf_size]() {
         // Buffer raw data begin/end pointers
         _T* __buf_raw_data_begin = __buf.get();
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
@@ -3686,14 +3686,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
-                                     _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__tag, __exec,
-                          __first1, __last1,
-                          __first2, __last2,
-                          __size_func, __mask_size_func,
-                          __set_union_op,
-                          __comp, __proj1, __proj2,
-                          __buf_raw_data_begin,
+                                     _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
+            __reduce_pred{__tag,       __exec,         __first1, __last1, __first2, __last2,
+                          __size_func, __set_union_op, __comp,   __proj1, __proj2,  __buf_raw_data_begin,
                           __mask_bufs};
 
         auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedOutPos,
@@ -3836,15 +3831,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish]
             {
                 __finish = __internal::__parallel_set_op<__Bounded>(
-                    __tag, __exec,
-                    __left_bound_seq_1, __last1,
-                    __first2, __last2,
-                    __result1, __result2,
-                    __size_fnc,
-                    oneapi::dpl::__utils::_MaskSize<__Bounded>{},
-                    __set_union_op,
-                    __reached_positions_evaluator,
-                    __comp, __proj1, __proj2);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1, __result2, __size_fnc,
+                    __set_union_op, __reached_positions_evaluator, __comp, __proj1, __proj2);
             });
         return __finish;
     }
@@ -3866,29 +3854,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             [=, &__exec, &__finish]
             {
                 __finish = __internal::__parallel_set_op<__Bounded>(
-                    __tag, __exec,
-                    __first1, __last1,
-                    __left_bound_seq_2, __last2,
-                    __result1, __result2,
-                    __size_fnc,
-                    oneapi::dpl::__utils::_MaskSize<__Bounded>{},
-                    __set_union_op,
-                    __reached_positions_evaluator,
-                    __comp, __proj1, __proj2);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1, __result2, __size_fnc,
+                    __set_union_op, __reached_positions_evaluator, __comp, __proj1, __proj2);
             });
         return __finish;
     }
 
-    return __internal::__parallel_set_op<__Bounded>(
-        __tag, std::forward<_ExecutionPolicy>(__exec),
-        __first1, __last1,
-        __first2, __last2,
-        __result1, __result2,
-        __size_fnc,
-        oneapi::dpl::__utils::_MaskSize<__Bounded>{},
-        __set_union_op,
-        __reached_positions_evaluator,
-        __comp, __proj1, __proj2);
+    return __internal::__parallel_set_op<__Bounded>(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
+                                                    __first2, __last2, __result1, __result2, __size_fnc, __set_union_op,
+                                                    __reached_positions_evaluator, __comp, __proj1, __proj2);
 }
 
 //------------------------------------------------------------------------
@@ -4047,7 +4021,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
                        __result, __result + __n1 + __n2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                       oneapi::dpl::__utils::_MaskSize</*__Bounded*/ false>{},
                        [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                           _RandomAccessIterator2 __last2, _T* __result, auto __mask, _Compare __comp,
@@ -4072,7 +4045,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
                        __result, __result + __n1 + __n2,
                        [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                       oneapi::dpl::__utils::_MaskSize</*__Bounded*/ false>{},
                        [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                           _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                           _RandomAccessIterator2 __last2, _T* __result, auto __mask, _Compare __comp,
@@ -4169,7 +4141,6 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __parallel_set_op</*__Bounded*/false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                    __result + __n1 + __n2, [](_DifferenceType __n, _DifferenceType) { return __n; },
-                   oneapi::dpl::__utils::_MaskSize</*__Bounded*/ false>{},
                    [](__parallel_tag<_IsVector> __tag, auto&& __exec, _RandomAccessIterator1 __first1,
                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                       _T* __result, auto __mask, _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
