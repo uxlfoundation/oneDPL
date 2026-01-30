@@ -13,8 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <iostream>
-
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -158,28 +156,21 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    try
-    {
-        test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker);
-        test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
+    test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker);
+    test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj);
 
-        // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-        test_range_algo<2, int, data_in_in_out_lim, mul1_t, div3_t>{100}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj, proj);
+    // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
+    test_range_algo<2, int, data_in_in_out_lim, mul1_t, div3_t>{100}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, proj, proj);
 
-        test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::x, &P2::x);
-        test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_union, set_union_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
-        test_mixed_types_host();
+    test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-        test_mixed_types_device();
+    test_mixed_types_device();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-        bProcessed = true;
-    }
-    catch (const std::exception& exc)
-    {
-        std::cerr << "Exception: " << exc.what() << std::endl;
-    }
+    bProcessed = true;
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
