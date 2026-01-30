@@ -3603,7 +3603,6 @@ struct _ParallelSetOpStrictScanPred
         const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
 
         auto __buffer_b = __buf_raw_data_begin + __buf_pos;
-        auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
 
         const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
 
