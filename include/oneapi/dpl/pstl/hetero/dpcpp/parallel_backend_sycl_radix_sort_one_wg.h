@@ -120,7 +120,7 @@ struct __subgroup_radix_sort
 
     template <typename _ValueT, typename _Wi, typename _Src, typename _Values>
     static void
-    __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const std::uint32_t __n)
+    __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const uint32_t __n)
     {
         _ONEDPL_PRAGMA_UNROLL
         for (uint16_t __i = 0; __i < __block_size; ++__i)
@@ -128,41 +128,6 @@ struct __subgroup_radix_sort
             const uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
                 new (&__values[__i]) _ValueT(__src[__idx]);
-        }
-    }
-
-    template <typename _ValueT, typename _Src, typename _Exchange>
-    static void
-    __block_load_to_exchange(const _Src& __src, _Exchange& __exchange, const std::uint32_t __n,
-                             const std::uint16_t __wi, const std::uint16_t __sg_size, const std::uint16_t __sg_local_id)
-    {
-        // Compute base from work item ID to handle variable subgroup sizes correctly
-        std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
-        _ONEDPL_PRAGMA_UNROLL
-        for (uint16_t __i = 0; __i < __block_size; ++__i)
-        {
-            const std::uint16_t __idx = __sg_base + __sg_size * __i + __sg_local_id;
-            if (__idx < __n)
-                new (&__exchange[__idx]) _ValueT(__src[__idx]);
-        }
-    }
-
-    template <typename _ValueT, typename _Dst, typename _Src>
-    static void
-    __block_store_from_exchange(_Dst& __dst, _Src& __src, const std::uint32_t __n, const std::uint16_t __wi,
-                                const std::uint16_t __sg_size, const std::uint16_t __sg_local_id)
-    {
-        // Compute base from work item ID to handle variable subgroup sizes correctly
-        std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
-        {
-            const std::uint16_t __idx = __sg_base + __sg_size * __i + __sg_local_id;
-            if (__idx < __n)
-            {
-                __dst[__idx] = ::std::move(__src[__idx]);
-                __src[__idx].~_ValueT();
-            }
         }
     }
 
@@ -234,11 +199,10 @@ struct __subgroup_radix_sort
                             _ValT __v[__block_size];
                             __storage() {}
                         } __values;
-                        std::uint16_t __wi = __it.get_local_linear_id();
+                        uint16_t __wi = __it.get_local_linear_id();
                         //subgroup info for SG-strided memory access
 
-                        constexpr std::uint16_t __end_bit =
-                            sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
+                        constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
                         //load directly from global memory to registers
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
@@ -251,14 +215,14 @@ struct __subgroup_radix_sort
                             std::uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
                                 //pointers(by performance reasons) to bucket's counters
-                                std::uint32_t* __counters[__block_size];
+                                uint32_t* __counters[__block_size];
 
                                 //1. "counting" phase
                                 //counter initialization
                                 auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
 
                                 _ONEDPL_PRAGMA_UNROLL
-                                for (std::uint16_t __i = 0; __i < __bin_count; ++__i)
+                                for (uint16_t __i = 0; __i < __bin_count; ++__i)
                                     __pcounter[__i * __wg_size] = 0;
 
                                 _ONEDPL_PRAGMA_UNROLL
@@ -295,8 +259,7 @@ struct __subgroup_radix_sort
 
                                     //exclusive scan local sum
                                     uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
-                                        __it.get_group(), __bin_sum[__bin_count - 1],
-                                        __dpl_sycl::__plus<uint16_t>());
+                                        __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
                                     //add to local sum, generate exclusive scan result
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i = 0; __i < __bin_count; ++__i)
