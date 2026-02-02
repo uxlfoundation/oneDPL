@@ -44,12 +44,14 @@ DEFINE_TEST_2(test_exclusive_scan_by_segment, BinaryPredicate, BinaryOperation)
         //T keys[n] = { 1, 2, 3, 4, 1, 1, 2, 2, 3, 3, 4, 4, 1, 1, 1, ...};
         //T vals[n] = { n random numbers between 0 and 4 };
 
+        using host_keys_value_t = std::iterator_traits<Iterator1>::value_type;
+
         ::std::srand(42);
         Size segment_length = 1;
         Size j = 0;
         for (Size i = 0; i != n; ++i)
         {
-            host_keys[i] = j / segment_length + 1;
+            host_keys[i] = static_cast<host_keys_value_t>(j / segment_length + 1);
             host_vals[i] = rand() % 5;
             host_val_res[i] = 0;
             ++j;
