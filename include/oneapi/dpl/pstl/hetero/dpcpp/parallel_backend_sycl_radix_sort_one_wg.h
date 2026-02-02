@@ -65,17 +65,17 @@ struct __subgroup_radix_sort
         const auto __SLM_available = __check_slm_size<_KeyT>(__q, __n, __wg_size);
         if (__SLM_available.first && __SLM_available.second)
         {
-            return __one_group_submitter<_SortKernelLoc>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
-                                                           ::std::true_type{} /*SLM*/, ::std::true_type{} /*SLM*/);
+            return __one_group_submitter<_SortKernelLoc>()(__q, std::forward<_RangeIn>(__src), __proj, __wg_size,
+                                                           std::true_type{} /*SLM*/, std::true_type{} /*SLM*/);
         }
         if (__SLM_available.second)
         {
-            return __one_group_submitter<_SortKernelPartGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
-                                                                ::std::false_type{} /*No SLM*/,
-                                                                ::std::true_type{} /*SLM*/);
+            return __one_group_submitter<_SortKernelPartGlob>()(__q, std::forward<_RangeIn>(__src), __proj, __wg_size,
+                                                                std::false_type{} /*No SLM*/,
+                                                                std::true_type{} /*SLM*/);
         }
-        return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
-                                                        ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
+        return __one_group_submitter<_SortKernelGlob>()(__q, std::forward<_RangeIn>(__src), __proj, __wg_size,
+                                                        std::false_type{} /*No SLM*/, std::false_type{} /*No SLM*/);
     }
 
   private:
@@ -179,7 +179,7 @@ struct __subgroup_radix_sort
         {
             assert(__src.size() <= 65535);
             assert(__block_size * __wg_size <= 65535);
-            std::uint16_t __n = __src.size();
+            uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
 
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
@@ -249,9 +249,11 @@ struct __subgroup_radix_sort
                                 //2. scan phase
                                 {
                                     //TODO: probably can be further optimized
+
                                     //scan contiguous numbers
                                     uint16_t __bin_sum[__bin_count];
                                     __bin_sum[0] = __counter_lacc[__wi * __bin_count];
+
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i = 1; __i < __bin_count; ++__i)
                                         __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
