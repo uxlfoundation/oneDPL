@@ -61,7 +61,7 @@ __order_preserving_cast(_UInt __val)
 }
 
 template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
+          ::std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
 ::std::make_unsigned_t<_Int>
 __order_preserving_cast(_Int __val)
 {
@@ -225,8 +225,8 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
 // radix sort: count kernel (per iteration)
 //-----------------------------------------------------------------------
 
-template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, typename _ValRange1,
-          typename _ValRange2, typename _CountBuf, typename _Proj>
+template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, std::uint32_t __unroll_elements = 8,
+          typename _ValRange1, typename _ValRange2, typename _CountBuf, typename _Proj>
 sycl::event
 __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size,
                           ::std::uint32_t __radix_offset, bool __input_is_first, _ValRange1&& __val_rng1,
@@ -262,8 +262,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
                 static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
-                // Most elements can be processed without bounds checking fully unrolled, experimentally determined
-                static constexpr std::uint32_t __unroll_elements = 8;
 
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
@@ -693,6 +691,8 @@ struct __parallel_multi_group_radix_sort
             __keys_per_wi_count = __keys_per_wi_count_max;
         }
 
+        constexpr std::uint32_t __unroll_elements = 8;
+
         const ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 
@@ -719,9 +719,10 @@ struct __parallel_multi_group_radix_sort
             ::std::uint32_t __radix_offset = __radix_iter * __radix_bits;
 
             // 1. Count Phase
-            __dependency_event = __radix_sort_count_submit<_RadixCountKernel, __radix_bits, __is_ascending>(
-                __q, __segments, __wg_size_count, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf,
-                __dependency_event, __proj);
+            __dependency_event =
+                __radix_sort_count_submit<_RadixCountKernel, __radix_bits, __is_ascending, __unroll_elements>(
+                    __q, __segments, __wg_size_count, __radix_offset, __input_is_first, __in_rng, __out_rng, __tmp_buf,
+                    __dependency_event, __proj);
 
             // 2. Scan Phase
             std::size_t __scan_size =
