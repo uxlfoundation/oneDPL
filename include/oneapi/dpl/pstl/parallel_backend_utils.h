@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
-#include <cstdint> // for std::uint8_t
+#include <cstdint> // for std::uint8_t (used, e.g., as underlying type of __parallel_set_op_mask)
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
@@ -218,6 +218,35 @@ struct __serial_move_merge
     }
 };
 
+template <bool _Bounded>
+struct _MaskSize;
+
+template <>
+struct _MaskSize<false>
+{
+    template <typename _DifferenceType1, typename _DifferenceType2>
+    std::common_type_t<_DifferenceType1, _DifferenceType2>
+    operator()(_DifferenceType1, _DifferenceType2) const
+    {
+        // For unbounded set operations, the maximum possible mask size is always zero
+        return 0;
+    }
+};
+
+template <>
+struct _MaskSize<true>
+{
+    template <typename _DifferenceType1, typename _DifferenceType2>
+    std::common_type_t<_DifferenceType1, _DifferenceType2>
+    operator()(_DifferenceType1 __n, _DifferenceType2 __m) const
+    {
+        using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
+
+        // For bounded set operations, the maximum possible mask size is the sum of sizes of both input ranges
+        return _DifferenceType{__n} + _DifferenceType{__m};
+    }
+};
+
 enum class __parallel_set_op_mask : std::uint8_t
 {
     eData1 = 0x10,          // mask for first input data item usage
@@ -231,43 +260,37 @@ __set_iterator_mask(std::nullptr_t, __parallel_set_op_mask)
     return nullptr;
 }
 
-inline
-__parallel_set_op_mask*
+inline __parallel_set_op_mask*
 __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state)
 {
     *__mask = __state;
     return ++__mask;
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _Size>
+template <typename _Size>
 std::nullptr_t
-__set_iterator_mask_n(oneapi::dpl::__internal::__parallel_tag<_IsVector>, _ExecutionPolicy&&, std::nullptr_t,
-                      __parallel_set_op_mask, _Size)
+__set_iterator_mask_n(std::nullptr_t, __parallel_set_op_mask, _Size)
 {
     return nullptr;
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _Size>
+template <typename _Size>
 __parallel_set_op_mask*
-__set_iterator_mask_n(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                      __parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count)
+__set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count)
 {
-    oneapi::dpl::__internal::__pattern_fill_n(__tag, std::forward<_ExecutionPolicy>(__exec), __mask, __count, __state);
+    std::fill_n(__mask, __count, __state);
     return __mask + __count;
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _MaskIterator, typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
-__set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                      _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                       _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask,
                       _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     assert(__first1 <= __last1);
     assert(__first2 <= __last2);
-
-    // This implementation should be aligned with https://eel.is/c++draft/set.union
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
 
@@ -275,7 +298,7 @@ __set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, 
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData1, __last1 - __first1);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             return {__cc_range(__first1, __last1, __result), __mask};
         }
 
@@ -301,22 +324,17 @@ __set_union_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, 
         }
     }
 
-    __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData2, __last2 - __first2);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     return {__cc_range(__first2, __last2, __result), __mask};
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _MaskIterator, typename _CopyFunc, typename _CopyFromFirstSet,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
+          typename _CopyFunc, typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
-__set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag,
-                             _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                             _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                             _MaskIterator __mask, _CopyFunc _copy, _CopyFromFirstSet,
-                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+__set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                             _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask, _CopyFunc _copy,
+                             _CopyFromFirstSet, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.intersection
-
     while (__first1 != __last1 && __first2 != __last2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
@@ -344,30 +362,26 @@ __set_intersection_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> 
     }
 
     // This needed to save in mask that we processed all data till the end
-    __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData1, __last1 - __first1);
-    __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData2, __last2 - __first2);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
 
     return {__result, __mask};
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _MaskIterator, typename _CopyConstructRange, typename _Compare,
-          typename _Proj1, typename _Proj2>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
-__set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                           _ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+__set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                            _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask,
                            _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.difference
-
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData1, __last1 - __first1);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             return {__cc_range(__first1, __last1, __result), __mask};
         }
 
@@ -396,25 +410,20 @@ __set_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __
     return {__result, __mask};
 }
 
-template <class _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _MaskIterator, typename _CopyConstructRange, typename _Compare,
-          typename _Proj1, typename _Proj2>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
+          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
-__set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<_IsVector> __tag,
-                                     _ExecutionPolicy&& __exec, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __result,
-                                     _MaskIterator __mask, _CopyConstructRange __cc_range, _Compare __comp,
-                                     _Proj1 __proj1, _Proj2 __proj2)
+__set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                                     _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask,
+                                     _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    // This implementation should be aligned with https://eel.is/c++draft/set.symmetric.difference
-
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData1, __last1 - __first1);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             return {__cc_range(__first1, __last1, __result), __mask};
         }
 
@@ -442,7 +451,7 @@ __set_symmetric_difference_construct(oneapi::dpl::__internal::__parallel_tag<_Is
         }
     }
 
-    __mask = __set_iterator_mask_n(__tag, __exec, __mask, __parallel_set_op_mask::eData2, __last2 - __first2);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     return {__cc_range(__first2, __last2, __result), __mask};
 }
 
@@ -545,11 +554,10 @@ struct __set_operations_result
     __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
     operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
                          typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
-                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type> __offsets) const
+                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type>
+                  __offsets) const
     {
-        return {__in1 + std::get<0>(__offsets),
-                __in2 + std::get<1>(__offsets),
-                __it_out + std::get<2>(__offsets)};
+        return {__in1 + std::get<0>(__offsets), __in2 + std::get<1>(__offsets), __it_out + std::get<2>(__offsets)};
     }
 };
 

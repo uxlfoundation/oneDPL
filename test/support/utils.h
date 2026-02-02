@@ -162,76 +162,84 @@ std::string log_value_title(TagActual)
 
 template <typename TStream, typename TValue>
 std::enable_if_t<!IsOutputStreamable<TValue, TStream>::value>
-log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
 
     os << "(unable to log value)";
 
-    bCommaNeeded = true;
+    commaNeeded = true;
 }
 
 template <typename TValue>
-constexpr bool is_char_type_v =
-    std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>;
+constexpr bool is_any_char_type_v =
+    std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>
+#if defined(__cpp_char8_t)
+    || std::is_same_v<TValue, char8_t>
+#endif
+    || std::is_same_v<TValue, char16_t> || std::is_same_v<TValue, char32_t>;
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_char_type_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
 
     os << value;
 
-    bCommaNeeded = true;
+    commaNeeded = true;
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_char_type_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
 
     os << static_cast<int>(value);
 
-    bCommaNeeded = true;
+    commaNeeded = true;
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue>>
-log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
-    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value), bCommaNeeded);
+    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value), commaNeeded);
 }
 
 template <typename TStream, typename... T>
 void
-log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value, bool& bCommaNeeded)
+log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value, bool& commaNeeded)
 {
     using std_tuple_t = typename oneapi::dpl::__internal::tuple<T...>::tuple_type;
     std_tuple_t std_tuple = value;
 
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
 
     bool bInternalCommaNeeded = false;
     os << "(";
-    std::apply([&os, &bInternalCommaNeeded](const auto&... elems) {
-        ((log_value_to_stream(os, elems, bInternalCommaNeeded), os << ", "), ...);
-    }, std_tuple);
+    constexpr std::size_t N = sizeof...(T);
+    std::size_t index = 0;
+    std::apply(
+        [&os, &bInternalCommaNeeded, &index](const auto&... elems) {
+            ((log_value_to_stream(os, elems, bInternalCommaNeeded), os << (++index < N ? ", " : "")), ...);
+        },
+        std_tuple);
     os << ")";
 
-    bCommaNeeded = true;
+    commaNeeded = true;
 }
 
 template <typename TStream, typename Tag, typename TValue>
 void
-log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+log_value(TStream& os, Tag, const TValue& value, bool commaNeeded)
 {
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
 
     os << log_value_title(Tag{});
@@ -1494,7 +1502,7 @@ struct SetDataItem
     friend OStream&
     operator<<(OStream& os, const SetDataItem& item)
     {
-        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}" << "\n";
+        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}\n";
         return os;
     }
 };

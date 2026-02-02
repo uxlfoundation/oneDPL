@@ -26,6 +26,10 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+#    if TEST_DPCPP_BACKEND_PRESENT
+#        include "oneapi/dpl/pstl/hetero/dpcpp/execution_sycl_defs.h"
+#    endif
+
 static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
@@ -460,7 +464,6 @@ private:
                 if (*(view.begin() + idx) != data_gen_unprocessed(idx))
                     return false;
             }
-        
             for (int idx = 0; idx < kPaddingSize; ++idx)
             {
                 if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
@@ -469,7 +472,7 @@ private:
         }
 
         return true;
-    }    
+    }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
              TestDataMode mode = test_mode>
@@ -755,7 +758,7 @@ public:
         process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-	    //test cases with empty sequence(s)
+        //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
@@ -1000,26 +1003,30 @@ struct span_view_fo
 };
 #endif
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <TestDataMode mode>
-struct ResolveTestDataModeForHeteroPolicy
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy, TestDataMode mode, typename = void>
+struct TestDataModeResolver
 {
     static constexpr TestDataMode res_mode = mode;
 };
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
+#if TEST_DPCPP_BACKEND_PRESENT
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy>
+struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_out_lim,
+                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
 {
     static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
 };
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy>
+struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_in_out_lim,
+                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
 {
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
@@ -1096,13 +1103,15 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
+                // TODO: required to remove this resHeteroMode and TestDataModeResolver
+                // after implementation range-based set operations for bounded output range with hetero policies
+                constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
 
-                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resolved_res_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, resolved_res_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   resolved_res_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     resolved_res_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }

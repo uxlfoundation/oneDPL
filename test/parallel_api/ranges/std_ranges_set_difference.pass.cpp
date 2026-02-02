@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
 template<>
@@ -25,8 +25,7 @@ inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ran
 }
 }
 
-void
-test_mixed_types_host()
+void test_mixed_types_host()
 {
     std::vector<test_std_ranges::A> r1 = {{1}, {2}, {5}};
     std::vector<test_std_ranges::B> r2 = {{0}, {2}, {2}, {3}};
@@ -107,7 +106,7 @@ struct
                     ++idx1;
                     ++idxOut;
                 }
-                else 
+                else
                     break;
             }
             else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
@@ -135,14 +134,14 @@ struct
         return {in1 + idx1, out + idxOut};
     }
 } set_difference_checker;
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif // _ENABLE_STD_RANGES_TESTING
 
 int
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
@@ -169,7 +168,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }
