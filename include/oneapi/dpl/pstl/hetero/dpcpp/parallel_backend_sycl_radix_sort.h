@@ -562,9 +562,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 {
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
 
-    // typedefs
     using _OffsetT = typename _OffsetBuf::value_type;
-    using _ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
 
     assert(oneapi::dpl::__ranges::__size(__rng1) == oneapi::dpl::__ranges::__size(__rng2));
 
