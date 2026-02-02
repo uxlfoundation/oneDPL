@@ -464,7 +464,6 @@ private:
                 if (*(view.begin() + idx) != data_gen_unprocessed(idx))
                     return false;
             }
-        
             for (int idx = 0; idx < kPaddingSize; ++idx)
             {
                 if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
