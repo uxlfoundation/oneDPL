@@ -38,7 +38,8 @@ DEFINE_TEST(test_upper_bound)
     void
     check_and_clean(Accessor1 result, Accessor2 value, Size n)
     {
-        int num_values = n * .01 > 1 ? n * .01 : 1; // # search values expected to be << n
+        const int num_values = n > 100 ? n / 100 : 1; // # search values expected to be << n
+
         if (n == 1)
         {
             EXPECT_TRUE(1 == result[0], "wrong effect from upper_bound");
