@@ -246,14 +246,15 @@ struct __subgroup_radix_sort
 
                         if constexpr (__exchange_in_SLM)
                         {
-                            //load data to SLM buffer
+                            //If we have SLM workspace, load data first into SLM with coalesced reads.
                             //copy(move) values construction
                             __block_load_to_exchange<_ValT>(__src, __exchange_lacc, __n, __wi, __sg_size,
                                                             __sg_local_id);
-                            // TODO: check if the barrier can be removed
+
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                            //load from exchange buffer to registers
+                            // Load from exchange buffer to registers. Barrier needed because mapping of wi to element
+                            // is different from coalesced loads to give wi contiguous blocks of elements.
                             __block_load<_ValT>(__wi, __exchange_lacc, __values.__v, __n);
                         }
                         else
@@ -355,7 +356,9 @@ struct __subgroup_radix_sort
                                     //if our exchange buffer is global not SLM...
                                     if (__is_last_iter)
                                     {
-                                        //skip exchange, and scatter to global memory directly from registers
+                                        // skip exchange, and scatter to global memory directly from registers.
+                                        // The exchange buffer is already in global memory, so there is no point in
+                                        // exchanging and copying twice.
                                         _ONEDPL_PRAGMA_UNROLL
                                         for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                         {
