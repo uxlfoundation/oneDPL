@@ -205,7 +205,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue> && !is_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
     log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value), commaNeeded);
