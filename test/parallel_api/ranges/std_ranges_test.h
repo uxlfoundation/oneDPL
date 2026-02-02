@@ -276,6 +276,31 @@ struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy, TestDataMode mode, typename = void>
+struct TestDataModeResolver
+{
+    static constexpr TestDataMode res_mode = mode;
+};
+
+#    if TEST_DPCPP_BACKEND_PRESENT
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy>
+struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_out_lim,
+                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
+};
+
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <typename ExecutionPolicy>
+struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_in_out_lim,
+                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
+};
+#    endif // TEST_DPCPP_BACKEND_PRESENT
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test
@@ -440,11 +465,15 @@ private:
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
-    template <TestDataMode mode, typename View>
+    template <TestDataMode mode, typename Policy, typename View>
     auto
-    get_view_part_for_output_wo_padding(View&& view)
+    get_view_part_for_output_wo_padding(Policy&& exec, View&& view)
     {
-        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        // TODO: required to remove this resHeteroMode and TestDataModeResolver
+        // after implementation range-based set operations for bounded output range with hetero policies
+        constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
+
+        if constexpr (resolved_res_mode == data_in_out_lim || resolved_res_mode == data_in_in_out_lim)
         {
             return std::views::drop(view, kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
         }
@@ -454,10 +483,15 @@ private:
         }
     }
 
-    template <TestDataMode mode, typename View>
-    bool check_padding(View&& view)
+    template <TestDataMode mode, typename Policy, typename View>
+    bool
+    check_padding(Policy&& exec, View&& view)
     {
-        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        // TODO: required to remove this resHeteroMode and TestDataModeResolver
+        // after implementation range-based set operations for bounded output range with hetero policies
+        constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
+
+        if constexpr (resolved_res_mode == data_in_out_lim || resolved_res_mode == data_in_in_out_lim)
         {
             for (int idx = 0; idx < kPaddingSize; ++idx)
             {
@@ -480,7 +514,11 @@ private:
     process_data_in_out(int max_n, int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                         TransOut tr_out, auto... args)
     {
-        static_assert(mode == data_in_out || mode == data_in_out_lim);
+        // TODO: required to remove this resHeteroMode and TestDataModeResolver
+        // after implementation range-based set operations for bounded output range with hetero policies
+        constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
+
+        static_assert(resolved_res_mode == data_in_out || resolved_res_mode == data_in_out_lim);
         std::string sizes{" for "};
         sizes += std::to_string(n_in) + " elements and " + std::to_string(n_out) + " space";
 
@@ -499,7 +537,7 @@ private:
 
         typename Container::type& A = cont_in();
         auto&& B_with_padding = cont_out();
-        auto&& B = get_view_part_for_output_wo_padding<mode>(B_with_padding);
+        auto&& B = get_view_part_for_output_wo_padding<mode>(exec, B_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
@@ -537,7 +575,7 @@ private:
                   (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         // Check padding data
-        EXPECT_TRUE(check_padding<mode>(B_with_padding),
+        EXPECT_TRUE(check_padding<mode>(exec, B_with_padding),
                     (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         //check result
@@ -567,7 +605,7 @@ public:
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
-    std::enable_if_t<mode == data_in_out_lim>
+    std::enable_if_t<TestDataModeResolver<Policy, mode>::res_mode == data_in_out_lim>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
@@ -667,7 +705,11 @@ private:
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
                            TransIn tr_in, TransOut tr_out, auto... args)
     {
-        static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
+        // TODO: required to remove this resHeteroMode and TestDataModeResolver
+        // after implementation range-based set operations for bounded output range with hetero policies
+        constexpr TestDataMode resolved_res_mode = TestDataModeResolver<decltype(exec), mode>::res_mode;
+
+        static_assert(resolved_res_mode == data_in_in_out || resolved_res_mode == data_in_in_out_lim);
         std::string sizes{" for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements and " + std::to_string(n_out) + " space";
 
@@ -688,12 +730,12 @@ private:
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
         auto&& C_with_padding = cont_out();
-        auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
+        auto&& C = get_view_part_for_output_wo_padding<mode>(exec, C_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
 
         // Check padding data
-        EXPECT_TRUE(check_padding<mode>(C_with_padding),
+        EXPECT_TRUE(check_padding<mode>(exec, C_with_padding),
                     (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // check result types
@@ -747,7 +789,7 @@ public:
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
-    std::enable_if_t<mode == data_in_in_out_lim>
+    std::enable_if_t<TestDataModeResolver<Policy, mode>::res_mode == data_in_in_out_lim>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
@@ -1002,31 +1044,6 @@ struct span_view_fo
     }
 };
 #endif
-
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <typename ExecutionPolicy, TestDataMode mode, typename = void>
-struct TestDataModeResolver
-{
-    static constexpr TestDataMode res_mode = mode;
-};
-
-#if TEST_DPCPP_BACKEND_PRESENT
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <typename ExecutionPolicy>
-struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_out_lim,
-                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
-{
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
-};
-
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <typename ExecutionPolicy>
-struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_in_out_lim,
-                            oneapi::dpl::__internal::__is_hetero_execution_policy<std::decay_t<ExecutionPolicy>>>
-{
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
-};
-#endif // TEST_DPCPP_BACKEND_PRESENT
 
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
