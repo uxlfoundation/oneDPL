@@ -89,8 +89,8 @@ main()
         [](const auto& val) { return std::get<1>(val); });
 
     {
-    int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto zip_view_sort = dpl_ranges::views::zip(data, data);
+    int data2[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    auto zip_view_sort = dpl_ranges::views::zip(data2, data2);
 
     [[maybe_unused]] oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
 
