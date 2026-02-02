@@ -232,8 +232,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                           ::std::uint32_t __radix_offset, bool __input_is_first, _ValRange1&& __val_rng1,
                           _ValRange2&& __val_rng2, _CountBuf& __count_buf, sycl::event __dependency_event, _Proj __proj)
 {
-    // typedefs
-    using _ValueT = oneapi::dpl::__internal::__value_t<_ValRange1>;
     using _CountT = typename _CountBuf::value_type;
 
     // radix states used for an array storing bucket state counters
