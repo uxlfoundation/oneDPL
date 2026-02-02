@@ -56,6 +56,7 @@ struct __subgroup_radix_sort
 
         // Calculate work group size based on input size and block size
         // Round up to ensure we have enough work items to cover all elements
+        assert(__src.size() < std::numeric_limits<std::uint16_t>::max());
         const std::uint16_t __n = __src.size();
         std::uint16_t __wg_size = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __block_size);
         __wg_size = std::min<std::uint16_t>(__wg_size, __max_wg_size);
