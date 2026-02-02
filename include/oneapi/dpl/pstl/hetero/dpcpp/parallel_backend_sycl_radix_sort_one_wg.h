@@ -31,7 +31,7 @@
 template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
-template <typename _KernelNameBase, std::uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
+template <typename _KernelNameBase, uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
@@ -81,10 +81,10 @@ struct __subgroup_radix_sort
     template <typename _KeyT>
     class _TempBuf<_KeyT, ::std::true_type /*shared local memory buffer*/>
     {
-        std::uint16_t __buf_size;
+        uint16_t __buf_size;
 
       public:
-        _TempBuf(std::uint16_t __n) : __buf_size(__n) {}
+        _TempBuf(uint16_t __n) : __buf_size(__n) {}
         auto
         get_acc(sycl::handler& __cgh)
         {
@@ -104,14 +104,14 @@ struct __subgroup_radix_sort
         sycl::buffer<_KeyT> __buf;
 
       public:
-        _TempBuf(std::uint16_t __n) : __buf(__n) {}
+        _TempBuf(uint16_t __n) : __buf(__n) {}
         auto
         get_acc(sycl::handler& __cgh)
         {
             return sycl::accessor(__buf, __cgh, sycl::read_write, __dpl_sycl::__no_init{});
         }
 
-        inline constexpr static auto
+        inline static constexpr auto
         get_fence()
         {
             return __dpl_sycl::__fence_space_global;
@@ -123,9 +123,9 @@ struct __subgroup_radix_sort
     __block_load(const _Wi __wi, const _Src& __src, _Values& __values, const std::uint32_t __n)
     {
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
+        for (uint16_t __i = 0; __i < __block_size; ++__i)
         {
-            const std::uint16_t __idx = __wi * __block_size + __i;
+            const uint16_t __idx = __wi * __block_size + __i;
             if (__idx < __n)
                 new (&__values[__i]) _ValueT(__src[__idx]);
         }
@@ -139,7 +139,7 @@ struct __subgroup_radix_sort
         // Compute base from work item ID to handle variable subgroup sizes correctly
         std::uint16_t __sg_base = (__wi - __sg_local_id) * __block_size;
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
+        for (uint16_t __i = 0; __i < __block_size; ++__i)
         {
             const std::uint16_t __idx = __sg_base + __sg_size * __i + __sg_local_id;
             if (__idx < __n)
@@ -166,7 +166,7 @@ struct __subgroup_radix_sort
         }
     }
 
-    static constexpr std::uint16_t __bin_count = 1 << __radix;
+    static constexpr uint16_t __bin_count = 1 << __radix;
 
     static std::uint32_t
     __get_counter_buf_size(std::uint16_t __wg_size)
@@ -176,7 +176,7 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(const sycl::queue& __q, _Size __n, std::uint16_t __wg_size)
+    __check_slm_size(const sycl::queue& __q, _Size __n, uint16_t __wg_size)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -206,8 +206,7 @@ struct __subgroup_radix_sort
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         sycl::event
-        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::uint16_t __wg_size, _SLM_tag_val,
-                   _SLM_counter)
+        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, uint16_t __wg_size, _SLM_tag_val, _SLM_counter)
         {
             assert(__src.size() <= 65535);
             assert(__block_size * __wg_size <= 65535);
