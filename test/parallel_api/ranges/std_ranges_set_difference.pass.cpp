@@ -106,7 +106,7 @@ struct
                     ++idx1;
                     ++idxOut;
                 }
-                else 
+                else
                     break;
             }
             else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
