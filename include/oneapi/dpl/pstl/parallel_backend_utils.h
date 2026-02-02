@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
-#include <cstdint> // for std::uint8_t
+#include <cstdint> // for std::uint8_t (used, e.g., as underlying type of __parallel_set_op_mask)
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
