@@ -157,7 +157,7 @@ struct __index_views
 {
     // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
-    `(std::uint32_t __radix_id, std::uint32_t __wg_id)
+    __get_bucket_idx(std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
         return __wg_id * __radix_states + __radix_id;
     }
