@@ -167,10 +167,10 @@ struct __subgroup_radix_sort
 
     static constexpr std::uint16_t __bin_count = 1 << __radix;
 
-    static std::size_t
+    static std::uint32_t
     __get_counter_buf_size(std::uint16_t __wg_size)
     {
-        return __wg_size * __bin_count + 1;
+        return std::uint32_t(__wg_size) * std::uint32_t(__bin_count) + 1;
     }
 
     template <typename _T, typename _Size>
@@ -179,8 +179,8 @@ struct __subgroup_radix_sort
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
-        const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
-        const auto __req_slm_size_counters = __counter_buf_sz * sizeof(std::uint32_t);
+        const std::uint32_t __counter_buf_sz = __get_counter_buf_size(__wg_size);
+        const std::uint32_t __req_slm_size_counters = __counter_buf_sz * sizeof(std::uint32_t);
 
         // Pessimistically only use half of the memory to take into account
         // a SYCL group algorithm might use a portion of SLM
