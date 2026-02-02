@@ -930,11 +930,7 @@ struct __set_op_bounded_offsets_evaluator
             it_prefix_summ_buf_start, it_prefix_summ_buf_e, __reachedOutPos,
             [](const auto& __count, const auto& __processedOut) { return __count.__processedOut <= __processedOut; });
 
-        // Initially we assume that we processed all first data range
-        const auto [__n1_reached, __n2_reached] =
-            __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
-
-        return {__n1_reached, __n2_reached};
+        return __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
     }
 
   protected:
@@ -1132,7 +1128,7 @@ struct __set_intersection_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
@@ -1340,7 +1336,7 @@ struct __set_difference_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
@@ -1556,7 +1552,7 @@ struct __set_symmetric_difference_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
