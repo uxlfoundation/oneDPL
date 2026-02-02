@@ -1146,10 +1146,9 @@ struct __set_intersection_offsets
                _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
-        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
     }
-
-    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
 };
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
@@ -1354,10 +1353,9 @@ struct __set_difference_offsets
                _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
-        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
     }
-
-    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
 };
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
@@ -1573,10 +1571,9 @@ struct __set_symmetric_difference_offsets
                _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
-        return __eval(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
     }
-
-    __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred> __eval;
 };
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
