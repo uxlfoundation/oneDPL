@@ -1010,6 +1010,7 @@ struct TestDataModeResolver
     static constexpr TestDataMode res_mode = mode;
 };
 
+#if TEST_DPCPP_BACKEND_PRESENT
 // TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <typename ExecutionPolicy>
 struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_out_lim,
@@ -1025,6 +1026,7 @@ struct TestDataModeResolver<ExecutionPolicy, TestDataMode::data_in_in_out_lim,
 {
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
