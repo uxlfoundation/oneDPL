@@ -40,7 +40,8 @@ DEFINE_TEST(test_lower_bound)
     void
     check_and_clean(Accessor1 result, Accessor2 value, Size n)
     {
-        int num_values = n * .01 > 1 ? n * .01 : 1; // # search values expected to be << n
+        const int num_values = n > 100 ? n / 100 : 1; // # search values expected to be << n
+
         for (int i = 0; i != num_values; ++i)
         {
             EXPECT_TRUE((std::ceil(value[i] / 2.)) * 2 == result[i], "wrong effect from lower_bound");
