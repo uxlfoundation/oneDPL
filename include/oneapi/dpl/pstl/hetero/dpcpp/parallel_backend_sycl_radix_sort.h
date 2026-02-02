@@ -26,7 +26,6 @@
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
 #include "execution_sycl_defs.h"
-#include "parallel_backend_sycl_reduce_then_scan.h" // for __sub_group_scan
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -342,10 +341,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Tree reduction: reduce 32 partial sums down to 1 per radix state
-                // Layout after partial accumulation: radix_id * 32 + wi_in_group
-                // Each WI is responsible for 4 radix states (__radix_base to __radix_base+3)
-                std::uint32_t __num_partial_sums = __wg_size / __packing_ratio; // 32
+                // Tree reduction: reduce partial sums down to 1 per radix state
+                // Each WI is responsible for packing ratio radix states
+                std::uint32_t __num_partial_sums = __wg_size / __packing_ratio;
                 for (std::uint32_t __stride = __num_partial_sums >> 1; __stride > 0; __stride >>= 1)
                 {
                     // Each WI reduces its assigned radix states
@@ -709,7 +707,7 @@ struct __parallel_multi_group_radix_sort
             __out_buffer_holder.get_buffer());
 
         // iterations per each bucket
-        assert("Number of iterations must be even" && __radix_iters % 2 == 0);
+        assert(__radix_iters % 2 == 0 && "Number of iterations must be even");
         // TODO: radix for bool can be made using 1 iteration (x2 speedup against current implementation)
         sycl::event __dependency_event;
         for (::std::uint32_t __radix_iter = 0; __radix_iter < __radix_iters; ++__radix_iter)
