@@ -218,7 +218,7 @@ struct __subgroup_radix_sort
 
             const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
             _TempBuf<_ValT, _SLM_tag_val> __buf_val(__block_size * __wg_size);
-            _TempBuf<std::uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
+            _TempBuf<uint32_t, _SLM_counter> __buf_count(__counter_buf_sz);
 
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
             return __q.submit([&](sycl::handler& __cgh) {
@@ -226,7 +226,6 @@ struct __subgroup_radix_sort
 
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);
                 auto __counter_lacc = __buf_count.get_acc(__cgh);
-                constexpr bool __exchange_in_SLM = __buf_val.get_fence() == __dpl_sycl::__fence_space_local;
 
                 __cgh.parallel_for<_Name...>(
                     __range, ([=](sycl::nd_item<1> __it) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(16)]] {
@@ -237,31 +236,12 @@ struct __subgroup_radix_sort
                         } __values;
                         std::uint16_t __wi = __it.get_local_linear_id();
                         //subgroup info for SG-strided memory access
-                        sycl::sub_group __sg = __it.get_sub_group();
-                        const std::uint16_t __sg_size = __sg.get_local_linear_range();
-                        const std::uint16_t __sg_local_id = __sg.get_local_linear_id();
 
                         constexpr std::uint16_t __end_bit =
                             sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
-                        if constexpr (__exchange_in_SLM)
-                        {
-                            //If we have SLM workspace, load data first into SLM with coalesced reads.
-                            //copy(move) values construction
-                            __block_load_to_exchange<_ValT>(__src, __exchange_lacc, __n, __wi, __sg_size,
-                                                            __sg_local_id);
-
-                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
-
-                            // Load from exchange buffer to registers. Barrier needed because mapping of wi to element
-                            // is different from coalesced loads to give wi contiguous blocks of elements.
-                            __block_load<_ValT>(__wi, __exchange_lacc, __values.__v, __n);
-                        }
-                        else
-                        {
-                            //load directly from global memory to registers
-                            __block_load<_ValT>(__wi, __src, __values.__v, __n);
-                        }
+                        //load directly from global memory to registers
+                        __block_load<_ValT>(__wi, __src, __values.__v, __n);
 
                         for (std::uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
                         {
@@ -351,23 +331,20 @@ struct __subgroup_radix_sort
                             }
                             else
                             {
-                                if constexpr (!__exchange_in_SLM)
+                                //if our exchange buffer is global not SLM...
+                                if (__is_last_iter)
                                 {
-                                    //if our exchange buffer is global not SLM...
-                                    if (__is_last_iter)
+                                    // skip exchange, and scatter to global memory directly from registers.
+                                    // The exchange buffer is already in global memory, so there is no point in
+                                    // exchanging and copying twice.
+                                    _ONEDPL_PRAGMA_UNROLL
+                                    for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                                     {
-                                        // skip exchange, and scatter to global memory directly from registers.
-                                        // The exchange buffer is already in global memory, so there is no point in
-                                        // exchanging and copying twice.
-                                        _ONEDPL_PRAGMA_UNROLL
-                                        for (std::uint16_t __i = 0; __i < __block_size; ++__i)
-                                        {
-                                            const std::uint16_t __r = __indices[__i];
-                                            if (__r < __n)
-                                                __src[__r] = ::std::move(__values.__v[__i]);
-                                        }
-                                        return;
+                                        const std::uint16_t __r = __indices[__i];
+                                        if (__r < __n)
+                                            __src[__r] = ::std::move(__values.__v[__i]);
                                     }
+                                    return;
                                 }
 
                                 _ONEDPL_PRAGMA_UNROLL
@@ -380,23 +357,14 @@ struct __subgroup_radix_sort
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                            if (__is_last_iter)
+                            _ONEDPL_PRAGMA_UNROLL
+                            for (std::uint16_t __i = 0; __i < __block_size; ++__i)
                             {
-                                //last iteration - write out the result
-                                __block_store_from_exchange<_ValT>(__src, __exchange_lacc, __n, __wi, __sg_size,
-                                                                   __sg_local_id);
+                                const std::uint16_t __idx = __wi * __block_size + __i;
+                                if (__idx < __n)
+                                    __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
                             }
-                            else
-                            {
-                                _ONEDPL_PRAGMA_UNROLL
-                                for (std::uint16_t __i = 0; __i < __block_size; ++__i)
-                                {
-                                    const std::uint16_t __idx = __wi * __block_size + __i;
-                                    if (__idx < __n)
-                                        __values.__v[__i] = ::std::move(__exchange_lacc[__idx]);
-                                }
-                                __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
-                            }
+                            __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
                         }
                     }));
             });
