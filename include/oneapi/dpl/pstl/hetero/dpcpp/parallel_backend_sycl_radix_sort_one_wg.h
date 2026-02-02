@@ -111,7 +111,7 @@ struct __subgroup_radix_sort
             return sycl::accessor(__buf, __cgh, sycl::read_write, __dpl_sycl::__no_init{});
         }
 
-        inline static constexpr auto
+        inline constexpr static auto
         get_fence()
         {
             return __dpl_sycl::__fence_space_global;
