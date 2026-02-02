@@ -61,7 +61,7 @@ __order_preserving_cast(_UInt __val)
 }
 
 template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
+          ::std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
 ::std::make_unsigned_t<_Int>
 __order_preserving_cast(_Int __val)
 {
@@ -682,13 +682,12 @@ struct __parallel_multi_group_radix_sort
 
         // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.
         // Empirically found values, but here we check limits to prevent overflow in counting phase.
-        constexpr std::size_t __keys_per_wi_count_max = 64; // performs better for large sequences, avoids overflow
-        constexpr std::size_t __keys_per_wi_count_min = 16; // performs better for small sequences
+        constexpr std::size_t __keys_per_wi_count_max = 64;      // performs better for large sequences, avoids overflow
+        constexpr std::size_t __keys_per_wi_count_min = 16;      // performs better for small sequences
         constexpr std::size_t __large_input_threshold = 1 << 20; // 1M elements, empirically found threshold for switch
         static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
                       "Too large keys per work-item may cause overflow in counting phase");
-        static_assert(__keys_per_wi_count_min <= __keys_per_wi_count_max,
-                      "Invalid min/max keys per work-item values");
+        static_assert(__keys_per_wi_count_min <= __keys_per_wi_count_max, "Invalid min/max keys per work-item values");
         std::size_t __keys_per_wi_count = __keys_per_wi_count_min;
         if (__n >= __large_input_threshold)
         {
