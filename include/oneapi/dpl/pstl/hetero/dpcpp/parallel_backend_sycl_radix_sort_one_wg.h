@@ -180,7 +180,7 @@ struct __subgroup_radix_sort
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
         const auto __counter_buf_sz = __get_counter_buf_size(__wg_size);
-        const auto __req_slm_size_counters = __counter_buf_sz * sizeof(uint32_t);
+        const auto __req_slm_size_counters = __counter_buf_sz * sizeof(std::uint32_t);
 
         // Pessimistically only use half of the memory to take into account
         // a SYCL group algorithm might use a portion of SLM
@@ -208,8 +208,9 @@ struct __subgroup_radix_sort
         operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::uint16_t __wg_size, _SLM_tag_val,
                    _SLM_counter)
         {
-            std::uint16_t __n = __src.size();
+            assert(__src.size() <= 65535);
             assert(__block_size * __wg_size <= 65535);
+            std::uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
 
             using _ValT = oneapi::dpl::__internal::__value_t<_RangeIn>;
