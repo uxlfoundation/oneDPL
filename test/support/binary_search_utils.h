@@ -21,7 +21,8 @@ template <typename Accessor1, typename Accessor2, typename Accessor3, typename S
 void
 initialize_data(Accessor1 data, Accessor2 value, Accessor3 result, Size n)
 {
-    int num_values = n * .01 > 1 ? n * .01 : 1; // # search values expected to be << n
+    const int num_values = n > 100 ? n / 100 : 1; // # search values expected to be << n
+
     for (int i = 0; i < n; i += 2)
     {
         data[i] = i;
