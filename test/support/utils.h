@@ -173,7 +173,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 }
 
 template <typename TValue>
-constexpr bool is_char_type_v =
+constexpr bool is_any_char_type_v =
     std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>
 #if defined(__cpp_char8_t)
     || std::is_same_v<TValue, char8_t>
@@ -181,7 +181,7 @@ constexpr bool is_char_type_v =
     || std::is_same_v<TValue, char16_t> || std::is_same_v<TValue, char32_t>;
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_any_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
     if (commaNeeded)
@@ -193,7 +193,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 }
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_any_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
     if (commaNeeded)
