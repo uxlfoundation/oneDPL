@@ -759,7 +759,7 @@ public:
         process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-	    //test cases with empty sequence(s)
+        //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
