@@ -681,7 +681,7 @@ struct __parallel_multi_group_radix_sort
         std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
         // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.
-        // Empiracally found values, but here we check limits to prevent overflow in counting phase.
+        // Empirically found values, but here we check limits to prevent overflow in counting phase.
         constexpr std::size_t __keys_per_wi_count_max = 64; // performs better for large sequences, avoids overflow
         constexpr std::size_t __keys_per_wi_count_min = 16; // performs better for small sequences
         constexpr std::size_t __large_input_threshold = 1 << 20; // 1M elements, empirically found threshold for switch
