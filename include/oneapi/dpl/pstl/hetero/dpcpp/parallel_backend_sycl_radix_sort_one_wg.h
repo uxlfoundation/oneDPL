@@ -167,7 +167,7 @@ struct __subgroup_radix_sort
 
     static constexpr std::uint16_t __bin_count = 1 << __radix;
 
-    static constexpr std::size_t
+    static std::size_t
     __get_counter_buf_size(std::uint16_t __wg_size)
     {
         return __wg_size * __bin_count + 1;
