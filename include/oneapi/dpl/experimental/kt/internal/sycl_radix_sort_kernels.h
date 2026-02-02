@@ -21,6 +21,7 @@
 
 #include "radix_sort_utils.h"
 #include "esimd_radix_sort_utils.h"
+#include "sycl_radix_sort_one_wg_kernel.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {

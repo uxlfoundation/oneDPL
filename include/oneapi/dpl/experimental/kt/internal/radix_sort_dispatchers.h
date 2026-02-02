@@ -401,22 +401,23 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
     {
         constexpr ::std::uint32_t __one_wg_cap = __data_per_workitem * __workgroup_size;
         // TODO: this is temporary in the prototype until we have a SYCL one wg version to plugin.
-        if constexpr (std::is_same_v<_KtTag, __esimd_tag>)
+        //if constexpr (std::is_same_v<_KtTag, __esimd_tag>)
+        //{
+        if (__n <= __one_wg_cap)
         {
-            if (__n <= __one_wg_cap)
-            {
-                // TODO: support different RadixBits values (only 7, 8, 9 are currently supported)
-                // TODO: support more granular DataPerWorkItem and WorkGroupSize
+            // TODO: support different RadixBits values (only 7, 8, 9 are currently supported)
+            // TODO: support more granular DataPerWorkItem and WorkGroupSize
 
-                return __one_wg<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size>(
-                    __kt_tag, __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
+            return __one_wg<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size>(
+                __kt_tag, __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
             }
-        }
-        // TODO: avoid kernel duplication (generate the output storage with the same type as input storage and use swap)
-        // TODO: support different RadixBits
-        // TODO: support more granular DataPerWorkItem and WorkGroupSize
-        return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size, __in_place>(
-            __kt_tag, __q, ::std::forward<_RngPack1>(__pack_in), ::std::forward<_RngPack2>(__pack_out), __n);
+            //}
+            // TODO: avoid kernel duplication (generate the output storage with the same type as input storage and use swap)
+            // TODO: support different RadixBits
+            // TODO: support more granular DataPerWorkItem and WorkGroupSize
+            return __onesweep<_KernelName, __is_ascending, __radix_bits, __data_per_workitem, __workgroup_size,
+                              __in_place>(__kt_tag, __q, ::std::forward<_RngPack1>(__pack_in),
+                                          ::std::forward<_RngPack2>(__pack_out), __n);
     }
 }
 
