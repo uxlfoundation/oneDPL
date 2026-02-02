@@ -682,11 +682,15 @@ struct __parallel_multi_group_radix_sort
 
         // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.
         // Empiracally found values, but here we check limits to prevent overflow in counting phase.
-        constexpr std::size_t __keys_per_wi_count_max = 64;
+        constexpr std::size_t __keys_per_wi_count_max = 64; // performs better for large sequences, avoids overflow
+        constexpr std::size_t __keys_per_wi_count_min = 16; // performs better for small sequences
+        constexpr std::size_t __large_input_threshold = 1 << 20; // 1M elements, empirically found threshold for switch
         static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
                       "Too large keys per work-item may cause overflow in counting phase");
-        std::size_t __keys_per_wi_count = sycl::min(std::size_t(16), __keys_per_wi_count_max);
-        if (__n >= 1 << 20)
+        static_assert(__keys_per_wi_count_min <= __keys_per_wi_count_max,
+                      "Invalid min/max keys per work-item values");
+        std::size_t __keys_per_wi_count = __keys_per_wi_count_min;
+        if (__n >= __large_input_threshold)
         {
             __keys_per_wi_count = __keys_per_wi_count_max;
         }
