@@ -3515,9 +3515,10 @@ struct _ScanPred
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     _RandomAccessIterator
-    __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
+    __advance_clamped(_RandomAccessIterator __it1, Size __size, _RandomAccessIterator __it2) const
     {
-        return it1 + (it2 >= it1 ? std::min(it2 - it1, n) : 0);
+        assert(__it1 <= __it2);
+        return __it1 + std::min(__it2 - __it1, __size);
     }
 };
 
