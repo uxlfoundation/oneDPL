@@ -63,13 +63,23 @@ struct __subgroup_radix_sort
 
         //check SLM size
         const auto __SLM_available = __check_slm_size<_KeyT>(__q, __n, __wg_size);
+        std::cout<<"__n: "<<__n<<"\n";
+        std::cout<<"__wg_size: "<<__wg_size<<"\n";
+        std::cout<<"__block_size: "<<__block_size<<"\n";
         if (__SLM_available.first && __SLM_available.second)
+        {
+            std::cout<<"Using SLM for values and counters\n";
             return __one_group_submitter<_SortKernelLoc>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
                                                            ::std::true_type{} /*SLM*/, ::std::true_type{} /*SLM*/);
+        }
         if (__SLM_available.second)
+        {
+            std::cout<<"Using SLM for counters only\n";
             return __one_group_submitter<_SortKernelPartGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
                                                                 ::std::false_type{} /*No SLM*/,
                                                                 ::std::true_type{} /*SLM*/);
+        }
+        std::cout<<"Not using SLM\n";
         return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj, __wg_size,
                                                         ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
     }
@@ -258,6 +268,7 @@ struct __subgroup_radix_sort
                                         __counter_lacc[0] = 0;
                                     __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
                                 }
+
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
@@ -318,6 +329,7 @@ struct __subgroup_radix_sort
                                 }
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
+
                             _ONEDPL_PRAGMA_UNROLL
                             for (uint16_t __i = 0; __i < __block_size; ++__i)
                             {
