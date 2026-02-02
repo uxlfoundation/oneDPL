@@ -32,23 +32,20 @@ class TupleScanKernel;
 
 // Struct to simulate tuple in local memory (like oneDPL's zip_view pattern)
 struct DataMaskPair {
-    int data;
-    int mask;
+    const int& data;
+    int& mask;
 };
 
 // Mimics oneDPL's __create_mask which reads from local memory and writes back
 struct CreateMask {
-    template<typename Idx, typename LocalAcc>
-    int operator()(Idx idx, LocalAcc& local_acc) const {
-        // Read tuple from local memory
-        auto& tuple_val = local_acc[idx];
+    template<typename Tuple>
+    int operator()(Tuple& tuple_val) const {
         int data = tuple_val.data;
-
         // Generate mask value
         int mask = (data % 3 == 1 || data % 7 == 3) ? 1 : 0;
 
         // CRITICAL: Write mask back to local memory that was just read
-        // This matches __create_mask doing: std::get<1>(__local_acc[__idx]) = __mask_value;
+        // This approximately matches __create_mask doing: std::get<1>(__input[__idx]) = __mask_value;
         tuple_val.mask = mask;
 
         return mask;
@@ -92,12 +89,14 @@ test_tuple_writeback_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_
         // Run GPU kernel with tuple write-back pattern
         {
             sycl::buffer<int> data_buf(input_data.data(), sycl::range<1>(n_elements));
+            sycl::buffer<int> mask_buf{sycl::range<1>(n_elements)};
             sycl::buffer<int> output_buf(output_data.data(), sycl::range<1>(n_elements));
 
             q.submit([&](sycl::handler& cgh) {
                 auto data_acc = data_buf.get_access<sycl::access::mode::read>(cgh);
+                auto mask_acc = mask_buf.get_access<sycl::access::mode::read_write>(cgh);
                 auto output_acc = output_buf.get_access<sycl::access::mode::write>(cgh);
-                sycl::local_accessor<DataMaskPair, 1> local_acc(sycl::range<1>(wg_size), cgh);
+                sycl::local_accessor<int, 1> local_acc(sycl::range<1>(wg_size), cgh);
 
                 cgh.parallel_for<TupleScanKernel>(
                     sycl::nd_range<1>(n_work_groups * wg_size, wg_size),
@@ -119,18 +118,13 @@ test_tuple_writeback_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_
                         {
                             // Load data into local memory as tuple
                             if (adjusted_global_id < n_elements) {
-                                local_acc[local_id].data = data_acc[adjusted_global_id];
-                                local_acc[local_id].mask = 0;
+                                DataMaskPair pair = {data_acc[adjusted_global_id], mask_acc[adjusted_global_id]};
+                                local_acc[local_id] = create_mask_op(pair);
                             } else {
-                                local_acc[local_id].data = 0;
-                                local_acc[local_id].mask = 0;  // identity
+                                local_acc[local_id] = 0;
                             }
 
-                            // CRITICAL PATTERN: Unary op reads from local memory AND writes back
-                            // This matches oneDPL's __create_mask pattern:
-                            //   _Tp __old_value = __unary_op(__local_id, __local_acc);
-                            // where __unary_op modifies __local_acc
-                            int mask_value = create_mask_op(local_id, local_acc);
+                            int mask_value = local_acc[local_id];
 
                             // Barrier before scan
                             sycl::group_barrier(group);
@@ -145,17 +139,18 @@ test_tuple_writeback_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_
                             );
 
                             // Store result back to local memory
-                            local_acc[local_id].mask = scan_result;
+                            local_acc[local_id] = scan_result;
 
                             // Barrier after scan
                             sycl::group_barrier(group);
 
                             // Update adder for next iteration
-                            adder = local_acc[wg_size - 1].mask;
+                            adder = local_acc[wg_size - 1];
 
                             // Write output
                             if (adjusted_global_id < n_elements)
                             {
+                                mask_acc[adjusted_global_id] = scan_result;
                                 output_acc[adjusted_global_id] = scan_result;
                             }
                         }
