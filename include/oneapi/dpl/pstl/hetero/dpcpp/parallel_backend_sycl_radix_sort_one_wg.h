@@ -200,31 +200,26 @@ struct __subgroup_radix_sort
                             __storage() {}
                         } __values;
                         uint16_t __wi = __it.get_local_linear_id();
-                        //subgroup info for SG-strided memory access
-
+                        uint16_t __begin_bit = 0;
                         constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
 
-                        //load directly from global memory to registers
+                        //copy(move) values construction
                         __block_load<_ValT>(__wi, __src, __values.__v, __n);
+                        // TODO: check if the barrier can be removed
+                        __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
 
-                        for (std::uint16_t __begin_bit = 0; __begin_bit < __end_bit; __begin_bit += __radix)
+                        while (true)
                         {
-                            const bool __is_first_iter = (__begin_bit == 0);
-                            const bool __is_last_iter = (__begin_bit == __end_bit - __radix);
-
-                            std::uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
+                            uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
                                 //pointers(by performance reasons) to bucket's counters
                                 uint32_t* __counters[__block_size];
-
                                 //1. "counting" phase
                                 //counter initialization
                                 auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
-
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __bin_count; ++__i)
                                     __pcounter[__i * __wg_size] = 0;
-
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
@@ -236,27 +231,22 @@ struct __subgroup_radix_sort
                                                       std::invoke(__proj, __values.__v[__i])),
                                                   __begin_bit)
                                             : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;
-
                                     //"counting" and local offset calculation
                                     __counters[__i] = &__pcounter[__bin * __wg_size];
                                     __indices[__i] = *__counters[__i];
                                     *__counters[__i] = __indices[__i] + 1;
                                 }
                                 __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
-
                                 //2. scan phase
                                 {
                                     //TODO: probably can be further optimized
-
                                     //scan contiguous numbers
                                     uint16_t __bin_sum[__bin_count];
                                     __bin_sum[0] = __counter_lacc[__wi * __bin_count];
-
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i = 1; __i < __bin_count; ++__i)
                                         __bin_sum[__i] = __bin_sum[__i - 1] + __counter_lacc[__wi * __bin_count + __i];
                                     __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
-
                                     //exclusive scan local sum
                                     uint16_t __sum_scan = __dpl_sycl::__exclusive_scan_over_group(
                                         __it.get_group(), __bin_sum[__bin_count - 1], __dpl_sycl::__plus<uint16_t>());
@@ -264,12 +254,10 @@ struct __subgroup_radix_sort
                                     _ONEDPL_PRAGMA_UNROLL
                                     for (uint16_t __i = 0; __i < __bin_count; ++__i)
                                         __counter_lacc[__wi * __bin_count + __i + 1] = __sum_scan + __bin_sum[__i];
-
                                     if (__wi == 0)
                                         __counter_lacc[0] = 0;
                                     __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
                                 }
-
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
@@ -278,11 +266,38 @@ struct __subgroup_radix_sort
                                 }
                             }
 
+                            __begin_bit += __radix;
+
                             //3. "re-order" phase
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
+                            if (__begin_bit >= __end_bit)
+                            {
+                                // the last iteration - writing out the result
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                {
+                                    const uint16_t __r = __indices[__i];
+                                    if (__r < __n)
+                                    {
+                                        //move the values to source range and destroy the values
+                                        __src[__r] = ::std::move(__values.__v[__i]);
+                                        __values.__v[__i].~_ValT();
+                                    }
+                                }
+
+                                //destroy values in exchange buffer
+                                _ONEDPL_PRAGMA_UNROLL
+                                for (uint16_t __i = 0; __i < __block_size; ++__i)
+                                {
+                                    const uint16_t __idx = __wi * __block_size + __i;
+                                    if (__idx < __n)
+                                        __exchange_lacc[__idx].~_ValT();
+                                }
+                                return;
+                            }
 
                             //3.1 data exchange
-                            if (__is_first_iter)
+                            if (__begin_bit == __radix) //the first sort iteration
                             {
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
@@ -294,33 +309,6 @@ struct __subgroup_radix_sort
                             }
                             else
                             {
-                                //if our exchange buffer is global not SLM...
-                                if (__is_last_iter)
-                                {
-                                    // skip exchange, and scatter to global memory directly from registers.
-                                    // The exchange buffer is already in global memory, so there is no point in
-                                    // exchanging and copying twice.
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                    {
-                                        const uint16_t __r = __indices[__i];
-                                        if (__r < __n)
-                                        {
-                                            __src[__r] = ::std::move(__values.__v[__i]);
-                                            __values.__v[__i].~_ValT();
-                                        }
-                                    }
-                                    //destroy values in exchange buffer
-                                    _ONEDPL_PRAGMA_UNROLL
-                                    for (uint16_t __i = 0; __i < __block_size; ++__i)
-                                    {
-                                        const uint16_t __idx = __wi * __block_size + __i;
-                                        if (__idx < __n)
-                                            __exchange_lacc[__idx].~_ValT();
-                                    }
-                                    return;
-                                }
-
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
@@ -330,7 +318,6 @@ struct __subgroup_radix_sort
                                 }
                             }
                             __dpl_sycl::__group_barrier(__it, decltype(__buf_val)::get_fence());
-
                             _ONEDPL_PRAGMA_UNROLL
                             for (uint16_t __i = 0; __i < __block_size; ++__i)
                             {
