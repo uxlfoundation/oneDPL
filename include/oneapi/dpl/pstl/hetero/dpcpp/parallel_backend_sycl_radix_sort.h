@@ -682,6 +682,8 @@ struct __parallel_multi_group_radix_sort
         std::size_t __wg_size_reorder = oneapi::dpl::__internal::__max_work_group_size(__q, 256);
         std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
+        // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.
+        // Empiracally found values, but here we check limits to prevent overflow in counting phase.
         constexpr std::size_t __keys_per_wi_count_max = 64;
         static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
                       "Too large keys per work-item may cause overflow in counting phase");
