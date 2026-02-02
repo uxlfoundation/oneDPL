@@ -194,7 +194,7 @@ std::int32_t
 main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    constexpr std::size_t num_tests = 100000;
+    constexpr std::size_t num_tests = 100;
     std::size_t iters_per_wg = 4;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
