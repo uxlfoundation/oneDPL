@@ -35,9 +35,9 @@ template <typename _KernelNameBase, uint16_t __wg_size = 256 /*work group size*/
           std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
-    template <typename _RangeIn, typename _Proj>
+    template <typename _RangeIn, typename _RngOut, typename _Proj>
     sycl::event
-    operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj)
+    operator()(sycl::queue& __q, _RangeIn&& __src, _RngOut&& __dst, _Proj __proj)
     {
         using __wg_size_t = std::integral_constant<::std::uint16_t, __wg_size>;
         using __block_size_t = std::integral_constant<::std::uint16_t, __block_size>;
@@ -61,14 +61,13 @@ struct __subgroup_radix_sort
         //check SLM size
         const auto __SLM_available = __check_slm_size<_KeyT>(__q, __src.size());
         if (__SLM_available.first && __SLM_available.second)
-            return __one_group_submitter<_SortKernelLoc>()(__q, ::std::forward<_RangeIn>(__src), __proj,
-                                                           ::std::true_type{} /*SLM*/, ::std::true_type{} /*SLM*/);
+            return __one_group_submitter<_SortKernelLoc>()(__q, __src, __dst, __proj, ::std::true_type{} /*SLM*/,
+                                                           ::std::true_type{} /*SLM*/);
         if (__SLM_available.second)
-            return __one_group_submitter<_SortKernelPartGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
-                                                                ::std::false_type{} /*No SLM*/,
-                                                                ::std::true_type{} /*SLM*/);
-        return __one_group_submitter<_SortKernelGlob>()(__q, ::std::forward<_RangeIn>(__src), __proj,
-                                                            ::std::false_type{} /*No SLM*/, ::std::false_type{} /*No SLM*/);
+            return __one_group_submitter<_SortKernelPartGlob>()(
+                __q, __src, __dst, __proj, ::std::false_type{} /*No SLM*/, ::std::true_type{} /*SLM*/);
+        return __one_group_submitter<_SortKernelGlob>()(__q, __src, __dst, __proj, ::std::false_type{} /*No SLM*/,
+                                                        ::std::false_type{} /*No SLM*/);
     }
 
   private:
@@ -161,9 +160,9 @@ struct __subgroup_radix_sort
     template <typename... _Name>
     struct __one_group_submitter<oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
     {
-        template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
+        template <typename _RangeIn, typename _RngOut, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         sycl::event
-        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, _SLM_tag_val, _SLM_counter)
+        operator()(sycl::queue& __q, _RangeIn&& __src, _RngOut&& __dst, _Proj __proj, _SLM_tag_val, _SLM_counter)
         {
             uint16_t __n = __src.size();
             assert(__n <= __block_size * __wg_size);
@@ -177,6 +176,7 @@ struct __subgroup_radix_sort
             sycl::nd_range __range{sycl::range{__wg_size}, sycl::range{__wg_size}};
             return __q.submit([&](sycl::handler& __cgh) {
                 oneapi::dpl::__ranges::__require_access(__cgh, __src);
+                oneapi::dpl::__ranges::__require_access(__cgh, __dst);
 
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);
                 auto __counter_lacc = __buf_count.get_acc(__cgh);
@@ -278,8 +278,8 @@ struct __subgroup_radix_sort
                                     const uint16_t __r = __indices[__i];
                                     if (__r < __n)
                                     {
-                                        //move the values to source range and destroy the values
-                                        __src[__r] = ::std::move(__values.__v[__i]);
+                                        //move the values to destination range and destroy the values
+                                        __dst[__r] = ::std::move(__values.__v[__i]);
                                         __values.__v[__i].~_ValT();
                                     }
                                 }

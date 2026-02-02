@@ -83,33 +83,9 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
 
         _SubgroupRadixSort __sorter;
 
-        // __subgroup_radix_sort expects a single range and an identity projection
-        // It sorts in-place, so we need to handle input != output case
-        auto __out_keys_rng = __pack_out.__keys_rng();
-
-        // Copy input to output if they differ
-        auto __in_data = __rng_data(__pack_in.__keys_rng());
-        auto __out_data = __rng_data(__out_keys_rng);
-
-        if constexpr (!__in_place)
-        {
-            // Copy input to output if they differ
-            auto __in_data = __rng_data(__pack_in.__keys_rng());
-            auto __out_data = __rng_data(__out_keys_rng);
-            sycl::event __copy_event = __q.submit([&](sycl::handler& __cgh) {
-                oneapi::dpl::__ranges::__require_access(__cgh, __pack_in.__keys_rng());
-                oneapi::dpl::__ranges::__require_access(__cgh, __out_keys_rng);
-                __cgh.parallel_for(sycl::range<1>{__n}, [=](sycl::item<1> __item) {
-                    auto __idx = __item.get_linear_id();
-                    __out_data[__idx] = __in_data[__idx];
-                });
-            });
-            __q.ext_oneapi_submit_barrier({__copy_event});
-        }
-
         // Now sort the output range in-place using identity projection
         auto __identity_proj = [](const _KeyT& __x) { return __x; };
-        return __sorter(__q, __out_keys_rng, __identity_proj);
+        return __sorter(__q, __pack_in.__keys_rng(), __pack_out.__keys_rng(), __identity_proj);
     }
 
   public:
