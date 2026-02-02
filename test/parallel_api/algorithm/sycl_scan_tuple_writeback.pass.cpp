@@ -45,7 +45,7 @@ struct CreateMask {
         int data = tuple_val.data;
 
         // Generate mask value
-        int mask = (data % 2 == 0) ? 1 : 0;
+        int mask = (data % 3 == 1 || data % 7 == 3) ? 1 : 0;
 
         // CRITICAL: Write mask back to local memory that was just read
         // This matches __create_mask doing: std::get<1>(__local_acc[__idx]) = __mask_value;
@@ -62,9 +62,15 @@ test_tuple_writeback_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_
 {
     using namespace TestUtils;
 
+#if 1
+    const std::size_t elements_per_wg = wg_size * iters_per_wg;
+    const std::size_t n_elements = 4*1024*1023 + 497;
+    const std::size_t n_work_groups = n_elements / elements_per_wg + 1;
+#else
     const std::size_t elements_per_wg = wg_size * iters_per_wg;
     const std::size_t n_work_groups = 4;
     const std::size_t n_elements = elements_per_wg * n_work_groups;
+#endif
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -166,9 +172,13 @@ test_tuple_writeback_scan(Policy&& exec, std::size_t wg_size, std::size_t iters_
             for (std::size_t i = 0; i < elements_per_wg; ++i)
             {
                 std::size_t global_idx = wg * elements_per_wg + i;
-                int mask = (input_data[global_idx] % 2 == 0) ? 1 : 0;
-                cumsum += mask;
-                expected_data[global_idx] = cumsum;
+                if (global_idx < n_elements)
+                {
+                    auto data = input_data[global_idx];
+                    int mask = (data % 3 == 1 || data % 7 == 3) ? 1 : 0;
+                    cumsum += mask;
+                    expected_data[global_idx] = cumsum;
+                }
             }
         }
 
@@ -185,19 +195,22 @@ main()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
     constexpr std::size_t num_tests = 100000;
+    std::size_t iters_per_wg = 4;
 
     auto policy = TestUtils::get_dpcpp_test_policy();
     auto q = policy.queue();
 
-    // Test with typical configuration: wg_size=256, 4 iterations per work group
-    test_tuple_writeback_scan(policy, 256, 4, num_tests);
+    std::size_t max_wg_size = q.get_device().get_info<sycl::info::device::max_work_group_size>();
+    assert(max_wg_size >= 32);
+    if (max_wg_size > 1024)
+        max_wg_size = 1024;
 
-    // Test with larger work group if supported
-    auto max_wg_size = q.get_device().get_info<sycl::info::device::max_work_group_size>();
-    if (max_wg_size >= 1024)
+    for (std::size_t wg_size = 32; wg_size <= max_wg_size; wg_size *= 2)
     {
-        test_tuple_writeback_scan(policy, 1024, 2, num_tests);
+        test_tuple_writeback_scan(policy, wg_size, iters_per_wg, num_tests);
     }
+
+    test_tuple_writeback_scan(policy, max_wg_size, 2, num_tests);
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
