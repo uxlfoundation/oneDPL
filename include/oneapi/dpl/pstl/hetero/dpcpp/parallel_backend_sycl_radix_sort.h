@@ -157,14 +157,14 @@ struct __index_views
 {
     // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
-    __get_bucket_idx(std::uint32_t, std::uint32_t __radix_id, std::uint32_t __wg_id)
+    `(std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
         return __wg_id * __radix_states + __radix_id;
     }
 
     // Index for packed uint32 counters (4 uint8s packed): [wg_id][radix_id_lane]
     std::uint32_t
-    __get_bucket32_idx(std::uint32_t, std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
+    __get_bucket32_idx(std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
     {
         return __wg_id * (__radix_states / __packing_ratio) + __radix_id_lane;
     }
@@ -201,7 +201,7 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
             auto __val = __order_preserving_cast<__is_ascending>(
                 std::invoke(__proj, __input[__base_idx + __unroll * __sg_size]));
             std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-            ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
+            ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
         }
     }
 
@@ -215,7 +215,7 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
             {
                 auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
                 std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                ++__slm_buckets[__views.__get_bucket_idx(__wg_size, __bucket, __self_lidx)];
+                ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
             }
         }
     }
@@ -287,7 +287,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __i = 0; __i < __counter_lanes; ++__i)
                 {
-                    __slm_counts[__views.__get_bucket32_idx(__wg_size, __i, __self_lidx)] = 0;
+                    __slm_counts[__views.__get_bucket32_idx(__i, __self_lidx)] = 0;
                 }
 
                 // SG-strided reads: each subgroup handles a contiguous chunk of the segment
@@ -330,7 +330,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                     for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
                     {
                         __count_arr[__r] += static_cast<_CountT>(
-                            __slm_buckets[__views.__get_bucket_idx(__wg_size, __radix_base + __r, __col_base + __c)]);
+                            __slm_buckets[__views.__get_bucket_idx(__radix_base + __r, __col_base + __c)]);
                     }
                 }
                 __dpl_sycl::__group_barrier(__self_item);
