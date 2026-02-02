@@ -4266,7 +4266,12 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                                                                       __mask, __BrickCopyConstruct<_IsVector>(), __comp,
                                                                       oneapi::dpl::identity{}, oneapi::dpl::identity{});
                },
-               __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+#if IMPLEMENT_SET_OP_AS_BOUNDED
+               __set_union_offsets{},
+#else
+               __set_op_unbounded_offsets_eval{},
+#endif
+               __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
 }
 
@@ -4396,7 +4401,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
                                oneapi::dpl::identity{});
                        },
-                       __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+#if IMPLEMENT_SET_OP_AS_BOUNDED
+                       __set_intersection_offsets{},
+#else
+                       __set_op_unbounded_offsets_eval{},
+#endif
+                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
     }
@@ -4419,7 +4429,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
                                oneapi::dpl::identity{});
                        },
-                       __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+                       __set_op_unbounded_offsets_eval{},
+                       __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
     }
@@ -4667,7 +4678,12 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                            __first1, __last1, __first2, __last2, __result, __mask, __BrickCopyConstruct<_IsVector>(),
                            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                    },
-                   __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
+#if IMPLEMENT_SET_OP_AS_BOUNDED
+                   __set_symmetric_difference_offsets{},
+#else
+                   __set_op_unbounded_offsets_eval{},
+#endif
+                   __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     });
 }

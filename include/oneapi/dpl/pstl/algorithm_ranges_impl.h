@@ -888,7 +888,12 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                        __first1, __last1, __first2, __last2, __result, __mask,
                        oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
                },
-               __set_union_offsets{}, __comp, __proj1, __proj2)
+#if IMPLEMENT_SET_OP_AS_BOUNDED
+               __set_union_offsets{},
+#else
+               __set_op_unbounded_offsets_eval{},
+#endif
+              __comp, __proj1, __proj2)
         .template __get_reached_in1_in2_out<__set_union_return_t<_R1, _R2, _OutRange>>();
 }
 
