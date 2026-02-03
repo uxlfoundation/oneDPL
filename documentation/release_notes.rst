@@ -29,7 +29,7 @@ Fixed Issues
   differing parameter types.
 - Removed the requirement that ranges passed to range-based algorithms support the subscipt operator. This did not
   comply with the requirement of the C++ standard.
-- Fixed a compile error with CLang 15.x and older compiler versions: these version can't support `std::ranges` inside oneDPL.
+- Fixed a compile error with CLang 15.x and earlier compiler versions: these versions do not support `std::ranges` inside oneDPL.
 
 Known Issues and Limitations
 ----------------------------
