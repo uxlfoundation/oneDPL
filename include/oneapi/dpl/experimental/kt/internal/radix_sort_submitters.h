@@ -155,13 +155,10 @@ struct __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_wor
             sycl::local_accessor<std::uint32_t, 1> __slm_accessor(__hist_buffer_size * __num_histograms, __cgh);
             oneapi::dpl::__ranges::__require_access(__cgh, __keys_rng);
             __cgh.depends_on(__e);
-            __cgh.parallel_for<_Name...>(
-                __nd_range, [=](sycl::nd_item<1> __nd_item) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
-                    __sycl_global_histogram<__is_ascending, __radix_bits, __num_histograms, __hist_work_group_count,
-                                            __hist_work_group_size, __sub_group_size>(
-                        __nd_item, __n, __keys_rng, __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get(),
-                        __global_offset_data);
-                });
+            __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_group_count,
+                               __hist_work_group_size, std::decay_t<_KeysRng>>
+                __kernel(__n, __keys_rng, __slm_accessor, __global_offset_data, __num_histograms);
+            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
 
