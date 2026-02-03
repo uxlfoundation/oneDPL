@@ -33,7 +33,7 @@
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
 
-#include "esimd_radix_sort_utils.h"
+#include "radix_sort_utils.h"
 
 // Select the appropriate radix_sort API based on TEST_KT_BACKEND
 #ifdef TEST_KT_BACKEND_ESIMD
