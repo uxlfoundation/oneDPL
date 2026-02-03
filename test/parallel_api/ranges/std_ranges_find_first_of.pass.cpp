@@ -33,7 +33,7 @@ main()
 
     //false result test case; data generator is a 'gen(i)', so std::identity produces 0, 1, 2, ...
     auto gen_negative = [](auto i) { return -i; };
-    test_range_algo<5, int, data_in_in, decltype(gen_negative)>{medium_size}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred);
+    test_range_algo<5, int, data_in_in, data_in_in, decltype(gen_negative)>{medium_size}(dpl_ranges::find_first_of, find_first_of_checker, binary_pred);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
