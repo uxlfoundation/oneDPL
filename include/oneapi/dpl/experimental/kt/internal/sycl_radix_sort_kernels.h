@@ -572,11 +572,20 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _GlobOffsetT* __p_lookback_hist = __p_prev_group_hist;
             do
             {
+                // Relaxed loads are important for performance but run the risk of not being globally reflected.
+                // Execute a fence every __atomic_fence_iter iters to unblock any loads that are not globally reflected
+                constexpr std::uint32_t __atomic_fence_iter = 256;
+                std::uint32_t __lookback_counter = 0;
                 _LocIdxT __bin_idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
                 _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
                 do
                 {
                     __prev_group_hist = __ref.load();
+                    if (++__lookback_counter % __atomic_fence_iter == 0)
+                    {
+                        sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
+                    }
+                    // Ensure that the spinning loop serializes loads within the work-item.
                 } while ((__prev_group_hist & __hist_updated) == 0);
                 __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
                 __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
