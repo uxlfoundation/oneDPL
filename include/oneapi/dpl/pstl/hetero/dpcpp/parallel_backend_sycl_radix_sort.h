@@ -235,6 +235,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
+    static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
+    static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
 
     // iteration space info
     const ::std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng1);
@@ -254,11 +256,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
         // ensure the input data and the space for counters are accessible
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng1, __val_rng2, __count_rng);
         // an accessor per work-group with value counters from each work-item
-        auto __count_lacc = __dpl_sycl::__local_accessor<std::uint8_t>(__radix_states * __wg_size, __hdl);
+        __dpl_sycl::__local_accessor<_CountT> __count_lacc(__radix_states * __wg_size / __packing_ratio, __hdl);
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
-                static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
-                static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
 
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
@@ -273,8 +273,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 // Compute subgroup base from work item ID to handle variable subgroup sizes
                 const ::std::size_t __sg_base = (__self_lidx - __sg_local_id);
 
-                std::uint8_t* __slm_buckets = &__count_lacc[0];
-                _CountT* __slm_counts = reinterpret_cast<_CountT*>(__slm_buckets);
+                _CountT* __slm_counts = &__count_lacc[0];
+                std::uint8_t* __slm_buckets = reinterpret_cast<std::uint8_t*>(__slm_counts);
                 __index_views<__packing_ratio, __radix_states> __views;
 
                 _CountT __count_arr[__packing_ratio] = {0};
