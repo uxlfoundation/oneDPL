@@ -252,8 +252,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         //
         constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
 
-        // TODO: does starting alignment significantly matter for correctness and performance? If so we may need
-        // padding between regions
         constexpr std::uint32_t __slm_size = std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size +
                                              __global_hist_size + __global_hist_size;
 
@@ -358,7 +356,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         {
             __slm_offset[__i] = 0;
         }
-        // TODO: sub-group barrier ? maybe not for simd architectures
 
         constexpr _SubGroupBitmaskT __sub_group_full_bitmask = 0x7fffffff;
         static_assert(__sub_group_size == 32);
