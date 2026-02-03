@@ -801,7 +801,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local, (std::size_t)4096);
-
+    const std::uint16_t __max_wg_size_u16 = static_cast<std::uint16_t>(std::min(__max_wg_size, std::size_t(65535)));
     const auto __subgroup_sizes = __q_local.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     const bool __dev_has_sg16 = std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(),
                                           static_cast<std::size_t>(16)) != __subgroup_sizes.end();
@@ -810,23 +810,23 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
 
     // Select block size based on input size (block_size = elements per work-item)
     // Larger block sizes reduce register spills but require more registers per work-item
-    if (__n <= sycl::min(std::size_t(1024), __max_wg_size * 4))
+    if (__n <= std::min<std::size_t>(1024, __max_wg_size_u16 * 4))
         __event = __subgroup_radix_sort<_RadixSortKernel, 4, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= sycl::min(std::size_t(2048), __max_wg_size * 8))
+            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size_u16);
+    else if (__n <= std::min<std::size_t>(2048, __max_wg_size_u16 * 8))
         __event = __subgroup_radix_sort<_RadixSortKernel, 8, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= sycl::min(std::size_t(4096), __max_wg_size * 16))
+            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size_u16);
+    else if (__n <= std::min<std::size_t>(4096, __max_wg_size_u16 * 16))
         __event = __subgroup_radix_sort<_RadixSortKernel, 16, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size_u16);
     // In __subgroup_radix_sort, we request a sub-group size of 16 via _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED
     // for compilation targets that support this option. For the below cases, register spills that result in
     // runtime exceptions have been observed on accelerators that do not support the requested sub-group size of 16.
     // For the above cases that request but may not receive a sub-group size of 16, inputs are small enough to avoid
     // register spills on assessed hardware.
-    else if (__n <= sycl::min(std::size_t(16384), __max_wg_size * 32) && __dev_has_sg16)
+    else if (__n <= std::min<std::size_t>(16384, __max_wg_size_u16 * 32) && __dev_has_sg16)
         __event = __subgroup_radix_sort<_RadixSortKernel, 32, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size_u16);
     else
     {
         constexpr ::std::uint32_t __radix_iters = __get_buckets_in_type<_KeyT>(__radix_bits);
