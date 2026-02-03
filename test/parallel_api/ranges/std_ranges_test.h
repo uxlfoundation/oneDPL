@@ -43,6 +43,7 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 #include <algorithm>
 #include <memory>
 #include <array>
+#include <sstream>
 
 namespace test_std_ranges
 {
@@ -429,11 +430,27 @@ private:
             test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
     }
 
+    template <typename Policy, typename Algo, typename TransIn>
+    std::string
+    get_error_msg(Policy&&, Algo, TransIn tr_in, const std::string& prefix, const std::string& strSize) const
+    {
+        using TransInContainer = decltype(tr_in(std::declval<Container&>()()));
+
+        std::stringstream outstr;
+        outstr << prefix
+               << " " << typeid(Algo).name()
+               << " " << typeid(TransInContainer).name()
+               << " " << strSize
+               << " with execution policy " << typeid(Policy).name();
+
+        return outstr.str();
+    }
+
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
     process_data_in(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, auto... args)
     {
-        std::string sizes{" for "};
+        std::string sizes{"for "};
         sizes += std::to_string(max_n) + " elements";
 
         Container cont_in(exec, max_n, DataGen1{});
@@ -450,16 +467,15 @@ private:
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
-                  (std::string("wrong stop position with ") + typeid(Algo).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                  get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
         if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
             n = calc_res_size<std::remove_cvref_t<Algo>>(n, std::ranges::size(res));
 
-        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
-            + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n,
+                    get_error_msg(exec, algo, tr_in, "data mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -547,46 +563,46 @@ private:
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_out, "wrong input stop position with", sizes).c_str());
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                  get_error_msg(exec, algo, tr_out, "wrong output stop position with", sizes).c_str());
 
         // Check padding data
         EXPECT_TRUE(check_padding<mode>(exec, B_with_padding),
-                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
+                    get_error_msg(exec, algo, tr_in, "wrong padding data after algo with ranges", sizes).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n, 
-                    (std::string("output mismatch with ") + typeid(Algo).name() + sizes).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n,
+                    get_error_msg(exec, algo, tr_out, "output mismatch with", sizes).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
         EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
-                    (std::string("input mismatch with ") + typeid(Algo).name() + sizes).c_str());
+                    get_error_msg(exec, algo, tr_in, "input mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -647,7 +663,7 @@ private:
     process_data_in_in(int max_n, int n_in1, int n_in2, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                        auto... args)
     {
-        std::string sizes{" for "};
+        std::string sizes{"for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements";
 
         assert(n_in1 <= max_n);
@@ -671,28 +687,22 @@ private:
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
         }
         else
         {
-            EXPECT_EQ(expected_res, res,
-                      (std::string("wrong return value from ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            EXPECT_EQ(expected_res, res, get_error_msg(exec, algo, tr_in, "wrong return value from", sizes).c_str());
         }
 
         // Test dangling iterators in return types for call with temporary data
@@ -736,7 +746,7 @@ private:
 
         // Check padding data
         EXPECT_TRUE(check_padding<mode>(exec, C_with_padding),
-                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
+                    get_error_msg(exec, algo, tr_in, "wrong padding data after with", sizes).c_str());
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -744,31 +754,31 @@ private:
         if constexpr (check_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong second input stop position with", sizes).c_str());
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong second input stop position with", sizes).c_str());
         }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
-                    (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                  get_error_msg(exec, algo, tr_in, "wrong output stop position with", sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("output mismatch with ")
-                    + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n,
+                    get_error_msg(exec, algo, tr_in, "output mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
