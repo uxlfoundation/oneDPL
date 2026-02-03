@@ -244,16 +244,11 @@ struct __one_wg_kernel
     }
 };
 
-// TODO: fill in general purpose pure sycl kernels, and return this to partial specialization for esimd
-// template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
-//           ::std::uint16_t __hist_work_group_size, typename _KeysRng>
-// struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work_group_count,
-//                           __hist_work_group_size, _KeysRng>
-
-template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
-           ::std::uint16_t __hist_work_group_size, typename _KeysRng>
- struct __global_histogram
- {
+template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint32_t __hist_work_group_count,
+          ::std::uint16_t __hist_work_group_size, typename _KeysRng>
+struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work_group_count, __hist_work_group_size,
+                          _KeysRng>
+{
     using _KeyT = oneapi::dpl::__internal::__value_t<_KeysRng>;
     using _BinT = ::std::uint16_t;
     using _GlobalHistT = ::std::uint32_t;
@@ -262,8 +257,8 @@ template <typename _KtTag, bool __is_ascending, ::std::uint8_t __radix_bits, ::s
     _KeysRng __keys_rng;
     ::std::uint32_t* __p_global_offset;
 
-    __global_histogram(size_t __n, const _KeysRng& __keys_rng, ::std::uint32_t* __p_global_offset) : 
-        __n(__n), __keys_rng(__keys_rng), __p_global_offset(__p_global_offset)
+    __global_histogram(size_t __n, const _KeysRng& __keys_rng, ::std::uint32_t* __p_global_offset)
+        : __n(__n), __keys_rng(__keys_rng), __p_global_offset(__p_global_offset)
     {
     }
 
