@@ -3388,17 +3388,19 @@ struct __mask_buffers;
 template <>
 struct __mask_buffers<true>
 {
+    using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
+
     __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size), __buf_mask_rng_res(__mask_buf_size)
     {
     }
 
-    oneapi::dpl::__utils::__parallel_set_op_mask*
+    _mask_ptr_t
     get_buf_mask_rng_data(std::size_t __offset = 0) const
     {
         return __buf_mask_rng.get() + __offset;
     }
 
-    oneapi::dpl::__utils::__parallel_set_op_mask*
+    _mask_ptr_t
     get_buf_mask_rng_res_data() const
     {
         return __buf_mask_rng_res.get();
@@ -3412,15 +3414,17 @@ struct __mask_buffers<true>
 template <>
 struct __mask_buffers<false>
 {
+    using _mask_ptr_t = std::nullptr_t;
+
     __mask_buffers(std::size_t) {}
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_data(std::size_t = 0) const
     {
         return nullptr;
     }
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_res_data() const
     {
         return nullptr;
@@ -3430,9 +3434,12 @@ struct __mask_buffers<false>
 template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
 struct _ScanPred
 {
-    RawDataPtr __buf_raw_data_begin, __buf_raw_data_end;
-    MaskDataPtr __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin;
-    _OutputIterator __result1, __result2;
+    RawDataPtr __buf_raw_data_begin;
+    RawDataPtr __buf_raw_data_end;
+    MaskDataPtr __buf_mask_rng_raw_data_begin;
+    MaskDataPtr __buf_mask_rng_res_raw_data_begin;
+    _OutputIterator __result1;
+    _OutputIterator __result2;
 
     template <typename _DifferenceType1, typename _SetRange>
     void
@@ -3658,22 +3665,22 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         // Temporary "window"-organized mask of used items in input ranges
-        auto __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
-        auto __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
+        using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
+        _mask_ptr_t __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
+        _mask_ptr_t __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
 
         _DifferenceType __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), decltype(__buf_mask_rng_raw_data_begin),
-                  _OutputIterator>
-            __scan_pred{__buf_raw_data_begin,
-                        __buf_raw_data_end,
-                        __buf_mask_rng_raw_data_begin,
-                        __buf_mask_rng_res_raw_data_begin,
-                        __result1,
-                        __result2};
+        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
+            __buf_raw_data_begin,
+            __buf_raw_data_end,
+            __buf_mask_rng_raw_data_begin,
+            __buf_mask_rng_res_raw_data_begin,
+            __result1,
+            __result2};
 
         _ParallelSetOpStrictScanPred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
                                      _OutputIterator, _SizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
