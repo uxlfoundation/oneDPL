@@ -59,17 +59,21 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
     if (NOT "${_val_type}" STREQUAL "")
         string(REPLACE "_t" "" _val_type_short ${_val_type})
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}")
-        set(_test_path "${_variant}_${_base_file}.cpp")
     else()
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}")
-        set(_test_path "${_variant}_${_base_file}.cpp")
     endif()
+    # Use unified test file without variant prefix
+    set(_test_path "${_base_file}.cpp")
 
     _generate_test_randomly(${_target_name} ${_test_path} ${_probability_permille})
     if(TARGET ${_target_name})
         add_dependencies(build-${_variant}-sort-tests ${_target_name})
         add_dependencies(run-${_variant}-sort-tests ${_target_name})
 
+        # Define backend macro based on variant
+        string(TOUPPER ${_variant} _variant_upper)
+        target_compile_definitions(${_target_name} PRIVATE TEST_KT_BACKEND_${_variant_upper})
+ 
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})
         target_compile_definitions(${_target_name} PRIVATE TEST_KEY_TYPE=${_key_type})
