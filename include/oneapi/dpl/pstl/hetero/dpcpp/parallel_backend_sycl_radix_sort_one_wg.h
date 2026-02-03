@@ -71,8 +71,7 @@ struct __subgroup_radix_sort
         if (__SLM_available.second)
         {
             return __one_group_submitter<_SortKernelPartGlob>()(__q, std::forward<_RangeIn>(__src), __proj, __wg_size,
-                                                                std::false_type{} /*No SLM*/,
-                                                                std::true_type{} /*SLM*/);
+                                                                std::false_type{} /*No SLM*/, std::true_type{} /*SLM*/);
         }
         return __one_group_submitter<_SortKernelGlob>()(__q, std::forward<_RangeIn>(__src), __proj, __wg_size,
                                                         std::false_type{} /*No SLM*/, std::false_type{} /*No SLM*/);
