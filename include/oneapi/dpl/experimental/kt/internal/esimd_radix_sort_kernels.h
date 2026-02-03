@@ -640,16 +640,11 @@ struct __radix_sort_onesweep_kernel
                         _GlobOffsetT, __bin_width, __dpl_esimd::__ens::lsc_data_size::default_size,
                         __dpl_esimd::__ens::cache_hint::uncached, __dpl_esimd::__ens::cache_hint::cached>(
                         __p_prev_group_hist + __local_tid * __bin_width);
-                    // TODO: This fence is added to prevent a hang that occurs otherwise. However, this fence
-                    // should not logically be needed. Consider removing once this has been further investigated.
-                    // This preprocessor check is set to expire and needs to be reevaluated once the SYCL major version
-                    // is upgraded to 10.
-#if _ONEDPL_LIBSYCL_VERSION < 100000
-#    if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
+                    // This fence is added to prevent a hang that occurs otherwise.
+#if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::memory_kind::local>();
-#    else
+#else
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::fence_mask::sw_barrier>();
-#    endif
 #endif
                 } while (((__prev_group_hist & __hist_updated) == 0).any());
                 __prev_group_hist_sum.merge(__prev_group_hist_sum + __prev_group_hist, __is_not_accumulated);
