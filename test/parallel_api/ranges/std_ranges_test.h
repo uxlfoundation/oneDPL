@@ -310,9 +310,14 @@ private:
     static constexpr int kPaddingSize = 20;
 
     // Get real range size considering padding for out ranges
-    int get_padded_size(int n)
+    template <TestDataMode mode>
+    int
+    get_padded_size(int n) const
     {
-        return n + kPaddingSize * kParts;
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+            return n + kPaddingSize * kParts;
+        else
+            return n;
     }
 
     // Test dangling iterators in return types for call with temporary data
@@ -503,7 +508,7 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size<mode>(n_out), data_gen_unprocessed);
         Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
@@ -684,7 +689,7 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size<mode>(n_out), data_gen_unprocessed);
         Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
