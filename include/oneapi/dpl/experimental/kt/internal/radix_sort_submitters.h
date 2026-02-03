@@ -37,13 +37,12 @@ template <typename... _Name>
 struct __sycl_radix_sort_one_wg_kernel_name;
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, bool __in_place, typename _KeyT, typename _KernelName>
+          ::std::uint16_t __work_group_size, typename _KeyT, typename _KernelName>
 struct __radix_sort_one_wg_submitter;
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
-          ::std::uint16_t __work_group_size, bool __in_place, typename _KeyT, typename... _Name>
-struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, __in_place,
-                                     _KeyT,
+          ::std::uint16_t __work_group_size, typename _KeyT, typename... _Name>
+struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _KeyT,
                                      oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>
 {
   private:
