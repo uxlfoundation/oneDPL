@@ -3462,15 +3462,17 @@ struct __mask_buffers<false>
 template <bool __Bounded>
 struct __mask_buffers
 {
+    using _mask_ptr_t = std::nullptr_t;
+
     __mask_buffers(std::size_t) {}
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_data(std::size_t = 0)
     {
         return nullptr;
     }
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_res_data(std::size_t = 0)
     {
         return nullptr;
