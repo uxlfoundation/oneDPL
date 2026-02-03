@@ -132,25 +132,25 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker);
-    test_range_algo<1, int, data_in_in_out_lim, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj);
+    test_range_algo<0, int, data_in_in_out_lim, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker);
+    test_range_algo<1, int, data_in_in_out_lim, data_in_in_out, mul1_t, div3_t>{big_sz}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out_lim, mul1_t, div3_t>{100}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj, proj);
+    test_range_algo<2, int, data_in_in_out_lim, data_in_in_out, mul1_t, div3_t>{100}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out_lim, mul1_t, div3_t>{}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<3,  P2, data_in_in_out_lim, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, data_in_in_out_lim, data_in_in_out, mul1_t, div3_t>{}(dpl_ranges::set_intersection, set_intersection_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Testing partial intersection less than __set_algo_cut_off
     auto medium_shift = [](auto&& v) { return v + 400; };
     using ms_t = decltype(medium_shift);
-    test_range_algo<5, int, data_in_in_out_lim, mul1_t, ms_t>{600}(dpl_ranges::set_intersection, set_intersection_checker);
+    test_range_algo<5, int, data_in_in_out_lim, data_in_in_out, mul1_t, ms_t>{600}(dpl_ranges::set_intersection, set_intersection_checker);
 
     // Testing no intersection
     auto large_shift = [](auto&& v) { return v + 5000; };
     using ls_t = decltype(large_shift);
-    test_range_algo<6, int, data_in_in_out_lim, mul1_t, ls_t>{1000}(dpl_ranges::set_intersection, set_intersection_checker);
-    test_range_algo<7, int, data_in_in_out_lim, ls_t, mul1_t>{1000}(dpl_ranges::set_intersection, set_intersection_checker);
+    test_range_algo<6, int, data_in_in_out_lim, data_in_in_out, mul1_t, ls_t>{1000}(dpl_ranges::set_intersection, set_intersection_checker);
+    test_range_algo<7, int, data_in_in_out_lim, data_in_in_out, ls_t, mul1_t>{1000}(dpl_ranges::set_intersection, set_intersection_checker);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();

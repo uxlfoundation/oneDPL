@@ -3284,7 +3284,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
 template <typename Size>
 constexpr bool
-__is_great_that_set_algo_cut_off(Size size)
+__is_greater_than_set_algo_cut_off(Size size)
 {
     // 1000 is chosen as a cut-off value based on benchmarking source data sizes
     constexpr Size __set_algo_cut_off = 1000;
@@ -3408,11 +3408,13 @@ struct __mask_buffers;
 template <>
 struct __mask_buffers<true>
 {
+    using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
+
     __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size), __buf_mask_rng_res(__mask_buf_size)
     {
     }
 
-    oneapi::dpl::__utils::__parallel_set_op_mask*
+    _mask_ptr_t
     get_buf_mask_rng_data(std::size_t __offset = 0) const
     {
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
@@ -3422,7 +3424,7 @@ struct __mask_buffers<true>
 #endif
     }
 
-    oneapi::dpl::__utils::__parallel_set_op_mask*
+    _mask_ptr_t
     get_buf_mask_rng_res_data() const
     {
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
@@ -3440,15 +3442,17 @@ struct __mask_buffers<true>
 template <>
 struct __mask_buffers<false>
 {
+    using _mask_ptr_t = std::nullptr_t;
+
     __mask_buffers(std::size_t) {}
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_data(std::size_t = 0) const
     {
         return nullptr;
     }
 
-    std::nullptr_t
+    _mask_ptr_t
     get_buf_mask_rng_res_data() const
     {
         return nullptr;
@@ -3534,9 +3538,10 @@ struct _ScanPred
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     _RandomAccessIterator
-    __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
+    __advance_clamped(_RandomAccessIterator __it1, Size __size, _RandomAccessIterator __it2) const
     {
-        return it1 + (it2 >= it1 ? std::min(it2 - it1, n) : 0);
+        assert(__it1 <= __it2);
+        return __it1 + std::min(__it2 - __it1, __size);
     }
 };
 
@@ -3816,22 +3821,22 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         // Temporary "window"-organized mask of used items in input ranges
-        auto __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
-        auto __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
+        using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
+        _mask_ptr_t __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
+        _mask_ptr_t __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
 
         _DifferenceType __res_reachedOutPos = 0; // offset to the first unprocessed item from output range
 
         _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), decltype(__buf_mask_rng_raw_data_begin),
-                  _OutputIterator>
-            __scan_pred{__buf_raw_data_begin,
-                        __buf_raw_data_end,
-                        __buf_mask_rng_raw_data_begin,
-                        __buf_mask_rng_res_raw_data_begin,
-                        __result1,
-                        __result2};
+        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
+            __buf_raw_data_begin,
+            __buf_raw_data_end,
+            __buf_mask_rng_raw_data_begin,
+            __buf_mask_rng_res_raw_data_begin,
+            __result1,
+            __result2};
 
         _ParallelSetOpStrictScanPred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
                                      _OutputIterator, _SizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
@@ -3976,7 +3981,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     auto __size_fnc = [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; };
 
     const auto __m1 = __left_bound_seq_1 - __first1;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
+    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m1))
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
@@ -3999,7 +4004,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     const auto __m2 = __left_bound_seq_2 - __first2;
     assert(__m1 == 0 || __m2 == 0);
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m2))
+    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m2))
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
@@ -4236,7 +4241,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
@@ -4368,7 +4373,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __result;
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
+    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
@@ -4396,7 +4401,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m2))
+    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m2))
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
@@ -4534,7 +4539,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                  __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
     {
         return __parallel_set_op</*__Bounded*/ IMPLEMENT_SET_OP_AS_BOUNDED>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
@@ -4647,7 +4652,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
