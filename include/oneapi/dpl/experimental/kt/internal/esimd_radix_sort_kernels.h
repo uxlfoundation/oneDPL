@@ -640,7 +640,6 @@ struct __radix_sort_onesweep_kernel
                         _GlobOffsetT, __bin_width, __dpl_esimd::__ens::lsc_data_size::default_size,
                         __dpl_esimd::__ens::cache_hint::uncached, __dpl_esimd::__ens::cache_hint::cached>(
                         __p_prev_group_hist + __local_tid * __bin_width);
-                    // This fence is added to prevent a hang that occurs otherwise.
 #if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::memory_kind::local>();
 #else
