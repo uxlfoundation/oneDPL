@@ -647,9 +647,9 @@ struct __radix_sort_onesweep_kernel
 #if _ONEDPL_LIBSYCL_VERSION < 100000
 #    if _ONEDPL_ESIMD_LSC_FENCE_PRESENT
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::memory_kind::local>();
-#   else
+#    else
                     __dpl_esimd::__ns::fence<__dpl_esimd::__ns::fence_mask::sw_barrier>();
-#   endif
+#    endif
 #endif
                 } while (((__prev_group_hist & __hist_updated) == 0).any());
                 __prev_group_hist_sum.merge(__prev_group_hist_sum + __prev_group_hist, __is_not_accumulated);
