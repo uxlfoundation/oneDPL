@@ -33,12 +33,12 @@
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
 
+#include "radix_sort_utils.h"
+
 #ifdef TEST_KT_BACKEND_ESIMD
-#    include "esimd_radix_sort_utils.h"
-    namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu::esimd;
+namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu::esimd;
 #elif defined(TEST_KT_BACKEND_SYCL)
-#    include "sycl_radix_sort_utils.h"
-    namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu;
+namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu;
 #endif
 
 #if _ENABLE_RANGES_TESTING
