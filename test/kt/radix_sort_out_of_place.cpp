@@ -226,35 +226,15 @@ test_general_cases(sycl::queue q, std::size_t size, KernelParam param)
 #endif // _ENABLE_RANGES_TESTING
 }
 
-#ifdef TEST_KT_BACKEND_ESIMD
-template <typename T, typename KernelParam>
-bool
-can_run_test(sycl::queue q, KernelParam param)
-{
-    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    // skip tests with error: LLVM ERROR: SLM size exceeds target limits
-    return sizeof(T) * param.data_per_workitem * param.workgroup_size < max_slm_size;
-}
-#elif defined(TEST_KT_BACKEND_SYCL)
-template <typename KernelParam, typename KeyT, typename ValueT>
-bool
-can_run_test(sycl::queue q, KernelParam param, std::false_type)
-{
-    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    // skip tests with error: LLVM ERROR: SLM size exceeds target limits
-    return sizeof(KeyT) * param.data_per_workitem * param.workgroup_size < max_slm_size;
-}
-#endif
-
 int
 main()
 {
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
 #ifdef TEST_KT_BACKEND_ESIMD
-    bool run_test = can_run_test<TEST_KEY_TYPE>(q, params);
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, void, std::true_type>(q, params, std::true_type{});
 #elif defined(TEST_KT_BACKEND_SYCL)
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, void>(q, params, std::false_type{});
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, void, std::false_type>(q, params, std::false_type{});
 #endif
     if (run_test)
     {
