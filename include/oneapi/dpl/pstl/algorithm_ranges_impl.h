@@ -1028,10 +1028,10 @@ struct __set_union_offsets
         };
 
         // transform_reduce
-        const _Sizes __res =
-            __pattern_transform_reduce(__parallel_tag<_IsVector>{}, __exec, __mask, __mask + __reachedOutPos,
-                                       __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
-                                       _Sizes{0, 0}, reduce_pred, transform_pred);
+        const _Sizes __res = __pattern_transform_reduce(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __mask, __mask + __reachedOutPos,
+            __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
+            _Sizes{0, 0}, reduce_pred, transform_pred);
 
         return {__res.first, __res.second};
     }
