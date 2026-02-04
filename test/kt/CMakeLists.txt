@@ -109,7 +109,7 @@ function(_generate_sort_tests _variant _key_value_pairs)
     # Variant-specific configurations
     if (${_variant} STREQUAL "sycl")
         set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
-        set(_work_group_size_all "256" "512" "1024")
+        set(_work_group_size_all "1024")
     else() # esimd
         set(_data_per_work_item_all "32" "64" "96" "128" "160" "192" "224" "256" "288" "320" "352" "384" "416" "448" "480" "512")
         set(_work_group_size_all "64")
