@@ -33,6 +33,16 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     using _HistT = ::std::uint16_t;
     using _DeviceAddrT = ::std::uint32_t;
 
+    static constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
+    static constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+    static constexpr ::std::uint32_t __stage_count =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
+    static constexpr _BinT __mask = __bin_count - 1;
+    static constexpr ::std::uint32_t __hist_stride = sizeof(_HistT) * __bin_count;
+    static constexpr ::std::uint32_t __reorder_slm_size = __data_per_work_item * sizeof(_KeyT) * __work_group_size;
+    static constexpr ::std::uint32_t __bin_hist_slm_size = __hist_stride * __work_group_size;
+    static constexpr ::std::uint32_t __incoming_offset_slm_size = (__bin_count + 1) * sizeof(_HistT);
+
     std::uint32_t __n;
     _RngPack1 __rng_pack_in;
     _RngPack2 __rng_pack_out;
@@ -45,16 +55,6 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     _ONEDPL_ESIMD_INLINE void
     operator()(sycl::nd_item<1> __idx) const SYCL_ESIMD_KERNEL
     {
-        constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-        constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
-        constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
-        constexpr _BinT __mask = __bin_count - 1;
-        constexpr ::std::uint32_t __hist_stride = sizeof(_HistT) * __bin_count;
-
-        constexpr ::std::uint32_t __reorder_slm_size = __data_per_work_item * sizeof(_KeyT) * __work_group_size;
-        constexpr ::std::uint32_t __bin_hist_slm_size = __hist_stride * __work_group_size;
-        constexpr ::std::uint32_t __incoming_offset_slm_size = (__bin_count + 1) * sizeof(_HistT);
-
         // max SLM is 256 * 4 * 64 + 256 * 2 * 64 + 257*2, 97KB, when  __data_per_work_item = 256, __bin_count = 256
         // to support 512 processing size, we can use all SLM as reorder buffer with cost of more barrier
         __dpl_esimd::__ns::slm_init<::std::max(__reorder_slm_size, __bin_hist_slm_size + __incoming_offset_slm_size)>();
@@ -249,6 +249,21 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
     using _BinT = ::std::uint16_t;
     using _GlobalHistT = ::std::uint32_t;
 
+    static constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
+    static constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
+    static constexpr ::std::uint32_t __stage_count =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
+    static constexpr ::std::uint32_t __hist_data_per_work_item = 128;
+    static constexpr ::std::uint32_t __device_wide_step =
+        __hist_work_group_count * __hist_work_group_size * __hist_data_per_work_item;
+    // Cap the number of histograms to reduce in SLM per __keys_rng range read pass
+    // due to excessive GRF usage for thread-local histograms
+    static constexpr ::std::uint32_t __stages_per_block = sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 4;
+    static constexpr ::std::uint32_t __stage_block_count =
+        oneapi::dpl::__internal::__dpl_ceiling_div(__stage_count, __stages_per_block);
+    static constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
+    static constexpr ::std::uint32_t __group_hist_size = __hist_buffer_size / __hist_work_group_size;
+
     std::size_t __n;
     _KeysRng __keys_rng;
     ::std::uint32_t* __p_global_offset;
@@ -261,24 +276,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
     _ONEDPL_ESIMD_INLINE void
     operator()(sycl::nd_item<1> __idx) const SYCL_ESIMD_KERNEL
     {
-
         __dpl_esimd::__ns::slm_init<16384>();
-
-        constexpr ::std::uint32_t __bin_count = 1 << __radix_bits;
-        constexpr ::std::uint32_t __bit_count = sizeof(_KeyT) * 8;
-        constexpr ::std::uint32_t __stage_count = oneapi::dpl::__internal::__dpl_ceiling_div(__bit_count, __radix_bits);
-        constexpr ::std::uint32_t __hist_data_per_work_item = 128;
-        constexpr ::std::uint32_t __device_wide_step =
-            __hist_work_group_count * __hist_work_group_size * __hist_data_per_work_item;
-
-        // Cap the number of histograms to reduce in SLM per __keys_rng range read pass
-        // due to excessive GRF usage for thread-local histograms
-        constexpr ::std::uint32_t __stages_per_block = sizeof(_KeyT) < 4 ? sizeof(_KeyT) : 4;
-        constexpr ::std::uint32_t __stage_block_count =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__stage_count, __stages_per_block);
-
-        constexpr ::std::uint32_t __hist_buffer_size = __stage_count * __bin_count;
-        constexpr ::std::uint32_t __group_hist_size = __hist_buffer_size / __hist_work_group_size;
 
         static_assert(__hist_data_per_work_item % __data_per_step == 0);
         static_assert(__bin_count * __stages_per_block % __data_per_step == 0);

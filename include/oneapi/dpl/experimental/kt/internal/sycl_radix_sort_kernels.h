@@ -622,9 +622,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     void inline __global_fix_to_slm(const sycl::nd_item<1>& __idx, _GlobOffsetT* __slm_global_fix,
                                     _GlobOffsetT* __slm_global_incoming, _LocOffsetT* __slm_group_hist) const
     {
-        const std::uint32_t __wg_size = __idx.get_local_range(0);
         // compute __global_fix
-        for (_LocIdxT __i = __idx.get_local_id(); __i < __bin_count; __i += __wg_size)
+        for (_LocIdxT __i = __idx.get_local_id(); __i < __bin_count; __i += __work_group_size)
         {
             // Note that this difference may be negative, but we use unsigned types. This is safe as wraparound for unsigned types
             // is guaranteed.
@@ -698,8 +697,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     [[sycl::reqd_sub_group_size(__sub_group_size)]] void
     operator()(sycl::nd_item<1> __idx) const
     {
-        const std::uint32_t __local_tid = __idx.get_local_linear_id();
-        const std::uint32_t __wg_size = __idx.get_local_range(0);
         const std::uint32_t __sg_id = __idx.get_sub_group().get_group_linear_id();
         const std::uint32_t __sg_local_id = __idx.get_sub_group().get_local_id();
 
@@ -749,7 +746,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         if constexpr (__has_values)
         {
             __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __get_slm_subgroup_hists_offset() +
-                                                  __wg_size * __data_per_work_item * sizeof(_KeyT));
+                                                  __work_group_size * __data_per_work_item * sizeof(_KeyT));
         }
         _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
 
