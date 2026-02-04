@@ -327,9 +327,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             __internal::__apply_to_tuples(std::ranges::iter_swap, __x.__current, __y.__current);
         }
-#if !defined(_MSC_VER)
       private:
-#endif
         template <std::size_t... _In>
         constexpr bool
         __compare_equal(iterator __y, std::index_sequence<_In...>) const
@@ -345,6 +343,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
 
         friend class zip_view;
+        friend class iterator<!_Const>;
 
         __iterators_type __current;
     }; // class iterator
