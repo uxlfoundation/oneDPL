@@ -133,7 +133,7 @@ class __pred_at_index
 };
 
 //! Apply a predicate to two consecutive elements of a random-access sequence to find non-equivalent (unique) ones
-template <typename _Pred, bool _SafeAtZero = true>
+template <typename _Pred, bool _CheckZero = false>
 class __unique_at_index
 {
     mutable _Pred _M_pred;
@@ -145,8 +145,13 @@ class __unique_at_index
     bool
     operator()(_RandomAccessTp&& __arr, _IndexTp __i) const
     {
-        if constexpr (!_SafeAtZero)
-            if (__i == 0) return true;
+        if constexpr (_CheckZero)
+        {
+            if (__i == 0)
+                return true;
+        }
+        else
+            static_assert(std::is_signed_v<_IndexTp>);
 
         return !_M_pred(__arr[__i], __arr[__i - 1]);
     }
