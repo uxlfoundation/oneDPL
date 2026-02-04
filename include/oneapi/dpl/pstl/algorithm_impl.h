@@ -1219,9 +1219,9 @@ __brick_bounded_copy_if(_RandomAccessIterator1 __first,
                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-    using _DifferenceType = decltype(__n);
+    using _DifferenceType = std::common_type_t<decltype(__n), decltype(__n_out)>;
     auto [__stop_in, __stop_out] = __unseq_backend::__simd_selective_copy</*bounded =*/ true>(
-        __first, __n, __result, _DifferenceType(__n_out), __internal::__pred_at_index{__pred});
+        __first, _DifferenceType(__n), __result, _DifferenceType(__n_out), __internal::__pred_at_index{__pred});
     return {__first + __stop_in, __result + __stop_out};
 }
 
@@ -1617,7 +1617,7 @@ __brick_bounded_unique_copy(_RandomAccessIterator1 __first,
                             typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                             _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-    using _DifferenceType = std::make_signed_t<decltype(__n)>;
+    using _DifferenceType = std::make_signed_t<std::common_type_t<decltype(__n), decltype(__n_out)>>;
     if (__n == 0 || __n_out == 0)
         return {__first, __result};
 
