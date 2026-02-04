@@ -920,7 +920,7 @@ struct __set_op_bounded_offsets_evaluator
 
         // Calculate prefix summs of counts
         __pattern_transform_scan(
-            __tag, __exec,
+            __tag, std::forward<_ExecutionPolicy>(__exec),
             __tr_first, __tr_first + __req_mask_size,
             __prefix_summ_buf_it_b,
             oneapi::dpl::identity{},
