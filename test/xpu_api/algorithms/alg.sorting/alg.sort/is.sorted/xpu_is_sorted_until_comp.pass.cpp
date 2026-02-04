@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define _USE_STD_VECTOR_ALGORITHMS 0
+
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/functional>
 
