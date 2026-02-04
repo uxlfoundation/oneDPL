@@ -284,11 +284,10 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr decltype(__wgroup_size) __iters_per_witem = 16;
-        auto __size_per_wg = __iters_per_witem * __wgroup_size;
-        auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
+        constexpr std::size_t __iters_per_witem = 16;
+        std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
-
         __combined_storage<_Type> __temp_and_result{__q, __n_groups + 1, /*result size*/ 2};
 
         _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
@@ -477,18 +476,42 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
     }
 };
 
+struct __parallel_copy_if_single_group_base
+{
+    using _ValueType = std::uint16_t;
+
+    template <typename _Size>
+    static std::pair<std::make_unsigned_t<_Size>, std::make_unsigned_t<_Size>>
+    __local_memory_needed(_Size __n)
+    {
+        // Next power of 2 greater than or equal to __n
+        std::make_unsigned_t<_Size> __n_uniform =
+            oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
+        // The kernel needs memory for: N predicate evaluations, N output offsets, and the input stop position
+        return {__n_uniform * 2 + 1, __n_uniform};
+    }
+
+    template <typename _Size>
+    static bool __enough_local_memory(sycl::queue __q, _Size __n)
+    {
+        // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
+        std::size_t __available_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+        return __available_size >= __local_memory_needed(__n).first * sizeof(_ValueType);
+    }
+};
+
 template <typename _KernelName>
 struct __parallel_copy_if_single_group_functor;
 
 template <typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
+    : __parallel_copy_if_single_group_base
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out,
                _UnaryOp __unary_op, _Assign __assign, std::size_t __max_wg_size)
     {
-        using _ValueType = std::uint16_t;
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
@@ -499,12 +522,10 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
-            // Next power of 2 greater than or equal to __n
-            auto __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
-            // Local memory is split into two parts. The first half stores the result of applying the
-            // predicate on each element of the input range. The second half stores the index of the output
-            // range to copy elements of the input range.
-            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__n_uniform * 2 + 1), __hdl);
+            std::make_unsigned_t<_Size> __lsize, __n_uniform;
+             // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
+            std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
+            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
             std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
 
@@ -555,16 +576,6 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         return __ret;
     }
 };
-
-template <typename _Size>
-bool __enough_local_memory_for_single_group_copy_if(sycl::queue __q, _Size __n)
-{
-    // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
-    std::size_t __available_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
-    auto __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
-    // The kernel needs memory for: N predicate evaluations, N offsets, 1 element for the input stop position
-    return __available_size >= sizeof(std::uint16_t) * (__n_uniform * 2 + 1);
-}
 
 template <typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation, typename _InitType,
           typename _BinaryOperation, typename _Inclusive>
@@ -915,7 +926,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
-    if (__n <= __max_wg_size * __max_elem_per_item && __enough_local_memory_for_single_group_copy_if(__q_local, __n))
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
