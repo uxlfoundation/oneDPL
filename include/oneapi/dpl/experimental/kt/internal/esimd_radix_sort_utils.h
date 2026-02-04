@@ -24,7 +24,7 @@
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
-template <::std::uint8_t __radix_bits, ::std::uint16_t __data_per_workitem, ::std::uint16_t __workgroup_size>
+template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
 constexpr void
 __check_esimd_sort_params()
 {
@@ -80,21 +80,21 @@ __scan(__dpl_esimd::__ns::simd<_T, 64> __src, const _T __init = 0)
 }
 
 // get bits value (bucket) in a certain radix position
-template <::std::uint16_t __radix_mask, typename _T, int _N, std::enable_if_t<::std::is_unsigned_v<_T>, int> = 0>
-__dpl_esimd::__ns::simd<::std::uint16_t, _N>
-__get_bucket(__dpl_esimd::__ns::simd<_T, _N> __value, ::std::uint32_t __radix_offset)
+template <std::uint16_t __radix_mask, typename _T, int _N, std::enable_if_t<std::is_unsigned_v<_T>, int> = 0>
+__dpl_esimd::__ns::simd<std::uint16_t, _N>
+__get_bucket(__dpl_esimd::__ns::simd<_T, _N> __value, std::uint32_t __radix_offset)
 {
-    return __dpl_esimd::__ns::simd<::std::uint16_t, _N>(__value >> __radix_offset) & __radix_mask;
+    return __dpl_esimd::__ns::simd<std::uint16_t, _N>(__value >> __radix_offset) & __radix_mask;
 }
 
-template <typename _T, bool __is_ascending, std::enable_if_t<::std::is_integral_v<_T>, int> = 0>
+template <typename _T, bool __is_ascending, std::enable_if_t<std::is_integral_v<_T>, int> = 0>
 constexpr _T
 __sort_identity()
 {
     if constexpr (__is_ascending)
-        return ::std::numeric_limits<_T>::max();
+        return std::numeric_limits<_T>::max();
     else
-        return ::std::numeric_limits<_T>::lowest();
+        return std::numeric_limits<_T>::lowest();
 }
 
 // std::numeric_limits<_T>::max and std::numeric_limits<_T>::lowest cannot be used as an idenentity for
@@ -103,7 +103,7 @@ __sort_identity()
 // thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
 // e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
 template <typename _T, bool __is_ascending,
-          std::enable_if_t<::std::is_floating_point_v<_T> && sizeof(_T) == sizeof(::std::uint32_t), int> = 0>
+          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint32_t), int> = 0>
 constexpr _T
 __sort_identity()
 {
@@ -114,7 +114,7 @@ __sort_identity()
 }
 
 template <typename _T, bool __is_ascending,
-          std::enable_if_t<::std::is_floating_point_v<_T> && sizeof(_T) == sizeof(::std::uint64_t), int> = 0>
+          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint64_t), int> = 0>
 constexpr _T
 __sort_identity()
 {
@@ -134,7 +134,7 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<bool, _N> __src)
         return !__src;
 }
 
-template <bool __is_ascending, typename _UInt, int _N, std::enable_if_t<::std::is_unsigned_v<_UInt>, int> = 0>
+template <bool __is_ascending, typename _UInt, int _N, std::enable_if_t<std::is_unsigned_v<_UInt>, int> = 0>
 __dpl_esimd::__ns::simd<_UInt, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_UInt, _N> __src)
 {
@@ -145,58 +145,58 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_UInt, _N> __src)
 }
 
 template <bool __is_ascending, typename _Int, int _N,
-          std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
-__dpl_esimd::__ns::simd<::std::make_unsigned_t<_Int>, _N>
+          std::enable_if_t<std::is_integral_v<_Int>&& std::is_signed_v<_Int>, int> = 0>
+__dpl_esimd::__ns::simd<std::make_unsigned_t<_Int>, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Int, _N> __src)
 {
-    using _UInt = ::std::make_unsigned_t<_Int>;
+    using _UInt = std::make_unsigned_t<_Int>;
     // __mask: 100..0 for ascending, 011..1 for descending
     constexpr _UInt __mask =
-        (__is_ascending) ? _UInt(1) << ::std::numeric_limits<_Int>::digits : ::std::numeric_limits<_UInt>::max() >> 1;
+        (__is_ascending) ? _UInt(1) << std::numeric_limits<_Int>::digits : std::numeric_limits<_UInt>::max() >> 1;
     return __src.template bit_cast_view<_UInt>() ^ __mask;
 }
 
 template <bool __is_ascending, typename _Float, int _N,
-          std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint32_t), int> = 0>
-__dpl_esimd::__ns::simd<::std::uint32_t, _N>
+          std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint32_t), int> = 0>
+__dpl_esimd::__ns::simd<std::uint32_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
-    __dpl_esimd::__ns::simd<::std::uint32_t, _N> __uint32_src = __src.template bit_cast_view<::std::uint32_t>();
-    __dpl_esimd::__ns::simd<::std::uint32_t, _N> __mask;
+    __dpl_esimd::__ns::simd<std::uint32_t, _N> __uint32_src = __src.template bit_cast_view<std::uint32_t>();
+    __dpl_esimd::__ns::simd<std::uint32_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint32_src >> 31 == 0);
     if constexpr (__is_ascending)
     {
-        __mask = __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint32_t, _N>(0x80000000u),
-                                          __dpl_esimd::__ns::simd<::std::uint32_t, _N>(0xFFFFFFFFu), __sign_bit_m);
+        __mask = __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint32_t, _N>(0x80000000u),
+                                          __dpl_esimd::__ns::simd<std::uint32_t, _N>(0xFFFFFFFFu), __sign_bit_m);
     }
     else
     {
         __mask =
-            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint32_t, _N>(0x7FFFFFFFu),
-                                     __dpl_esimd::__ns::simd<::std::uint32_t, _N>(::std::uint32_t(0)), __sign_bit_m);
+            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint32_t, _N>(0x7FFFFFFFu),
+                                     __dpl_esimd::__ns::simd<std::uint32_t, _N>(std::uint32_t(0)), __sign_bit_m);
     }
     return __uint32_src ^ __mask;
 }
 
 template <bool __is_ascending, typename _Float, int _N,
-          std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint64_t), int> = 0>
-__dpl_esimd::__ns::simd<::std::uint64_t, _N>
+          std::enable_if_t<std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(std::uint64_t), int> = 0>
+__dpl_esimd::__ns::simd<std::uint64_t, _N>
 __order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
 {
-    __dpl_esimd::__ns::simd<::std::uint64_t, _N> __uint64_src = __src.template bit_cast_view<::std::uint64_t>();
-    __dpl_esimd::__ns::simd<::std::uint64_t, _N> __mask;
+    __dpl_esimd::__ns::simd<std::uint64_t, _N> __uint64_src = __src.template bit_cast_view<std::uint64_t>();
+    __dpl_esimd::__ns::simd<std::uint64_t, _N> __mask;
     __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint64_src >> 63 == 0);
     if constexpr (__is_ascending)
     {
         __mask =
-            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint64_t, _N>(0x8000000000000000u),
-                                     __dpl_esimd::__ns::simd<::std::uint64_t, _N>(0xFFFFFFFFFFFFFFFFu), __sign_bit_m);
+            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint64_t, _N>(0x8000000000000000u),
+                                     __dpl_esimd::__ns::simd<std::uint64_t, _N>(0xFFFFFFFFFFFFFFFFu), __sign_bit_m);
     }
     else
     {
         __mask =
-            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint64_t, _N>(0x7FFFFFFFFFFFFFFFu),
-                                     __dpl_esimd::__ns::simd<::std::uint64_t, _N>(::std::uint64_t(0)), __sign_bit_m);
+            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<std::uint64_t, _N>(0x7FFFFFFFFFFFFFFFu),
+                                     __dpl_esimd::__ns::simd<std::uint64_t, _N>(std::uint64_t(0)), __sign_bit_m);
     }
     return __uint64_src ^ __mask;
 }
@@ -218,8 +218,8 @@ __create_simd(_T initial, _T step)
 template <typename _T>
 struct __slm_lookup
 {
-    ::std::uint32_t __slm;
-    inline __slm_lookup(::std::uint32_t __slm) : __slm(__slm) {}
+    std::uint32_t __slm;
+    inline __slm_lookup(std::uint32_t __slm) : __slm(__slm) {}
 
     template <int __table_size>
     inline void
@@ -233,7 +233,7 @@ struct __slm_lookup
     __lookup(_Idx __idx) SYCL_ESIMD_FUNCTION
     {
         return __dpl_esimd::__vector_load<_T, 1, _N>(__slm +
-                                                     __dpl_esimd::__ns::simd<::std::uint32_t, _N>(__idx) * sizeof(_T));
+                                                     __dpl_esimd::__ns::simd<std::uint32_t, _N>(__idx) * sizeof(_T));
     }
 
     template <int _N, int __table_size, typename _Idx>
@@ -300,7 +300,7 @@ struct __rng_pack
 
     __rng_pack(const _Rng1& __rng1, const _Rng2& __rng2 = __rng_dummy{}) : __m_keys_rng(__rng1), __m_vals_rng(__rng2) {}
     __rng_pack(_Rng1&& __rng1, _Rng2&& __rng2 = __rng_dummy{})
-        : __m_keys_rng(::std::move(__rng1)), __m_vals_rng(::std::move(__rng2))
+        : __m_keys_rng(std::move(__rng1)), __m_vals_rng(std::move(__rng2))
     {
     }
 
@@ -309,24 +309,24 @@ struct __rng_pack
     _Rng2 __m_vals_rng;
 };
 
-template <::std::uint16_t _N, typename _KeyT>
+template <std::uint16_t _N, typename _KeyT>
 struct __keys_simd_pack
 {
     __dpl_esimd::__ns::simd<_KeyT, _N> __keys;
 };
 
-template <::std::uint16_t _N, typename _KeyT, typename _ValT>
+template <std::uint16_t _N, typename _KeyT, typename _ValT>
 struct __pairs_simd_pack
 {
     __dpl_esimd::__ns::simd<_KeyT, _N> __keys;
     __dpl_esimd::__ns::simd<_ValT, _N> __vals;
 };
 
-template <::std::uint16_t _N, typename _T1, typename _T2 = void>
+template <std::uint16_t _N, typename _T1, typename _T2 = void>
 auto
 __make_simd_pack()
 {
-    if constexpr (::std::is_void_v<_T2>)
+    if constexpr (std::is_void_v<_T2>)
     {
         return __keys_simd_pack<_N, _T1>{};
     }
