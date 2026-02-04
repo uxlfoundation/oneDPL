@@ -64,9 +64,10 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
     sycl::event
     operator()(__sycl_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, ::std::size_t __n) const
     {
-        // Use __subgroup_radix_sort with default radix=4 and block_size=__data_per_work_item
-        constexpr ::std::uint16_t __block_size = __data_per_work_item;
-        constexpr ::std::uint32_t __radix = 4;
+        // TODO: Use user-provided work-group sizes and data per work item. However, 8-bit radix is broken in oneDPL, so we
+        // must force 4-bit for now.
+        constexpr std::uint16_t __block_size = __data_per_work_item;
+        constexpr std::uint32_t __radix = 4;
 
         // Create a unique kernel name using __kernel_name_provider
         // Include range pack types to ensure uniqueness across different invocations
@@ -79,7 +80,6 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
 
         _SubgroupRadixSort __sorter;
 
-        // Now sort the output range in-place using identity projection
         auto __identity_proj = [](const _KeyT& __x) { return __x; };
         return __sorter(__q, __pack_in.__keys_rng(), __pack_out.__keys_rng(), __identity_proj);
     }
@@ -194,8 +194,8 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.depends_on(__e);
             __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item,
                                          __work_group_size, ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>
-                __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id,
-                         ::std::forward<_InRngPack>(__in_pack), ::std::forward<_OutRngPack>(__out_pack));
+                __kernel(__n, __stage, __p_global_hist, __p_group_hists, ::std::forward<_InRngPack>(__in_pack),
+                         ::std::forward<_OutRngPack>(__out_pack));
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
     }
@@ -211,7 +211,6 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
                                          __work_group_size, ::std::decay_t<_InRngPack>, ::std::decay_t<_OutRngPack>>;
         constexpr ::std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
-        constexpr ::std::uint32_t __slm_size_elements = __slm_size_bytes / sizeof(::std::uint32_t);
 
         sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
@@ -241,7 +240,7 @@ struct __radix_sort_copyback_submitter<oneapi::dpl::__par_backend_hetero::__inte
     operator()(_KtTag, sycl::queue& __q, _InRngPack&& __in_pack, _OutRngPack&& __out_pack, ::std::uint32_t __n,
                const sycl::event& __e) const
     {
-        //copyback kernel is pure sycl for esimd_sort, so no need to dispatch from tag
+        // Copyback kernel is pure sycl for esimd_sort, so no need to dispatch from tag
         return __q.submit([&](sycl::handler& __cgh) {
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (::std::decay_t<_InRngPack>::__has_values)

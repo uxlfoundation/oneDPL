@@ -403,7 +403,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         static_assert(__bin_count % __sub_group_size == 0);
 
         constexpr std::uint32_t __bin_summary_sub_group_size = __bin_count / __sub_group_size;
-        constexpr std::uint32_t __bin_width = __sub_group_size;
+        constexpr std::uint32_t __bin_process_width = __sub_group_size;
 
         auto __sub_group_id = __idx.get_sub_group().get_group_linear_id();
         auto __sub_group_local_id = __idx.get_sub_group().get_local_linear_id();
@@ -417,16 +417,18 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         _LocOffsetT __item_bin_count = 0;
         if (__sub_group_id < __bin_summary_sub_group_size)
         {
-            // 1.1. Vector scan of the same bins across different histograms.
-            __item_bin_count = __intra_bin_scan_across_sub_groups<__bin_width>(
+            // 1.1. Vector scan of the same bins across different histograms. Each lane is assigned its own bin and
+            // scans across all sub-group histograms.
+            __item_bin_count = __intra_bin_scan_across_sub_groups<__bin_process_width>(
                 __sub_group_id, __sub_group_local_id, __item_grf_hist_summary, __slm_subgroup_hists);
 
-            // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
-            __inter_bin_scan_work_group_totals<__bin_width>(__idx, __sub_group_id, __sub_group_local_id,
-                                                            __item_grf_hist_summary_arr, __slm_group_hist);
+            // 1.2. Vector scan of different bins inside one histogram: ONLY the final one per summary sub-group
+            __inter_bin_scan_work_group_totals<__bin_process_width>(__idx, __sub_group_id, __sub_group_local_id,
+                                                                    __item_grf_hist_summary_arr, __slm_group_hist);
 
-            // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
-            __output_work_group_chained_scan_partials<__bin_width, __global_accumulated, __hist_updated,
+            // 1.3. Copy the histogram at the region designated for synchronization between work-groups and set work-group
+            // zeros incoming values from the global histogram kernel.
+            __output_work_group_chained_scan_partials<__bin_process_width, __global_accumulated, __hist_updated,
                                                       __global_offset_mask>(__wg_id, __sub_group_id,
                                                                             __sub_group_local_id, __item_bin_count,
                                                                             __p_this_group_hist, __slm_global_incoming);
@@ -437,32 +439,31 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         std::uint32_t __sub_group_group_id = __sub_group.get_group_linear_id();
 
         // 1.4 One work-item finalizes scan performed at stage 1.2
-        // by propagating prefixes accumulated after scanning individual "__bin_width" pieces.
+        // by propagating prefixes accumulated after scanning individual "__bin_process_width" pieces and converting
+        // them scan from being inclusive to exclusive.
         if (__sub_group_group_id == 0)
         {
-            __sub_group_cross_segment_exclusive_scan<__bin_width, __bin_summary_sub_group_size>(__sub_group,
-                                                                                                __slm_group_hist);
+            __sub_group_cross_segment_exclusive_scan<__bin_process_width, __bin_summary_sub_group_size>(
+                __sub_group, __slm_group_hist);
         }
 
         __dpl_sycl::__group_barrier(__idx);
 
         // 2. Chained scan. Synchronization between work-groups.
-        __work_group_chained_scan<__bin_width, __bin_summary_sub_group_size, __global_accumulated, __hist_updated,
-                                  __global_offset_mask>(__idx, __wg_id, __sub_group_group_id, __sub_group_local_id,
-                                                        __item_bin_count, __p_this_group_hist, __p_prev_group_hist,
-                                                        __slm_global_incoming);
+        __work_group_chained_scan<__bin_process_width, __bin_summary_sub_group_size, __global_accumulated,
+                                  __hist_updated, __global_offset_mask>(
+            __idx, __wg_id, __sub_group_group_id, __sub_group_local_id, __item_bin_count, __p_this_group_hist,
+            __p_prev_group_hist, __slm_global_incoming);
 
         __dpl_sycl::__group_barrier(__idx);
     }
 
-    // 1.1. Vector scan of the same bins across different histograms.
-    // Each sub-group processes a portion of bins, scanning across all sub-group histograms.
-    template <std::uint32_t __bin_width>
+    template <std::uint32_t __bin_process_width>
     inline _LocOffsetT
     __intra_bin_scan_across_sub_groups(std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id,
                                        _LocOffsetT& __item_grf_hist_summary, _LocOffsetT* __slm_subgroup_hists) const
     {
-        _LocIdxT __slm_bin_hist_summary_offset = __sub_group_id * __bin_width;
+        _LocIdxT __slm_bin_hist_summary_offset = __sub_group_id * __bin_process_width;
 
         for (std::uint32_t __s = 0; __s < __num_sub_groups_per_work_group;
              __s++, __slm_bin_hist_summary_offset += __bin_count)
@@ -474,11 +475,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         return __item_grf_hist_summary;
     }
 
-    // 1.2. Vector scan of different bins inside one histogram, the final one for the whole work-group.
-    // Only "__bin_width" pieces of the histogram are scanned at this stage.
-    // This histogram will be further used for calculation of offsets of keys already reordered in SLM,
-    // it does not participate in synchronization between work-groups.
-    template <std::uint32_t __bin_width>
+    template <std::uint32_t __bin_process_width>
     inline void
     __inter_bin_scan_work_group_totals(const sycl::nd_item<1>& __idx, std::uint32_t __sub_group_id,
                                        std::uint32_t __sub_group_local_id,
@@ -486,9 +483,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                        _LocOffsetT* __slm_group_hist) const
     {
         __sub_group_scan<__sub_group_size, 1>(__idx.get_sub_group(), __item_grf_hist_summary_arr, std::plus<>{},
-                                              __bin_width);
+                                              __bin_process_width);
 
-        _LocIdxT __write_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+        _LocIdxT __write_idx = __sub_group_id * __bin_process_width + __sub_group_local_id;
         __slm_group_hist[__write_idx] = __item_grf_hist_summary_arr[0];
     }
 
@@ -496,7 +493,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     void
     __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements) const
     {
-        // TODO: make it work if this static assert is not true
+        // __segment_width is required to match __sub_group_size for performance: each lane processes
+        // one element and no masking is required. However to support radix bits < log2(sub_group_size)
+        // we would need to relax this requirement and add masking with a new, higher overhead path
         static_assert(__segment_width == __sub_group_size);
         using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
         _ElemT __carry = 0;
@@ -515,9 +514,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    // 1.3. Copy the histogram at the region designated for synchronization between work-groups.
-    // Write the histogram to global memory, bypassing caches, to ensure cross-work-group visibility.
-    template <std::uint32_t __bin_width, std::uint32_t __global_accumulated, std::uint32_t __hist_updated,
+    template <std::uint32_t __bin_process_width, std::uint32_t __global_accumulated, std::uint32_t __hist_updated,
               std::uint32_t __global_offset_mask>
     inline void
     __output_work_group_chained_scan_partials(std::uint32_t __wg_id, std::uint32_t __sub_group_id,
@@ -527,7 +524,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     {
         using _GlobalAtomicT = sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                                 sycl::access::address_space::global_space>;
-        _LocIdxT __hist_idx = __sub_group_id * __bin_width + __sub_group_local_id;
+        _LocIdxT __hist_idx = __sub_group_id * __bin_process_width + __sub_group_local_id;
 
         if (__wg_id != 0)
         {
@@ -548,10 +545,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    // 2. Chained scan. Synchronization between work-groups.
-    // Each work-group (except WG0) looks back at previous work-groups' histograms to compute global offsets.
-    template <std::uint32_t __bin_width, std::uint32_t __bin_summary_sub_group_size, std::uint32_t __global_accumulated,
-              std::uint32_t __hist_updated, std::uint32_t __global_offset_mask>
+    template <std::uint32_t __bin_process_width, std::uint32_t __bin_summary_sub_group_size,
+              std::uint32_t __global_accumulated, std::uint32_t __hist_updated, std::uint32_t __global_offset_mask>
     inline void
     __work_group_chained_scan(const sycl::nd_item<1>& __idx, std::uint32_t __wg_id, std::uint32_t __sub_group_group_id,
                               std::uint32_t __sub_group_local_id, _LocOffsetT __item_bin_count,
@@ -572,11 +567,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _GlobOffsetT* __p_lookback_hist = __p_prev_group_hist;
             do
             {
-                // Relaxed loads are important for performance but run the risk of not being globally reflected.
-                // Execute a fence every __atomic_fence_iter iters to unblock any loads that are not globally reflected
+                // On Xe2, we have seen some low probability instances where the lookback gets stuck when using relaxed atomic loads even though
+                // lower work-groups have completed. Using a higher memory order for the atomic has a very high performance cost. To mitigate
+                // this, we execute an atomic fence every __atomic_fence_iter iterations to unblock any stalled items. As this stalling issue
+                // seldom occurs, the performance impact is small.
                 constexpr std::uint32_t __atomic_fence_iter = 256;
                 std::uint32_t __lookback_counter = 0;
-                _LocIdxT __bin_idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+                _LocIdxT __bin_idx = __sub_group_group_id * __bin_process_width + __sub_group_local_id;
                 _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
                 do
                 {
@@ -585,7 +582,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                     {
                         sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
                     }
-                    // Ensure that the spinning loop serializes loads within the work-item.
                 } while ((__prev_group_hist & __hist_updated) == 0);
                 __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
                 __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
@@ -594,7 +590,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             __prev_group_hist_sum &= __global_offset_mask;
             _GlobOffsetT __after_group_hist_sum = __prev_group_hist_sum + __item_bin_count;
-            _LocIdxT __bin_idx = __sub_group_group_id * __bin_width + __sub_group_local_id;
+            _LocIdxT __bin_idx = __sub_group_group_id * __bin_process_width + __sub_group_local_id;
 
             // 2.2. Write the histogram scanned across work-group, updated with the current work-group data
             _GlobalAtomicT __ref(__p_this_group_hist[__bin_idx]);
