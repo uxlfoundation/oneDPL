@@ -20,7 +20,6 @@
 #include <initializer_list>
 #include <utility>
 
-#include "oneapi/dpl/execution"
 #include "utils_const.h"
 #include "utils_sequence.h"
 #include "utils_invoke.h"
