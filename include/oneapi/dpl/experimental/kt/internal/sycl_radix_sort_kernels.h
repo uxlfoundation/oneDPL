@@ -438,7 +438,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
         // 1.4 One work-item finalizes scan performed at stage 1.2
         // by propagating prefixes accumulated after scanning individual "__bin_width" pieces.
-        if (__sub_group_group_id == __bin_summary_sub_group_size + 1)
+        if (__sub_group_group_id == 0)
         {
             __sub_group_cross_segment_exclusive_scan<__bin_width, __bin_summary_sub_group_size>(__sub_group,
                                                                                                 __slm_group_hist);
