@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Disable MSVC STL's vectorized implementations of standard algorithms to match
+// the behavior of MS STL version 145, which these tests are written against.
+// This keeps the scalar algorithm paths enabled for consistent results.
 #define _USE_STD_VECTOR_ALGORITHMS 0
 
 #include <oneapi/dpl/algorithm>
