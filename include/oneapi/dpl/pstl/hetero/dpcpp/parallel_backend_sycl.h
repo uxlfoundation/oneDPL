@@ -492,7 +492,8 @@ struct __parallel_copy_if_single_group_base
     }
 
     template <typename _Size>
-    static bool __enough_local_memory(sycl::queue __q, _Size __n)
+    static bool
+    __enough_local_memory(sycl::queue __q, _Size __n)
     {
         // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
         std::size_t __available_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
@@ -509,8 +510,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out,
-               _UnaryOp __unary_op, _Assign __assign, std::size_t __max_wg_size)
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _UnaryOp __unary_op,
+               _Assign __assign, std::size_t __max_wg_size)
     {
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
@@ -523,7 +524,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             std::make_unsigned_t<_Size> __lsize, __n_uniform;
-             // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
+            // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
@@ -841,7 +842,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     {
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, false>{__pred},
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred},
             unseq_backend::__copy_by_mask<_Assign, 1>{_Assign{}});
 
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
