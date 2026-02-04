@@ -23,6 +23,7 @@
 #    include <cassert>
 #    include <functional>
 #    include <type_traits>
+#    include <utility>
 
 #    include "execution_impl.h"
 #    include "algorithm_impl.h"
@@ -912,8 +913,9 @@ struct __set_op_bounded_offsets_evaluator
         auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
 
         // Calculate prefix summs of counts
-        __pattern_transform_scan(__tag, __exec, __tr_first, __tr_first + __req_mask_size, __prefix_summ_buf_it_b,
-                                 oneapi::dpl::identity{}, _CountsType{}, std::plus<_CountsType>{},
+        __pattern_transform_scan(__tag, std::forward<_ExecutionPolicy>(__exec), __tr_first,
+                                 __tr_first + __req_mask_size, __prefix_summ_buf_it_b, oneapi::dpl::identity{},
+                                 _CountsType{}, std::plus<_CountsType>{},
                                  /* _Inclusive */ std::true_type{});
 
         auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
@@ -989,10 +991,10 @@ struct __set_union_offsets
         };
 
         // transform_reduce
-        const _Sizes __res =
-            __pattern_transform_reduce(__parallel_tag<_IsVector>{}, __exec, __mask, __mask + __reachedOutPos,
-                                       __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
-                                       _Sizes{0, 0}, reduce_pred, transform_pred);
+        const _Sizes __res = __pattern_transform_reduce(
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __mask, __mask + __reachedOutPos,
+            __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
+            _Sizes{0, 0}, reduce_pred, transform_pred);
 
         return {__res.first, __res.second};
     }
@@ -1147,7 +1149,8 @@ struct __set_intersection_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 
@@ -1354,7 +1357,8 @@ struct __set_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 
@@ -1572,7 +1576,8 @@ struct __set_symmetric_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 

@@ -3707,9 +3707,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                               __scan_pred, __apex_pred);
 
         // Evaluate reached offsets in input ranges
-        const auto __reached_positions =
-            __reached_positions_evaluator(__tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func,
-                                          __buf_mask_rng_res_raw_data_begin, __res_reachedOutPos);
+        const auto __reached_positions = __reached_positions_evaluator(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func,
+            __buf_mask_rng_res_raw_data_begin, __res_reachedOutPos);
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
             __first1 + __reached_positions.first, __first2 + __reached_positions.second,
