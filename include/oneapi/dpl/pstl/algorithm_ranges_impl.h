@@ -1197,7 +1197,8 @@ struct __set_intersection_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 
@@ -1442,7 +1443,8 @@ struct __set_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 
@@ -1680,7 +1682,8 @@ struct __set_symmetric_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, __exec, __n1, __n2, __n_out, __size_func, __mask_size_func, __mask, __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
+            __reachedOutPos);
     }
 };
 
