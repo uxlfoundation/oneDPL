@@ -36,7 +36,7 @@
 
 #define _PSTL_TEST_LATEST_INTEL_LLVM_COMPILER 20260000
 
-#define _PSTL_TEST_LATEST_MSVC_STL_VERSION 143
+#define _PSTL_TEST_LATEST_MSVC_STL_VERSION 145
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
