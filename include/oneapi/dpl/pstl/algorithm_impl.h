@@ -3931,7 +3931,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
         // Evaluate reached offsets in input ranges
         const auto __reached_positions = __reached_positions_evaluator(
-            __tag, __exec,
+            __tag, std::forward<_ExecutionPolicy>(__exec),
             __n1, __n2, __n_out,
             __size_func,
             __mask_size_func,
