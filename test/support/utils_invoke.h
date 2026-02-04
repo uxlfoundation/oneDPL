@@ -16,6 +16,8 @@
 #ifndef _UTILS_INVOKE_H
 #define _UTILS_INVOKE_H
 
+#include <oneapi/dpl/execution>
+
 #include <type_traits>
 #include <mutex>            // for std::once_flag
 #include <stdexcept>        // for std::logic_error
@@ -131,7 +133,7 @@ get_dpcpp_test_policy()
     using _NewKernelName = TestUtils::new_kernel_name<PolicyName, call_id>;
 
     const auto& __arg =
-#    if TEST_USE_PREDEFINED_POLICIES && _ONEDPL_PREDEFINED_POLICIES && _ONEDPL___cplusplus >= 201703L
+#    if TEST_USE_PREDEFINED_POLICIES
 #        if ONEDPL_FPGA_DEVICE
         oneapi::dpl::execution::dpcpp_fpga;
 #        else
@@ -139,7 +141,7 @@ get_dpcpp_test_policy()
 #        endif // ONEDPL_FPGA_DEVICE
 #    else
         get_test_queue();
-#    endif // TEST_USE_PREDEFINED_POLICIES && _ONEDPL___cplusplus >= 201703L
+#    endif // TEST_USE_PREDEFINED_POLICIES
 
     try
     {
