@@ -13,6 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if TEST_DPCPP_BACKEND_PRESENT
+// MSVC error: SYCL kernel cannot call an undefined function without SYCL_EXTERNAL attribute
+// A reason is the vectorised implementation of __std_min_8u(_First, _Last), called from std::sort
+// As workaround we suppress the vectorised implementation.
+#define _USE_STD_VECTOR_ALGORITHMS 0
+#endif //TEST_DPCPP_BACKEND_PRESENT
+
 #include "std_ranges_test.h"
 
 std::int32_t
@@ -41,10 +48,8 @@ main()
     //find_if with zip_view
     test_range_algo<0>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::find_if, std::ranges::find_if, pred, zip_proj);
 
-#if !defined(_MSC_VER)
     //sort with zip_view
     test_range_algo<1>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::sort, std::ranges::sort, std::less{}, zip_proj);
-#endif //_MSC_VER
 
     //count_if with zip_view
     test_range_algo<2>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::count_if, std::ranges::count_if, pred, zip_proj);
