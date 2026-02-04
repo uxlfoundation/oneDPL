@@ -130,7 +130,9 @@ the random numbers themselves. Random number generation is performed in a vector
 to improve the speed of your computations.
 
 This example performs its computations on your default SYCL device. You can set the
-``SYCL_DEVICE_TYPE`` environment variable to CPU or GPU.
+``ONEAPI_DEVICE_SELECTOR`` environment variable to control
+`device selection <https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/current/device-selection.html>`_.
+
 
 .. code:: cpp
 
