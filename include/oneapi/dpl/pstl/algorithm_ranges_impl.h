@@ -601,7 +601,6 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
                 break;
         }
     }
-
     return {__it_in, __it_out};
 }
 
@@ -1348,32 +1347,59 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
 
-template <typename _R, typename _OutRange>
+template <typename _R, typename _OutR>
 using __unique_copy_return_t =
-    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>;
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>;
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-__unique_copy_return_t<_R, _OutRange>
-__pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
-{
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + std::ranges::size(__r);
-    auto __it = oneapi::dpl::__internal::__pattern_unique_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, std::ranges::begin(__out_r),
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
-    return {__end, __it};
-}
-
-template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-__unique_copy_return_t<_R, _OutRange>
-__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
-    return std::ranges::unique_copy(std::forward<_R>(__r), std::ranges::begin(__out_r), __comp, __proj);
+    using _Size = oneapi::dpl::__ranges::__common_size_t<_R, _OutR>;
+    _Size __sz_in = std::ranges::size(__r);
+    _Size __sz_out = std::ranges::size(__out_r);
+
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in, std::ranges::begin(__out_r),
+        __sz_out, oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return {__res.first, __res.second};
 }
 
+template <typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _R&& __r, _OutR&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_unique_copy(
+        std::ranges::begin(__r), std::ranges::size(__r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj}, /*vector=*/std::true_type{});
+
+    return {__res.first, __res.second};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutR&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    auto __it_in = std::ranges::begin(__r);
+    auto __it_out = std::ranges::begin(__out_r);
+    auto __end_in = std::ranges::end(__r);
+    auto __end_out = std::ranges::end(__out_r);
+    auto __not_comp = std::not_fn(__comp);
+    for (; __it_out != __end_out && __it_in != __end_in; ++__it_out)
+    {
+        *__it_out = *__it_in;
+        // Find an element that is *not* equivalent to the next one
+        __it_in = std::ranges::adjacent_find(__it_in, __end_in, __not_comp, __proj);
+        // That very next one should be read from in the next loop iteration
+        if (__it_in != __end_in)
+            ++__it_in;
+    }
+    return {__it_in, __it_out};
+}
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl
