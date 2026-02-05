@@ -4172,7 +4172,7 @@ struct __set_intersection_offsets
 {
     struct _IncludeToOutputPred
     {
-        bool
+        inline bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
@@ -4335,7 +4335,7 @@ struct __set_difference_offsets
 {
     struct _IncludeToOutputPred
     {
-        bool
+        inline bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
@@ -4468,7 +4468,7 @@ struct __set_symmetric_difference_offsets
 {
     struct _IncludeToOutputPred
     {
-        bool
+        inline bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
