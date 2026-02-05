@@ -335,6 +335,9 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             return ((std::get<_In>(__current) == std::get<_In>(__y.__current)) || ...);
         }
 
+#if defined(_MSC_VER)
+      public:
+#endif
         template <typename _SentinelsTuple, std::size_t... _In>
         constexpr bool
         __compare_with_sentinels(const _SentinelsTuple& __sentinels, std::index_sequence<_In...>) const
@@ -343,7 +346,6 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
 
         friend class zip_view;
-        friend class iterator<!_Const>;
 
         __iterators_type __current;
     }; // class iterator
