@@ -3347,7 +3347,7 @@ struct _SetRangeCombiner
 {
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
 
-    _SetRange
+    inline _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
