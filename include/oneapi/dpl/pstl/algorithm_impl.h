@@ -3958,9 +3958,6 @@ struct __set_op_bounded_offsets_evaluator
     {
         assert(__n_out > 0);
 
-        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
-        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
-
         const auto __req_size = __size_func(__n1, __n2);
         const auto __req_mask_size = __mask_size_func(__n1, __n2);
 
@@ -3999,34 +3996,28 @@ struct __set_op_bounded_offsets_evaluator
         _PrefixBuf __prefix_summ_buf(__req_mask_size);
 
         auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
-        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
 
         // Calculate prefix summs of counts
-        __pattern_transform_scan(__tag, __exec, __tr_first, __tr_first + __req_mask_size, __prefix_summ_buf_it_b,
-                                 oneapi::dpl::identity{}, _CountsType{}, std::plus<_CountsType>{},
+        __pattern_transform_scan(__tag, std::forward<_ExecutionPolicy>(__exec), __tr_first,
+                                 __tr_first + __req_mask_size, __prefix_summ_buf_it_b, oneapi::dpl::identity{},
+                                 _CountsType{}, std::plus<_CountsType>{},
                                  /* _Inclusive */ std::true_type{});
 
         auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
         auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
 
-        // At leas __reachedOutPos first position are not interested for us,
+        // At least __reachedOutPos first position are not interested for us,
         // but if __reachedOutPos == 0 we should start from the beginning
         auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
         assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
 
         // Find the position where output size limit is reached
-        auto it_prefix_summ_buf =
-            __pattern_find_if(__parallel_tag<_IsVector>{}, __exec, it_prefix_summ_buf_start, it_prefix_summ_buf_e,
-                              [__reachedOutPos](const _CountsType& __count) {
-                                  return __count.__processedOut ==
-                                         __reachedOutPos + 1; // We should try to find the next processed position
-                              });
+        //  - we should try to find the next processed position so we use <= operation inside lower_bound predicate
+        auto it_prefix_summ_buf = std::lower_bound(
+            it_prefix_summ_buf_start, it_prefix_summ_buf_e, __reachedOutPos,
+            [](const auto& __count, const auto& __processedOut) { return __count.__processedOut <= __processedOut; });
 
-        // Initially we assume that we processed all first data range
-        const auto [__n1_reached, __n2_reached] =
-            __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
-
-        return {__n1_reached, __n2_reached};
+        return __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
     }
 
   protected:
@@ -4182,7 +4173,7 @@ struct __set_intersection_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
@@ -4345,7 +4336,7 @@ struct __set_difference_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
@@ -4479,7 +4470,7 @@ struct __set_symmetric_difference_offsets
     struct _EvalReachedPosPred
     {
         template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
-        std::tuple<_DifferenceType1, _DifferenceType2>
+        std::pair<_DifferenceType1, _DifferenceType2>
         operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
                    _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
         {
