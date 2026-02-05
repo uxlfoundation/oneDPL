@@ -282,6 +282,45 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
     return __mask + __count;
 }
 
+template <typename _MaskIterator>
+class _MaskCache
+{
+    _MaskIterator __mask;
+    std::size_t __pending_count = 0;
+    __parallel_set_op_mask __pending_state = __parallel_set_op_mask::eData1;
+
+public:
+
+    _MaskCache(_MaskIterator __mask) : __mask(__mask)
+    {
+    }
+
+    inline _MaskIterator
+    __flush_pending()
+    {
+        if (__pending_count)
+        {
+            __mask = __set_iterator_mask_n(__mask, __pending_state, __pending_count);
+            __pending_count = 0;
+        }
+
+        return __mask;
+    }
+
+    inline void
+    __push_mask(__parallel_set_op_mask __state)
+    {
+        if (__pending_count && __state == __pending_state)
+            ++__pending_count;
+        else
+        {
+            __flush_pending();
+            __pending_state = __state;
+            __pending_count = 1;
+        }
+    }
+};
+
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
@@ -377,10 +416,13 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
+    _MaskCache<_MaskIterator> __mask_cache{__mask};
+
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
         {
+            __mask = __mask_cache.__flush_pending();
             __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             return {__cc_range(__first1, __last1, __result), __mask};
         }
@@ -390,23 +432,24 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
             new (std::addressof(*__result)) _Tp(*__first1);
             ++__result;
             ++__first1;
-            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+            __mask_cache.__push_mask(__parallel_set_op_mask::eData1);
         }
         else
         {
             if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
                 ++__first1;
-                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+                __mask_cache.__push_mask(__parallel_set_op_mask::eBoth);
             }
             else
             {
-                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+                __mask_cache.__push_mask(__parallel_set_op_mask::eData2);
             }
             ++__first2;
         }
     }
 
+    __mask = __mask_cache.__flush_pending();
     return {__result, __mask};
 }
 
