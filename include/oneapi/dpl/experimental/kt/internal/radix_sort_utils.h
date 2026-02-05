@@ -140,7 +140,7 @@ template <std::uint16_t _N, typename _T1, typename _T2 = void>
 auto
 __make_key_value_pack()
 {
-    if constexpr (::std::is_void_v<_T2>)
+    if constexpr (std::is_void_v<_T2>)
     {
         return __keys_pack<_N, _T1>{};
     }
