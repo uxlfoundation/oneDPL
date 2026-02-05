@@ -203,12 +203,27 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                std::uint32_t __sweep_work_group_count, std::size_t __n, std::uint32_t __stage,
                const sycl::event& __e) const
     {
+        namespace syclex = sycl::ext::oneapi::experimental;
         using _KernelType =
             __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
                                          __work_group_size, std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
+        // TODO kernel name generator
+        using _KernelName = _KernelType;
         constexpr std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
+        auto __bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context());
+        auto __kernel = __bundle.get_kernel<_KernelName>();
+        std::uint32_t __max_num_wgs =
+            __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
+                __q, __work_group_size, __slm_size_bytes);
 
-        sycl::nd_range<1> __nd_range(__sweep_work_group_count * __work_group_size, __work_group_size);
+        std::uint32_t __num_wgs = std::min(__max_num_wgs, __sweep_work_group_count);
+        std::uint32_t __num_tiles = oneapi::dpl::__internal::__dpl_ceiling_div(__sweep_work_group_count, __num_wgs);
+
+        auto __props = syclex::properties{syclex::use_root_sync,
+                                          syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
+                                                                      syclex::execution_scope::root_group>,
+                                          syclex::sub_group_size<32>};
+        sycl::nd_range<1> __nd_range(__num_wgs * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
             sycl::local_accessor<unsigned char, 1> __slm_accessor(__slm_size_bytes, __cgh);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
@@ -219,8 +234,8 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.depends_on(__e);
             _KernelType __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id,
                                  std::forward<_InRngPack>(__in_pack), std::forward<_OutRngPack>(__out_pack),
-                                 __slm_accessor);
-            __cgh.parallel_for<_Name...>(__nd_range, __kernel);
+                                 __slm_accessor, __num_tiles, __sweep_work_group_count);
+            __cgh.parallel_for<_KernelName>(__nd_range, __props, __kernel);
         });
     }
 };

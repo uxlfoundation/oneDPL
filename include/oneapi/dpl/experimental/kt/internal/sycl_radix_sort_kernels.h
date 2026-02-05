@@ -266,12 +266,16 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     _InRngPack __in_pack;
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
+    std::uint32_t __num_tiles;
+    std::uint32_t __total_wgs;
 
     __radix_sort_onesweep_kernel(_GlobOffsetT __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
                                  _GlobOffsetT* __p_group_hists, _AtomicIdT* __p_atomic_id, const _InRngPack& __in_pack,
-                                 const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc)
+                                 const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc,
+                                 std::uint32_t __num_tiles, std::uint32_t __total_wgs)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
-          __p_atomic_id(__p_atomic_id), __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc)
+          __p_atomic_id(__p_atomic_id), __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc),
+          __num_tiles(__num_tiles), __total_wgs(__total_wgs)
     {
     }
 
@@ -684,68 +688,67 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    [[sycl::reqd_sub_group_size(__sub_group_size)]] void
+    /*[[sycl::reqd_sub_group_size(__sub_group_size)]]*/ void
     operator()(sycl::nd_item<1> __idx) const
     {
+        std::uint32_t __wg_id = __idx.get_group().get_group_linear_id();
         sycl::sub_group __sub_group = __idx.get_sub_group();
         const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
         const std::uint32_t __sg_local_id = __sub_group.get_local_id();
 
-        const std::uint32_t __num_wgs = __idx.get_group_range(0);
-        using _AtomicRefT = sycl::atomic_ref<_AtomicIdT, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                             sycl::access::address_space::global_space>;
-        _AtomicRefT __atomic_id_ref(*__p_atomic_id);
-        std::uint32_t __wg_id = 0;
-        if (__idx.get_local_linear_id() == 0)
-        {
-            // Modulo num work-groups because onesweep gets invoked multiple times and we do not want an extra memset between
-            // invocations.
-            __wg_id = __atomic_id_ref.fetch_add(1) % __num_wgs;
-        }
-        __wg_id = sycl::group_broadcast(__idx.get_group(), __wg_id);
-
         const std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
-
-        auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
-        _LocOffsetT __bins[__data_per_work_item];
-        _LocOffsetT __ranks[__data_per_work_item];
-
-        __load_pack(__values_pack, __wg_id, __sg_id, __sg_local_id);
-
-        _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+        for (std::uint32_t __j = 0; __j < __num_tiles; ++__j)
         {
-            const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_pack.__keys[__i]);
-            __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
+            if (__wg_id >= __total_wgs)
+                break;
+
+            auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
+            _LocOffsetT __bins[__data_per_work_item];
+            _LocOffsetT __ranks[__data_per_work_item];
+
+            __load_pack(__values_pack, __wg_id, __sg_id, __sg_local_id);
+
+            _ONEDPL_PRAGMA_UNROLL
+            for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
+            {
+                const auto __ordered = __order_preserving_cast_scalar<__is_ascending>(__values_pack.__keys[__i]);
+                __bins[__i] = __get_bucket_scalar<__mask>(__ordered, __stage * __radix_bits);
+            }
+
+            // Get raw SLM pointer and create typed pointers for different regions using helper functions
+            unsigned char* __slm_raw = __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get();
+            _LocOffsetT* __slm_subgroup_hists =
+                reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_subgroup_hists_offset());
+            _LocOffsetT* __slm_group_hist = reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_group_hist_offset());
+            _GlobOffsetT* __slm_global_incoming =
+                reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_incoming_offset());
+
+            __rank_local(__idx, __sub_group, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset,
+                         __sg_local_id);
+            __rank_global(__idx, __sub_group, __wg_id, __sg_id, __sg_local_id, __slm_subgroup_hists, __slm_group_hist,
+                          __slm_global_incoming);
+
+            // For reorder phase, reinterpret the sub-group histogram space as key/value storage
+            // The reorder space overlaps with the sub-group histogram region (reinterpret_cast)
+            _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw + __get_slm_subgroup_hists_offset());
+            _ValT* __slm_vals = nullptr;
+            if constexpr (__has_values)
+            {
+                __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __get_slm_subgroup_hists_offset() +
+                                                      __work_group_size * __data_per_work_item * sizeof(_KeyT));
+            }
+            _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
+
+            __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists, __slm_group_hist,
+                                 __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
+
+            __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_fix, __slm_keys,
+                                  __slm_vals);
+            __wg_id += __idx.get_group_range(0);
+
+            // Barrier to ensure SLM is ready for reuse in next iteration
+            sycl::group_barrier(__idx.get_group());
         }
-
-        // Get raw SLM pointer and create typed pointers for different regions using helper functions
-        unsigned char* __slm_raw = __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get();
-        _LocOffsetT* __slm_subgroup_hists =
-            reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_subgroup_hists_offset());
-        _LocOffsetT* __slm_group_hist = reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_group_hist_offset());
-        _GlobOffsetT* __slm_global_incoming =
-            reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_incoming_offset());
-
-        __rank_local(__idx, __sub_group, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset, __sg_local_id);
-        __rank_global(__idx, __sub_group, __wg_id, __sg_id, __sg_local_id, __slm_subgroup_hists, __slm_group_hist,
-                      __slm_global_incoming);
-
-        // For reorder phase, reinterpret the sub-group histogram space as key/value storage
-        // The reorder space overlaps with the sub-group histogram region (reinterpret_cast)
-        _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw + __get_slm_subgroup_hists_offset());
-        _ValT* __slm_vals = nullptr;
-        if constexpr (__has_values)
-        {
-            __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __get_slm_subgroup_hists_offset() +
-                                                  __work_group_size * __data_per_work_item * sizeof(_KeyT));
-        }
-        _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
-
-        __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists, __slm_group_hist,
-                             __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
-
-        __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_fix, __slm_keys, __slm_vals);
     }
 };
 
