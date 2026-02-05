@@ -244,9 +244,7 @@ template <typename NewKernelName, typename OldKernelName = DefaultKernelName>
 device_policy<NewKernelName>
 make_device_policy(const device_policy<OldKernelName>& policy
 #if _ONEDPL_PREDEFINED_POLICIES
-#if _ONEDPL___cplusplus >= 201703L
                    = dpcpp_default
-#endif
 #endif // _ONEDPL_PREDEFINED_POLICIES
 )
 {
