@@ -119,6 +119,8 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
             // 3. Accumulate histogram to SLM
             // SLM uses a blocked layout where each bin contains _NumHistograms sub-bins that are used to reduce
             // contention during atomic accumulation.
+            // Use sub group local id to randomize sub-bin selection for histogram accumulation
+            _LocIdxT __slm_hist_lane_offset = __sub_group_local_id % __num_histograms;
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __stage = 0; __stage < __stage_count; ++__stage)
             {
@@ -132,9 +134,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
                     using _SLMAtomicRef =
                         sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
                                          sycl::access::address_space::local_space>;
-                    // Use sub group local id to randomize sub-bin selection for histogram accumulation
-                    _LocIdxT __slm_hist_idx = __sub_group_local_id % __num_histograms;
-                    _SLMAtomicRef __slm_ref(__slm[__bin * __num_histograms + __slm_hist_idx]);
+                    _SLMAtomicRef __slm_ref(__slm[__bin * __num_histograms + __slm_hist_lane_offset]);
                     __slm_ref.fetch_add(1);
                 }
             }
@@ -213,19 +213,19 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     __get_slm_group_hist_offset()
     {
         constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
-        return std::max(__work_item_all_hists_size, __reorder_size); // After max(sub-group hists, reorder space)
+        return std::max(__work_item_all_hists_size, __reorder_size);
     }
 
     static constexpr std::uint32_t
     __get_slm_global_incoming_offset()
     {
-        return __get_slm_group_hist_offset() + __group_hist_size; // After group histogram
+        return __get_slm_group_hist_offset() + __group_hist_size;
     }
 
     static constexpr std::uint32_t
     __get_slm_global_fix_offset()
     {
-        return __get_slm_global_incoming_offset() + __global_hist_size; // After global incoming histogram
+        return __get_slm_global_incoming_offset() + __global_hist_size;
     }
 
     static constexpr std::uint32_t
@@ -234,21 +234,21 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // SLM Layout Visualization:
         //
         // Phase 1 (Offset Calculation):
-        // ┌────────────────────────┬─────────────┬──────────────────┐
-        // │   Sub-group Hists      │ Group Hist  │ Global Incoming  │
-        // │ max(__work_item_all_   │ __group_    │ __global_hist    │
-        // │ hists_size,__reorder   |             |                  |
-        // |     _size              │ hist_size   │     _size        │
-        // └────────────────────────┴─────────────┴──────────────────┘
-        //                                 |               |
-        //                                 v               v
+        // ┌──────────────────────────┬──────────────┬──────────────────┐
+        // │   Sub-group Hists        │  Group Hist  │ Global Incoming  │
+        // │ max(__work_item_all_     │  __group_    │ __global_hist    │
+        // │     hists_size,          │  hist_size   │     _size        │
+        // │     __reorder_size)      │              │                  │
+        // └──────────────────────────┴──────────────┴──────────────────┘
+        //                                    │              │
+        //                                    v              v
         // Phase 2 (Reorder):
-        // ┌────────────────────────┬─────────────┬──────────────────┬─────────────────┐
-        // │   Reorder Space        │ Group Hist  │ Global Incoming  │  Global Fix     │
-        // │ max(__work_item_all_   │ __group_    │ __global_hist    │ __global_hist   │
-        // │ hists_size,__reorder   │ hist_size   │     _size        │     _size       │
-        // │     _size)             │             │                  │                 │
-        // └────────────────────────┴─────────────┴──────────────────┴─────────────────┘
+        // ┌──────────────────────────┬──────────────┬──────────────────┬─────────────────┐
+        // │   Reorder Space          │  Group Hist  │ Global Incoming  │  Global Fix     │
+        // │ max(__work_item_all_     │  __group_    │ __global_hist    │ __global_hist   │
+        // │     hists_size,          │  hist_size   │     _size        │     _size       │
+        // │     __reorder_size)      │              │                  │                 │
+        // └──────────────────────────┴──────────────┴──────────────────┴─────────────────┘
         //
         constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
 
@@ -438,7 +438,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         if (__sub_group_id == 0)
         {
             __sub_group_cross_segment_exclusive_scan<__bin_process_width, __bin_summary_sub_group_size>(
-                __sub_group, __slm_group_hist);
+                __sub_group, __sub_group_local_id, __slm_group_hist);
         }
 
         __dpl_sycl::__group_barrier(__idx);
@@ -488,7 +488,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     template <std::uint32_t __segment_width, std::uint32_t __num_segments, typename _ScanBuffer>
     void
-    __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, _ScanBuffer* __scan_elements) const
+    __sub_group_cross_segment_exclusive_scan(sycl::sub_group& __sub_group, std::uint32_t __sub_group_local_id,
+                                             _ScanBuffer* __scan_elements) const
     {
         // __segment_width is required to match __sub_group_size for performance: each lane processes
         // one element and no masking is required. However to support radix bits < log2(sub_group_size)
@@ -496,13 +497,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         static_assert(__segment_width == __sub_group_size);
         using _ElemT = std::remove_reference_t<decltype(__scan_elements[0])>;
         _ElemT __carry = 0;
-        auto __sub_group_local_id = __sub_group.get_local_linear_id();
 
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint32_t __i = 0; __i < __num_segments; ++__i)
         {
-            auto __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
-            auto __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
+            _ElemT __element = __scan_elements[__i * __segment_width + __sub_group_local_id];
+            _ElemT __element_right_shift = sycl::shift_group_right(__sub_group, __element, 1);
             if (__sub_group_local_id == 0)
                 __element_right_shift = 0;
             __scan_elements[__i * __segment_width + __sub_group_local_id] = __element_right_shift + __carry;
