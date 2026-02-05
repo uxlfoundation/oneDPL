@@ -254,13 +254,13 @@ enum class __parallel_set_op_mask : std::uint8_t
     eBoth = eData1 | eData2 // mask for both input data items usage
 };
 
-inline std::nullptr_t
+[[nodiscard]] inline constexpr std::nullptr_t
 __set_iterator_mask(std::nullptr_t, __parallel_set_op_mask)
 {
     return nullptr;
 }
 
-inline __parallel_set_op_mask*
+[[nodiscard]] inline constexpr __parallel_set_op_mask*
 __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state)
 {
     *__mask = __state;
@@ -268,14 +268,14 @@ __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __sta
 }
 
 template <typename _Size>
-std::nullptr_t
+[[nodiscard]] inline constexpr std::nullptr_t
 __set_iterator_mask_n(std::nullptr_t, __parallel_set_op_mask, _Size)
 {
     return nullptr;
 }
 
 template <typename _Size>
-__parallel_set_op_mask*
+[[nodiscard]] inline __parallel_set_op_mask*
 __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count)
 {
     std::fill_n(__mask, __count, __state);
