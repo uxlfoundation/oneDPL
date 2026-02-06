@@ -35,12 +35,6 @@
 
 #include "radix_sort_utils.h"
 
-#ifdef TEST_KT_BACKEND_ESIMD
-namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu::esimd;
-#elif defined(TEST_KT_BACKEND_SYCL)
-namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu;
-#endif
-
 #if _ENABLE_RANGES_TESTING
 template <typename T, bool IsAscending, std::uint8_t RadixBits, typename KernelParam>
 void
@@ -61,7 +55,7 @@ test_all_view(sycl::queue q, std::size_t size, KernelParam param)
         sycl::buffer<T> buf_out(output.data(), output.size());
         oneapi::dpl::experimental::ranges::all_view<T, sycl::access::mode::read> view(buf);
         oneapi::dpl::experimental::ranges::all_view<T, sycl::access::mode::read_write> view_out(buf_out);
-        kt_radix_sort::radix_sort<IsAscending>(q, view, view_out, param).wait();
+        kt_ns::radix_sort<IsAscending>(q, view, view_out, param).wait();
     }
 
     std::string msg = "input modified with all_view, n: " + std::to_string(size);
@@ -91,7 +85,7 @@ test_subrange_view(sycl::queue q, std::size_t size, KernelParam param)
 
     oneapi::dpl::experimental::ranges::views::subrange view_in(dt_input.get_data(), dt_input.get_data() + size);
     oneapi::dpl::experimental::ranges::views::subrange view_out(dt_output.get_data(), dt_output.get_data() + size);
-    kt_radix_sort::radix_sort<IsAscending>(q, view_in, view_out, param).wait();
+    kt_ns::radix_sort<IsAscending>(q, view_in, view_out, param).wait();
 
     std::vector<T> output_actual(size);
     std::vector<T> input_actual(input_ref);
@@ -125,8 +119,7 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
 
     std::stable_sort(output_ref.begin(), output_ref.end(), Compare<T, IsAscending>{});
 
-    kt_radix_sort::radix_sort<IsAscending>(
-        q, dt_input.get_data(), dt_input.get_data() + size, dt_output.get_data(), param)
+    kt_ns::radix_sort<IsAscending>(q, dt_input.get_data(), dt_input.get_data() + size, dt_output.get_data(), param)
         .wait();
 
     std::vector<T> output_actual(size);
@@ -157,8 +150,8 @@ test_sycl_iterators(sycl::queue q, std::size_t size, KernelParam param)
     {
         sycl::buffer<T> buf(input.data(), input.size());
         sycl::buffer<T> buf_out(output.data(), output.size());
-        kt_radix_sort::radix_sort<IsAscending>(
-            q, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(buf_out), param)
+        kt_ns::radix_sort<IsAscending>(q, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(buf_out),
+                                       param)
             .wait();
     }
 
@@ -185,7 +178,7 @@ test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
     {
         sycl::buffer<T> buf(input.data(), input.size());
         sycl::buffer<T> buf_out(output.data(), output.size());
-        kt_radix_sort::radix_sort<IsAscending>(q, buf, buf_out, param).wait();
+        kt_ns::radix_sort<IsAscending>(q, buf, buf_out, param).wait();
     }
 
     std::string msg = "modified input data with sycl::buffer, n: " + std::to_string(size);
@@ -205,8 +198,8 @@ test_small_sizes(sycl::queue q, KernelParam param)
     std::vector<T> output(size, T{9});
     std::vector<T> output_ref(size, T{9});
 
-    kt_radix_sort::radix_sort<IsAscending, RadixBits>(
-        q, oneapi::dpl::begin(input), oneapi::dpl::begin(input), oneapi::dpl::begin(output), param)
+    kt_ns::radix_sort<IsAscending, RadixBits>(q, oneapi::dpl::begin(input), oneapi::dpl::begin(input),
+                                              oneapi::dpl::begin(output), param)
         .wait();
     EXPECT_EQ_RANGES(ref, input, "sort modified input data when size == 0");
     EXPECT_EQ_RANGES(output_ref, output, "output data modified when size == 0");
@@ -231,11 +224,7 @@ main()
 {
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-#ifdef TEST_KT_BACKEND_ESIMD
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, void, std::true_type>(q, params, std::true_type{});
-#elif defined(TEST_KT_BACKEND_SYCL)
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, void, std::false_type>(q, params, std::false_type{});
-#endif
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE>(q, params);
     if (run_test)
     {
         try

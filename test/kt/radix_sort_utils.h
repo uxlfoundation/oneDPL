@@ -31,23 +31,26 @@
 #    define LOG_TEST_INFO 0
 #endif
 
-// Helper to calculate SLM usage for ESIMD kernel
-template <typename KernelParam, typename KeyT, typename ValueT, typename IsEsimdTag>
+// Namespace aliases for kernel template APIs
+#ifdef TEST_KT_BACKEND_ESIMD
+namespace kt_ns = oneapi::dpl::experimental::kt::gpu::esimd;
+namespace kt_deprecated_ns = oneapi::dpl::experimental::kt::esimd;
+#elif defined(TEST_KT_BACKEND_SYCL)
+namespace kt_ns = oneapi::dpl::experimental::kt::gpu;
+#endif
+
+// Helper to calculate SLM usage based on backend
+template <typename KernelParam, typename KeyT, typename ValueT = void>
 std::size_t
-calculate_slm_size(KernelParam param, std::true_type /*is_esimd*/)
+calculate_slm_size(KernelParam param)
 {
+#ifdef TEST_KT_BACKEND_ESIMD
     // ESIMD kernel uses simple reorder buffer
     std::size_t slm_alloc_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
         slm_alloc_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
     return slm_alloc_size;
-}
-
-// Helper to calculate SLM usage for SYCL kernel
-template <typename KernelParam, typename KeyT, typename ValueT, typename IsEsimdTag>
-std::size_t
-calculate_slm_size(KernelParam param, std::false_type /*is_esimd*/)
-{
+#elif defined(TEST_KT_BACKEND_SYCL)
     // SYCL kernel has more complex SLM layout
     using _LocOffsetT = std::uint16_t;
     using _GlobOffsetT = std::uint32_t;
@@ -70,14 +73,17 @@ calculate_slm_size(KernelParam param, std::false_type /*is_esimd*/)
         std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size + 2 * __global_hist_size;
 
     return __slm_size;
+#else
+    return 0;
+#endif
 }
 
-template <typename KernelParam, typename KeyT, typename ValueT = void, typename IsEsimdTag = std::true_type>
+template <typename KernelParam, typename KeyT, typename ValueT = void>
 bool
-can_run_test(sycl::queue q, KernelParam param, IsEsimdTag is_esimd = IsEsimdTag{})
+can_run_test(sycl::queue q, KernelParam param)
 {
     const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    std::size_t slm_alloc_size = calculate_slm_size<KernelParam, KeyT, ValueT, IsEsimdTag>(param, is_esimd);
+    std::size_t slm_alloc_size = calculate_slm_size<KernelParam, KeyT, ValueT>(param);
 
     // skip tests with error: LLVM ERROR: SLM size exceeds target limits
     // TODO: get rid of that check: it is useless for AOT case. Proper configuration must be provided at compile time.
