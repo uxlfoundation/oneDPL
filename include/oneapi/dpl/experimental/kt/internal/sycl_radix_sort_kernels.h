@@ -564,20 +564,20 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         do
         {
             // On Xe2, we have seen some low probability instances where the lookback gets stuck when using relaxed atomic loads even though
-            // lower work-groups have completed. Using a higher memory order for the atomic has a very high performance cost. To mitigate
-            // this, we execute an atomic fence every __atomic_fence_iter iterations to unblock any stalled items. As this stalling issue
-            // seldom occurs, the performance impact is small.
+            // lower work-groups have written. Using a higher memory order for the atomic has a very high performance cost. To mitigate
+            // this, we execute an acquire atomic fence after __atomic_fence_iter iterations to unblock any stalled items and
+            // between all tile iterations we execute a release atomic fence. As this stalling issue seldom occurs, the performance impact from
+            // this memory order is small, and we maintain safety.
             constexpr std::uint32_t __atomic_fence_iter = 256;
             std::uint32_t __lookback_counter = 0;
             _LocIdxT __bin_idx = __sub_group_group_id * __bin_process_width + __sub_group_local_id;
             _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
             do
             {
-                __prev_group_hist = __ref.load();
-                if (++__lookback_counter % __atomic_fence_iter == 0)
-                {
-                    sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
-                }
+                __prev_group_hist = (__lookback_counter < __atomic_fence_iter)
+                                        ? __ref.load()
+                                        : __ref.load(sycl::memory_order::acquire);
+                ++__lookback_counter;
             } while ((__prev_group_hist & __hist_updated) == 0);
             __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
             __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
@@ -751,6 +751,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                   __slm_vals);
 
             sycl::group_barrier(__idx.get_group());
+            // Make sure our atomic updates are pushed to other groups
+            sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
         }
     }
 };
