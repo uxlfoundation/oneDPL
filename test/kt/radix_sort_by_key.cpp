@@ -27,12 +27,6 @@
 
 #include "radix_sort_utils.h"
 
-#ifdef TEST_KT_BACKEND_ESIMD
-namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu::esimd;
-#elif defined(TEST_KT_BACKEND_SYCL)
-namespace kt_radix_sort = oneapi::dpl::experimental::kt::gpu;
-#endif
-
 template<typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
 void test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
 {
@@ -46,7 +40,7 @@ void test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
     {
         sycl::buffer<KeyT> keys(actual_keys.data(), actual_keys.size());
         sycl::buffer<ValueT> values(actual_values.data(), actual_values.size());
-        kt_radix_sort::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, param).wait();
+        kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, param).wait();
     }
 
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
@@ -77,8 +71,8 @@ void test_usm(sycl::queue q, std::size_t size, KernelParam param)
     auto expected_first  = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
     std::stable_sort(expected_first, expected_first + size, CompareKey<isAscending>{});
 
-    kt_radix_sort::radix_sort_by_key<isAscending, RadixBits>(
-        q, keys.get_data(), keys.get_data() + size, values.get_data(), param)
+    kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, keys.get_data(), keys.get_data() + size, values.get_data(),
+                                                     param)
         .wait();
 
     std::vector<KeyT> actual_keys(size);
@@ -101,13 +95,7 @@ int main()
 {
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-#ifdef TEST_KT_BACKEND_ESIMD
-    bool run_test =
-        can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE, std::true_type>(q, params, std::true_type{});
-#elif defined(TEST_KT_BACKEND_SYCL)
-    bool run_test =
-        can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE, std::false_type>(q, params, std::false_type{});
-#endif
+    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
 
     if (run_test)
     {
