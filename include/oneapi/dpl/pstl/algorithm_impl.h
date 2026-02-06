@@ -3307,13 +3307,13 @@ struct _SetRangeImpl
         _DifferenceType __len{};     // Length in temporary buffer w/o limitation to output data size
         _DifferenceType __buf_pos{}; // Position in temporary buffer w/o limitation to output data size
 
-        inline bool
+        bool
         empty() const
         {
             return __len == 0;
         }
 
-        inline _Data
+        _Data
         combine_with(const _Data& __other) const
         {
             const auto __other_buf_pos = __other.__buf_pos;
@@ -3347,7 +3347,7 @@ struct _SetRangeCombiner
 {
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
 
-    inline _SetRange
+    _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
 #if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
@@ -4163,7 +4163,7 @@ struct __set_intersection_offsets
 {
     struct _IncludeToOutputPred
     {
-        inline bool
+        bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
@@ -4326,7 +4326,7 @@ struct __set_difference_offsets
 {
     struct _IncludeToOutputPred
     {
-        inline bool
+        bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
@@ -4459,7 +4459,7 @@ struct __set_symmetric_difference_offsets
 {
     struct _IncludeToOutputPred
     {
-        inline bool
+        bool
         operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
         {
             return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
