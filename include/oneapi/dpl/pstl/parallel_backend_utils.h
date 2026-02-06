@@ -222,7 +222,7 @@ template <bool _Bounded>
 struct _MaskSize;
 
 template <>
-struct _MaskSize<false>
+struct _MaskSize</*_Bounded*/ false>
 {
     template <typename _DifferenceType1, typename _DifferenceType2>
     std::common_type_t<_DifferenceType1, _DifferenceType2>
@@ -234,7 +234,7 @@ struct _MaskSize<false>
 };
 
 template <>
-struct _MaskSize<true>
+struct _MaskSize</*_Bounded*/ true>
 {
     template <typename _DifferenceType1, typename _DifferenceType2>
     std::common_type_t<_DifferenceType1, _DifferenceType2>
