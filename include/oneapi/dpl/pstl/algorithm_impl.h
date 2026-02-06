@@ -3516,7 +3516,7 @@ struct _ScanPred
                                                           __to + __s_data.__pos, _IsVector{});
     }
 
-    inline void
+    void
     __move_processed_data_bounded(auto __s_data) const
     {
         // Evalueate output range boundaries for current data chunk
