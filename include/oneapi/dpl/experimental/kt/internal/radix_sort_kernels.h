@@ -10,7 +10,6 @@
 #ifndef _ONEDPL_KT_RADIX_SORT_KERNELS_H
 #define _ONEDPL_KT_RADIX_SORT_KERNELS_H
 
-
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 

@@ -24,8 +24,12 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 namespace syclex = sycl::ext::oneapi::experimental;
 
-struct __esimd_tag{};
-struct __sycl_tag{};
+struct __esimd_tag
+{
+};
+struct __sycl_tag
+{
+};
 
 //-----------------------------------------------------------------------------
 // Parameter validation

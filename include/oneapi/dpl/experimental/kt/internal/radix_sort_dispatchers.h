@@ -253,7 +253,7 @@ __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _Rng
     constexpr std::uint32_t __hist_work_group_size = std::is_same_v<_KtTag, __sycl_tag> ? 1024 : 64;
     __event_chain = __radix_sort_histogram_submitter<__is_ascending, __radix_bits, __hist_work_group_count,
                                                      __hist_work_group_size, _RadixSortHistogram>()(
-         __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
+        __kt_tag, __q, __input_pack.__keys_rng(), __mem_holder.__global_hist_ptr(), __n, __event_chain);
 
     __event_chain = __radix_sort_onesweep_scan_submitter<__stage_count, __bin_count, _RadixSortScan>()(
         __kt_tag, __q, __mem_holder.__global_hist_ptr(), __event_chain);
@@ -343,8 +343,7 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
         }
     };
     auto __tmp_pack = __get_tmp_pack();
-    auto __select_pack = [](const auto& __pack1, const auto& __pack2) -> const auto&
-    {
+    auto __select_pack = [](const auto& __pack1, const auto& __pack2) -> const auto& {
         if constexpr (__in_place || (__stage_count % 2 == 0))
             return __pack1;
         else
@@ -359,8 +358,8 @@ __onesweep(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack, _RngPack2&& __p
 
     if constexpr (__in_place && (__stage_count % 2 != 0))
     {
-        __event_chain =
-            __radix_sort_copyback_submitter<_RadixSortCopyback>()(__kt_tag, __q, __tmp_pack, __pack, __n, __event_chain);
+        __event_chain = __radix_sort_copyback_submitter<_RadixSortCopyback>()(__kt_tag, __q, __tmp_pack, __pack, __n,
+                                                                              __event_chain);
     }
 
     return __mem_holder.__async_deallocate(__event_chain);

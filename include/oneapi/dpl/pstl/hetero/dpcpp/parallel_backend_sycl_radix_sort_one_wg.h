@@ -181,10 +181,11 @@ struct __subgroup_radix_sort
                 auto __exchange_lacc = __buf_val.get_acc(__cgh);
                 auto __counter_lacc = __buf_count.get_acc(__cgh);
 
-                constexpr std::uint32_t __sub_group_size = __wg_size < 1024 ? 16 : 32;
+                [[maybe_unused]] constexpr std::uint32_t __sub_group_size = __wg_size < 1024 ? 16 : 32;
 
                 __cgh.parallel_for<_Name...>(
-                    __range, ([=](sycl::nd_item<1> __it) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__sub_group_size)]] {
+                    __range,
+                    ([=](sycl::nd_item<1> __it) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(__sub_group_size)]] {
                         union __storage
                         {
                             _ValT __v[__block_size];

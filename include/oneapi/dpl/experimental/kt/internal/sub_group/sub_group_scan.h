@@ -23,7 +23,6 @@
 #include "../../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../../pstl/hetero/dpcpp/unseq_backend_sycl.h"
 #include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
-//#include "../../../../pstl/hetero/dpcpp/parallel_backend_sycl_reduce_then_scan.h"
 
 namespace oneapi::dpl::experimental::kt
 {
@@ -78,8 +77,7 @@ __extract_scan_input(_T& __value)
 template <std::uint8_t __sub_group_size, std::uint16_t __iters_per_item, typename _InputTypeWrapped, typename _SubGroup,
           typename _BinaryOperation>
 auto
-__sub_group_scan(const _SubGroup& __sub_group,
-                 _InputTypeWrapped __input[__iters_per_item],
+__sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters_per_item],
                  _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
 {
     using _InputType = typename __scan_input_type<std::decay_t<_InputTypeWrapped>,
@@ -90,14 +88,14 @@ __sub_group_scan(const _SubGroup& __sub_group,
     if (__is_full)
     {
         oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
-                                                            /*__init_present*/ false>(__sub_group, __extract_scan_input(__input[0]),
-                                                                                      __binary_op, __carry);
+                                                            /*__init_present*/ false>(
+            __sub_group, __extract_scan_input(__input[0]), __binary_op, __carry);
         _ONEDPL_PRAGMA_UNROLL
         for (std::uint16_t __i = 1; __i < __iters_per_item; ++__i)
         {
             oneapi::dpl::__par_backend_hetero::__sub_group_scan<__sub_group_size, /*__is_inclusive*/ true,
-                                                                /*__init_present*/ true>(__sub_group, __extract_scan_input(__input[__i]),
-                                                                                         __binary_op, __carry);
+                                                                /*__init_present*/ true>(
+                __sub_group, __extract_scan_input(__input[__i]), __binary_op, __carry);
         }
     }
     else
