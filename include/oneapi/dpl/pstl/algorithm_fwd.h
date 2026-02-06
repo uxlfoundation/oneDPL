@@ -569,11 +569,11 @@ _RandomAccessIterator2
 __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
                       _RandomAccessIterator2, _BinaryPredicate);
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _SizeType,
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
           class _RandomAccessIterator2, class _BinaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
-__pattern_bounded_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _SizeType,
-                              _RandomAccessIterator2, _SizeType, _BinaryPredicate);
+__pattern_bounded_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _DifferenceType,
+                              _RandomAccessIterator2, _DifferenceType, _BinaryPredicate);
 
 //------------------------------------------------------------------------
 // reverse

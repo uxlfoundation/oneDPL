@@ -1356,9 +1356,9 @@ __unique_copy_return_t<_R, _OutR>
 __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
-    using _Size = oneapi::dpl::__ranges::__common_size_t<_R, _OutR>;
-    _Size __sz_in = std::ranges::size(__r);
-    _Size __sz_out = std::ranges::size(__out_r);
+    using _DiffType = std::make_signed_t<oneapi::dpl::__ranges::__common_size_t<_R, _OutR>>;
+    _DiffType __sz_in = std::ranges::ssize(__r);
+    _DiffType __sz_out = std::ranges::ssize(__out_r);
 
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_unique_copy(
         __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in, std::ranges::begin(__out_r),
@@ -1373,7 +1373,7 @@ __pattern_unique_copy(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolic
                       _Comp __comp, _Proj __proj)
 {
     auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_unique_copy(
-        std::ranges::begin(__r), std::ranges::size(__r), std::ranges::begin(__out_r), std::ranges::size(__out_r),
+        std::ranges::begin(__r), std::ranges::ssize(__r), std::ranges::begin(__out_r), std::ranges::ssize(__out_r),
         oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj}, /*vector=*/std::true_type{});
 
     return {__res.first, __res.second};

@@ -244,7 +244,8 @@ std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
                       _IndexPredicate __pred) noexcept
 {
-    std::make_signed_t<_DifferenceType> __stop = -1, __write_pos = -1; // to use inclusive scan
+    static_assert(std::is_signed_v<_DifferenceType>);
+    _DifferenceType __stop = -1, __write_pos = -1; // to use inclusive scan
     bool __suitable;
 
     _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable) lastprivate(conditional : __stop))
