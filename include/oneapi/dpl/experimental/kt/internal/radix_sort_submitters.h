@@ -164,6 +164,25 @@ struct __radix_sort_onesweep_scan_submitter<
     }
 };
 
+// We must query info about the kernel in onesweep. To do this, we need to know if a custom name is passed. Since
+// we use a struct as a function object, this will be the kernel's name in "unnamed lambda" mode. Otherwise, we use the _CustomName.
+template <typename _KernelFuncStruct, typename... _Name>
+struct __onesweep_kernel_name_helper;
+
+template <typename _KernelFuncStruct>
+struct __onesweep_kernel_name_helper<_KernelFuncStruct,
+                                     oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<>>
+{
+    using kernel_name = _KernelFuncStruct;
+};
+
+template <typename _KernelFuncStruct, typename _CustomName>
+struct __onesweep_kernel_name_helper<_KernelFuncStruct,
+                                     oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_CustomName>>
+{
+    using kernel_name = _CustomName;
+};
+
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KernelName>
 struct __radix_sort_onesweep_submitter;
@@ -203,26 +222,29 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
                std::uint32_t __sweep_work_group_count, std::size_t __n, std::uint32_t __stage,
                const sycl::event& __e) const
     {
-        namespace syclex = sycl::ext::oneapi::experimental;
         using _KernelType =
             __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __data_per_work_item,
                                          __work_group_size, std::decay_t<_InRngPack>, std::decay_t<_OutRngPack>>;
-        // TODO kernel name generator
-        using _KernelName = _KernelType;
-        constexpr std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
+        using _KernelName = typename __onesweep_kernel_name_helper<
+            _KernelType, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>::kernel_name;
+
+        const std::uint32_t __max_slm_device = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
+        std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
+
+        // There is a bug produced on BMG where zeKernelSuggestMaxCooperativeGroupCount suggests too large of a
+        // work-group count when we are beyond half capacity, causing a hang. To fix this, we can pad our request to
+        // 13 / 16 of the SLM which is the smallest value found to workaround the issue.
+        if (__slm_size_bytes > __max_slm_device / 2)
+            __slm_size_bytes = std::max(__slm_size_bytes, (__max_slm_device * 13) / 16);
+
         auto __bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context());
-        auto __kernel = __bundle.get_kernel<_KernelName>();
+        auto __kernel = __bundle.template get_kernel<_KernelName>();
         std::uint32_t __max_num_wgs =
             __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
                 __q, __work_group_size, __slm_size_bytes);
 
         std::uint32_t __num_wgs = std::min(__max_num_wgs, __sweep_work_group_count);
-        std::uint32_t __num_tiles = oneapi::dpl::__internal::__dpl_ceiling_div(__sweep_work_group_count, __num_wgs);
 
-        auto __props = syclex::properties{syclex::use_root_sync,
-                                          syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
-                                                                      syclex::execution_scope::root_group>,
-                                          syclex::sub_group_size<32>};
         sycl::nd_range<1> __nd_range(__num_wgs * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
             sycl::local_accessor<unsigned char, 1> __slm_accessor(__slm_size_bytes, __cgh);
@@ -234,8 +256,8 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __cgh.depends_on(__e);
             _KernelType __kernel(__n, __stage, __p_global_hist, __p_group_hists, __p_atomic_id,
                                  std::forward<_InRngPack>(__in_pack), std::forward<_OutRngPack>(__out_pack),
-                                 __slm_accessor, __num_tiles, __sweep_work_group_count);
-            __cgh.parallel_for<_KernelName>(__nd_range, __props, __kernel);
+                                 __slm_accessor, __sweep_work_group_count);
+            __cgh.parallel_for<_KernelName>(__nd_range, __kernel);
         });
     }
 };

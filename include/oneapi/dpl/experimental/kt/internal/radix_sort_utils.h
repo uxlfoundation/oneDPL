@@ -22,6 +22,8 @@
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
+namespace syclex = sycl::ext::oneapi::experimental;
+
 struct __esimd_tag{};
 struct __sycl_tag{};
 
@@ -33,7 +35,7 @@ constexpr void
 __check_sycl_sort_params()
 {
     static_assert(__radix_bits == 8);
-    //static_assert(__workgroup_size == 1024);
+    static_assert(__workgroup_size == 1024 || __workgroup_size == 512 || __workgroup_size == 256);
 }
 
 //-----------------------------------------------------------------------------

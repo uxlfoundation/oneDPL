@@ -251,11 +251,10 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         // └──────────────────────────┴──────────────┴──────────────────┴─────────────────┘
         //
         constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
-
         constexpr std::uint32_t __slm_size = std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size +
                                              __global_hist_size + __global_hist_size;
 
-        return oneapi::dpl::__internal::__dpl_ceiling_div(__slm_size, 2048) * 2048;
+        return __slm_size;
     }
 
     const _GlobOffsetT __n;
@@ -267,23 +266,22 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
     std::uint32_t __num_tiles;
-    std::uint32_t __total_wgs;
 
     __radix_sort_onesweep_kernel(_GlobOffsetT __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
                                  _GlobOffsetT* __p_group_hists, _AtomicIdT* __p_atomic_id, const _InRngPack& __in_pack,
                                  const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc,
-                                 std::uint32_t __num_tiles, std::uint32_t __total_wgs)
+                                 std::uint32_t __num_tiles)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
           __p_atomic_id(__p_atomic_id), __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc),
-          __num_tiles(__num_tiles), __total_wgs(__total_wgs)
+          __num_tiles(__num_tiles)
     {
     }
 
     template <typename _KVPack>
     inline auto
-    __load_pack(_KVPack& __pack, std::uint32_t __wg_id, std::uint32_t __sg_id, std::uint32_t __sg_local_id) const
+    __load_pack(_KVPack& __pack, std::uint32_t __tile_id, std::uint32_t __sg_id, std::uint32_t __sg_local_id) const
     {
-        const _GlobOffsetT __offset = __data_per_sub_group * (__wg_id * __num_sub_groups_per_work_group + __sg_id);
+        const _GlobOffsetT __offset = __data_per_sub_group * (__tile_id * __num_sub_groups_per_work_group + __sg_id);
         auto __keys_seq = __rng_data(__in_pack.__keys_rng());
         __load</*__sort_identity_residual=*/true>(__pack.__keys, __keys_seq, __offset, __sg_local_id);
         if constexpr (__has_values)
@@ -387,7 +385,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     inline void
-    __rank_global(const sycl::nd_item<1>& __idx, sycl::sub_group __sub_group, std::uint32_t __wg_id,
+    __rank_global(const sycl::nd_item<1>& __idx, sycl::sub_group __sub_group, std::uint32_t __tile_id,
                   std::uint32_t __sub_group_id, std::uint32_t __sub_group_local_id, _LocOffsetT* __slm_subgroup_hists,
                   _LocOffsetT* __slm_group_hist, _GlobOffsetT* __slm_global_incoming) const
     {
@@ -398,7 +396,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         constexpr std::uint32_t __hist_updated = 0x80000000;
         constexpr std::uint32_t __global_offset_mask = 0x3fffffff;
 
-        _GlobOffsetT* __p_this_group_hist = __p_group_hists + __bin_count * __wg_id;
+        _GlobOffsetT* __p_this_group_hist = __p_group_hists + __bin_count * __tile_id;
         _GlobOffsetT* __p_prev_group_hist = __p_this_group_hist - __bin_count;
 
         // This is important so that we can evenly partition the radix bits across a number of sub-groups
@@ -430,7 +428,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             // 1.3. Copy the histogram at the region designated for synchronization between work-groups and set work-group
             // zeros incoming values from the global histogram kernel.
             __output_work_group_chained_scan_partials<__bin_process_width, __global_accumulated, __hist_updated,
-                                                      __global_offset_mask>(__wg_id, __sub_group_id,
+                                                      __global_offset_mask>(__tile_id, __sub_group_id,
                                                                             __sub_group_local_id, __item_bin_count,
                                                                             __p_this_group_hist, __slm_global_incoming);
         }
@@ -448,7 +446,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         __dpl_sycl::__group_barrier(__idx);
 
         // 2. Chained scan. Synchronization between work-groups.
-        if (__sub_group_id < __bin_summary_sub_group_size && __wg_id != 0)
+        if (__sub_group_id < __bin_summary_sub_group_size && __tile_id != 0)
         {
             __work_group_chained_scan<__bin_process_width, __bin_summary_sub_group_size, __global_accumulated,
                                       __hist_updated, __global_offset_mask>(__idx, __sub_group, __sub_group_local_id,
@@ -518,7 +516,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     template <std::uint32_t __bin_process_width, std::uint32_t __global_accumulated, std::uint32_t __hist_updated,
               std::uint32_t __global_offset_mask>
     inline void
-    __output_work_group_chained_scan_partials(std::uint32_t __wg_id, std::uint32_t __sub_group_id,
+    __output_work_group_chained_scan_partials(std::uint32_t __tile_id, std::uint32_t __sub_group_id,
                                               std::uint32_t __sub_group_local_id, _LocOffsetT __item_bin_count,
                                               _GlobOffsetT* __p_this_group_hist,
                                               _GlobOffsetT* __slm_global_incoming) const
@@ -527,7 +525,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                                 sycl::access::address_space::global_space>;
         _LocIdxT __hist_idx = __sub_group_id * __bin_process_width + __sub_group_local_id;
 
-        if (__wg_id != 0)
+        if (__tile_id != 0)
         {
             // Copy the histogram, local to this WG
             _GlobalAtomicT __ref(__p_this_group_hist[__hist_idx]);
@@ -688,25 +686,32 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    /*[[sycl::reqd_sub_group_size(__sub_group_size)]]*/ void
+    auto
+    get(syclex::properties_tag) const
+    {
+        return syclex::properties{syclex::use_root_sync,
+                                  syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
+                                                              syclex::execution_scope::root_group>,
+                                  syclex::sub_group_size<32>};
+    }
+
+    void
     operator()(sycl::nd_item<1> __idx) const
     {
-        std::uint32_t __wg_id = __idx.get_group().get_group_linear_id();
         sycl::sub_group __sub_group = __idx.get_sub_group();
         const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
         const std::uint32_t __sg_local_id = __sub_group.get_local_id();
 
         const std::uint32_t __sub_group_slm_offset = __sg_id * __bin_count;
-        for (std::uint32_t __j = 0; __j < __num_tiles; ++__j)
+        std::uint32_t __tile_id = __idx.get_group().get_group_linear_id();
+        std::uint32_t __num_wgs = __idx.get_group_range(0);
+        for (; __tile_id < __num_tiles; __tile_id += __num_wgs)
         {
-            if (__wg_id >= __total_wgs)
-                break;
-
             auto __values_pack = __make_key_value_pack<__data_per_work_item, _KeyT, _ValT>();
             _LocOffsetT __bins[__data_per_work_item];
             _LocOffsetT __ranks[__data_per_work_item];
 
-            __load_pack(__values_pack, __wg_id, __sg_id, __sg_local_id);
+            __load_pack(__values_pack, __tile_id, __sg_id, __sg_local_id);
 
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
@@ -725,7 +730,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             __rank_local(__idx, __sub_group, __ranks, __bins, __slm_subgroup_hists, __sub_group_slm_offset,
                          __sg_local_id);
-            __rank_global(__idx, __sub_group, __wg_id, __sg_id, __sg_local_id, __slm_subgroup_hists, __slm_group_hist,
+            __rank_global(__idx, __sub_group, __tile_id, __sg_id, __sg_local_id, __slm_subgroup_hists, __slm_group_hist,
                           __slm_global_incoming);
 
             // For reorder phase, reinterpret the sub-group histogram space as key/value storage
@@ -744,9 +749,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_fix, __slm_keys,
                                   __slm_vals);
-            __wg_id += __idx.get_group_range(0);
 
-            // Barrier to ensure SLM is ready for reuse in next iteration
             sycl::group_barrier(__idx.get_group());
         }
     }
