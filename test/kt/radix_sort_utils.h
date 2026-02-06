@@ -69,8 +69,7 @@ calculate_slm_size(KernelParam param, std::false_type /*is_esimd*/)
     const std::uint32_t __slm_size =
         std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size + 2 * __global_hist_size;
 
-    // Align to 2048 bytes as done in the kernel
-    return (((__slm_size + 2047) / 2048) * 2048);
+    return __slm_size;
 }
 
 template <typename KernelParam, typename KeyT, typename ValueT = void, typename IsEsimdTag = std::true_type>
