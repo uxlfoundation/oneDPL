@@ -571,11 +571,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
             do
             {
-                __prev_group_hist = __ref.load();
-                if (++__lookback_counter % __atomic_fence_iter == 0)
-                {
-                    sycl::atomic_fence(sycl::memory_order::acq_rel, sycl::memory_scope::device);
-                }
+                __prev_group_hist =
+                    (__lookback_counter < __atomic_fence_iter) ? __ref.load() : __ref.load(sycl::memory_order::acquire);
+                ++__lookback_counter;
             } while ((__prev_group_hist & __hist_updated) == 0);
             __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
             __is_not_accumulated = (__prev_group_hist_sum & __global_accumulated) == 0;
@@ -746,6 +744,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                              __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
 
         __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_fix, __slm_keys, __slm_vals);
+        sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
     }
 };
 
