@@ -261,19 +261,17 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     const std::uint32_t __stage;
     _GlobOffsetT* __p_global_hist;
     _GlobOffsetT* __p_group_hists;
-    _AtomicIdT* __p_atomic_id;
     _InRngPack __in_pack;
     _OutRngPack __out_pack;
     sycl::local_accessor<unsigned char, 1> __slm_accessor;
     std::uint32_t __num_tiles;
 
     __radix_sort_onesweep_kernel(_GlobOffsetT __n, std::uint32_t __stage, _GlobOffsetT* __p_global_hist,
-                                 _GlobOffsetT* __p_group_hists, _AtomicIdT* __p_atomic_id, const _InRngPack& __in_pack,
+                                 _GlobOffsetT* __p_group_hists, const _InRngPack& __in_pack,
                                  const _OutRngPack& __out_pack, sycl::local_accessor<unsigned char, 1> __slm_acc,
                                  std::uint32_t __num_tiles)
         : __n(__n), __stage(__stage), __p_global_hist(__p_global_hist), __p_group_hists(__p_group_hists),
-          __p_atomic_id(__p_atomic_id), __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc),
-          __num_tiles(__num_tiles)
+          __in_pack(__in_pack), __out_pack(__out_pack), __slm_accessor(__slm_acc), __num_tiles(__num_tiles)
     {
     }
 
