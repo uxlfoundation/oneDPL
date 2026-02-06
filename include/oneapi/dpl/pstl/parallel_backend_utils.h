@@ -317,12 +317,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
+            // We should use placement new here because this method really works with raw unitialized memory
             new (std::addressof(*__result)) _Tp(*__first2);
             ++__first2;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData2, 1);
         }
         else
         {
+            // We should use placement new here because this method really works with raw unitialized memory
             new (std::addressof(*__result)) _Tp(*__first1);
             if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             {
@@ -416,6 +418,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
+            // We should use placement new here because this method really works with raw unitialized memory
             new (std::addressof(*__result)) _Tp(*__first1);
             ++__result;
             ++__first1;
@@ -466,6 +469,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
+            // We should use placement new here because this method really works with raw unitialized memory
             new (std::addressof(*__result)) _Tp(*__first1);
             ++__result;
             ++__first1;
@@ -475,6 +479,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
+                // We should use placement new here because this method really works with raw unitialized memory
                 new (std::addressof(*__result)) _Tp(*__first2);
                 ++__result;
                 __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData2, 1);
