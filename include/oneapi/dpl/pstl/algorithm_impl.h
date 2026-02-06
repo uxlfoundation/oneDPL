@@ -3475,6 +3475,7 @@ struct __mask_buffers
 template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
 struct _ScanPred
 {
+    __parallel_tag<_IsVector> __tag;
     RawDataPtr __buf_raw_data_begin;
     RawDataPtr __buf_raw_data_end;
     MaskDataPtr __buf_mask_rng_raw_data_begin;
@@ -3492,29 +3493,24 @@ struct _ScanPred
         if constexpr (!__Bounded)
 #endif
         {
-            // Processed data
-            __move_data_no_bounds(__s.__data[0], __buf_raw_data_begin, __result1);
+            // Copy source data (unbounded)
+            __brick_move_destroy<decltype(__tag)>{}(__buf_raw_data_begin + __s.__data[0].__buf_pos,
+                                                    __buf_raw_data_begin + __s.__data[0].__buf_pos + __s.__data[0].__len,
+                                                    __result1 + __s.__data[0].__pos, _IsVector{});
         }
         else
         {
-            // Processed data
+            // Copy source data (bounded)
             __move_processed_data_bounded(__s.__data[0]);
 
-            // Process mask
-            __move_data_no_bounds(__s.__data[1], __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin);
+            // Copy mask
+            __brick_copy_n<__parallel_tag<std::true_type>>{}(__buf_mask_rng_raw_data_begin + __s.__data[1].__buf_pos,
+                                                             __s.__data[1].__len, __buf_mask_rng_res_raw_data_begin,
+                                                             std::true_type{});
         }
     }
 
   protected:
-
-    template <typename ItFrom, typename ItTo>
-    void
-    __move_data_no_bounds(auto __s_data, ItFrom __from, ItTo __to) const
-    {
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__from + __s_data.__buf_pos,
-                                                          __from + __s_data.__buf_pos + __s_data.__len,
-                                                          __to + __s_data.__pos, _IsVector{});
-    }
 
     void
     __move_processed_data_bounded(auto __s_data) const
@@ -3529,7 +3525,7 @@ struct _ScanPred
         const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
 
         // Copy results data into results range to have final output
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
+        __brick_move_destroy<decltype(__tag)>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
     }
 
     // Move it1 forward by n, but not beyond it2
@@ -3697,6 +3693,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
+            __tag,
             __buf_raw_data_begin,
             __buf_raw_data_end,
             __buf_mask_rng_raw_data_begin,
