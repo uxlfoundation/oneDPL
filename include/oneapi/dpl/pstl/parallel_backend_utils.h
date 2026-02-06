@@ -240,7 +240,7 @@ class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<!std::is_same_v<std::
   public:
     _MaskCache(_MaskIterator __it_mask) : __it_mask(__it_mask) {}
 
-    inline void
+    void
     __accumulate_mask(__parallel_set_op_mask __mask, _Counter __count)
     {
         if (__pending_count && __mask == __pending_state)
@@ -255,7 +255,7 @@ class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<!std::is_same_v<std::
         }
     }
 
-    inline _MaskIterator
+    _MaskIterator
     __flush_and_advance_masks()
     {
         if (__pending_count)
@@ -275,12 +275,12 @@ class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<std::is_same_v<std::d
   public:
     _MaskCache(std::nullptr_t)  {}
 
-    inline void
+    void
     __accumulate_mask(__parallel_set_op_mask, _Counter)
     {
     }
 
-    inline std::nullptr_t
+    std::nullptr_t
     __flush_and_advance_masks()
     {
         return nullptr;

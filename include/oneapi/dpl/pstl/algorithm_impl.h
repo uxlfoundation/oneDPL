@@ -3328,13 +3328,13 @@ struct _SetRangeImpl
         _DifferenceType __len{};           // Length in temporary buffer w/o limitation to output data size
         _DifferenceType __buf_pos{};       // Position in temporary buffer w/o limitation to output data size
 
-        inline bool
+        bool
         empty() const
         {
             return __len == 0;
         }
 
-        inline _Data
+        _Data
         combine_with(const _Data& __other) const
         {
             const auto __other_buf_pos = __other.__buf_pos;
@@ -3400,7 +3400,7 @@ struct _SetRangeCombiner
 {
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
 
-    inline _SetRange
+    _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
         if constexpr (!__Bounded)
@@ -3576,7 +3576,7 @@ struct _ScanPred
                                                           __to + __s_data.__pos, _IsVector{});
     }
 
-    inline void
+    void
     __move_processed_data_bounded(auto __s_data) const
     {
         // Work schema of copying data from temporary buffer to output range:
