@@ -1062,14 +1062,12 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         __first1, __last1,                                                  // bounds for data1
         __first2, __last2,                                                  // bounds for data2
         __result1, __result2,                                               // bounds for results
-        [](__parallel_tag<_IsVector> __tag, auto&& __exec,
-           _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // _SetUnionOp __set_union_op
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-            _Tp* __result,
-            auto __mask,
+           _Tp* __result,
+           auto __mask,
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
             return oneapi::dpl::__utils::__set_union_construct(
-                __tag, std::forward<decltype(__exec)>(__exec),
                 __first1, __last1,                                          // bounds for data1
                 __first2, __last2,                                          // bounds for data2
                 __result,                                                   // results
@@ -1259,15 +1257,13 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](__parallel_tag<_IsVector> __tag, auto&& __exec,
-                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                    _Tp* __result,
                    auto __mask, // source data usage masks
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __tag, std::forward<decltype(__exec)>(__exec),
                         __first1, __last1,                                                      // bounds for data1
                         __first2, __last2,                                                      // bounds for data2
                         __result,                                                               // results
@@ -1300,15 +1296,13 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 {
                     return __n + __m;
                 },
-                [](__parallel_tag<_IsVector> __tag, auto&& __exec,
-                   _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetUnionOp __set_union_op
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetUnionOp __set_union_op
                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                    _Tp* __result,
-                    auto __mask, // source data usage masks
-                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                   _Tp* __result,
+                   auto __mask, // source data usage masks
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __tag, std::forward<decltype(__exec)>(__exec),
                         __first2, __last2,                                                      // bounds for data1
                         __first1, __last1,                                                      // bounds for data2
                         __result,                                                               // results
@@ -1522,15 +1516,13 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             __result1, __result2,                           // bounds for results
             [](_DifferenceType __n, _DifferenceType) { return __n; },
             [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-            [](__parallel_tag<_IsVector> __tag, auto&& __exec,
-               _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
                _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                _T* __result,
                auto __mask,
                _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
             {
                 return oneapi::dpl::__utils::__set_difference_construct(
-                    __tag, std::forward<decltype(__exec)>(__exec),
                     __first1, __last1,                      // bounds for data1
                     __first2, __last2,                      // bounds for data2
                     __result,                               // results
@@ -1713,15 +1705,13 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         __first1, __last1,
         __first2, __last2,
         __result1, __result2,
-        [](__parallel_tag<_IsVector> __tag, auto&& __exec,
-           _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
            _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
            _Tp* __result,
-            auto __mask,
+           auto __mask,
            _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
         {
             return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                __tag, std::forward<decltype(__exec)>(__exec),
                 __first1, __last1,                                                  // bounds for data1                   
                 __first2, __last2,                                                  // bounds for data2
                 __result,                                                           // results
