@@ -574,9 +574,8 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             _GlobalAtomicT __ref(__p_lookback_hist[__bin_idx]);
             do
             {
-                __prev_group_hist = (__lookback_counter < __atomic_fence_iter)
-                                        ? __ref.load()
-                                        : __ref.load(sycl::memory_order::acquire);
+                __prev_group_hist =
+                    (__lookback_counter < __atomic_fence_iter) ? __ref.load() : __ref.load(sycl::memory_order::acquire);
                 ++__lookback_counter;
             } while ((__prev_group_hist & __hist_updated) == 0);
             __prev_group_hist_sum += __is_not_accumulated ? __prev_group_hist : 0;
