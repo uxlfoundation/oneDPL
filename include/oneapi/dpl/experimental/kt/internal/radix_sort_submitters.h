@@ -228,14 +228,21 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
         using _KernelName = typename __onesweep_kernel_name_helper<
             _KernelType, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>::kernel_name;
 
-        const std::uint32_t __max_slm_device = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-        std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
-
         // There is a bug produced on BMG where zeKernelSuggestMaxCooperativeGroupCount suggests too large of a
-        // work-group count when we are beyond half capacity, causing a hang. To fix this, we can pad our request to
-        // 13 / 16 of the SLM which is the smallest value found to workaround the issue.
-        if (__slm_size_bytes > __max_slm_device / 2)
-            __slm_size_bytes = std::max(__slm_size_bytes, (__max_slm_device * 13) / 16);
+        // work-group count when we are beyond half SLM capacity, causing a hang. To fix this, we can manually compute
+        // the safe number of groups to launch and take the min with the root group query for any kernel specific
+        // restrictions that may limit the number of groups
+        constexpr std::uint32_t __xve_per_xe = 8;
+        constexpr std::uint32_t __lanes_per_xe = 2048;
+        constexpr std::uint32_t __max_groups_per_xe = __lanes_per_xe / __work_group_size;
+        const std::uint32_t __max_slm_xe = __q.get_device().get_info<sycl::info::device::local_mem_size>();
+        const std::uint32_t __xes_on_device =
+            __q.get_device().get_info<sycl::info::device::max_compute_units>() / __xve_per_xe;
+
+        const std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
+        const std::uint32_t __groups_per_xe_slm_adj = std::min(__max_groups_per_xe, __max_slm_xe / __slm_size_bytes);
+
+        const std::uint32_t __concurrent_groups_est = __groups_per_xe_slm_adj * __xes_on_device;
 
         auto __bundle = sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context());
         auto __kernel = __bundle.template get_kernel<_KernelName>();
@@ -243,7 +250,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
             __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
                 __q, __work_group_size, __slm_size_bytes);
 
-        std::uint32_t __num_wgs = std::min(__max_num_wgs, __sweep_work_group_count);
+        std::uint32_t __num_wgs = std::min({__max_num_wgs, __sweep_work_group_count, __concurrent_groups_est});
 
         sycl::nd_range<1> __nd_range(__num_wgs * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
