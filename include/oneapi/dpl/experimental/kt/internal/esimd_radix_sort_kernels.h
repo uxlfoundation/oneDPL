@@ -47,8 +47,8 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
     _RngPack1 __rng_pack_in;
     _RngPack2 __rng_pack_out;
 
-    __one_wg_kernel(std::uint32_t __n, const _RngPack1& __rng_pack_in, const _RngPack2& __rng_pack_out) : 
-        __n(__n), __rng_pack_in(__rng_pack_in), __rng_pack_out(__rng_pack_out)
+    __one_wg_kernel(std::uint32_t __n, const _RngPack1& __rng_pack_in, const _RngPack2& __rng_pack_out)
+        : __n(__n), __rng_pack_in(__rng_pack_in), __rng_pack_out(__rng_pack_out)
     {
     }
 
@@ -84,7 +84,7 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
             __dpl_esimd::__ns::simd_mask<__data_per_step> __m = (__io_offset + __lane_id + __s) < __n;
             __keys.template select<__data_per_step, 1>(__s) = __dpl_esimd::__ns::merge(
                 __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__rng_pack_in.__keys_rng()), __lane_id,
-                                                            __io_offset + __s, __m),
+                                                              __io_offset + __s, __m),
                 __dpl_esimd::__ns::simd<_KeyT, __data_per_step>(__sort_identity<_KeyT, __is_ascending>()), __m);
         }
 
@@ -233,9 +233,9 @@ struct __one_wg_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_wor
         for (::std::uint32_t __s = 0; __s < __data_per_work_item; __s += __data_per_step)
         {
             __dpl_esimd::__scatter<_KeyT, __data_per_step>(__rng_data(__rng_pack_out.__keys_rng()),
-                                                        __write_addr.template select<__data_per_step, 1>(__s),
-                                                        __keys.template select<__data_per_step, 1>(__s),
-                                                        __write_addr.template select<__data_per_step, 1>(__s) < __n);
+                                                           __write_addr.template select<__data_per_step, 1>(__s),
+                                                           __keys.template select<__data_per_step, 1>(__s),
+                                                           __write_addr.template select<__data_per_step, 1>(__s) < __n);
         }
     }
 };
@@ -325,7 +325,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
                         __dpl_esimd::__ns::simd_mask<__data_per_step> __is_in_range = __offsets < __n;
                         __dpl_esimd::__ns::simd<_KeyT, __data_per_step> data =
                             __dpl_esimd::__gather<_KeyT, __data_per_step>(__rng_data(__keys_rng), __offsets, 0,
-                                                                        __is_in_range);
+                                                                          __is_in_range);
                         __dpl_esimd::__ns::simd<_KeyT, __data_per_step> sort_identities =
                             __sort_identity<_KeyT, __is_ascending>();
                         __keys.template select<__data_per_step, 1>(__step_offset) =
@@ -339,7 +339,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
                     constexpr _BinT __mask = __bin_count - 1;
                     std::uint32_t __stage_global = __stage_block_start + __stage_local;
                     __bins = __get_bucket<__mask>(__order_preserving_cast<__is_ascending>(__keys),
-                                                __stage_global * __radix_bits);
+                                                  __stage_global * __radix_bits);
                     _ONEDPL_PRAGMA_UNROLL
                     for (std::uint32_t __i = 0; __i < __hist_data_per_work_item; ++__i)
                     {
@@ -356,7 +356,8 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
                 std::uint32_t slm_offset = __stage_block_start * __bin_count + __grf_offset;
                 __dpl_esimd::__ns::simd<std::uint32_t, __data_per_step> __slm_byte_offsets(
                     slm_offset * sizeof(_GlobalHistT), sizeof(_GlobalHistT));
-                __dpl_esimd::__ens::lsc_slm_atomic_update<__dpl_esimd::__ns::atomic_op::add, _GlobalHistT, __data_per_step>(
+                __dpl_esimd::__ens::lsc_slm_atomic_update<__dpl_esimd::__ns::atomic_op::add, _GlobalHistT,
+                                                          __data_per_step>(
                     __slm_byte_offsets, __state_hist_grf.template select<__data_per_step, 1>(__grf_offset), 1);
             }
             __dpl_esimd::__ns::barrier();
@@ -365,7 +366,7 @@ struct __global_histogram<__esimd_tag, __is_ascending, __radix_bits, __hist_work
         // 4. Reduce group-local histograms from SLM into global histograms in global memory
         __dpl_esimd::__ns::simd<_GlobalHistT, __group_hist_size> __group_hist =
             __dpl_esimd::__block_load_slm<_GlobalHistT, __group_hist_size>(__local_id * __group_hist_size *
-                                                                        sizeof(_GlobalHistT));
+                                                                           sizeof(_GlobalHistT));
         __dpl_esimd::__ns::simd<std::uint32_t, __group_hist_size> __byte_offsets(0, sizeof(_GlobalHistT));
         __dpl_esimd::__ens::lsc_atomic_update<__dpl_esimd::__ns::atomic_op::add>(
             __p_global_offset + __local_id * __group_hist_size, __byte_offsets, __group_hist,
@@ -379,7 +380,8 @@ struct __radix_sort_onesweep_kernel;
 
 template <bool __is_ascending, ::std::uint8_t __radix_bits, ::std::uint16_t __data_per_work_item,
           ::std::uint16_t __work_group_size, typename _InRngPack, typename _OutRngPack>
-struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size, _InRngPack, _OutRngPack>
+struct __radix_sort_onesweep_kernel<__esimd_tag, __is_ascending, __radix_bits, __data_per_work_item, __work_group_size,
+                                    _InRngPack, _OutRngPack>
 {
     using _LocOffsetT = ::std::uint16_t;
     using _GlobOffsetT = ::std::uint32_t;

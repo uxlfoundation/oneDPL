@@ -641,7 +641,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
         // 3. Write keys (and values) to SLM at computed ranks
         _ONEDPL_PRAGMA_UNROLL
-        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i) 
+        for (std::uint32_t __i = 0; __i < __data_per_work_item; ++__i)
         {
             __slm_keys[__ranks[__i]] = __pack.__keys[__i];
             if constexpr (__has_values)
