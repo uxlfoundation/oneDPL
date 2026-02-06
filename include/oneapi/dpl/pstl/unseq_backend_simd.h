@@ -244,10 +244,10 @@ std::pair<_DifferenceType, _DifferenceType>
 __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __result, _DifferenceType __n_out,
                       _IndexPredicate __pred) noexcept
 {
-    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan
-    _DifferenceType __stop = __n;
+    std::make_signed_t<_DifferenceType> __stop = -1, __write_pos = -1; // to use inclusive scan
     bool __suitable;
-    _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable))
+
+    _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable) lastprivate(conditional : __stop))
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
         __suitable = __pred(__first, __i);
@@ -267,7 +267,7 @@ __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __r
         }
     }
     _DifferenceType __cnt = __write_pos + 1;
-    return {__stop, __cnt < __n_out ? __cnt : __n_out};
+    return {__stop < 0 ? __n : __stop, __cnt < __n_out ? __cnt : __n_out};
 }
 
 template <typename _Iterator, typename _DifferenceType, typename _IndexPredicate>
@@ -290,9 +290,9 @@ _DifferenceType
 __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator __result, _DifferenceType __n_out,
                     bool* __mask, _Assigner __assign) noexcept
 {
-    std::make_signed_t<_DifferenceType> __write_pos = -1; // to use inclusive scan of the mask
-    _DifferenceType __stop = __n;
-    _ONEDPL_PRAGMA_SIMD_SCAN(+ : __write_pos)
+    std::make_signed_t<_DifferenceType> __stop = -1, __write_pos = -1; // to use inclusive scan of the mask
+
+    _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, lastprivate(conditional : __stop))
     for (_DifferenceType __i = 0; __i < __n; ++__i)
     {
         __write_pos += __mask[__i];
@@ -310,7 +310,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
                 __assign(__first + __i, __result + __write_pos);
         }
     }
-    return __stop;
+    return __stop < 0 ? __n : __stop;
 }
 
 template <class _InputIterator, class _DifferenceType, class _OutputIterator1, class _OutputIterator2>
