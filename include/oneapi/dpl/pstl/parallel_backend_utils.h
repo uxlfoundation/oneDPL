@@ -287,6 +287,29 @@ class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<std::is_same_v<std::d
     }
 };
 
+template <typename _InputIterator, typename _OutputIterator>
+struct _UninitializedCopyItem
+{
+    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
+    using _OutValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+    using _OutRefType = typename std::iterator_traits<_OutputIterator>::reference;
+
+    void
+    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
+    {
+        if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
+        {
+            // The memory is raw and uninitialized, but since the type is trivially copyable, we can just assign to it without invoking constructor
+            *__it_out = _OutValueType(*__it_in);
+        }
+        else
+        {
+            // We should use placement new here because this method really works with raw unitialized memory
+            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
+        }
+    }
+};
+
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
 std::tuple<_OutputIterator, _MaskIterator>
@@ -299,7 +322,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 
     // This implementation should be aligned with https://eel.is/c++draft/set.union
 
-    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
+    _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
 
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
@@ -317,15 +341,13 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            // We should use placement new here because this method really works with raw unitialized memory
-            new (std::addressof(*__result)) _Tp(*__first2);
+            _uninitialized_copy_from2(__first2, __result);
             ++__first2;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData2, 1);
         }
         else
         {
-            // We should use placement new here because this method really works with raw unitialized memory
-            new (std::addressof(*__result)) _Tp(*__first1);
+            _uninitialized_copy_from1(__first1, __result);
             if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
             {
                 ++__first2;
@@ -400,7 +422,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     // This implementation should be aligned with https://eel.is/c++draft/set.difference
 
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
 
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
@@ -418,8 +440,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            // We should use placement new here because this method really works with raw unitialized memory
-            new (std::addressof(*__result)) _Tp(*__first1);
+            _uninitialized_copy_from1(__first1, __result);
             ++__result;
             ++__first1;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData1, 1);
@@ -451,7 +472,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 {
     // This implementation should be aligned with https://eel.is/c++draft/set.symmetric.difference
 
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
+    _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
 
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
@@ -470,7 +492,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
             // We should use placement new here because this method really works with raw unitialized memory
-            new (std::addressof(*__result)) _Tp(*__first1);
+            _uninitialized_copy_from1(__first1, __result);
             ++__result;
             ++__first1;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData1, 1);
@@ -480,7 +502,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
                 // We should use placement new here because this method really works with raw unitialized memory
-                new (std::addressof(*__result)) _Tp(*__first2);
+                _uninitialized_copy_from2(__first2, __result);
                 ++__result;
                 __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData2, 1);
             }
