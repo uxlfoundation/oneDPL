@@ -322,9 +322,6 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
                       _ForwardIterator2 __last2, _OutputIterator __result, _MaskIterator __mask,
                       _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    assert(__first1 <= __last1);
-    assert(__first2 <= __last2);
-
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
 
     using _DifferenceType1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
