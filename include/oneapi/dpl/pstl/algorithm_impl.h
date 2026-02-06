@@ -4008,7 +4008,11 @@ struct __set_op_bounded_offsets_evaluator
 
         // At least __reachedOutPos first position are not interested for us,
         // but if __reachedOutPos == 0 we should start from the beginning
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR
         auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
+#else
+        auto it_prefix_summ_buf_start = it_prefix_summ_buf_b;
+#endif
         assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
 
         // Find the position where output size limit is reached
