@@ -686,8 +686,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     auto
     get(syclex::properties_tag) const
     {
-        return syclex::properties{syclex::use_root_sync,
-                                  syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
+        return syclex::properties{syclex::work_group_progress<syclex::forward_progress_guarantee::concurrent,
                                                               syclex::execution_scope::root_group>,
                                   syclex::sub_group_size<32>};
     }
