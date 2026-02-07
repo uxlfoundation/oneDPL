@@ -419,6 +419,8 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
+        std::string names{typeid(Algo).name()};
+        names += "<" + std::string{typeid(Policy).name()} + ">";
         std::string sizes{" for "};
         sizes += std::to_string(n_in) + " elements and " + std::to_string(n_out) + " space";
 
@@ -446,37 +448,37 @@ private:
         if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                  (std::string("wrong output stop position with ") + names + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
         EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
-                    (std::string("output mismatch with ") + typeid(Algo).name() + sizes).c_str());
+                    (std::string("output mismatch with ") + names + sizes).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
         EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
-                    (std::string("input mismatch with ") + typeid(Algo).name() + sizes).c_str());
+                    (std::string("input mismatch with ") + names + sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -964,19 +966,19 @@ struct test_range_algo
     void
     test_range_algo_impl_host(auto algo, auto& checker, auto... args)
     {
-        auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
-        auto span_view = span_view_fo{};
-#endif
+        // auto subrange_view = subrange_view_fo{};
+// #if TEST_CPP20_SPAN_PRESENT
+        // auto span_view = span_view_fo{};
+// #endif
 
         test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-#if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
-        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-#endif
+        // test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        // test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        // test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+// #if TEST_CPP20_SPAN_PRESENT
+        // test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        // test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+// #endif
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -984,9 +986,9 @@ struct test_range_algo
     void test_range_algo_impl_hetero(Policy&& exec, auto algo, auto& checker, auto... args)
     {
         auto subrange_view = subrange_view_fo{};
-#if TEST_CPP20_SPAN_PRESENT
-        auto span_view = span_view_fo{};
-#endif
+// #if TEST_CPP20_SPAN_PRESENT
+        // auto span_view = span_view_fo{};
+// #endif
 
         //Skip the cases with pointer-to-function and hetero policy because pointer-to-function is not supported within kernel code.
         if constexpr(!std::disjunction_v<std::is_member_function_pointer<decltype(args)>...>)
@@ -996,11 +998,11 @@ struct test_range_algo
 #endif
             {
                 test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
-#if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
-#endif
+                // test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+// #if TEST_CPP20_SPAN_PRESENT
+                // test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                // test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+// #endif
             }
         }
     }

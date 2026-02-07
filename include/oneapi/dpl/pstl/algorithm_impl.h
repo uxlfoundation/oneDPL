@@ -702,9 +702,7 @@ __brick_find_if(_RandomAccessIterator __first, _RandomAccessIterator __last, _Pr
                 /*is_vector=*/::std::true_type) noexcept
 {
     using _SizeType = typename std::iterator_traits<_RandomAccessIterator>::difference_type;
-    return __unseq_backend::__simd_first(
-        __first, _SizeType(0), __last - __first,
-        [&__pred](_RandomAccessIterator __it, _SizeType __i) { return __pred(__it[__i]); });
+    return __unseq_backend::__simd_first(__first, _SizeType(0), __last - __first, __internal::__pred_at_index{__pred});
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
@@ -1207,11 +1205,10 @@ _RandomAccessIterator2
 __brick_copy_if(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
                 _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    return __result + __unseq_backend::__simd_copy_if(__first, __last - __first, __result, __pred);
-#else
-    return std::copy_if(__first, __last, __result, __pred);
-#endif
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    _DifferenceType __n = __last - __first;
+    return __result + __unseq_backend::__simd_selective_copy</*bounded =*/ false>(
+                          __first, __n, __result, __n, __internal::__pred_at_index{__pred}).second;
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _UnaryPredicate>
@@ -1219,34 +1216,18 @@ std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __brick_bounded_copy_if(_RandomAccessIterator1 __first,
                         typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
                         _RandomAccessIterator2 __result,
-                        typename std::iterator_traits<_RandomAccessIterator2>::difference_type __m,
+                        typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                         _UnaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-    while (__m > 0 && __m < __n)
-    {
-        _RandomAccessIterator2 __stop = __brick_copy_if(__first, __first + __m, __result, __pred, std::true_type{});
-        __n -= __m;
-        __first += __m;
-        __m -= __stop - __result;
-        __result = __stop;
-    }
-    // The loop above may not decrease __m or __n below 0
-    if (__m >= __n) // enough space left for the rest
-    {
-        __result = __brick_copy_if(__first, __first + __n, __result, __pred, std::true_type{});
-        __first += __n;
-    }
-    else
-    { // m == 0
-        __first = __unseq_backend::__simd_first(__first, decltype(__n)(0), __n,
-            [__pred](_RandomAccessIterator1 __it, auto __i) { return __pred(__it[__i]); });
-    }
-    return {__first, __result};
+    using _DifferenceType = std::common_type_t<decltype(__n), decltype(__n_out)>;
+    auto [__stop_in, __stop_out] = __unseq_backend::__simd_selective_copy</*bounded =*/ true>(
+        __first, _DifferenceType(__n), __result, _DifferenceType(__n_out), __internal::__pred_at_index{__pred});
+    return {__first + __stop_in, __result + __stop_out};
 }
 
-template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
+template <class _RandomAccessIterator, class _DifferenceType, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _IterPredicate __pred, bool* __mask,
+__brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _IndexPredicate __pred, bool* __mask,
                      /*vector=*/std::false_type) noexcept
 {
     _DifferenceType __count_true = 0;
@@ -1258,9 +1239,9 @@ __brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _Iter
     return std::make_pair(__count_true, __len - __count_true);
 }
 
-template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
+template <class _RandomAccessIterator, class _DifferenceType, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _IterPredicate __pred, bool* __mask,
+__brick_compute_mask(_RandomAccessIterator __first, _DifferenceType __len, _IndexPredicate __pred, bool* __mask,
                      /*vector=*/std::true_type) noexcept
 {
     auto __count_true = __unseq_backend::__simd_compute_mask(__first, __len, __pred, __mask);
@@ -1329,11 +1310,11 @@ __brick_partition_by_mask(_RandomAccessIterator1 __first, _RandomAccessIterator1
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
-          class _RandomAccessIterator2, class _IterPredicate>
+          class _RandomAccessIterator2, class _IndexPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
                           _DifferenceType __n, _RandomAccessIterator2 __result, _DifferenceType __n_out,
-                          _IterPredicate __pred)
+                          _IndexPredicate __pred)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
     __par_backend::__buffer<bool> __mask_buf(__n);
@@ -1393,9 +1374,8 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const _DifferenceType __n = __last - __first;
     if (_DifferenceType(1) < __n)
     {
-        return __parallel_selective_copy(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result,  __n,
-            [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); }).second;
+        return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n,
+                                         __internal::__pred_at_index{__pred}).second;
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
@@ -1408,9 +1388,8 @@ __pattern_bounded_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __
                           _DifferenceType __n, _RandomAccessIterator2 __result, _DifferenceType __n_out,
                           _UnaryPredicate __pred)
 {
-    return __parallel_selective_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, _DifferenceType{__n_out},
-        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); });
+    return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n_out,
+                                     __internal::__pred_at_index{__pred});
 }
 
 //------------------------------------------------------------------------
@@ -1603,24 +1582,50 @@ __pattern_unique(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _Ra
 // unique_copy
 //------------------------------------------------------------------------
 
-template <class _ForwardIterator, class OutputIterator, class _BinaryPredicate>
-OutputIterator
-__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, OutputIterator __result, _BinaryPredicate __pred,
-                    /*vector=*/::std::false_type) noexcept
+template <class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
+_OutputIterator
+__brick_unique_copy(_ForwardIterator __first, _ForwardIterator __last, _OutputIterator __result,
+                    _BinaryPredicate __pred, /*vector=*/std::false_type) noexcept
 {
-    return ::std::unique_copy(__first, __last, __result, __pred);
+    return std::unique_copy(__first, __last, __result, __pred);
 }
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
 _RandomAccessIterator2
 __brick_unique_copy(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _RandomAccessIterator2 __result,
-                    _BinaryPredicate __pred, /*vector=*/::std::true_type) noexcept
+                    _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept
 {
-#if (_PSTL_MONOTONIC_PRESENT || _ONEDPL_MONOTONIC_PRESENT)
-    return __unseq_backend::__simd_unique_copy(__first, __last - __first, __result, __pred);
-#else
-    return ::std::unique_copy(__first, __last, __result, __pred);
-#endif
+    // Ensure the arguments to *_selective_copy are of signed type, to avoid wraparound in the predicate
+    // when the index equals to zero
+    using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    _DifferenceType __n = __last - __first;
+    if (__n == 0)
+        return __result;
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n;
+    __result += __unseq_backend::__simd_selective_copy</*bounded =*/ false>(__first, __n, __result, __n,
+                    __internal::__unique_at_index{__pred}).second;
+    return __result;
+}
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__brick_bounded_unique_copy(_RandomAccessIterator1 __first,
+                            typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
+                            _RandomAccessIterator2 __result,
+                            typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
+                            _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept
+{
+    using _DifferenceType = std::common_type_t<decltype(__n), decltype(__n_out)>;
+    if (__n == 0 || __n_out == 0)
+        return {__first, __result};
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n; --__n_out;
+    auto [__stop_in, __stop_out] = __unseq_backend::__simd_selective_copy</*bounded =*/ true>(
+        __first, _DifferenceType(__n), __result, _DifferenceType(__n_out), __internal::__unique_at_index{__pred});
+    return {__first + __stop_in, __result + __stop_out};
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
@@ -1646,12 +1651,26 @@ __pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec
         *__result++ = *__first++; // Always copy the first element
         --__n;
         return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n,
-                                         [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) {
-                                             return !__pred(__it[__idx], __it[__idx - 1]);
-                                         }).second;
+                                         __internal::__unique_at_index{__pred}).second;
     }
     // trivial sequence - use serial algorithm
     return __internal::__brick_unique_copy(__first, __last, __result, __pred, _IsVector{});
+}
+
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
+          class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__pattern_bounded_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
+                              _RandomAccessIterator1 __first, _DifferenceType __n, _RandomAccessIterator2 __result,
+                              _DifferenceType __n_out, _BinaryPredicate __pred)
+{
+    if (__n == 0 || __n_out == 0)
+        return {__first, __result};
+
+    *__result++ = *__first++; // Always copy the first element
+    --__n; --__n_out;
+    return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n_out,
+                                     __internal::__unique_at_index{__pred});
 }
 
 //------------------------------------------------------------------------
@@ -2384,10 +2403,8 @@ __pattern_partition_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _
                 __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n,
                 std::make_pair(_DifferenceType(0), _DifferenceType(0)),
                 [=, &__pred](_DifferenceType __i, _DifferenceType __len) { // Reduce
-                    return __internal::__brick_compute_mask(
-                        __first + __i, __len,
-                        [&__pred](_RandomAccessIterator1 __it, _DifferenceType __idx) { return __pred(__it[__idx]); },
-                        __mask + __i, _IsVector{});
+                    return __internal::__brick_compute_mask(__first + __i, __len, __internal::__pred_at_index{__pred},
+                                                            __mask + __i, _IsVector{});
                 },
                 [](const _ReturnType& __x, const _ReturnType& __y) -> _ReturnType {
                     return ::std::make_pair(__x.first + __y.first, __x.second + __y.second);
