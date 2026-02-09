@@ -110,14 +110,8 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     __first_chunk_size = __chunk_size;
     const _Size __n_leftover_items = __n - (__n_chunks * __chunk_size);
 
-    if (__n_leftover_items == __chunk_size)
+    if (__n_leftover_items == 0)
     {
-        __n_chunks += 1;
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
-    }
-    else if (__n_leftover_items == 0)
-    {
-        __first_chunk_size = __chunk_size;
         return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
 
