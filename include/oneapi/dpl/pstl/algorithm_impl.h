@@ -3342,6 +3342,21 @@ struct _SetRangeImpl
     std::array<_Data, __data_size> __data;
 };
 
+// __Bounded state for non-range set operations
+#define IMPLEMENT_SET_OP_AS_BOUNDED                                                                         true
+#if IMPLEMENT_SET_OP_AS_BOUNDED
+#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                         1
+#    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                       1
+#        if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+#            define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS                    1
+#            if ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS
+#                define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR 1
+#            endif
+#        endif
+#    endif
+#endif
+
 template <bool __Bounded, typename _DifferenceType>
 struct _SetRangeCombiner
 {
@@ -3350,10 +3365,10 @@ struct _SetRangeCombiner
     _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
-#if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-        if constexpr (!__Bounded)
-#else
+#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
         if constexpr (true)
+#else
+        if constexpr (!__Bounded)
 #endif
         {
             return {__a.__data[0].combine_with(__b.__data[0])};
@@ -3385,21 +3400,6 @@ struct __set_op_unbounded_offsets_eval
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
-
-// __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                                                                         true
-#if IMPLEMENT_SET_OP_AS_BOUNDED
-#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                         1
-#    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                       1
-#        if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#            define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS                    1
-#            if ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS
-#                define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR 1
-#            endif
-#        endif
-#    endif
-#endif
 
 #if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 template <bool __Bounded>
