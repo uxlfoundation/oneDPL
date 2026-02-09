@@ -867,16 +867,17 @@ struct __set_op_bounded_offsets_evaluator
     _EvalReachedPosPred __eval_reached_pos_pred;
 
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         assert(__n_out > 0);
 
         const auto __req_size = __size_func(__n1, __n2);
-        const auto __req_mask_size = __mask_size_func(__n1, __n2);
+        const auto __req_mask_size = __mask_end - __mask_begin;
 
         // Our reached output position should not exceed requested mask output size
         assert(__reachedOutPos <= __req_mask_size);
@@ -891,7 +892,7 @@ struct __set_op_bounded_offsets_evaluator
 
         // Calculate counts through transform_iterator
         auto __tr_first = oneapi::dpl::make_transform_iterator(
-            __mask, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType {
+            __mask_begin, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType {
                 // (mask & 0x10) == 0x10
                 const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
                                            __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
@@ -956,11 +957,12 @@ struct __set_op_bounded_offsets_evaluator
 struct __set_union_offsets
 {
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
 
@@ -992,8 +994,9 @@ struct __set_union_offsets
 
         // transform_reduce
         const _Sizes __res = __pattern_transform_reduce(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec), __mask, __mask + __reachedOutPos,
-            __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
+            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
+            __mask_begin, __mask_end,
+            __mask_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
             _Sizes{0, 0}, reduce_pred, transform_pred);
 
         return {__res.first, __res.second};
@@ -1142,15 +1145,16 @@ struct __set_intersection_offsets
     };
 
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
-            __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
+            __mask_begin, __mask_end);
     }
 };
 
@@ -1350,15 +1354,16 @@ struct __set_difference_offsets
     };
 
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
-            __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
+            __mask_begin, __mask_end);
     }
 };
 
@@ -1569,15 +1574,16 @@ struct __set_symmetric_difference_offsets
     };
 
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __mask_size_func, __mask,
-            __reachedOutPos);
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
+            __mask_begin, __mask_end);
     }
 };
 
