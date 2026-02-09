@@ -7,14 +7,13 @@ where each element is represented as a tuple containing corresponding elements f
 ## Motivations
 `std::ranges::zip_view` is a convenient way to combine multiple ranges into a single view, where each element of
 the resulting range is a tuple containing one element from each of the input ranges. This can be particularly
-useful for iterating over multiple collections in parallel. `std::ranges::zip_view` was introduced in C++23,
-but many developers are still using C++20 standard. So, oneDPL introduces `oneapi::dpl::ranges::zip_view`,
+useful for iterating over multiple collections in parallel. `std::ranges::zip_view` is added in C++23,
+but many developers are still using C++20 standard. oneDPL introduces `oneapi::dpl::ranges::zip_view`,
 with the same API and functionality as `std::ranges::zip_view`.
 
 In case of C++23 `oneapi::dpl::ranges::zip_view` using also makes sense at least for the device policies, because
 `std::ranges::zip_view` C++23 still is not device copyable. Any wrapper over `std::tuple` C++23 is not device copyable. (https://godbolt.org/z/brfvcMeM6)
 There are another technical issues with `std::tuple` (see below for the details).
-So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
 
 ### Key Requirements
 `oneapi::dpl::ranges::zip_view` should be:
@@ -31,8 +30,8 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
   depending on the algorithm, stricter requirements may apply. For example, `std::sortable` concept must be satisfied in order to call `std::ranges::sort`.
 
 ### Discrepancies with std::zip_view C++23
-- `oneapi::dpl::ranges::zip_view` may use a oneDPL tuple-like type instead of std::tuple 
-- `oneapi::dpl::ranges::zip_view::iterator::value_type` should be defined so that `oneapi::dpl::ranges::zip_view::iterator` satisfies the std::indirectly_writable concept.
+- `oneapi::dpl::ranges::zip_view` may use a oneDPL tuple-like type instead of `std::tuple` 
+- `oneapi::dpl::ranges::zip_view::iterator::value_type` should not be defined as `std::tuple` (see a known technical issue below)
 
 ### Other technical reasons not to use std::zip_view C++23 (and std::tuple) with oneDPL algorithms in the future:
 - There is an issue with `std::ranges::sort(zip_view)` with clang 19.0 and older. (https://godbolt.org/z/jKvG9rY5M)
@@ -43,8 +42,8 @@ So, oneDPL tuple-like concept  should be proposed into the oneDPL spec.
   and `indirectly_writable` concepts: const_cast<const std::iter_reference_t<Out>&&>(*o) = std::forward<T>(t) is not compiled till C++23.  (https://godbolt.org/z/zT9qqnjWq)
 
 ### Implementation proposal (C++20)
-- `oneapi::dpl::ranges::zip_view` is designed as a C++ class which represents a range adaptor (see C++ Range Library).
-- The implementation is based on the C++ `std::ranges::view_interface`.
+- `oneapi::dpl::ranges::zip_view` is as a C++ class representing a range adaptor (see C++ Range Library).
+- The implementation derives from the C++ `std::ranges::view_interface`.
 This class encapsulates a tuple-like type to keep a combination of two or more ranges.
 - To ensure device copyability, `oneapi::dpl::__internal::tuple` is proposed as a tuple-like type for underlying elements.
 - To provide a value-swappable requirement `oneapi::dpl::__internal::tuple` is proposed as a dereferenced value for
@@ -56,5 +55,5 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 ### Test coverage
 - `oneapi::dpl::ranges::zip_view` is tested itself, base functionality (the API that is used for a range in the oneDPL algorithm implementations)
 - the base functionality test coverage may be extended by the adapted LLVM `std::ranges::zip_view` (C++23) tests.
-- should be tested with at least one oneDPL range based algorithm.
-- should be tested with at least one oneDPL iterator based algorithm.
+- should be tested with range based algorithms.
+- should be tested with iterator based algorithms.
