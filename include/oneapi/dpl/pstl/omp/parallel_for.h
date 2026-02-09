@@ -27,32 +27,74 @@ namespace dpl
 namespace __omp_backend
 {
 
-// Chunk size selection strategy for parallel for algorithms
-// It primarily depends on a functor complexity, which is out of our control,
-// but some tuning is still possible based on the input size and number of threads
-inline std::size_t
-__get_chunk_for_any_workload(std::size_t __size, int __num_threads)
+struct __grain_selector_any_workload
 {
-    // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
-    // Min/Max are found empirically
-    constexpr std::size_t __min_chunk = 256;
-    constexpr std::size_t __max_chunk = 16384;
-    constexpr std::size_t __multiple_chunk = 64;
+    inline std::size_t operator()(std::size_t __size, int __num_threads) const
+    {
+        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+        // Min/Max are found empirically
+        constexpr std::size_t __min_chunk = 256;
+        constexpr std::size_t __max_chunk = 16384;
+        constexpr std::size_t __multiple_chunk = 64;
 
-    // Aim for 3 tasks per thread for better load balancing
-    std::size_t __grainsize = __size / (__num_threads * 3);
-    if (__grainsize < __min_chunk)
-        __grainsize = __min_chunk;
-    else if (__grainsize > __max_chunk)
-        __grainsize = __max_chunk;
-    return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
-}
+        // Aim for 3 tasks per thread for better load balancing
+        std::size_t __grainsize = __size / (__num_threads * 3);
+        if (__grainsize < __min_chunk)
+            __grainsize = __min_chunk;
+        else if (__grainsize > __max_chunk)
+            __grainsize = __max_chunk;
+        // Round up to avoid too avoid small uneven chunk at the end
+        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
+    }
+};
 
-template <class _Index, class _Fp>
+struct __grain_selector_for_small_workload
+{
+    inline std::size_t operator()(std::size_t __size, int __num_threads) const
+    {
+        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+        // Min/Max are found empirically
+        constexpr std::size_t __min_chunk = 2048;
+        constexpr std::size_t __max_chunk = 16384;
+        constexpr std::size_t __multiple_chunk = 64;
+
+        // Aim for 3 tasks per thread for better load balancing
+        std::size_t __grainsize = __size / (__num_threads * 3);
+        if (__grainsize < __min_chunk)
+            __grainsize = __min_chunk;
+        else if (__grainsize > __max_chunk)
+            __grainsize = __max_chunk;
+        // Round up to avoid too avoid small uneven chunk at the end
+        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
+    }
+};
+
+struct __grain_selector_for_large_workload
+{
+    inline std::size_t operator()(std::size_t __size, int __num_threads) const
+    {
+        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+        // Min/Max are found empirically
+        constexpr std::size_t __min_chunk = 64;
+        constexpr std::size_t __max_chunk = 1024;
+        constexpr std::size_t __multiple_chunk = 64;
+
+        // Aim for 3 tasks per thread for better load balancing
+        std::size_t __grainsize = __size / (__num_threads * 3);
+        if (__grainsize < __min_chunk)
+            __grainsize = __min_chunk;
+        else if (__grainsize > __max_chunk)
+            __grainsize = __max_chunk;
+        // Round up to avoid too avoid small uneven chunk at the end
+        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
+    }
+};
+
+template <class _Index, class _Fp, class _GrainSelector>
 void
-__parallel_for_body(_Index __first, _Index __last, _Fp __f)
+__parallel_for_body(_Index __first, _Index __last, _Fp __f, _GrainSelector __grain_selector)
 {
-    std::size_t __grainsize = __get_chunk_for_any_workload(__last - __first, omp_get_num_threads());
+    std::size_t __grainsize = __grain_selector(__last - __first, omp_get_num_threads());
 
     // initial partition of the iteration space into chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
@@ -70,15 +112,16 @@ __parallel_for_body(_Index __first, _Index __last, _Fp __f)
 // Evaluation of brick f[i,j) for each subrange [i,j) of [first, last)
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _Index, class _Fp>
+template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
 void
-__parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f)
+__parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
+               _GrainSelector __grain_selector = _GrainSelector())
 {
     if (omp_in_parallel())
     {
         // we don't create a nested parallel region in an existing parallel
         // region: just create tasks
-        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f);
+        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grain_selector);
     }
     else
     {
@@ -87,7 +130,7 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         _ONEDPL_PRAGMA(omp parallel)
         _ONEDPL_PRAGMA(omp single nowait)
         {
-            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f);
+            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grain_selector);
         }
     }
 }
