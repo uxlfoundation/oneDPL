@@ -67,7 +67,7 @@ __parallel_find(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __f
                                               }
                                           }
                                       }
-                                  });
+                                  }, __par_backend::__grain_selector_for_small_workload{});
     return __extremum != __initial_dist ? __first + __extremum : __last;
 }
 
@@ -89,7 +89,7 @@ __parallel_or(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Index __fir
                                           __found.store(true, ::std::memory_order_relaxed);
                                           __par_backend::__cancel_execution(__backend_tag{});
                                       }
-                                  });
+                                  }, __par_backend::__grain_selector_for_small_workload{});
     return __found;
 }
 
