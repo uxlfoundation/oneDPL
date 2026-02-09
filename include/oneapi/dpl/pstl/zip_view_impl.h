@@ -255,6 +255,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             }
         }
 
+		template <bool _OtherConst>
+		static decltype(auto) __get_current(const sentinel<_OtherConst>& __y)
+		{
+			return __y.__end;
+		}
+
         template <bool _OtherConst>
             requires(std::sentinel_for<std::ranges::sentinel_t<__internal::__maybe_const<_OtherConst, _Views>>,
                                        std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
@@ -262,7 +268,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         friend constexpr bool
         operator==(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
-            return __x.__compare_with_sentinels(__y.__end, std::make_index_sequence<sizeof...(_Views)>());
+            return __x.__compare_with_sentinels(iterator::__get_current(__y), std::make_index_sequence<sizeof...(_Views)>());
         }
 
         friend constexpr auto
@@ -298,7 +304,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
-                return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__end))...},
+                return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
                                         std::less{}, [](auto __a) { return std::abs(__a); });
             };
 
@@ -406,6 +412,9 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 
       private:
         friend class zip_view;
+
+		template <bool _OtherConst>
+		friend decltype(auto) __get_current(const sentinel<_OtherConst>&);
 
         __tuple_type<std::ranges::sentinel_t<__internal::__maybe_const<_Const, _Views>>...> __end;
     }; // class sentinel
