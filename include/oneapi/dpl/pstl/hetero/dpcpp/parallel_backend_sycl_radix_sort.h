@@ -259,7 +259,6 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
         __dpl_sycl::__local_accessor<_CountT> __count_lacc(__radix_states * __wg_size / __packing_ratio, __hdl);
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
-
                 // item info
                 const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                 const ::std::size_t __wgroup_idx = __self_item.get_group(0);
