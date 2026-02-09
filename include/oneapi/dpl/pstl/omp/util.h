@@ -105,7 +105,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
 
-    __n_chunks = (__n / __requested_chunk_size) + 1;
+    __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __requested_chunk_size);
     __chunk_size = __n / __n_chunks;
     __first_chunk_size = __chunk_size;
     const _Size __n_leftover_items = __n - (__n_chunks * __chunk_size);
