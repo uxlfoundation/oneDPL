@@ -115,7 +115,7 @@ void test() {
     // between begin and end for each of the underlying iterators can be different
     dpl_ranges::zip_view v{ForwardSizedView(buffer1), ForwardSizedView(buffer2)};
     using View = decltype(v);
-    //static_assert(std::ranges::common_range<View>);
+    static_assert(std::ranges::common_range<View>);
     static_assert(!std::ranges::random_access_range<View>);
 
     auto it1 = v.begin();
