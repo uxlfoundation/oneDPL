@@ -527,7 +527,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
-            std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
+            const std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -833,7 +833,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             __scan_copy_single_wg_kernel<_CustomName>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
-            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, false>{__pred}, _Assign{}, __max_wg_size);
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
     }
     else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
