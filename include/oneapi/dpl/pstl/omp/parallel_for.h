@@ -48,7 +48,7 @@ struct __grain_selector_any_workload
     }
 };
 
-struct __grain_selector_for_small_workload
+struct __grain_selector_small_workload
 {
     inline std::size_t operator()(std::size_t __size, int __num_threads) const
     {
@@ -69,7 +69,7 @@ struct __grain_selector_for_small_workload
     }
 };
 
-struct __grain_selector_for_large_workload
+struct __grain_selector_large_workload
 {
     inline std::size_t operator()(std::size_t __size, int __num_threads) const
     {

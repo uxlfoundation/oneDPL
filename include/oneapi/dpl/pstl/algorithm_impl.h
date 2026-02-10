@@ -1637,7 +1637,7 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
                                       __result + __m, [__result, __first](_Tp* __i, _Tp* __j) {
                                           __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                               __i, __j, __first + (__i - __result), _IsVector{});
-                                      }, __par_backend::__grain_selector_for_small_workload{});
+                                      }, __par_backend::__grain_selector_small_workload{});
         return __first + __m;
     });
 }
@@ -1855,7 +1855,7 @@ __pattern_reverse(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             [__first, __last](_RandomAccessIterator __inner_first, _RandomAccessIterator __inner_last) {
                 __internal::__brick_reverse(__inner_first, __inner_last, __last - (__inner_first - __first),
                                             _IsVector{});
-            }, __par_backend::__grain_selector_for_small_workload{});
+            }, __par_backend::__grain_selector_small_workload{});
     });
 }
 
@@ -1912,7 +1912,7 @@ __pattern_reverse_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ra
             [__first, __len, __d_first](_RandomAccessIterator1 __inner_first, _RandomAccessIterator1 __inner_last) {
                 __internal::__brick_reverse_copy(__inner_first, __inner_last,
                                                  __d_first + (__len - (__inner_last - __first)), _IsVector{});
-            }, __par_backend::__grain_selector_for_small_workload{});
+            }, __par_backend::__grain_selector_small_workload{});
         return __d_first + __len;
     });
 }
@@ -1998,19 +1998,19 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           [__middle, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
                                                   __b, __e, __result + (__b - __middle), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__last, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
                                                   __b, __e, __b + (__last - __middle), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + (__n - __m), [__first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                                   __b, __e, __first + (__b - __result), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             return __first + (__last - __middle);
         });
@@ -2024,19 +2024,19 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_uninitialized_move(
                                                   __b, __e, __result + (__b - __first), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
                                                   __b, __e, __first + (__b - __middle), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                                   __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             return __first + (__last - __middle);
         });
@@ -2107,7 +2107,7 @@ __pattern_rotate_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Ran
                         __copy(__middle, __e, __result, _IsVector{});
                     }
                 }
-            }, __par_backend::__grain_selector_for_small_workload{});
+            }, __par_backend::__grain_selector_small_workload{});
         return __result + (__last - __first);
     });
 }
@@ -2330,7 +2330,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     [__val1, __val2, __size1](_RandomAccessIterator __i, _RandomAccessIterator __j) {
                         __internal::__brick_swap_ranges(__i, __j, (__val2.__pivot - __size1) + (__i - __val1.__pivot),
                                                         _IsVector{});
-                    }, __par_backend::__grain_selector_for_small_workload{});
+                    }, __par_backend::__grain_selector_small_workload{});
                 return {__new_begin, __val2.__pivot - __size1, __val2.__end};
             }
             // else we should swap the first part of false part of left range and true part of right range
@@ -2340,7 +2340,7 @@ __pattern_partition(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rando
                     __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __val1.__pivot, __val1.__pivot + __size2,
                     [__val1, __val2](_RandomAccessIterator __i, _RandomAccessIterator __j) {
                         __internal::__brick_swap_ranges(__i, __j, __val2.__begin + (__i - __val1.__pivot), _IsVector{});
-                    }, __par_backend::__grain_selector_for_small_workload{});
+                    }, __par_backend::__grain_selector_small_workload{});
                 return {__new_begin, __val1.__pivot + __size2, __val2.__end};
             }
         };
@@ -2714,12 +2714,12 @@ __pattern_partial_sort_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec
                                           [__r, __d_first](_T1* __i, _T1* __j) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                                   __i, __j, __d_first + (__i - __r), _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
 
             if constexpr (!::std::is_trivially_destructible_v<_T1>)
                 __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __r + __n2,
                                               __r + __n1,
-                                              [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); }, __par_backend::__grain_selector_for_small_workload{});
+                                              [](_T1* __i, _T1* __j) { __brick_destroy(__i, __j, _IsVector{}); }, __par_backend::__grain_selector_small_workload{});
 
             return __d_first + __n2;
         }
@@ -2903,7 +2903,7 @@ __pattern_fill(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcce
                                       [&__value](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
                                           __internal::__brick_fill<__parallel_tag<_IsVector>, _Tp>{__value}(
                                               __begin, __end, _IsVector{});
-                                      }, __par_backend::__grain_selector_for_small_workload{});
+                                      }, __par_backend::__grain_selector_small_workload{});
         return __last;
     });
 }
@@ -2987,7 +2987,7 @@ __pattern_generate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Random
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                       [__g](_RandomAccessIterator __begin, _RandomAccessIterator __end) {
                                           __internal::__brick_generate(__begin, __end, __g, _IsVector{});
-                                      }, __par_backend::__grain_selector_for_small_workload{});
+                                      }, __par_backend::__grain_selector_small_workload{});
         return __last;
     });
 }
@@ -3224,7 +3224,7 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                     __it_res_2 = __res2;
                 }
             },
-            __par_backend::__grain_selector_for_large_workload{}); //grainsize
+            __par_backend::__grain_selector_large_workload{}); //grainsize
     });
 
     return {__it_res_1, __it_res_2};
@@ -3319,7 +3319,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
                                       [__r, __first](_Tp* __i, _Tp* __j) {
                                           __brick_move_destroy<__parallel_tag<_IsVector>>{}(
                                               __i, __j, __first + (__i - __r), _IsVector{});
-                                      }, __par_backend::__grain_selector_for_small_workload{});
+                                      }, __par_backend::__grain_selector_small_workload{});
     });
 }
 
@@ -4537,7 +4537,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                                           [__first, __n](_DiffType __i, _DiffType __j) {
                                               __brick_move<__parallel_tag<_IsVector>>{}(
                                                   __first + __i, __first + __j, __first + __i - __n, _IsVector{});
-                                          }, __par_backend::__grain_selector_for_small_workload{});
+                                          }, __par_backend::__grain_selector_small_workload{});
         }
         else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
         {
@@ -4549,7 +4549,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                                               [__first, __n](_DiffType __i, _DiffType __j) {
                                                   __brick_move<__parallel_tag<_IsVector>>{}(
                                                       __first + __i, __first + __j, __first + __i - __n, _IsVector{});
-                                              }, __par_backend::__grain_selector_for_small_workload{});
+                                              }, __par_backend::__grain_selector_small_workload{});
             }
         }
 

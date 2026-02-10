@@ -90,20 +90,19 @@ class __parallel_for_body
     _RealBody _M_body;
 };
 
-struct __grain_selector_for_any_workload
+struct __grain_selector_any_workload
 {
     constexpr std::size_t operator()() const
     {
         return 1; // matches the default grainsize value of tbb::blocked_range according to the specification
     }
 };
-
-struct __grain_selector_for_small_workload: public __grain_selector_for_any_workload {};
-struct __grain_selector_for_large_workload: public __grain_selector_for_any_workload {};
+struct __grain_selector_small_workload: public __grain_selector_any_workload {};
+struct __grain_selector_large_workload: public __grain_selector_any_workload {};
 
 //! Evaluation of brick f[i,j) for each subrange [i,j) of [first,last)
 // wrapper over tbb::parallel_for
-template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_for_any_workload>
+template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
 void
 __parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
                _GrainSelector __grain_selector = _GrainSelector())

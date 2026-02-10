@@ -409,7 +409,7 @@ __pattern_adjacent_difference(__parallel_tag<_IsVector>, _ExecutionPolicy&& __ex
                     __b, __e, __b + 1, __d_b + 1,
                     [&__op](_ReferenceType1 __x, _ReferenceType1 __y, _ReferenceType2 __z) { __z = __op(__y, __x); },
                     _IsVector{});
-            }, __par_backend::__grain_selector_for_small_workload{});
+            }, __par_backend::__grain_selector_small_workload{});
         return __d_first + (__last - __first);
     });
 }
