@@ -505,7 +505,7 @@ struct tuple<T1, T...>
     }
 
     template <typename U1, typename... U>
-    tuple&
+    const tuple&
     operator=(const tuple<U1, U...>& other) const
     {
         holder.value = other.holder.value;
