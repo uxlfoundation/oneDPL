@@ -130,7 +130,7 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         // Use read_write with no_init to avoid copying data in unnecessarily while still allowing kernel reads.
         auto __keep_bins =
             oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read_write,
-                                                    /*_NoInit=*/true>();
+                                                    /*_IsNoInitRequested=*/true>();
         auto __bins_buf = __keep_bins(__histogram_first, __histogram_first + __num_bins);
         auto __bins = __bins_buf.all_view();
 

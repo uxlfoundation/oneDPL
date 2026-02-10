@@ -29,18 +29,19 @@ test_is_copy_direct_v()
 {
     // __is_copy_direct_v determines whether data should be copied FROM host TO device
     // when creating a SYCL buffer. It should be true when:
-    // - _NoInit is false AND access mode implies reading (read, write, or read_write)
+    // - _IsNoInitRequested is false AND access mode implies reading (read, write, or read_write)
     //
     // Key change in this PR: write mode copies in by default (matching SYCL standard)
-    // unless _NoInit=true is specified.
+    // unless _IsNoInitRequested=true is specified.
 
     using read_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read>;
     using write_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write>;
     using read_write_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write>;
 
-    using write_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_NoInit=*/true>;
+    using write_mode_no_init =
+        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_IsNoInitRequested=*/true>;
     using read_write_mode_no_init =
-        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_NoInit=*/true>;
+        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_IsNoInitRequested=*/true>;
 
     // Test: read mode without no_init -> copy in (true)
     static_assert(read_mode::__is_copy_direct_v<sycl::access::mode::read, false> == true,
@@ -86,10 +87,11 @@ test_is_copy_back_v()
     static_assert(read_write_mode::__is_copy_back_v<sycl::access::mode::read_write> == true,
                   "read_write mode should copy back");
 
-    // Verify __is_copy_back_v does NOT depend on _NoInit
-    using write_mode_no_init = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_NoInit=*/true>;
+    // Verify __is_copy_back_v does NOT depend on _IsNoInitRequested
+    using write_mode_no_init =
+        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_IsNoInitRequested=*/true>;
     using read_write_mode_no_init =
-        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_NoInit=*/true>;
+        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write, /*_IsNoInitRequested=*/true>;
 
     // Test: write mode with no_init -> still copy back (true)
     static_assert(write_mode_no_init::__is_copy_back_v<sycl::access::mode::write> == true,
@@ -105,12 +107,13 @@ test_traits_use_local_parameters()
 {
     // The traits __is_copy_direct_v and __is_copy_back_v are static and depend only on their
     // template parameters (_LocalAccMode, _LocalNoInit), NOT on the struct's template parameters
-    // (AccMode, _NoInit). This is important because when processing nested iterators like
+    // (AccMode, _IsNoInitRequested). This is important because when processing nested iterators like
     // permutation_iterator, the map iterator is always processed with read mode regardless of
     // the outer access mode.
 
     // Use a write mode struct but query with read mode parameters (like permutation map iterator)
-    using write_no_init_struct = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_NoInit=*/true>;
+    using write_no_init_struct =
+        oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, /*_IsNoInitRequested=*/true>;
 
     // Even though the struct is write+no_init, querying with read without no_init should give read behavior
     static_assert(write_no_init_struct::__is_copy_direct_v<sycl::access::mode::read, false> == true,
@@ -136,14 +139,14 @@ test_traits_use_local_parameters()
 void
 test_default_template_parameter()
 {
-    // Verify that _NoInit defaults to false
+    // Verify that _IsNoInitRequested defaults to false
     using write_mode_default = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write>;
     using write_mode_explicit_false = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::write, false>;
 
     // Both should have the same copy-in behavior (copy in enabled)
     static_assert(write_mode_default::__is_copy_direct_v<sycl::access::mode::write, false> ==
                       write_mode_explicit_false::__is_copy_direct_v<sycl::access::mode::write, false>,
-                  "default _NoInit should be false");
+                  "default _IsNoInitRequested should be false");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
