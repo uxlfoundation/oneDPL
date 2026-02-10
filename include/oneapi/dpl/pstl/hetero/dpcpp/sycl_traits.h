@@ -59,6 +59,12 @@ class __not_pred;
 template <typename _Pred>
 class __reorder_pred;
 
+template <typename _Pred>
+class __pred_at_index;
+
+template <typename _Pred, bool _Flag>
+class __unique_at_index;
+
 template <typename _Tp>
 class __equal_value;
 
@@ -100,9 +106,6 @@ struct __search_n_unary_predicate;
 
 template <class _Comp>
 struct __is_heap_check;
-
-template <typename _Predicate, typename _ValueType>
-struct __create_mask_unique_copy;
 
 template <class _Tag, typename _Tp, typename>
 struct __brick_fill;
@@ -167,6 +170,18 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 
 template <typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__reorder_pred, _Pred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Pred>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__pred_at_index, _Pred)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
+{
+};
+
+template <typename _Pred, bool _Flag>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__unique_at_index, _Pred, _Flag)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
@@ -268,13 +283,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <class _Comp>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__is_heap_check, _Comp)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Comp>
-{
-};
-
-template <typename _Predicate, typename _ValueType>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__create_mask_unique_copy, _Predicate,
-                                                       _ValueType)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Predicate>
 {
 };
 
@@ -694,14 +702,11 @@ struct n_elem_match_pred;
 template <typename _Pred>
 struct first_match_pred;
 
-template <typename _Pred, typename _Tp>
+template <typename _Pred, typename _ValueType>
 struct __create_mask;
 
-template <typename _BinaryOp, typename _Assigner, std::size_t N>
+template <typename _Assigner, std::size_t N>
 struct __copy_by_mask;
-
-template <typename _BinaryOp>
-struct __partition_by_mask;
 
 template <typename _Inclusive, typename _BinaryOp, typename _InitType>
 struct __global_scan_functor;
@@ -787,22 +792,15 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backen
 {
 };
 
-template <typename _Pred, typename _Tp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _Tp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred, _Tp>
+template <typename _Pred, typename _ValueType>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__create_mask, _Pred, _ValueType)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Pred>
 {
 };
 
-template <typename _BinaryOp, typename _Assigner, std::size_t N>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _BinaryOp,
-                                                       _Assigner, N)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp, _Assigner>
-{
-};
-
-template <typename _BinaryOp>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__partition_by_mask, _BinaryOp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryOp>
+template <typename _Assigner, std::size_t N>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::unseq_backend::__copy_by_mask, _Assigner, N)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Assigner>
 {
 };
 
