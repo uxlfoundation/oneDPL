@@ -353,7 +353,6 @@ __pattern_walk2(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
                                                __f(::std::get<0>(__val), ::std::get<1>(__val));
                                            });
 
-
         //TODO: parallel_for_each does not allow to return correct iterator value according to the ::std::transform
         // implementation. Therefore, iterator value is calculated separately.
         for (; __begin != __end; ++__begin)
