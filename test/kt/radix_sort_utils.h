@@ -31,6 +31,12 @@
 #    define LOG_TEST_INFO 0
 #endif
 
+// Check if SYCL radix sort KT is available (matches criteria from radix_sort_utils.h in include/)
+#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
+    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
+#    define TEST_SYCL_RADIX_SORT_KT_AVAILABLE 1
+#endif
+
 // Namespace aliases for kernel template APIs
 #ifdef TEST_KT_BACKEND_ESIMD
 namespace kt_ns = oneapi::dpl::experimental::kt::gpu::esimd;
@@ -45,36 +51,31 @@ std::size_t
 calculate_slm_size(KernelParam param)
 {
 #ifdef TEST_KT_BACKEND_ESIMD
-    // ESIMD kernel uses simple reorder buffer
     std::size_t slm_alloc_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
         slm_alloc_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
     return slm_alloc_size;
-#elif defined(TEST_KT_BACKEND_SYCL)
-    // SYCL kernel has more complex SLM layout
-    using _LocOffsetT = std::uint16_t;
-    using _GlobOffsetT = std::uint32_t;
+#else // defined(TEST_KT_BACKEND_SYCL)
+    using LocOffsetT = std::uint16_t;
+    using GlobOffsetT = std::uint32_t;
 
-    constexpr std::uint32_t __radix_bits = 8; // Typical radix bits
-    constexpr std::uint32_t __bin_count = 1 << __radix_bits;
-    constexpr std::uint32_t __sub_group_size = 32;
+    constexpr std::uint32_t radix_bits = 8;
+    constexpr std::uint32_t bin_count = 1 << radix_bits;
+    constexpr std::uint32_t sub_group_size = 32;
 
-    const std::uint32_t __num_sub_groups = param.workgroup_size / __sub_group_size;
-    const std::uint32_t __work_item_all_hists_size = __num_sub_groups * __bin_count * sizeof(_LocOffsetT);
-    const std::uint32_t __group_hist_size = __bin_count * sizeof(_LocOffsetT);
-    const std::uint32_t __global_hist_size = __bin_count * sizeof(_GlobOffsetT);
+    const std::uint32_t num_sub_groups = param.workgroup_size / sub_group_size;
+    const std::uint32_t work_item_all_hists_size = num_sub_groups * bin_count * sizeof(LocOffsetT);
+    const std::uint32_t group_hist_size = bin_count * sizeof(LocOffsetT);
+    const std::uint32_t global_hist_size = bin_count * sizeof(GlobOffsetT);
 
-    std::uint32_t __reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
+    std::uint32_t reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
-        __reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+        reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
 
-    // SLM layout: max(histograms, reorder) + group_hist + 2 * global_hist
-    const std::uint32_t __slm_size =
-        std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size + 2 * __global_hist_size;
+    const std::uint32_t slm_size =
+        std::max(work_item_all_hists_size, reorder_size) + group_hist_size + 2 * global_hist_size;
 
-    return __slm_size;
-#else
-    return 0;
+    return slm_size;
 #endif
 }
 

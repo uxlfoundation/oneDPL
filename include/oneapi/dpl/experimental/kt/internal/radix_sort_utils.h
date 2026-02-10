@@ -19,6 +19,14 @@
 #include "oneapi/dpl/pstl/onedpl_config.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 
+// To enable the SYCL radix sort KT we need support for forward progress and root group oneAPI extensions along with an intel/llvm
+// compiler after 2025.1.0 where all required functionality is implemented. Open-source compiler builds prior to this functionality becoming
+// sufficient (September 2024) do not have a reliable detection method but are unlikely to be used.
+#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
+    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
+#    define _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT 1
+#endif
+
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 

@@ -134,9 +134,11 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
 int
 main()
 {
+    bool run_test = false;
+#if TEST_SYCL_RADIX_SORT_KT_AVAILABLE || defined(TEST_KT_BACKEND_ESIMD)
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
+    run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
 
     if (run_test)
     {
@@ -160,6 +162,7 @@ main()
             return EXIT_FAILURE;
         }
     }
+#endif
 
     return TestUtils::done(run_test);
 }
