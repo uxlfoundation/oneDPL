@@ -13,7 +13,7 @@ with the same API and functionality as `std::ranges::zip_view`.
 
 In case of C++23 `oneapi::dpl::ranges::zip_view` using also makes sense at least for the device policies, because
 `std::ranges::zip_view` C++23 still is not device copyable. Any wrapper over `std::tuple` C++23 is not device copyable. (https://godbolt.org/z/brfvcMeM6)
-There are another technical issues with `std::tuple` (see below for the details).
+There are other technical issues with `std::tuple` (see below for the details).
 
 ### Key Requirements
 `oneapi::dpl::ranges::zip_view` should be:
@@ -38,7 +38,7 @@ There are another technical issues with `std::tuple` (see below for the details)
 - There is an issue with `std::ranges::stable_sort(zip_view)` with gcc library 
 - Passing `std::zip_view::iterator` instances to the iterator-based algorithms works only for gcc 14.1 and newer, clang 19.1 and newer or
   starting 17.01 with libc++ lib (https://godbolt.org/z/To6Mjr9M6)
-- Considiration `std::tuple` as `oneapi::dpl::ranges::zip_view::iterator::value_type`. There are issues, at least, with `sortable`, `permutable`
+- Consideration `std::tuple` as `oneapi::dpl::ranges::zip_view::iterator::value_type`. There are issues, at least, with `sortable`, `permutable`
   and `indirectly_writable` concepts: const_cast<const std::iter_reference_t<Out>&&>(*o) = std::forward<T>(t) is not compiled till C++23.  (https://godbolt.org/z/zT9qqnjWq)
 
 ### Implementation proposal (C++20)
@@ -48,7 +48,7 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 - To ensure device copyability, `oneapi::dpl::__internal::tuple` is proposed as a tuple-like type for underlying elements.
 - To provide a value-swappable requirement `oneapi::dpl::__internal::tuple` is proposed as a dereferenced value for
 `oneapi::dpl::ranges::zip_view::iterator` due to `std::tuple` not satisfying the value-swappable requirement in C++20.
-- To provide a indirectly writable requirement `oneapi::dpl::__internal::tuple` is proposed as the public type for `oneapi::dpl::ranges::zip_view::iterator::value_type`.
+- To provide an indirectly writable requirement `oneapi::dpl::__internal::tuple` is proposed as the public type for `oneapi::dpl::ranges::zip_view::iterator::value_type`.
 - Usage of C++ concepts is desirable to write type requirements for types, methods and members of the class.
 - C++20 is minimum supported version for the class. It allows using modern C++ features such as concepts and others.
 
