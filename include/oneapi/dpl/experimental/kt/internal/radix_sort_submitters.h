@@ -258,21 +258,7 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
         using _KernelName = typename __onesweep_kernel_name_helper<
             _KernelType, oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_Name...>>::kernel_name;
 
-        // There is a bug produced on BMG where zeKernelSuggestMaxCooperativeGroupCount suggests too large of a
-        // work-group count when we are beyond half SLM capacity, causing a hang. To fix this, we can manually compute
-        // the safe number of groups to launch and take the min with the root group query for any kernel specific
-        // restrictions that may limit the number of groups
-        constexpr std::uint32_t __xve_per_xe = 8;
-        constexpr std::uint32_t __lanes_per_xe = 2048;
-        constexpr std::uint32_t __max_groups_per_xe = __lanes_per_xe / __work_group_size;
-        const std::uint32_t __max_slm_xe = __q.get_device().get_info<sycl::info::device::local_mem_size>();
-        const std::uint32_t __xes_on_device =
-            __q.get_device().get_info<sycl::info::device::max_compute_units>() / __xve_per_xe;
-
         const std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
-        const std::uint32_t __groups_per_xe_slm_adj = std::min(__max_groups_per_xe, __max_slm_xe / __slm_size_bytes);
-
-        const std::uint32_t __concurrent_groups_est = __groups_per_xe_slm_adj * __xes_on_device;
 
         sycl::kernel_bundle<sycl::bundle_state::executable> __bundle =
             sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context());
