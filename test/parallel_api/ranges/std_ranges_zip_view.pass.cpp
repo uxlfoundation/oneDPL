@@ -13,6 +13,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+// MSVC error: SYCL kernel cannot call an undefined function without SYCL_EXTERNAL attribute
+// A reason is the vectorised implementation of __std_min_8u(_First, _Last), called from std::sort
+// As workaround we suppress the vectorised implementation.
+#define _USE_STD_VECTOR_ALGORITHMS 0
+
 #include "std_ranges_test.h"
 #include <oneapi/dpl/ranges>
 
