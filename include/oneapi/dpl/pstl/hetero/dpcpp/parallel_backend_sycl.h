@@ -1141,8 +1141,8 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     // temporary buffer to store intermediate result
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
-    auto __keep_tmp1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+    auto __keep_tmp1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
     auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
 
     //1. Calc difference {2} \ {1}
@@ -1201,10 +1201,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
     auto __buf_2 = __diff_2.get();
 
-    auto __keep_tmp1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
-    auto __keep_tmp2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_NoInit=*/true>();
+    auto __keep_tmp1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
+    auto __keep_tmp2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
 
     auto __tmp_rng1 = __keep_tmp1(__buf_1, __buf_1 + __n1);
     auto __tmp_rng2 = __keep_tmp2(__buf_2, __buf_2 + __n2);
