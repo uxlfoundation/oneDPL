@@ -310,11 +310,11 @@
 #    define _ONEDPL_ICPX_OMP_SIMD_DESTROY_WINDOWS_BROKEN 0
 #endif
 
-// There is a bug in lastprivate(conditional: ...) with -fopenmp-simd, and another one in GCC with -O0
-#if (__clang__ && _ONEDPL_CLANG_VERSION < 230000 && !__INTEL_HOST_OPENMP) || (__GNUC__ && !__OPTIMIZE__)
-#    define _ONEDPL_CLANG_OMP_LASTPRIVATE_CONDITIONAL_BROKEN 1
+// Most compilers do not correctly implement lastprivate(conditional: ...) in SIMD loops
+#if (__INTEL_HOST_OPENMP || __INTEL_COMPILER >= 1900)
+#    define _ONEDPL_OMP_SIMD_LASTPRIVATE_CONDITIONAL_BROKEN 0
 #else
-#    define _ONEDPL_CLANG_OMP_LASTPRIVATE_CONDITIONAL_BROKEN 0
+#    define _ONEDPL_OMP_SIMD_LASTPRIVATE_CONDITIONAL_BROKEN 1
 #endif
 
 // The implementation of std::bit_floor in MS STL does not meet requirements for SYCL device functions

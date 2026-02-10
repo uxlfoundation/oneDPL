@@ -248,7 +248,7 @@ __simd_selective_copy(_InIterator __first, _DifferenceType __n, _OutIterator __r
     _DifferenceType __stop = -1, __write_pos = -1; // to use inclusive scan
     bool __suitable;
 
-#if _ONEDPL_CLANG_OMP_LASTPRIVATE_CONDITIONAL_BROKEN
+#if _ONEDPL_OMP_SIMD_LASTPRIVATE_CONDITIONAL_BROKEN
     _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable))
 #else
     _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, private(__suitable) lastprivate(conditional : __stop))
@@ -297,7 +297,7 @@ __simd_copy_by_mask(_InputIterator __first, _DifferenceType __n, _OutputIterator
 {
     std::make_signed_t<_DifferenceType> __stop = -1, __write_pos = -1; // to use inclusive scan of the mask
 
-#if _ONEDPL_CLANG_OMP_LASTPRIVATE_CONDITIONAL_BROKEN
+#if _ONEDPL_OMP_SIMD_LASTPRIVATE_CONDITIONAL_BROKEN
     _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos)
 #else
     _ONEDPL_PRAGMA_SIMD_SCAN_EX(+ : __write_pos, lastprivate(conditional : __stop))
