@@ -84,10 +84,21 @@ __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 {
 }
 
-template <class _ExecutionPolicy, class _Index, class _Fp>
+struct __grain_selector_any_workload
+{
+    inline std::size_t
+    operator()(std::size_t __size, std::size_t __num_threads) const
+    {
+        return 1;
+    }
+};
+struct __grain_selector_small_workload: public __grain_selector_any_workload {};
+struct __grain_selector_large_workload: public __grain_selector_any_workload {};
+
+template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
 void
 __parallel_for(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last,
-               _Fp __f, std::size_t /*__grainsize*/ = 1)
+               _Fp __f, _GrainSelector = _GrainSelector())
 {
     __f(__first, __last);
 }
