@@ -51,7 +51,7 @@ using the GPU on your local system using the Intel® oneAPI DPC++ Compiler.
 
 1. Configure the build files by running the following command that creates a build directory named `build_gpu_tests`.
 ```
-cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -DONEDPL_DEVICE_TYPE=gpu -DCMAKE_BUILD_TYPE=release -B build_gpu_tests
+cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -DCMAKE_BUILD_TYPE=release -B build_gpu_tests
 ```
 
 2. Build the tests
@@ -59,8 +59,19 @@ cmake -DCMAKE_CXX_COMPILER=icpx -DCMAKE_CXX_STANDARD=17 -DONEDPL_BACKEND=dpcpp -
 cmake --build build_gpu_tests --target build-onedpl-tests # specify a specific test name (e.g., reduce.pass) to build a single test
 ```
 
-3. Run the tests from the `build_gpu_tests` directory
+3. Select GPU device target
+* Windows:
 ```
+set ONEAPI_DEVICE_SELECTOR=*:gpu
+```
+* Linux:
+```
+ONEAPI_DEVICE_SELECTOR=*:gpu
+```
+
+4. Run the tests from the `build_gpu_tests` directory targeting a gpu device
+```
+cd build_gpu_tests
 ctest --output-on-failure --timeout 1200 -R ^reduce.pass$ # Add -R testname (e.g., -R ^reduce.pass$) to run just one test.
 ```
 
