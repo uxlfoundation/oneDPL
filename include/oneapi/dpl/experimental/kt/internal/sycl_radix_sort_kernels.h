@@ -202,13 +202,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             return __work_group_size * __data_per_work_item * sizeof(_KeyT);
     }
 
-    // Helper functions for SLM layout calculation
-    static constexpr std::uint32_t
-    __get_slm_subgroup_hists_offset()
-    {
-        return 0; // Sub-group histograms start at the beginning
-    }
-
     static constexpr std::uint32_t
     __get_slm_group_hist_offset()
     {
@@ -718,8 +711,7 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // Get raw SLM pointer and create typed pointers for different regions using helper functions
             unsigned char* __slm_raw = __slm_accessor.get_multi_ptr<sycl::access::decorated::no>().get();
-            _LocOffsetT* __slm_subgroup_hists =
-                reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_subgroup_hists_offset());
+            _LocOffsetT* __slm_subgroup_hists = reinterpret_cast<_LocOffsetT*>(__slm_raw);
             _LocOffsetT* __slm_group_hist = reinterpret_cast<_LocOffsetT*>(__slm_raw + __get_slm_group_hist_offset());
             _GlobOffsetT* __slm_global_incoming =
                 reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_incoming_offset());
@@ -731,12 +723,12 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
             // For reorder phase, reinterpret the sub-group histogram space as key/value storage
             // The reorder space overlaps with the sub-group histogram region (reinterpret_cast)
-            _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw + __get_slm_subgroup_hists_offset());
+            _KeyT* __slm_keys = reinterpret_cast<_KeyT*>(__slm_raw);
             _ValT* __slm_vals = nullptr;
             if constexpr (__has_values)
             {
-                __slm_vals = reinterpret_cast<_ValT*>(__slm_raw + __get_slm_subgroup_hists_offset() +
-                                                      __work_group_size * __data_per_work_item * sizeof(_KeyT));
+                __slm_vals =
+                    reinterpret_cast<_ValT*>(__slm_raw + __work_group_size * __data_per_work_item * sizeof(_KeyT));
             }
             _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
 
