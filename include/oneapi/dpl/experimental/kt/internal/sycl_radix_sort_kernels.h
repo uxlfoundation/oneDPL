@@ -19,8 +19,8 @@
 
 #include "sub_group/sub_group_scan.h"
 
+#include "radix_sort_kernels.h"
 #include "radix_sort_utils.h"
-#include "esimd_radix_sort_utils.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
