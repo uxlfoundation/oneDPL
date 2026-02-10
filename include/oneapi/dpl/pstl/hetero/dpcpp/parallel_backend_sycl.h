@@ -324,8 +324,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
             __submit_event = __q.submit([&](sycl::handler& __cgh) {
                 __cgh.depends_on(__submit_event);
                 auto __temp_acc = __get_accessor(sycl::read_write, __temp_and_result, __cgh);
-                auto __res_acc =
-                    __get_result_accessor(sycl::write_only, __temp_and_result, __cgh, __dpl_sycl::__no_init{});
+                auto __res_acc = __get_result_accessor(sycl::write_only, __temp_and_result, __cgh);
                 __dpl_sycl::__local_accessor<_Type> __local_acc(__wgroup_size, __cgh);
 #if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
                 __cgh.use_kernel_bundle(__kernel_2.get_kernel_bundle());
@@ -508,9 +507,9 @@ template <typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
     : __parallel_copy_if_single_group_base
 {
-    template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
+    template <typename _InRng, typename _OutRng, typename _Size, typename _IndexPred, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _UnaryOp __unary_op,
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _IndexPred __pred,
                _Assign __assign, std::size_t __max_wg_size)
     {
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
@@ -528,7 +527,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
-            std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
+            const std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -538,7 +537,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
                     _ValueType* __lacc_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
-                        __lacc[__idx] = __unary_op(__in_rng[__idx]);
+                        __lacc[__idx] = __pred(__in_rng, __idx);
                     }
                     if (__item_id == 0)
                     {
@@ -812,41 +811,58 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
+template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
+std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
-                       _Range2&& __result, _BinaryPredicate __pred)
+                       _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)
 {
+    assert(__n_out > 0 && __n > 0);
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Assign = oneapi::dpl::__internal::__pstl_assign;
-    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
-
-    _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
-    // We expect at least two elements to perform unique_copy.  With fewer we
-    // can simply copy the input range to the output.
-    assert(__n > 1);
-
+    std::array<_Size, 2> __ret;
     sycl::queue __q_local = __exec.queue();
 
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+#if 0
+    constexpr std::uint16_t __max_elem_per_item = 2;
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
+    {
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __scan_copy_single_wg_kernel<_CustomName>>;
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
+    }
+    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng),
-                                                             std::forward<_Range2>(__result), __n, _GenMask{__pred},
-                                                             _WriteOp{_Assign{}},
-                                                             /*_IsUniquePattern=*/std::true_type{});
+        _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{}).get();
+        __ret = {__stop_out, __n};
     }
     else
+#endif
     {
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred},
             unseq_backend::__copy_by_mask<_Assign, 1>{_Assign{}});
 
-        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+        __event.wait_and_throw();
+        __payload.__copy_result(__ret.data(), __ret.size());
     }
+
+    assert(__ret[0] >= 1 && __n_out >= __ret[0]);
+    assert(__ret[1] >= 1 && __n >= __ret[1]);
+    assert(__ret[1] >= __ret[0]);
+    assert(__ret[0] == __n_out || __ret[1] == __n);
+    return __ret;
 }
 
 template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
@@ -932,8 +948,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(__q_local, std::forward<_InRng>(__in_rng),
-            std::forward<_OutRng>(__out_rng), __n, __n_out, __pred, __assign, __max_wg_size);
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
     }
     else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
@@ -958,6 +975,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 
     assert(__ret[0] >= 0 && __n_out >= __ret[0]);
     assert(__ret[1] > 0 && __n >= __ret[1]);
+    assert(__ret[1] >= __ret[0]);
     assert(__ret[0] == __n_out || __ret[1] == __n);
     return __ret;
 }

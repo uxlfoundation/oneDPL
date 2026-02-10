@@ -151,7 +151,7 @@ class __unique_at_index
                 return true;
         }
         else
-            static_assert(std::is_signed_v<_IndexTp>);
+            static_assert(std::is_signed_v<_IndexTp>, "The index of an unsigned type can cause a wraparound error.");
 
         return !_M_pred(__arr[__i], __arr[__i - 1]);
     }

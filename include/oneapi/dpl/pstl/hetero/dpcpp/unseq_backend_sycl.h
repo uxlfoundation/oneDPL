@@ -711,41 +711,42 @@ struct __copy_by_mask
     {
         using std::get;
         auto __item_idx = __item.get_linear_id();
-        if (__item_idx < __n && get<N>(__in_acc[__item_idx]))
+
+        auto __local_scan_of_mask = (__item_idx < __n)? get<N>(__in_acc[__item_idx]) : 0;
+        // Restore the mask from the scan: for the first element in a group it is equal to the scan value,
+        // then to the difference with the previous value.
+        bool __restored_mask = __local_scan_of_mask > 0 &&
+            (__item_idx % __size_per_wg == 0 || __local_scan_of_mask > get<N>(__in_acc[__item_idx - 1]));
+        if (__restored_mask)
         {
-            auto __out_idx = get<N>(__in_acc[__item_idx]) - 1;
-
-            // If we work with tuples we might have a situation when internal tuple is assigned to std::tuple
-            // (e.g. returned by user-provided lambda).
-            // For internal::tuple<T...> we have a conversion operator to std::tuple<T...>. The problem here
-            // is that the types of these 2 tuples may be different but still convertible to each other.
-            // Technically this should be solved by adding to internal::tuple<T...> an additional conversion
-            // operator to std::tuple<U...>, but for some reason this doesn't work(conversion from
-            // std::tuple<T...> to std::tuple<U...> fails). What does work is the explicit cast:
-            // for internal::tuple<T...> we define a field that provides a corresponding std::tuple<T...>
-            // with matching types. We get this type(see __tuple_type definition below) and use it
-            // for static cast to explicitly convert internal::tuple<T...> -> std::tuple<T...>.
-            // Now we have the following assignment std::tuple<U...> = std::tuple<T...> which works as expected.
-            // NOTE: we only need this explicit conversion when we have internal::tuple and
-            // std::tuple as operands, in all the other cases this is not necessary and no conversion
-            // is performed(i.e. __tuple_type is the same type as its operand).
-            using __tuple_type =
-                typename __internal::__get_tuple_type<std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>,
-                                                      std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
-
-            // calculation of position for copy
+            // calculate the output position
+            auto __out_idx = __local_scan_of_mask - 1;
             if (__item_idx >= __size_per_wg)
             {
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
                 __out_idx += __wg_sums_ptr[__wg_sums_idx];
             }
-            if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
-            {
-                if (__out_idx < __n_out)
-                    __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
-                if (__out_idx == __n_out)
-                    __ret_ptr[1] = __item_idx;
-            }
+            // If we work with tuples we might have a situation when internal tuple is assigned to std::tuple
+            // (e.g. returned by user-provided lambda).
+            // For internal::tuple<T...> we have a conversion operator to std::tuple<T...>. The problem here
+            // is that the types of these 2 tuples may be different but still convertible to each other.
+            // Technically this should be solved by adding to internal::tuple<T...> an additional conversion
+            // operator to std::tuple<U...>, but for some reason this doesn't work (conversion from
+            // std::tuple<T...> to std::tuple<U...> fails). What does work is the explicit cast:
+            // for internal::tuple<T...> we define a field that provides a corresponding std::tuple<T...>
+            // with matching types. We get this type (see __tuple_type definition below) and use it
+            // for static cast to explicitly convert internal::tuple<T...> -> std::tuple<T...>.
+            // Now we have the following assignment std::tuple<U...> = std::tuple<T...> which works as expected.
+            // NOTE: we only need this explicit conversion when we have internal::tuple and
+            // std::tuple as operands, in all the other cases this is not necessary and no conversion
+            // is performed (i.e. __tuple_type is the same type as its operand).
+            using __tuple_type =
+                typename __internal::__get_tuple_type<std::decay_t<decltype(get<0>(__in_acc[__item_idx]))>,
+                                                      std::decay_t<decltype(__out_acc[__out_idx])>>::__type;
+            if (__out_idx < __n_out)
+                __assigner(static_cast<__tuple_type>(get<0>(__in_acc[__item_idx])), __out_acc[__out_idx]);
+            if (__out_idx == __n_out)
+                __ret_ptr[1] = __item_idx;
         }
     }
 };
@@ -952,7 +953,10 @@ struct __scan
         constexpr auto __shift = _Inclusive{} ? 0 : 1;
 
         _Size __adjusted_global_id = __local_id + __size_per_wg * __group_id;
-        auto __adder = __local_acc[0];
+        auto __adder = _Tp{__known_identity<_BinaryOperation, _Tp>};
+        if (__group_id == 0)
+            __use_init(__init, __adder, __bin_op);
+
         for (auto __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
         {
             if (__adjusted_global_id < __n)
@@ -962,13 +966,18 @@ struct __scan
 
             // the result of __unary_op must be convertible to _Tp
             _Tp __old_value = __unary_op(__local_id, __local_acc);
-            if (__iter > 0 && __local_id == 0)
-                __old_value = __bin_op(__adder, __old_value);
-            else if (__adjusted_global_id == 0)
-                __use_init(__init, __old_value, __bin_op);
-
+            __dpl_sycl::__group_barrier(__item);
+#if 1
             __local_acc[__local_id] =
-                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __old_value, __bin_op);
+                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __old_value, __bin_op, __adder);
+#else
+            for (_Size __i = __local_id; __i > 0; --__i)
+            {
+                __old_value = __bin_op(__unary_op(__i - 1, __local_acc), __old_value);
+            }
+            __dpl_sycl::__group_barrier(__item);
+            __local_acc[__local_id] = __bin_op(__adder, __old_value);
+#endif
             __dpl_sycl::__group_barrier(__item);
 
             __adder = __local_acc[__wgroup_size - 1];
