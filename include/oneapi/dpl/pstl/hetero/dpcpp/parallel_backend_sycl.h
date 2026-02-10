@@ -523,7 +523,8 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
-            std::make_unsigned_t<_Size> __lsize, __n_uniform;
+            std::make_unsigned_t<_Size> __lsize;
+            std::size_t __n_uniform;
             // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
