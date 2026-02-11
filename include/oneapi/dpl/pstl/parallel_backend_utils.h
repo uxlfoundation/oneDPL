@@ -363,7 +363,10 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
             return {__cc_range(__first1, __last1, __result), __mask_cache.__flush_and_advance_masks()};
         }
 
-        if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        auto&& __proj1_val = std::invoke(__proj1, *__first1);
+        auto&& __proj2_val = std::invoke(__proj2, *__first2);
+
+        if (std::invoke(__comp, __proj2_val, __proj1_val))
         {
             _uninitialized_copy_from2(__first2, __result);
             ++__first2;
@@ -372,7 +375,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         else
         {
             _uninitialized_copy_from1(__first1, __result);
-            if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+            if (!std::invoke(__comp, __proj1_val, __proj2_val))
             {
                 ++__first2;
                 __mask_cache.__accumulate_mask(__parallel_set_op_mask::eBoth, 1);
@@ -404,12 +407,15 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
 
     while (__first1 != __last1 && __first2 != __last2)
     {
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        auto&& __proj1_val = std::invoke(__proj1, *__first1);
+        auto&& __proj2_val = std::invoke(__proj2, *__first2);
+
+        if (std::invoke(__comp, __proj1_val, __proj2_val))
         {
             ++__first1;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData1, 1);
         }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        else if (std::invoke(__comp, __proj2_val, __proj1_val))
         {
             ++__first2;
             __mask_cache.__accumulate_mask(__parallel_set_op_mask::eData2, 1);
@@ -458,7 +464,10 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
             return {__cc_range(__first1, __last1, __result), __mask_cache.__flush_and_advance_masks()};
         }
 
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        auto&& __proj1_val = std::invoke(__proj1, *__first1);
+        auto&& __proj2_val = std::invoke(__proj2, *__first2);
+
+        if (std::invoke(__comp, __proj1_val, __proj2_val))
         {
             _uninitialized_copy_from1(__first1, __result);
             ++__result;
@@ -467,7 +476,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         }
         else
         {
-            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            if (!std::invoke(__comp, __proj2_val, __proj1_val))
             {
                 ++__first1;
                 __mask_cache.__accumulate_mask(__parallel_set_op_mask::eBoth, 1);
@@ -507,7 +516,10 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
             return {__cc_range(__first1, __last1, __result), __mask_cache.__flush_and_advance_masks()};
         }
 
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        auto&& __proj1_val = std::invoke(__proj1, *__first1);
+        auto&& __proj2_val = std::invoke(__proj2, *__first2);
+
+        if (std::invoke(__comp, __proj1_val, __proj2_val))
         {
             // We should use placement new here because this method really works with raw unitialized memory
             _uninitialized_copy_from1(__first1, __result);
@@ -517,7 +529,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         }
         else
         {
-            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            if (std::invoke(__comp, __proj2_val, __proj1_val))
             {
                 // We should use placement new here because this method really works with raw unitialized memory
                 _uninitialized_copy_from2(__first2, __result);
