@@ -27,7 +27,7 @@ include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
-option(ONEDPL_CMAKE_QUIET_CHECKS "Silence compiler/header checks during configuration" ON)
+option(ONEDPL_CMAKE_QUIET_CHECKS "Silence output from compiler/header checks during configuration" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/internal/version_impl.h
