@@ -89,14 +89,16 @@ include(GNUInstallDirs)
 
 # Macro to conditionally silence compiler/header checks based on ONEDPL_CMAKE_QUIET_CHECKS
 macro(_onedpl_push_quiet_checks)
-    cmake_push_check_state()
     if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_push_check_state()
         set(CMAKE_REQUIRED_QUIET TRUE)
     endif()
 endmacro()
 
 macro(_onedpl_pop_quiet_checks)
-    cmake_pop_check_state()
+    if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_pop_check_state()
+    endif()
 endmacro()
 
 # Detect SYCL support
