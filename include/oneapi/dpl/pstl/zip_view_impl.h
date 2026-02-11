@@ -20,6 +20,7 @@
 
 #    include <ranges>
 #    include <type_traits>
+#	 include <cstdlib>
 
 #    include "tuple_impl.h"
 #    include "iterator_impl.h"
