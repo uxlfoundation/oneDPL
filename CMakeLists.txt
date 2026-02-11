@@ -90,6 +90,8 @@ include(GNUInstallDirs)
 if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
     message(STATUS "Checking for SYCL support")
 
+    # Save and optionally override CMAKE_REQUIRED_QUIET
+    set(_onedpl_cmake_required_quiet_save ${CMAKE_REQUIRED_QUIET})
     if (ONEDPL_CMAKE_QUIET_CHECKS)
         set(CMAKE_REQUIRED_QUIET TRUE)
     endif()
@@ -108,9 +110,9 @@ if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
         set(SYCL_SUPPORT TRUE)
     endif()
 
-    if (ONEDPL_CMAKE_QUIET_CHECKS)
-        set(CMAKE_REQUIRED_QUIET FALSE)
-    endif()
+    # Restore CMAKE_REQUIRED_QUIET
+    set(CMAKE_REQUIRED_QUIET ${_onedpl_cmake_required_quiet_save})
+    unset(_onedpl_cmake_required_quiet_save)
 
     if (SYCL_SUPPORT)
         message(STATUS "SYCL is supported")
@@ -162,6 +164,8 @@ if (ONEDPL_ENABLE_SIMD)
     # TODO: check if -openmp:experimental can be used
     if ((NOT INTEL_LLVM_COMPILER AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
+        # Save and optionally override CMAKE_REQUIRED_QUIET
+        set(_onedpl_cmake_required_quiet_save ${CMAKE_REQUIRED_QUIET})
         if (ONEDPL_CMAKE_QUIET_CHECKS)
             set(CMAKE_REQUIRED_QUIET TRUE)
         endif()
@@ -174,9 +178,9 @@ if (ONEDPL_ENABLE_SIMD)
                 break()
             endif()
         endforeach()
-        if (ONEDPL_CMAKE_QUIET_CHECKS)
-            set(CMAKE_REQUIRED_QUIET FALSE)
-        endif()
+        # Restore CMAKE_REQUIRED_QUIET
+        set(CMAKE_REQUIRED_QUIET ${_onedpl_cmake_required_quiet_save})
+        unset(_onedpl_cmake_required_quiet_save)
     endif()
 
     if (_simd_enabled_flag)
@@ -328,13 +332,15 @@ if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
         message(FATAL_ERROR "Unknown value of _ONEDPL_PSTL_OFFLOAD = ${_ONEDPL_PSTL_OFFLOAD}")
     endif()
 
+    # Save and optionally override CMAKE_REQUIRED_QUIET
+    set(_onedpl_cmake_required_quiet_save ${CMAKE_REQUIRED_QUIET})
     if (ONEDPL_CMAKE_QUIET_CHECKS)
         set(CMAKE_REQUIRED_QUIET TRUE)
     endif()
     check_cxx_compiler_flag("${FSYCL_PSTL_OFFLOAD_OPTION}" _fsycl_pstl_offload_option)
-    if (ONEDPL_CMAKE_QUIET_CHECKS)
-        set(CMAKE_REQUIRED_QUIET FALSE)
-    endif()
+    # Restore CMAKE_REQUIRED_QUIET
+    set(CMAKE_REQUIRED_QUIET ${_onedpl_cmake_required_quiet_save})
+    unset(_onedpl_cmake_required_quiet_save)
     if (_fsycl_pstl_offload_option)
         message(STATUS "Adding ${FSYCL_PSTL_OFFLOAD_OPTION} compiler option")
         target_compile_options(oneDPL INTERFACE ${FSYCL_PSTL_OFFLOAD_OPTION})
