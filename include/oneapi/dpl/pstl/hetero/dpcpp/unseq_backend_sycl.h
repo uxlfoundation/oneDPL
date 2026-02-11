@@ -116,12 +116,12 @@ struct walk_n
 };
 
 // If read accessor returns temporary value then oneapi::dpl::identity returns lvalue reference to it.
-// After temporary value destroying it will be a reference on invalid object.
-// So let's don't call functor in case of oneapi::dpl::identity
+// After temporary value destroying it will be a reference to an invalid object.
+// So let's not call the functor in case of oneapi::dpl::identity
 template <>
 struct walk_n<oneapi::dpl::identity>
 {
-    oneapi::dpl::identity __f;
+    oneapi::dpl::identity __f; // only needed for uniform initialization
 
     template <typename _ItemId, typename _Range>
     auto
@@ -130,6 +130,8 @@ struct walk_n<oneapi::dpl::identity>
         return __rng[__idx];
     }
 };
+
+using __unchanged = walk_n<oneapi::dpl::identity>;
 
 // walk_n_vectors_or_scalars
 template <typename _F>
@@ -680,29 +682,25 @@ struct __scan_ignore
 };
 
 // create mask
-template <typename _Pred, typename _Tp>
+template <typename _IndexPred, typename _ValueType>
 struct __create_mask
 {
-    _Pred __pred;
+    _IndexPred __pred;
 
-    template <typename _Idx, typename _Input>
-    _Tp
-    operator()(const _Idx __idx, const _Input& __input) const
+    template <typename _Idx, typename... _Ranges>
+    _ValueType
+    operator()(const _Idx __idx, const oneapi::dpl::__ranges::zip_view<_Ranges...>& __input) const
     {
-        using ::std::get;
-        // 1. apply __pred
-        auto __temp = __pred(get<0>(__input[__idx]));
-        // 2. initialize mask
-        get<1>(__input[__idx]) = __temp;
-        return _Tp(__temp);
+        bool __mask_value = __pred(std::get<0>(__input.tuple()), __idx);
+        std::get<1>(__input[__idx]) = __mask_value;
+        return _ValueType(__mask_value);
     }
 };
 
 // functors for scan
-template <typename _BinaryOp, typename _Assigner, std::size_t N>
+template <typename _Assigner, std::size_t N>
 struct __copy_by_mask
 {
-    _BinaryOp __binary_op;
     _Assigner __assigner;
 
     template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
@@ -739,7 +737,7 @@ struct __copy_by_mask
             if (__item_idx >= __size_per_wg)
             {
                 auto __wg_sums_idx = __item_idx / __size_per_wg - 1;
-                __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx]);
+                __out_idx += __wg_sums_ptr[__wg_sums_idx];
             }
             if (__item_idx % __size_per_wg == 0 || (get<N>(__in_acc[__item_idx]) != get<N>(__in_acc[__item_idx - 1])))
             {
@@ -772,11 +770,8 @@ struct __copy_by_mask_stops
     }
 };
 
-template <typename _BinaryOp>
 struct __partition_by_mask
 {
-    _BinaryOp __binary_op;
-
     template <typename _Item, typename _OutAcc, typename _InAcc, typename _WgSumsPtr, typename _RetPtr, typename _Size,
               typename _SizePerWg>
     void
@@ -798,7 +793,7 @@ struct __partition_by_mask
                     __in_type, ::std::decay_t<decltype(get<0>(__out_acc[__out_idx]))>>::__type;
 
                 if (__not_first_wg)
-                    __out_idx = __binary_op(__out_idx, __wg_sums_ptr[__wg_sums_idx - 1]);
+                    __out_idx += __wg_sums_ptr[__wg_sums_idx - 1];
                 get<0>(__out_acc[__out_idx]) = static_cast<__tuple_type>(get<0>(__in_acc[__item_idx]));
             }
             else

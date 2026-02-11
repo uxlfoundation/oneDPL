@@ -31,26 +31,6 @@ namespace dpl
 namespace __internal
 {
 
-template <typename _Predicate, typename _ValueType>
-struct __create_mask_unique_copy
-{
-    _Predicate __predicate;
-
-    template <typename _Idx, typename _Acc>
-    _ValueType
-    operator()(_Idx __idx, _Acc& __acc) const
-    {
-        using ::std::get;
-
-        auto __predicate_result = 1;
-        if (__idx != 0)
-            __predicate_result = __predicate(get<0>(__acc[__idx]), get<0>(__acc[__idx + (-1)]));
-
-        get<1>(__acc[__idx]) = __predicate_result;
-        return _ValueType{__predicate_result};
-    }
-};
-
 template <typename _Compare, typename _ReduceValueType>
 struct __pattern_minmax_element_reduce_fn
 {

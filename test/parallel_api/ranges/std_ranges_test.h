@@ -502,6 +502,8 @@ private:
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
+        std::string names{typeid(Algo).name()};
+        names += "<" + std::string{typeid(Policy).name()} + ">";
         std::string sizes{" for "};
         sizes += std::to_string(n_in) + " elements and " + std::to_string(n_out) + " space";
 
