@@ -523,13 +523,12 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
-            std::make_unsigned_t<_Size> __lsize;
-            std::size_t __n_uniform;
+            std::make_unsigned_t<_Size> __lsize, __n_uniform;
             // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
-            std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
+            std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min<std::uint16_t>(__n_uniform, __max_wg_size));
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
