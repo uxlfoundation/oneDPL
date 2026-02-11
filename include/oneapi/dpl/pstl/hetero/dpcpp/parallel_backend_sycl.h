@@ -284,11 +284,10 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
 #endif
 
         // Practically this is the better value that was found
-        constexpr decltype(__wgroup_size) __iters_per_witem = 16;
-        auto __size_per_wg = __iters_per_witem * __wgroup_size;
-        auto __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
+        constexpr std::size_t __iters_per_witem = 16;
+        std::size_t __size_per_wg = __iters_per_witem * __wgroup_size;
+        std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_wg);
         // Storage for the results of scan for each workgroup
-
         __combined_storage<_Type> __temp_and_result{__q, __n_groups + 1, /*result size*/ 2};
 
         _PRINT_INFO_IN_DEBUG_MODE(__q, __wgroup_size, __max_cu);
@@ -477,18 +476,43 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
     }
 };
 
+struct __parallel_copy_if_single_group_base
+{
+    using _ValueType = std::uint16_t;
+
+    template <typename _Size>
+    static std::pair<std::make_unsigned_t<_Size>, std::make_unsigned_t<_Size>>
+    __local_memory_needed(_Size __n)
+    {
+        // Next power of 2 greater than or equal to __n
+        std::make_unsigned_t<_Size> __n_uniform =
+            oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
+        // The kernel needs memory for: N predicate evaluations, N output offsets, and the input stop position
+        return {__n_uniform * 2 + 1, __n_uniform};
+    }
+
+    template <typename _Size>
+    static bool
+    __enough_local_memory(sycl::queue __q, _Size __n)
+    {
+        // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
+        std::size_t __available_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+        return __available_size >= __local_memory_needed(__n).first * sizeof(_ValueType);
+    }
+};
+
 template <typename _KernelName>
 struct __parallel_copy_if_single_group_functor;
 
 template <typename... _ScanKernelName>
 struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_name<_ScanKernelName...>>
+    : __parallel_copy_if_single_group_base
 {
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
-    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out,
-               _UnaryOp __unary_op, _Assign __assign, std::uint16_t __n_uniform, std::uint16_t __wg_size)
+    operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _UnaryOp __unary_op,
+               _Assign __assign, std::size_t __max_wg_size)
     {
-        using _ValueType = std::uint16_t;
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
@@ -499,11 +523,12 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
-            // Local memory is split into two parts. The first half stores the result of applying the
-            // predicate on each element of the input range. The second half stores the index of the output
-            // range to copy elements of the input range.
-            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(std::size_t(__n_uniform) * 2 + 1), __hdl);
+            std::make_unsigned_t<_Size> __lsize, __n_uniform;
+            // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
+            std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
+            auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            std::uint16_t __wg_size = static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size));
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
                 [=](sycl::nd_item<1> __self_item) {
@@ -707,22 +732,21 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_ignore;
     using _UnaryFunctor = unseq_backend::walk_n<_UnaryOperation>;
-    using _NoOpFunctor = unseq_backend::walk_n<oneapi::dpl::identity>;
+    using _Unchanged = unseq_backend::__unchanged;
 
     _Assigner __assign_op;
     _NoAssign __ignore_op;
-    _NoOpFunctor __get_data_op;
+    _Unchanged __read_op;
 
     auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
         __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
-        unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _NoOpFunctor,
-                              _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
-                                         __get_data_op},
+        unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged, _InitType>{
+            __binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op, __read_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _NoOpFunctor, _NoAssign, _Assigner,
-                              _NoOpFunctor, unseq_backend::__no_init_value<_Type>>{
-            __binary_op, _NoOpFunctor{}, __ignore_op, __assign_op, __get_data_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _Unchanged, _NoAssign, _Assigner,
+                              _Unchanged, unseq_backend::__no_init_value<_Type>>{__binary_op, __read_op, __ignore_op,
+                                                                                 __assign_op, __read_op},
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
         /*apex*/ __ignore_op);
@@ -748,23 +772,25 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _CreateMaskOp,
+template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
           typename _CopyByMaskOp>
 std::tuple<sycl::event, __combined_storage<_Size>>
-__parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n,
-                     _CreateMaskOp __create_mask_op, _CopyByMaskOp __copy_by_mask_op)
+__parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _IndexPred __pred,
+                     _CopyByMaskOp __copy_by_mask_op)
 {
     using _ReduceOp = std::plus<_Size>;
     using _Assigner = unseq_backend::__scan_assigner;
     using _NoAssign = unseq_backend::__scan_ignore;
     using _MaskAssigner = unseq_backend::__mask_assigner<1>;
-    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
+    using _Unchanged = unseq_backend::__unchanged;
     using _InitType = unseq_backend::__no_init_value<_Size>;
+    using _CreateMaskOp = unseq_backend::__create_mask<_IndexPred, _Size>;
 
     _Assigner __assign_op{};
     _ReduceOp __reduce_op{};
-    _DataAcc __get_data_op{};
     _MaskAssigner __add_mask_op{};
+    _Unchanged __read_op{};
+    _CreateMaskOp __create_mask_op{__pred};
 
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
@@ -776,12 +802,12 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
                           __mask_buf.get_buffer())),
         std::forward<_OutRng>(__out_rng), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _Assigner, _MaskAssigner,
-                              _CreateMaskOp, _InitType>{__reduce_op, __get_data_op, __assign_op, __add_mask_op,
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+                              _CreateMaskOp, _InitType>{__reduce_op, __read_op, __assign_op, __add_mask_op,
                                                         __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
-                              _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
@@ -814,15 +840,11 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     }
     else
     {
-        using _ReduceOp = std::plus<decltype(__n)>;
-        using _CreateOp =
-            oneapi::dpl::__internal::__create_mask_unique_copy<oneapi::dpl::__internal::__not_pred<_BinaryPredicate>,
-                                                               decltype(__n)>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
-
         auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            _CreateOp{oneapi::dpl::__internal::__not_pred<_BinaryPredicate>{__pred}}, _CopyOp{_ReduceOp{}, _Assign{}});
+            oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred},
+            unseq_backend::__copy_by_mask<_Assign, 1>{_Assign{}});
+
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
@@ -882,13 +904,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     }
     else
     {
-        using _ReduceOp = std::plus<decltype(__n)>;
-        using _CreateOp = unseq_backend::__create_mask<_UnaryPredicate, decltype(__n)>;
-        using _CopyOp = unseq_backend::__partition_by_mask<_ReduceOp>;
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
-        auto&& [__event, __payload] =
-            __parallel_scan_copy<_CustomName>(__q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result),
-                                              __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}});
         return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
     }
 }
@@ -901,32 +920,20 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     std::array<_Size, 2> __ret = {__n_out, __n};
-
-    // Next power of 2 greater than or equal to __n
-    auto __n_uniform = ::oneapi::dpl::__internal::__dpl_bit_ceil(static_cast<std::make_unsigned_t<_Size>>(__n));
-
     sycl::queue __q_local = __exec.queue();
 
-    // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size =
-        __q_local.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
-
-    // n predicate evaluations, n offsets, 1 element for the stop position in the input
-    const auto __req_slm_size = sizeof(std::uint16_t) * (__n_uniform * 2 + 1);
-
     constexpr std::uint16_t __max_elem_per_item = 2;
-
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
-    if (__n <= __max_wg_size * __max_elem_per_item && __max_slm_size >= __req_slm_size)
+    if (__n <= __max_wg_size * __max_elem_per_item &&
+        __parallel_copy_if_single_group_base::__enough_local_memory(__q_local, __n))
     {
         using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
             __scan_copy_single_wg_kernel<_CustomName>>;
-        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
-            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out, __pred, __assign,
-            static_cast<std::uint16_t>(__n_uniform), static_cast<std::uint16_t>(std::min(__n_uniform, __max_wg_size)));
+        __ret = __parallel_copy_if_single_group_functor<_KernelName>()(__q_local, std::forward<_InRng>(__in_rng),
+            std::forward<_OutRng>(__out_rng), __n, __n_out, __pred, __assign, __max_wg_size);
     }
     else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
@@ -941,12 +948,10 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     }
     else
     {
-        using _ReduceOp = std::plus<_Size>;
-        using _CreateOp = unseq_backend::__create_mask<_Pred, _Size>;
-        using _CopyOp = unseq_backend::__copy_by_mask<_ReduceOp, _Assign, 1>;
+        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
+            oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__copy_by_mask<_Assign, 1>{__assign});
 
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(__q_local, std::forward<_InRng>(__in_rng),
-            std::forward<_OutRng>(__out_rng), __n, _CreateOp{__pred}, _CopyOp{_ReduceOp{}, __assign});
         __event.wait_and_throw();
         __payload.__copy_result(__ret.data(), __ret.size());
     }
@@ -1085,12 +1090,12 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     using _NoAssign = unseq_backend::__scan_ignore;
     using _MaskAssigner = unseq_backend::__mask_assigner<2>;
     using _InitType = unseq_backend::__no_init_value<_Size1>;
-    using _DataAcc = unseq_backend::walk_n<oneapi::dpl::identity>;
+    using _Unchanged = unseq_backend::__unchanged;
 
     _ReduceOp __reduce_op{};
     _Assigner __assign_op{};
-    _DataAcc __get_data_op{};
-    unseq_backend::__copy_by_mask<_ReduceOp, oneapi::dpl::__internal::__pstl_assign, 2> __copy_by_mask_op{};
+    _Unchanged __read_op{};
+    unseq_backend::__copy_by_mask<oneapi::dpl::__internal::__pstl_assign, 2> __copy_by_mask_op{};
     unseq_backend::__brick_set_op<_SetTag, _Size1, _Size2, _Compare, _Proj1, _Proj2> __create_mask_op{
         __n1, __n2, __comp, __proj1, __proj2};
 
@@ -1105,12 +1110,12 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
                 __mask_buf.get_buffer())),
         std::forward<_Range3>(__result), _InitType{},
         // local scan
-        unseq_backend::__scan</*inclusive*/ std::true_type, _ReduceOp, _DataAcc, _Assigner, _MaskAssigner,
-                              decltype(__create_mask_op), _InitType>{__reduce_op, __get_data_op, __assign_op,
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _Assigner, _MaskAssigner,
+                              decltype(__create_mask_op), _InitType>{__reduce_op, __read_op, __assign_op,
                                                                      _MaskAssigner{}, __create_mask_op},
         // scan between groups
-        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _DataAcc, _NoAssign, _Assigner, _DataAcc,
-                              _InitType>{__reduce_op, __get_data_op, _NoAssign{}, __assign_op, __get_data_op},
+        unseq_backend::__scan</*inclusive=*/std::true_type, _ReduceOp, _Unchanged, _NoAssign, _Assigner, _Unchanged,
+                              _InitType>{__reduce_op, __read_op, _NoAssign{}, __assign_op, __read_op},
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
     return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));

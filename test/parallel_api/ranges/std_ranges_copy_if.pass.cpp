@@ -22,8 +22,8 @@ struct
               typename Pred, typename Proj = std::identity>
     auto operator()(InRange&& r_in, OutRange&& r_out, Pred pred, Proj proj = {})
     {
-        using ret_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<decltype(r_in)>,
-                                                     std::ranges::borrowed_iterator_t<decltype(r_out)>>;
+        using ret_type = std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<InRange>,
+                                                     std::ranges::borrowed_iterator_t<OutRange>>;
         auto in = std::ranges::begin(r_in);
         auto out = std::ranges::begin(r_out);
         std::size_t i = 0, j = 0;
