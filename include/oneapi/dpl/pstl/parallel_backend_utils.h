@@ -255,18 +255,18 @@ enum class __parallel_set_op_mask : std::uint8_t
 };
 
 template <typename _MaskIterator, typename _Counter, typename = void>
-class _MaskRunCache;
+class _MaskCache;
+
 
 template <typename _MaskIterator, typename _Counter>
-class _MaskRunCache<_MaskIterator, _Counter,
-                    std::enable_if_t<!std::is_same_v<std::decay_t<_MaskIterator>, std::nullptr_t>>>
+class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<!std::is_same_v<std::decay_t<_MaskIterator>, std::nullptr_t>>>
 {
     _Counter __pending_count = 0;
     _MaskIterator __it_mask;
     __parallel_set_op_mask __pending_state = __parallel_set_op_mask::eData1;
 
   public:
-    _MaskRunCache(_MaskIterator __it_mask) : __it_mask(__it_mask) {}
+    _MaskCache(_MaskIterator __it_mask) : __it_mask(__it_mask) {}
 
     void
     __accumulate_mask(__parallel_set_op_mask __mask, _Counter __count)
@@ -298,11 +298,10 @@ class _MaskRunCache<_MaskIterator, _Counter,
 };
 
 template <typename _MaskIterator, typename _Counter>
-class _MaskRunCache<_MaskIterator, _Counter,
-                    std::enable_if_t<std::is_same_v<std::decay_t<_MaskIterator>, std::nullptr_t>>>
+class _MaskCache<_MaskIterator, _Counter, std::enable_if_t<std::is_same_v<std::decay_t<_MaskIterator>, std::nullptr_t>>>
 {
   public:
-    _MaskRunCache(std::nullptr_t) {}
+    _MaskCache(std::nullptr_t)  {}
 
     void
     __accumulate_mask(__parallel_set_op_mask, _Counter)
@@ -353,7 +352,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _MaskRunCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
+    _MaskCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
 
     for (; __first1 != __last1; ++__result)
     {
@@ -403,7 +402,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _MaskRunCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
+    _MaskCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
 
     while (__first1 != __last1 && __first2 != __last2)
     {
@@ -454,7 +453,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _MaskRunCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
+    _MaskCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
 
     while (__first1 != __last1)
     {
@@ -506,7 +505,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     using _DifferenceType2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _MaskRunCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
+    _MaskCache<_MaskIterator, _DifferenceType> __mask_cache{__mask};
 
     while (__first1 != __last1)
     {
