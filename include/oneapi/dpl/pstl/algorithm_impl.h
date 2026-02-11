@@ -3750,8 +3750,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         // Evaluate reached offsets in input ranges
         const auto __reached_positions = __reached_positions_evaluator(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func,
-            __res_reachedOutPos, __buf_mask_rng_res_raw_data_begin,
+            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __res_reachedOutPos,
+            __buf_mask_rng_res_raw_data_begin,
             __mask_bufs.get_buf_mask_rng_res_data(__res_reachedMaskPos));   // call get_buf_mask_rng_res_data() to avoid compile errors if get_buf_mask_rng_res_data() return nullptr
 
 
@@ -4064,11 +4064,12 @@ struct __set_op_bounded_offsets_evaluator
 struct __set_union_offsets
 {
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction, class _MaskSizeFunction>
+              typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
     operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask, _DifferenceTypeOut __reachedOutPos) const
+               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
+               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
         using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
 
@@ -4100,11 +4101,13 @@ struct __set_union_offsets
             return {__a.first + __b.first, __a.second + __b.second};
         };
 
+        assert(__reachedOutPos <= __mask_end - __mask_begin);
+
         // transform_reduce
-        const _Sizes __res =
-            __pattern_transform_reduce(__parallel_tag<_IsVector>{}, __exec, __mask, __mask + __reachedOutPos,
-                                       __mask, // <<< Dummy argument just for compatibility with binary transform_reduce
-                                       _Sizes{0, 0}, reduce_pred, transform_pred);
+        const _Sizes __res = __pattern_transform_reduce(
+            __parallel_tag<_IsVector>{}, __exec, __mask_begin, __mask_begin + __reachedOutPos,
+            __mask_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
+            _Sizes{0, 0}, reduce_pred, transform_pred);
 
         return {__res.first, __res.second};
     }
