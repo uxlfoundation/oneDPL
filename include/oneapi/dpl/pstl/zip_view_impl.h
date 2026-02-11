@@ -19,7 +19,6 @@
 #if _ONEDPL_CPP20_RANGES_PRESENT
 
 #    include <ranges>
-#    include <vector>
 #    include <type_traits>
 
 #    include "tuple_impl.h"
