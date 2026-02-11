@@ -897,16 +897,14 @@ struct __set_op_bounded_offsets_evaluator
             [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType
             {
                 // (mask & 0x10) == 0x10
-                const bool __is_eq_data1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
-                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-                const _DifferenceType1 __processed1 = __is_eq_data1 ? 1 : 0;
+                const _DifferenceType1 __processed1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                                                      __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
 
                 // (mask & 0x01) == 0x01
-                const bool __is_eq_data2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
-                                           __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-                const _DifferenceType2 __processed2 = __is_eq_data2 ? 1 : 0;
+                const _DifferenceType2 __processed2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                                                      __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
 
-                const _DifferenceTypeOut __processedOut = __include_to_output_pred(__m) ? 1 : 0;
+                const _DifferenceTypeOut __processedOut = __include_to_output_pred(__m);
 
                 return { __processed1, __processed2, __processedOut };
             }
