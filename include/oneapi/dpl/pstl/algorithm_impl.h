@@ -3408,7 +3408,9 @@ struct __set_op_unbounded_offsets_eval
                [[maybe_unused]] _DifferenceTypeOut __n_out, [[maybe_unused]] _SizeFunction __size_func,
                _DifferenceTypeOut, _MaskIterator, _MaskIterator) const
     {
+#if IMPLEMENT_SET_OP_AS_BOUNDED
         assert(__size_func(__n1, __n2) <= __n_out);
+#endif
 
         return {__n1, __n2};
     }
