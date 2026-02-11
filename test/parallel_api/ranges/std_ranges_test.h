@@ -561,7 +561,7 @@ private:
 
         // Check padding data
         EXPECT_TRUE(check_padding<mode>(B_with_padding),
-                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
+                    (std::string("wrong padding data after algo with ranges: ") + names).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
