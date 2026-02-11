@@ -63,7 +63,7 @@ struct
             {10, 1, {0},                2,  1}, // One element output range
             {10, 5, {0, 1, 2, 8, 1},    9,  5}, // Output range is not big enough
             {10, 6, {0, 1, 2, 8, 1, 8}, 10, 6}, // Output range is just enough
-            {10, 7, {0, 1, 2, 8, 1, 8}, 10, 6}, // Output range is bigger
+            {10, 7, {0, 1, 2, 8, 1, 8}, 10, 6}, // Output range is bigger than needed
         };
 
         auto& self = *this;
@@ -108,7 +108,7 @@ main()
     // input generator with a fair chance of repeating the previous value
     auto repeat_sometimes = [](auto i) {
         static decltype(i) last = 0;
-        if (i==0)
+        if (i == 0)
             last = 0; // reset
         else if (i%7 > 0 && (last + i - 1)%3 == 0)
             last = i;
