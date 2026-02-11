@@ -1108,10 +1108,12 @@ struct __set_union_offsets
             return {__a.first + __b.first, __a.second + __b.second};
         };
 
+        assert(__reachedOutPos <= __mask_end - __mask_begin);
+
         // transform_reduce
         const _Sizes __res = __pattern_transform_reduce(
             __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
-            __mask_begin, __mask_end,
+            __mask_begin, __mask_begin + __reachedOutPos,
             __mask_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
             _Sizes{0, 0}, reduce_pred, transform_pred);
 
