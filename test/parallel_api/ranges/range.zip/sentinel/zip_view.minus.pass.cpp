@@ -62,7 +62,7 @@ struct convertible_forward_sized_iterator {
     ++it_;
     return *this;
   }
-  constexpr convertible_forward_sized_iterator operator++(int) { return forward_sized_iterator(it_++); }
+  constexpr convertible_forward_sized_iterator operator++(int) { return convertible_forward_sized_iterator(it_++); }
 
   friend constexpr bool operator==(const convertible_forward_sized_iterator&,
                                    const convertible_forward_sized_iterator&) = default;
