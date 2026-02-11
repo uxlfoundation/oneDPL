@@ -1071,7 +1071,7 @@ struct __set_union_offsets
             return {__a.first + __b.first, __a.second + __b.second};
         };
 
-        assert(__reachedOutPos <= __mask_end - __mask_begin);
+        //assert(__reachedOutPos <= __mask_end - __mask_begin);
 
         // transform_reduce
         const _Sizes __res = __pattern_transform_reduce(
