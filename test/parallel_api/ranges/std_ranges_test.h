@@ -268,7 +268,6 @@ void call_with_host_policies(auto algo, auto... args)
 
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
-
 struct test
 {
     void
@@ -292,7 +291,7 @@ struct test
 
 private:
 
-    using rvalaue_container_t = std::array<typename Container::value_type, 0>;
+    using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
@@ -330,9 +329,9 @@ private:
         {
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
-            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>)
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalaue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -415,11 +414,11 @@ private:
         {
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
-            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalaue_container_t&&>()))>)
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalaue_container_t&&>()),
-                                        tr_out(std::declval<rvalaue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -537,11 +536,11 @@ private:
         {
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
-            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>)
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalaue_container_t&&>()),
-                                        tr_in(std::declval<rvalaue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
@@ -613,13 +612,13 @@ private:
         {
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
-            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalaue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalaue_container_t&&>()))>)
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
-                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalaue_container_t&&>()),
-                                        tr_in(std::declval<rvalaue_container_t&&>()),
-                                        tr_out(std::declval<rvalaue_container_t&&>()), args...));
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
 
                 if constexpr(!std::is_fundamental_v<res_ret_t>)
                 {
