@@ -23,6 +23,13 @@
 #include <utility>     // std::forward
 #include <omp.h>
 
+#if __has_include(<ittnotify.h>)
+#include <ittnotify.h>
+#include <chrono>
+#include <iostream>
+#   define ITT_PRESENT_TMP 1
+#endif
+
 #include "../parallel_backend_utils.h"
 #include "../unseq_backend_simd.h"
 #include "../utils.h"

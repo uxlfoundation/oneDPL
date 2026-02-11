@@ -34,11 +34,37 @@ __parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grains
     // initial partition of the iteration space into chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
 
+#if ITT_PRESENT_TMP && defined(DEBUG_CHUNKS)
+    __itt_pause();
+    std::cerr << "Total number of chunks: " << __policy.__n_chunks << std::endl;
+    std::cerr << "Chunk size: " << __policy.__chunk_size << std::endl;
+    std::cerr << "First chunk size: " << __policy.__first_chunk_size << std::endl;
+    std::cerr << "Grainsize: " << __grainsize << std::endl;
+    std::cerr << "N: " << __last - __first << std::endl;
+    __itt_resume();
+#endif
+
     // To avoid over-subscription we use taskloop for the nested parallelism
     _ONEDPL_PRAGMA(omp taskloop untied mergeable)
     for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
     {
+#if ITT_PRESENT_TMP && defined(DEBUG_CHUNKS)
+    __itt_pause();
+    auto start_time = std::chrono::high_resolution_clock::now();
+    __itt_resume();
+#endif
         oneapi::dpl::__omp_backend::__process_chunk(__policy, __first, __chunk, __f);
+#if ITT_PRESENT_TMP && defined(DEBUG_CHUNKS)
+    __itt_pause();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto elapsed_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
+
+    #pragma omp critical
+    {
+        std::cerr << elapsed_time << std::endl;
+    }
+    __itt_resume();
+#endif
     }
 }
 
