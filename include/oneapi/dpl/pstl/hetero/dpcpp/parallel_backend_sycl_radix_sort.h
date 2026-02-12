@@ -662,9 +662,8 @@ __radix_sort_copy_back_submit(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __
     return __q.submit([&](sycl::handler& __hdl) {
         __hdl.depends_on(__dependency_event);
         oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
-        __hdl.parallel_for<_KernelName>(sycl::range<1>(__n), [=](sycl::item<1> __item) {
-            __in_rng[__item] = std::move(__out_rng[__item]);
-        });
+        __hdl.parallel_for<_KernelName>(sycl::range<1>(__n),
+                                        [=](sycl::item<1> __item) { __in_rng[__item] = std::move(__out_rng[__item]); });
     });
 }
 
@@ -774,8 +773,8 @@ struct __parallel_multi_group_radix_sort
         // If odd number of iterations, the result is in __out_rng; copy back to __in_rng
         if constexpr (__radix_iters % 2 != 0)
         {
-            __dependency_event = __radix_sort_copy_back_submit<_RadixCopyBackKernel>(
-                __q, __in_rng, __out_rng, __dependency_event);
+            __dependency_event =
+                __radix_sort_copy_back_submit<_RadixCopyBackKernel>(__q, __in_rng, __out_rng, __dependency_event);
         }
 
         return __dependency_event;
