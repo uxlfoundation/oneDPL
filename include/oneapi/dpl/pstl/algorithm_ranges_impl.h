@@ -945,11 +945,22 @@ struct __set_op_bounded_offsets_evaluator
     {
         assert(__n_out > 0);
 
-        using _DifferenceTypeCommon = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
-        using _Sizes = std::pair<_DifferenceTypeCommon, _DifferenceTypeCommon>;
+        // Initial optimisation - if generated output fitted into output size - no actions required
+        // - here we should check exactly less (not less or equal) because we are looking for the position where output size limit is reached
+        if (__reachedOutPos < __n_out)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t<- Generated output fitted into output size - return the end of the first and second input buffers: {__n1, __n2}\n";
+#endif
+            return {__n1, __n2};
+        }
 
-        const auto __req_size = __size_func(__n1, __n2);
+        using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+        using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+
         const auto __req_mask_size = __mask_end - __mask_begin;
+
+        assert(__req_mask_size > 0);
 
         // Our reached output position should not exceed requested mask output size
         assert(__reachedOutPos <= __req_mask_size);
@@ -957,81 +968,76 @@ struct __set_op_bounded_offsets_evaluator
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "=== __set_intersection_offsets call ===" << std::endl;
         std::cout << "__n1 = " << __n1 << ", __n2 = " << __n2 << ", __n_out = " << __n_out
-                  << ", __reachedOutPos = " << __reachedOutPos << ", __req_size = " << __req_size << "\n";
+                  << ", __reachedOutPos = " << __reachedOutPos << "\n";
 #endif
-
-        // No output size limits - return the end of the first and second input buffers
-        if (__n_out >= __req_size)
-        {
-#if DUMP_PARALLEL_SET_OP_WORK
-            std::cout << "\t<- No output size limits - return the end of the first and second input buffers: {__n1, __n2}\n";
-#endif
-            return {__n1, __n2};
-        }
-
-        // Calculate reached positions in the first and second input buffers using the __mask buffer
-
-        using _CountsType = _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
         // Calculate counts through transform_iterator
-        auto __tr_first = oneapi::dpl::make_transform_iterator(
-            __mask_begin,
-            [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _CountsType
-            {
+        auto __it_transform1 = oneapi::dpl::make_transform_iterator(
+            __mask_begin, [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
                 // (mask & 0x10) == 0x10
-                const _DifferenceType1 __processed1 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
-                                                      __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-
+                return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                       __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+            });
+        auto __it_transform2 = oneapi::dpl::make_transform_iterator(
+            __mask_begin, [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
                 // (mask & 0x01) == 0x01
-                const _DifferenceType2 __processed2 = __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
-                                                      __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+                return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                       __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+            });
+        auto __it_transformOut = oneapi::dpl::make_transform_iterator(
+            __mask_begin, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
 
-                const _DifferenceTypeOut __processedOut = __include_to_output_pred(__m);
+                return __include_to_output_pred(__m);
+            });
 
-                return { __processed1, __processed2, __processedOut };
-            }
-        );
+        auto __call_pts = [__tag, &__exec](auto __it_start, auto __len, auto __it_out) {
+            return __pattern_transform_scan(__tag, __exec, __it_start, __it_start + __len, __it_out,
+                                            oneapi::dpl::identity{}, _DifferenceType{}, std::plus{},
+                                            /* _Inclusive */ std::true_type{});
+        };
 
-        using _PrefixBuf = __par_backend::__buffer<_CountsType>;
-        _PrefixBuf __prefix_summ_buf(__req_mask_size);
-
-        auto __prefix_summ_buf_it_b = __prefix_summ_buf.get();
-        auto __prefix_summ_buf_it_e = __prefix_summ_buf_it_b + __req_mask_size;
-
-        // Calculate prefix summs of counts
-        __pattern_transform_scan(
-            __tag, std::forward<_ExecutionPolicy>(__exec),
-            __tr_first, __tr_first + __req_mask_size,
-            __prefix_summ_buf_it_b,
-            oneapi::dpl::identity{},
-            _CountsType{},
-            std::plus<_CountsType>{},
-            /* _Inclusive */ std::true_type{});
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "\tTransform iterator over __mask buffer created:\n";
-        std::cout << "\t\t__prefix_summ_buf: ";
-        dump_buffer(std::cout, __prefix_summ_buf_it_b, __prefix_summ_buf_it_e);
-        std::cout << "\n\tFinding in __prefix_summ_buf the first position where __eq == " << (__reachedOutPos + 1) << " : ";
-#endif
-
-        auto it_prefix_summ_buf_b = __prefix_summ_buf.get();
-        auto it_prefix_summ_buf_e = it_prefix_summ_buf_b + __req_mask_size;
-
-        // At leas __reachedOutPos first position are not interested for us,
-        // but if __reachedOutPos == 0 we should start from the beginning
-        auto it_prefix_summ_buf_start = it_prefix_summ_buf_b + (std::max<_DifferenceTypeOut>(__reachedOutPos, 1) - 1);
-        assert(it_prefix_summ_buf_start->__processedOut <= __reachedOutPos);
+        // Calculate prefix summs of counts for output items to find the position where output size limit is reached
+        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf_out(__req_mask_size);
+        const auto __processed_items_in_output = __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
 
         // Find the position where output size limit is reached
-        //  - we should try to find the next processed position so we use <= operation inside lower_bound predicate
-        auto it_prefix_summ_buf = std::lower_bound(
-            it_prefix_summ_buf_start, it_prefix_summ_buf_e, __reachedOutPos,
-            [](const auto& __count, const auto& __processedOut) { return __count.__processedOut <= __processedOut; });
+        //  - we should try to find the next processed position so we use the value __reachedOutPos + 1
+        const auto __prefix_summ_buf_out_begin   = __prefix_summ_buf_out.get();
+        const auto __prefix_summ_buf_out_end     = __prefix_summ_buf_out.get() + __req_mask_size;
+        const auto __prefix_summ_buf_out_reached = std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
+
+        const auto __prefix_summ_buf_out_reached_offset = __prefix_summ_buf_out_reached - __prefix_summ_buf_out_begin;
+        const auto __buf_size_to_process = __prefix_summ_buf_out_reached_offset + 1;
+
+        // Calculate prefix sums for the first and second input buffers to find reached positions in them.
+        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf1(__buf_size_to_process);
+        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf2(__buf_size_to_process);
+
+        __par_backend::__parallel_invoke(
+            __backend_tag{}, __exec,
+            [&]() { __call_pts(__it_transform1, __buf_size_to_process, __prefix_summ_buf1.get()); },
+            [&]() { __call_pts(__it_transform2, __buf_size_to_process, __prefix_summ_buf2.get()); });
+
+        // We processed all output items: this means we processed all first and second input items
+        if (__prefix_summ_buf_out_reached == __prefix_summ_buf_out_end)
+        {
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t<- We processed all output items: this means we processed all first and second input items- return the latest reached pos for the first and secont buffers: {__n1, __n2}\n";
+#endif
+            return {__prefix_summ_buf1.get()[__buf_size_to_process - 1],
+                    __prefix_summ_buf2.get()[__buf_size_to_process - 1]};
+        }
+
+        const auto __prefix_summ_bufs_begin = std::make_tuple(__prefix_summ_buf1.get(), __prefix_summ_buf2.get());
+        const auto __prefix_summ_bufs_end   = std::make_tuple(__prefix_summ_buf1.get() + __buf_size_to_process,
+                                                              __prefix_summ_buf2.get() + __buf_size_to_process);
+
+        const auto __prefix_summ_bufs_reached = std::make_tuple(__prefix_summ_buf1.get() + __prefix_summ_buf_out_reached_offset,
+                                                                __prefix_summ_buf2.get() + __prefix_summ_buf_out_reached_offset);
 
         // Initially we assume that we processed all first data range
-        const auto [__n1_reached, __n2_reached] =
-            __eval_reached_pos_pred(__n1, __n2, it_prefix_summ_buf_b, it_prefix_summ_buf_e, it_prefix_summ_buf);
+        const auto [__n1_reached, __n2_reached] = __eval_reached_pos_pred(
+            __n1, __n2, __prefix_summ_bufs_begin, __prefix_summ_bufs_end, __prefix_summ_bufs_reached);
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
@@ -1334,15 +1340,19 @@ struct __set_intersection_offsets
 
     struct _EvalReachedPosPred
     {
-        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        template <typename _DifferenceType1, typename _DifferenceType2,
+                  typename _TupleOfPrefixSummIterators>
         std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
-                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
+                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
+                   _TupleOfPrefixSummIterators&& __it_current) const
         {
-            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+            // TODO required to check correctness of the reached position evaluation:
+            // - not xxx_lim mode in range tests works not correct at least for set_intersection
+            if (__it_current == __it_ends)
                 return {__n1, __n2};
 
-            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+            return {*(std::get<0>(__it_current)), *(std::get<1>(__it_current))};
         }
     };
 
@@ -1655,15 +1665,17 @@ struct __set_difference_offsets
 
     struct _EvalReachedPosPred
     {
-        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        template <typename _DifferenceType1, typename _DifferenceType2,
+                  typename _TupleOfPrefixSummIterators>
         std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
-                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
+                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
+                   _TupleOfPrefixSummIterators&& __it_current) const
         {
-            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+            if (__it_current == __it_ends)
                 return {__n1, __n2};
 
-            return {it_prefix_summ_buf->__processed1 - 1, it_prefix_summ_buf->__processed2 - 1};
+            return {*(std::get<0>(__it_current)) - 1, *(std::get<1>(__it_current)) - 1};
         }
     };
 
@@ -1983,18 +1995,22 @@ struct __set_symmetric_difference_offsets
 
     struct _EvalReachedPosPred
     {
-        template <typename _DifferenceType1, typename _DifferenceType2, typename _ItPrefixSummBuf>
+        template <typename _DifferenceType1, typename _DifferenceType2,
+                  typename _TupleOfPrefixSummIterators>
         std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2, _ItPrefixSummBuf it_prefix_summ_buf_b,
-                   _ItPrefixSummBuf it_prefix_summ_buf_e, _ItPrefixSummBuf it_prefix_summ_buf) const
+        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
+                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
+                   _TupleOfPrefixSummIterators&& __it_current) const
         {
-            if (it_prefix_summ_buf == it_prefix_summ_buf_e)
+            // TODO required to check correctness of the reached position evaluation:
+            // - not xxx_lim mode in range tests works not correct at least for set_intersection
+            if (__it_current == __it_ends)
                 return {__n1, __n2};
 
-            assert(it_prefix_summ_buf != it_prefix_summ_buf_b);
+            assert(__it_begins != __it_ends);
+            assert(__it_current != __it_begins);
 
-            --it_prefix_summ_buf;
-            return {it_prefix_summ_buf->__processed1, it_prefix_summ_buf->__processed2};
+            return {*(--std::get<0>(__it_current)), *(--std::get<1>(__it_current))};
         }
     };
 
