@@ -149,7 +149,7 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
-template <::std::uint32_t, bool, typename... _Name>
+template <typename... _Name>
 class __radix_sort_copy_back_kernel;
 
 // Helper for SLM indexing in count kernel. Layout stores radix states contiguously per work-item
@@ -651,6 +651,24 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 }
 
 //-----------------------------------------------------------------------
+// radix sort: copy back kernel (when odd number of iterations)
+//-----------------------------------------------------------------------
+
+template <typename _KernelName, typename _Range1, typename _Range2>
+sycl::event
+__radix_sort_copy_back_submit(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, sycl::event __dependency_event)
+{
+    const ::std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
+    return __q.submit([&](sycl::handler& __hdl) {
+        __hdl.depends_on(__dependency_event);
+        oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
+        __hdl.parallel_for<_KernelName>(sycl::range<1>(__n), [=](sycl::item<1> __item) {
+            __in_rng[__item] = std::move(__out_rng[__item]);
+        });
+    });
+}
+
+//-----------------------------------------------------------------------
 // radix sort: one iteration
 //-----------------------------------------------------------------------
 
@@ -664,7 +682,7 @@ struct __parallel_multi_group_radix_sort
     template <typename... _Name>
     using __reorder_phase = __radix_sort_reorder_kernel<__radix_bits, __is_ascending, _Name...>;
     template <typename... _Name>
-    using __copy_back_phase = __radix_sort_copy_back_kernel<__radix_bits, __is_ascending, _Name...>;
+    using __copy_back_phase = __radix_sort_copy_back_kernel<_Name...>;
 
     template <typename _InRange, typename _Proj>
     sycl::event
@@ -756,13 +774,8 @@ struct __parallel_multi_group_radix_sort
         // If odd number of iterations, the result is in __out_rng; copy back to __in_rng
         if (__radix_iters % 2 != 0)
         {
-            __dependency_event = __q.submit([&](sycl::handler& __hdl) {
-                __hdl.depends_on(__dependency_event);
-                oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
-                __hdl.parallel_for<_RadixCopyBackKernel>(sycl::range<1>(__n), [=](sycl::item<1> __item) {
-                    __in_rng[__item] = std::move(__out_rng[__item]);
-                });
-            });
+            __dependency_event = __radix_sort_copy_back_submit<_RadixCopyBackKernel>(
+                __q, __in_rng, __out_rng, __dependency_event);
         }
 
         return __dependency_event;
