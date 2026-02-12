@@ -149,6 +149,9 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
+template <typename... _Name>
+class __radix_sort_copy_back_kernel;
+
 // Helper for SLM indexing in count kernel. Layout stores radix states contiguously per work-item
 // for cache locality during counting, then reorganizes for reduction.
 template <std::uint32_t __packing_ratio, std::uint32_t __radix_states>
@@ -647,6 +650,8 @@ struct __parallel_multi_group_radix_sort
     using __local_scan_phase = __radix_sort_scan_kernel<__radix_bits, _Name...>;
     template <typename... _Name>
     using __reorder_phase = __radix_sort_reorder_kernel<__radix_bits, __is_ascending, _Name...>;
+    template <typename... _Name>
+    using __copy_back_phase = __radix_sort_copy_back_kernel<_Name...>;
 
     template <typename _InRange, typename _Proj>
     sycl::event
@@ -657,6 +662,8 @@ struct __parallel_multi_group_radix_sort
         using _RadixLocalScanKernel = __internal::__kernel_name_generator<__local_scan_phase, _CustomName>;
         using _RadixReorderKernel =
             __internal::__kernel_name_generator<__reorder_phase, _CustomName, std::decay_t<_InRange>, _Proj>;
+        using _RadixCopyBackKernel =
+            __internal::__kernel_name_generator<__copy_back_phase, _CustomName, std::decay_t<_InRange>>;
 
         using _ValueT = oneapi::dpl::__internal::__value_t<_InRange>;
         using _KeyT = oneapi::dpl::__internal::__key_t<_Proj, _InRange>;
@@ -706,7 +713,6 @@ struct __parallel_multi_group_radix_sort
             __out_buffer_holder.get_buffer());
 
         // iterations per each bucket
-        assert(__radix_iters % 2 == 0 && "Number of iterations must be even");
         // TODO: radix for bool can be made using 1 iteration (x2 speedup against current implementation)
         sycl::event __dependency_event;
         for (::std::uint32_t __radix_iter = 0; __radix_iter < __radix_iters; ++__radix_iter)
@@ -734,6 +740,18 @@ struct __parallel_multi_group_radix_sort
                 __out_rng, __tmp_buf, __dependency_event, __proj);
         }
 
+        // If odd number of iterations, the result is in __out_rng; copy back to __in_rng
+        if (__radix_iters % 2 != 0)
+        {
+            __dependency_event = __q.submit([&](sycl::handler& __hdl) {
+                __hdl.depends_on(__dependency_event);
+                oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
+                __hdl.parallel_for<_RadixCopyBackKernel>(sycl::range<1>(__n), [=](sycl::item<1> __item) {
+                    __in_rng[__item] = std::move(__out_rng[__item]);
+                });
+            });
+        }
+
         return __dependency_event;
     }
 }; // struct __parallel_multi_group_radix_sort
@@ -753,7 +771,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     assert(__n > 1);
 
     // radix bits represent number of processed bits in each value during one iteration
-    constexpr ::std::uint32_t __radix_bits = 4;
+    constexpr ::std::uint32_t __radix_bits = 3;
 
     sycl::event __event;
 
