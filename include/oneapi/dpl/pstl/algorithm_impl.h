@@ -3320,9 +3320,9 @@ struct _SetRangeImpl
 {
     struct _Data
     {
-        _DifferenceType __pos{};     // Offset in output range w/o limitation to output data size
-        _DifferenceType __len{};     // Length in temporary buffer w/o limitation to output data size
-        _DifferenceType __buf_pos{}; // Position in temporary buffer w/o limitation to output data size
+        _DifferenceType __result_buf_pos{};     // Offset in output range w/o limitation to output data size
+        _DifferenceType __len{};                // The length of data pack: the same for windowed and result buffers
+        _DifferenceType __windowed_buf_pos{};   // Offset in temporary buffer w/o limitation to output data size
 
         bool
         empty() const
@@ -3333,24 +3333,22 @@ struct _SetRangeImpl
         _Data
         combine_with(const _Data& __other) const
         {
-            const auto __other_buf_pos = __other.__buf_pos;
-
-            if (__other_buf_pos > __buf_pos || ((__other_buf_pos == __buf_pos) && !__other.empty()))
-                return _Data{__pos + __len + __other.__pos, __other.__len, __other_buf_pos};
-            return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
+            if (__other.__windowed_buf_pos > __windowed_buf_pos || ((__other.__windowed_buf_pos == __windowed_buf_pos) && !__other.empty()))
+                return _Data{__result_buf_pos + __len + __other.__result_buf_pos, __other.__len, __other.__windowed_buf_pos};
+            return _Data{__other.__result_buf_pos + __other.__len + __result_buf_pos, __len, __windowed_buf_pos};
         }
     };
 
     //                                       [.........................)
     // Temporary windowed buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
     //                                       ^                         ^
-    //                                       +<-(buf_pos)              +<-(buf_pos + __len)
+    //                                       +<-(__windowed_buf_pos)   +<-(__windowed_buf_pos + __len)
     //                                       |                         |
     //                                       +--+                      +--+
     //                                          |                         |
-    //                                          |<-(__pos)                |<-(__pos + __len)
+    //                                          |<-(__result_buf_pos)     |<-(__result_buf_pos + __len)
     //                                          V                         V
-    // Temporary result buffer:    OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+    // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
     static constexpr std::size_t __data_size = __Bounded ? 2 : 1;
 
@@ -3491,16 +3489,16 @@ struct __mask_buffers
 };
 #endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
-template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    RawDataPtr __buf_raw_data_begin;
-    RawDataPtr __buf_raw_data_end;
-    MaskDataPtr __buf_mask_rng_raw_data_begin;
-    MaskDataPtr __buf_mask_rng_res_raw_data_begin;
-    _OutputIterator __result1;
-    _OutputIterator __result2;
+    ProcessingDataPointer     __windowed_processed_data_buf_begin; // __buf_raw_data_begin
+    ProcessingDataPointer     __windowed_processed_data_buf_end;   // __buf_raw_data_end
+    MaskDataPointer           __windowed_mask_data_buf_begin;      // __buf_mask_rng_raw_data_begin
+    MaskDataPointer           __result_mask_data_buf_begin;        // __buf_mask_rng_res_raw_data_begin
+    _OutputIterator           __result1;
+    _OutputIterator           __result2;
 
     template <typename _DifferenceType1, typename _SetRange>
     void
@@ -3513,39 +3511,34 @@ struct _ScanPred
 #endif
         {
             // Copy source data (unbounded)
-            __brick_move_destroy<decltype(__tag)>{}(__buf_raw_data_begin + __s.__data[0].__buf_pos,
-                                                    __buf_raw_data_begin + __s.__data[0].__buf_pos + __s.__data[0].__len,
-                                                    __result1 + __s.__data[0].__pos, _IsVector{});
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_begin + __s.__data[0].__windowed_buf_pos,
+                                                    __windowed_processed_data_buf_begin + __s.__data[0].__windowed_buf_pos + __s.__data[0].__len,
+                                                    __result1 + __s.__data[0].__result_buf_pos, _IsVector{});
         }
         else
         {
             // Copy source data (bounded)
-            __move_processed_data_bounded(__s.__data[0]);
+            {
+                // Evalueate output range boundaries for current data chunk
+                const auto __result_from = __advance_clamped(__result1, __s.__data[0].__result_buf_pos,                       __result2);
+                const auto __result_to   = __advance_clamped(__result1, __s.__data[0].__result_buf_pos + __s.__data[0].__len, __result2);
+                const auto __result_remaining = __result_to - __result_from;
+
+                // Evaluate pointers to current data chunk in temporary buffer
+                const auto __windowed_processed_data_buf_from = __advance_clamped(__windowed_processed_data_buf_begin, __s.__data[0].__windowed_buf_pos,                                                     __windowed_processed_data_buf_end);
+                const auto __windowed_processed_data_buf_to   = __advance_clamped(__windowed_processed_data_buf_begin, __s.__data[0].__windowed_buf_pos + std::min(__result_remaining, __s.__data[0].__len), __windowed_processed_data_buf_end);
+                // Copy results data into results range to have final output
+                __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_from, __windowed_processed_data_buf_to, __result_from, _IsVector{});
+            }
 
             // Copy mask
-            __brick_copy_n<__parallel_tag<std::true_type>>{}(__buf_mask_rng_raw_data_begin + __s.__data[1].__buf_pos,
-                                                             __s.__data[1].__len, __buf_mask_rng_res_raw_data_begin,
-                                                             std::true_type{});
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_mask_data_buf_begin + __s.__data[1].__windowed_buf_pos,
+                                                    __windowed_mask_data_buf_begin + __s.__data[1].__windowed_buf_pos + __s.__data[1].__len,
+                                                    __result_mask_data_buf_begin + __s.__data[1].__result_buf_pos, _IsVector{});
         }
     }
 
   protected:
-
-    void
-    __move_processed_data_bounded(auto __s_data) const
-    {
-        // Evalueate output range boundaries for current data chunk
-        const auto __result_from = __advance_clamped(__result1, __s_data.__pos, __result2);
-        const auto __result_to = __advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
-        const auto __result_remaining = __result_to - __result_from;
-
-        // Evaluate pointers to current data chunk in temporary buffer
-        const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-        const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
-
-        // Copy results data into results range to have final output
-        __brick_move_destroy<decltype(__tag)>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
-    }
 
     // Move it1 forward by n, but not beyond it2
     template <typename _RandomAccessIterator,
@@ -3738,12 +3731,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 #endif
             {
                 (void)__n_out;
-                __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+                __res_reachedOutPos = __total.__data[0].__result_buf_pos + __total.__data[0].__len;
             }
             else
             {
-                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
-                __res_reachedMaskPos = __total.__data[1].__pos + __total.__data[1].__len;
+                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__result_buf_pos + __total.__data[0].__len);
+                __res_reachedMaskPos = __total.__data[1].__result_buf_pos + __total.__data[1].__len;
             }
         };
 
