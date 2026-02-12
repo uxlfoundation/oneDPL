@@ -149,7 +149,7 @@ class __radix_sort_scan_kernel;
 template <::std::uint32_t, bool, typename... _Name>
 class __radix_sort_reorder_kernel;
 
-template <typename... _Name>
+template <::std::uint32_t, bool, typename... _Name>
 class __radix_sort_copy_back_kernel;
 
 // Helper for SLM indexing in count kernel. Layout stores radix states contiguously per work-item
@@ -157,6 +157,14 @@ class __radix_sort_copy_back_kernel;
 template <std::uint32_t __packing_ratio, std::uint32_t __radix_states>
 struct __index_views
 {
+    // Number of radix state groups for the accumulation/reduction phase.
+    // Must be >= __packing_ratio to ensure partial sums fit in the SLM layout.
+    static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
+    static constexpr std::uint32_t __num_groups =
+        (__packing_ratio > __counter_lanes) ? __packing_ratio : __counter_lanes;
+    // Number of radix states handled by each group
+    static constexpr std::uint32_t __radix_states_per_group = __radix_states / __num_groups;
+
     // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
     __get_bucket_idx(std::uint32_t __radix_id, std::uint32_t __wg_id)
@@ -172,10 +180,11 @@ struct __index_views
     }
 
     // Index for reduction phase: [radix_id][partial_sum_id]
+    // Stride per radix state = __wg_size / __num_groups
     std::uint32_t
     __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
     {
-        return __radix_id * (__workgroup_size / __packing_ratio) + __wg_id;
+        return __radix_id * (__workgroup_size / __num_groups) + __wg_id;
     }
 };
 
@@ -279,7 +288,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 std::uint8_t* __slm_buckets = reinterpret_cast<std::uint8_t*>(__slm_counts);
                 __index_views<__packing_ratio, __radix_states> __views;
 
-                _CountT __count_arr[__packing_ratio] = {0};
+                constexpr std::uint32_t __radix_states_per_group = decltype(__views)::__radix_states_per_group;
+                _CountT __count_arr[__radix_states_per_group] = {0};
                 const ::std::size_t __seg_end = sycl::min(__seg_start + __elem_per_segment, __n);
 
                 // reset SLM buckets
@@ -315,18 +325,22 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 __dpl_sycl::__group_barrier(__self_item);
 
-                const std::uint32_t __wis_per_radix_group = __wg_size / __counter_lanes;
+                // Accumulation and reduction phase.
+                // __num_groups work-item groups each handle __radix_states_per_group radix states.
+                // Each WI reads __num_groups columns (covering all __wg_size WI counters).
+                constexpr std::uint32_t __num_groups = decltype(__views)::__num_groups;
+                const std::uint32_t __wis_per_radix_group = __wg_size / __num_groups;
                 const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group;
-                const std::uint32_t __radix_base = __radix_group * __packing_ratio;
+                const std::uint32_t __radix_base = __radix_group * __radix_states_per_group;
                 const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group;
-                const std::uint32_t __col_base = __wi_in_group * __packing_ratio;
+                const std::uint32_t __col_base = __wi_in_group * __num_groups;
 
-                // Accumulate __packing_ratio radix states from __packing_ratio columns
+                // Accumulate __radix_states_per_group radix states from __num_groups columns
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __c = 0; __c < __packing_ratio; ++__c)
+                for (std::uint32_t __c = 0; __c < __num_groups; ++__c)
                 {
                     _ONEDPL_PRAGMA_UNROLL
-                    for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                    for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
                     {
                         __count_arr[__r] += static_cast<_CountT>(
                             __slm_buckets[__views.__get_bucket_idx(__radix_base + __r, __col_base + __c)]);
@@ -334,9 +348,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // All WIs write their __packing_ratio partial sums to SLM
+                // All WIs write their partial sums to SLM
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
                 {
                     __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] =
                         __count_arr[__r];
@@ -344,15 +358,14 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 __dpl_sycl::__group_barrier(__self_item);
 
                 // Tree reduction: reduce partial sums down to 1 per radix state
-                // Each WI is responsible for packing ratio radix states
-                std::uint32_t __num_partial_sums = __wg_size / __packing_ratio;
+                std::uint32_t __num_partial_sums = __wis_per_radix_group;
                 for (std::uint32_t __stride = __num_partial_sums >> 1; __stride > 0; __stride >>= 1)
                 {
                     // Each WI reduces its assigned radix states
                     if (__wi_in_group < __stride)
                     {
                         _ONEDPL_PRAGMA_UNROLL
-                        for (std::uint32_t __r = 0; __r < __packing_ratio; ++__r)
+                        for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
                         {
                             __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r, __wi_in_group)] +=
                                 __slm_counts[__views.__get_count_idx(__wg_size, __radix_base + __r,
@@ -651,7 +664,7 @@ struct __parallel_multi_group_radix_sort
     template <typename... _Name>
     using __reorder_phase = __radix_sort_reorder_kernel<__radix_bits, __is_ascending, _Name...>;
     template <typename... _Name>
-    using __copy_back_phase = __radix_sort_copy_back_kernel<_Name...>;
+    using __copy_back_phase = __radix_sort_copy_back_kernel<__radix_bits, __is_ascending, _Name...>;
 
     template <typename _InRange, typename _Proj>
     sycl::event
