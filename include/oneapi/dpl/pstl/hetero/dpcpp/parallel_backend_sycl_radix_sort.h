@@ -772,7 +772,7 @@ struct __parallel_multi_group_radix_sort
         }
 
         // If odd number of iterations, the result is in __out_rng; copy back to __in_rng
-        if (__radix_iters % 2 != 0)
+        if constexpr (__radix_iters % 2 != 0)
         {
             __dependency_event = __radix_sort_copy_back_submit<_RadixCopyBackKernel>(
                 __q, __in_rng, __out_rng, __dependency_event);
