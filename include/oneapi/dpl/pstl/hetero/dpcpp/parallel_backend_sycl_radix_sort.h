@@ -747,7 +747,7 @@ struct __parallel_multi_group_radix_sort
                 __hdl.depends_on(__dependency_event);
                 oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
                 __hdl.parallel_for<_RadixCopyBackKernel>(sycl::range<1>(__n), [=](sycl::item<1> __item) {
-                    __in_rng[__item] = std::move(__out_rng[__item]);
+                    __out_rng[__item] = std::move(__in_rng[__item]);
                 });
             });
         }
