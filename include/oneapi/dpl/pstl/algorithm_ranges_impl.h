@@ -956,12 +956,14 @@ struct __set_op_bounded_offsets_evaluator
     {
         assert(__n_out > 0);
 
+#if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR
         // Initial optimisation - if generated output fitted into output size - no actions required
         // - here we should check exactly less (not less or equal) because we are looking for the position where output size limit is reached
         if (__reachedOutPos < __n_out)
         {
             return {__n1, __n2};
         }
+#endif
 
         using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
         using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
