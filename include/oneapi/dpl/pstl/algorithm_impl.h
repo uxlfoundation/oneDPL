@@ -23,6 +23,8 @@
 #include <cassert>
 #include <cmath>
 #include <array>
+#include <chrono>
+#include <iostream>
 
 #include "algorithm_fwd.h"
 
@@ -3971,6 +3973,8 @@ struct __set_op_bounded_offsets_evaluator
     {
         assert(__n_out > 0);
 
+        std::chrono::steady_clock::time_point __start_time_0 = std::chrono::steady_clock::now();
+
 #if !ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR
         // Initial optimisation - if generated output fitted into output size - no actions required
         // - here we should check exactly less (not less or equal) because we are looking for the position where output size limit is reached
@@ -4015,8 +4019,13 @@ struct __set_op_bounded_offsets_evaluator
                                             /* _Inclusive */ std::true_type{});
         };
 
+        std::chrono::steady_clock::time_point __start_time_1 = std::chrono::steady_clock::now();
+
         // Calculate prefix summs of counts for output items to find the position where output size limit is reached
         __par_backend::__buffer<_DifferenceType> __prefix_summ_buf_out(__req_mask_size);
+
+        std::chrono::steady_clock::time_point __start_time_2 = std::chrono::steady_clock::now();
+
         const auto __processed_items_in_output = __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
 
         // Find the position where output size limit is reached
@@ -4028,14 +4037,20 @@ struct __set_op_bounded_offsets_evaluator
         const auto __prefix_summ_buf_out_reached_offset = __prefix_summ_buf_out_reached - __prefix_summ_buf_out_begin;
         const auto __buf_size_to_process = __prefix_summ_buf_out_reached_offset + 1;
 
+        std::chrono::steady_clock::time_point __start_time_3 = std::chrono::steady_clock::now();
+
         // Calculate prefix sums for the first and second input buffers to find reached positions in them.
         __par_backend::__buffer<_DifferenceType> __prefix_summ_buf1(__buf_size_to_process);
         __par_backend::__buffer<_DifferenceType> __prefix_summ_buf2(__buf_size_to_process);
+
+        std::chrono::steady_clock::time_point __start_time_4 = std::chrono::steady_clock::now();
 
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [&]() { __call_pts(__it_transform1, __buf_size_to_process, __prefix_summ_buf1.get()); },
             [&]() { __call_pts(__it_transform2, __buf_size_to_process, __prefix_summ_buf2.get()); });
+
+        std::chrono::steady_clock::time_point __start_time_5 = std::chrono::steady_clock::now();
 
         // We processed all output items: this means we processed all first and second input items
         if (__prefix_summ_buf_out_reached == __prefix_summ_buf_out_end)
@@ -4047,6 +4062,16 @@ struct __set_op_bounded_offsets_evaluator
         // Initially we assume that we processed all first data range
         const auto __n1_reached = __prefix_summ_buf1.get()[__prefix_summ_buf_out_reached_offset] - 1;
         const auto __n2_reached = __prefix_summ_buf2.get()[__prefix_summ_buf_out_reached_offset] - 1;
+
+        std::chrono::steady_clock::time_point __start_time_6 = std::chrono::steady_clock::now();
+
+        // Log time measurements for each phase of the algorithm
+        std::cout << "Phase 1 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_1 - __start_time_0).count() << " ms\n";
+        std::cout << "Phase 2 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_2 - __start_time_1).count() << " ms\n";
+        std::cout << "Phase 3 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_3 - __start_time_2).count() << " ms\n";
+        std::cout << "Phase 4 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_4 - __start_time_3).count() << " ms\n";
+        std::cout << "Phase 5 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_5 - __start_time_4).count() << " ms\n";
+        std::cout << "Phase 6 : " << std::chrono::duration_cast<std::chrono::milliseconds>(__start_time_6 - __start_time_5).count() << " ms\n";
 
         return {__n1_reached, __n2_reached};
     }
