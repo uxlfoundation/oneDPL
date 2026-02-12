@@ -797,7 +797,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     assert(__n > 1);
 
     // radix bits represent number of processed bits in each value during one iteration
-    constexpr ::std::uint32_t __radix_bits = 3;
+    constexpr ::std::uint32_t __radix_bits = 4;
 
     sycl::event __event;
 
