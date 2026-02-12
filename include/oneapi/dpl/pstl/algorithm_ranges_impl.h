@@ -929,11 +929,10 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
                              typename _Tag::__is_vector{});
 }
 
-template <class _IncludeToOutputPred, class _EvalReachedPosPred>
+template <class _IncludeToOutputPred>
 struct __set_op_bounded_offsets_evaluator
 {
     _IncludeToOutputPred __include_to_output_pred;
-    _EvalReachedPosPred __eval_reached_pos_pred;
 
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
               typename _DifferenceTypeOut, class _SizeFunction>
@@ -1028,16 +1027,9 @@ struct __set_op_bounded_offsets_evaluator
                     __prefix_summ_buf2.get()[__buf_size_to_process - 1]};
         }
 
-        const auto __prefix_summ_bufs_begin = std::make_tuple(__prefix_summ_buf1.get(), __prefix_summ_buf2.get());
-        const auto __prefix_summ_bufs_end   = std::make_tuple(__prefix_summ_buf1.get() + __buf_size_to_process,
-                                                              __prefix_summ_buf2.get() + __buf_size_to_process);
-
-        const auto __prefix_summ_bufs_reached = std::make_tuple(__prefix_summ_buf1.get() + __prefix_summ_buf_out_reached_offset,
-                                                                __prefix_summ_buf2.get() + __prefix_summ_buf_out_reached_offset);
-
         // Initially we assume that we processed all first data range
-        const auto [__n1_reached, __n2_reached] = __eval_reached_pos_pred(
-            __n1, __n2, __prefix_summ_bufs_begin, __prefix_summ_bufs_end, __prefix_summ_bufs_reached);
+        const auto __n1_reached = __prefix_summ_buf1.get()[__prefix_summ_buf_out_reached_offset] - 1;
+        const auto __n2_reached = __prefix_summ_buf2.get()[__prefix_summ_buf_out_reached_offset] - 1;
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "found at offset " << (it_prefix_summ_buf - it_prefix_summ_buf_b) << " : " << *it_prefix_summ_buf << "\n";
@@ -1338,24 +1330,6 @@ struct __set_intersection_offsets
         }
     };
 
-    struct _EvalReachedPosPred
-    {
-        template <typename _DifferenceType1, typename _DifferenceType2,
-                  typename _TupleOfPrefixSummIterators>
-        std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
-                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
-                   _TupleOfPrefixSummIterators&& __it_current) const
-        {
-            // TODO required to check correctness of the reached position evaluation:
-            // - not xxx_lim mode in range tests works not correct at least for set_intersection
-            if (__it_current == __it_ends)
-                return {__n1, __n2};
-
-            return {*(std::get<0>(__it_current)), *(std::get<1>(__it_current))};
-        }
-    };
-
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
               typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
@@ -1364,7 +1338,7 @@ struct __set_intersection_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
             __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
             __mask_begin, __mask_end);
     }
@@ -1663,22 +1637,6 @@ struct __set_difference_offsets
         }
     };
 
-    struct _EvalReachedPosPred
-    {
-        template <typename _DifferenceType1, typename _DifferenceType2,
-                  typename _TupleOfPrefixSummIterators>
-        std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
-                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
-                   _TupleOfPrefixSummIterators&& __it_current) const
-        {
-            if (__it_current == __it_ends)
-                return {__n1, __n2};
-
-            return {*(std::get<0>(__it_current)) - 1, *(std::get<1>(__it_current)) - 1};
-        }
-    };
-
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
               typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
@@ -1687,7 +1645,7 @@ struct __set_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
             __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
             __mask_begin, __mask_end);
     }
@@ -1993,27 +1951,6 @@ struct __set_symmetric_difference_offsets
         }
     };
 
-    struct _EvalReachedPosPred
-    {
-        template <typename _DifferenceType1, typename _DifferenceType2,
-                  typename _TupleOfPrefixSummIterators>
-        std::tuple<_DifferenceType1, _DifferenceType2>
-        operator()(_DifferenceType1 __n1, _DifferenceType2 __n2,
-                   _TupleOfPrefixSummIterators&& __it_begins, _TupleOfPrefixSummIterators&& __it_ends,
-                   _TupleOfPrefixSummIterators&& __it_current) const
-        {
-            // TODO required to check correctness of the reached position evaluation:
-            // - not xxx_lim mode in range tests works not correct at least for set_intersection
-            if (__it_current == __it_ends)
-                return {__n1, __n2};
-
-            assert(__it_begins != __it_ends);
-            assert(__it_current != __it_begins);
-
-            return {*(--std::get<0>(__it_current)), *(--std::get<1>(__it_current))};
-        }
-    };
-
     template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
               typename _DifferenceTypeOut, class _SizeFunction>
     std::pair<_DifferenceType1, _DifferenceType2>
@@ -2022,7 +1959,7 @@ struct __set_symmetric_difference_offsets
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
                oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
     {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred, _EvalReachedPosPred>{}(
+        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
             __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
             __mask_begin, __mask_end);
     }
