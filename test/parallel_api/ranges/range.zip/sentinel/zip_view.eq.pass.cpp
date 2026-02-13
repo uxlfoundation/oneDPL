@@ -31,7 +31,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 using Iterator = random_access_iterator<int*>;
 using ConstIterator = random_access_iterator<const int*>;

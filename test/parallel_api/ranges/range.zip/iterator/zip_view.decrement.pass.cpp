@@ -30,7 +30,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 template <class Iter>
 concept canDecrement = requires(Iter it) { --it; } || requires(Iter it) { it--; };

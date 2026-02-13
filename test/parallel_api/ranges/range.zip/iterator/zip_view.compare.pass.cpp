@@ -39,7 +39,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 // This is for testing that zip iterator never calls underlying iterator's >, >=, <=, !=.
 // The spec indicates that zip iterator's >= is negating zip iterator's < instead of calling underlying iterator's >=.

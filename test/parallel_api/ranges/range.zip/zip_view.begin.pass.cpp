@@ -31,7 +31,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 template <class T>
 concept HasConstBegin = requires(const T& ct) { ct.begin(); };

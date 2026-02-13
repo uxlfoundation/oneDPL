@@ -27,7 +27,7 @@
 #include <oneapi/dpl/ranges>
 #include <ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 struct Container {
   int* begin() const;

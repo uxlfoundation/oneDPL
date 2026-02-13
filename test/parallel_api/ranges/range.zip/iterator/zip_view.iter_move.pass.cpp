@@ -30,7 +30,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 template <typename... Types>
 using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
