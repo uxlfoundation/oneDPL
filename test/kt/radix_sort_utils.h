@@ -31,13 +31,60 @@
 #    define LOG_TEST_INFO 0
 #endif
 
+// Check if SYCL radix sort KT is available (matches criteria from radix_sort_utils.h in include/)
+#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
+    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
+#    define TEST_SYCL_RADIX_SORT_KT_AVAILABLE 1
+#endif
+
+// Namespace aliases for kernel template APIs
+#ifdef TEST_KT_BACKEND_ESIMD
+namespace kt_ns = oneapi::dpl::experimental::kt::gpu::esimd;
+namespace kt_deprecated_ns = oneapi::dpl::experimental::kt::esimd;
+#elif defined(TEST_KT_BACKEND_SYCL)
+namespace kt_ns = oneapi::dpl::experimental::kt::gpu;
+#endif
+
+// Helper to calculate SLM usage based on backend
 template <typename KernelParam, typename KeyT, typename ValueT = void>
-bool can_run_test(sycl::queue q, KernelParam param)
+std::size_t
+calculate_slm_size(KernelParam param)
 {
-    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
+#ifdef TEST_KT_BACKEND_ESIMD
     std::size_t slm_alloc_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
     if constexpr (!std::is_void_v<ValueT>)
         slm_alloc_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+    return slm_alloc_size;
+#else // defined(TEST_KT_BACKEND_SYCL)
+    using LocOffsetT = std::uint16_t;
+    using GlobOffsetT = std::uint32_t;
+
+    constexpr std::uint32_t radix_bits = 8;
+    constexpr std::uint32_t bin_count = 1 << radix_bits;
+    constexpr std::uint32_t sub_group_size = 32;
+
+    const std::uint32_t num_sub_groups = param.workgroup_size / sub_group_size;
+    const std::uint32_t work_item_all_hists_size = num_sub_groups * bin_count * sizeof(LocOffsetT);
+    const std::uint32_t group_hist_size = bin_count * sizeof(LocOffsetT);
+    const std::uint32_t global_hist_size = bin_count * sizeof(GlobOffsetT);
+
+    std::uint32_t reorder_size = sizeof(KeyT) * param.data_per_workitem * param.workgroup_size;
+    if constexpr (!std::is_void_v<ValueT>)
+        reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
+
+    const std::uint32_t slm_size =
+        std::max(work_item_all_hists_size, reorder_size) + group_hist_size + 2 * global_hist_size;
+
+    return slm_size;
+#endif
+}
+
+template <typename KernelParam, typename KeyT, typename ValueT = void>
+bool
+can_run_test(sycl::queue q, KernelParam param)
+{
+    const auto max_slm_size = q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    std::size_t slm_alloc_size = calculate_slm_size<KernelParam, KeyT, ValueT>(param);
 
     // skip tests with error: LLVM ERROR: SLM size exceeds target limits
     // TODO: get rid of that check: it is useless for AOT case. Proper configuration must be provided at compile time.
@@ -60,21 +107,23 @@ struct Compare<T, false> : public std::greater<T>
 {
 };
 
-template<bool Order>
+template <bool Order>
 struct CompareKey
 {
-    template<typename T, typename U>
-    bool operator()(const T& lhs, const U& rhs) const
+    template <typename T, typename U>
+    bool
+    operator()(const T& lhs, const U& rhs) const
     {
         return std::get<0>(lhs) < std::get<0>(rhs);
     }
 };
 
-template<>
+template <>
 struct CompareKey<false>
 {
-    template<typename T, typename U>
-    bool operator()(const T& lhs, const U& rhs) const
+    template <typename T, typename U>
+    bool
+    operator()(const T& lhs, const U& rhs) const
     {
         return std::get<0>(lhs) > std::get<0>(rhs);
     }
