@@ -3351,12 +3351,11 @@ struct _SetRangeImpl
             return __len == 0;
         }
 
-        _Data
-        combine_with(const _Data& __other) const
+        static _Data combine_with(const _Data& __a, const _Data& __b)
         {
-            if (__other.__windowed_buf_pos > __windowed_buf_pos || ((__other.__windowed_buf_pos == __windowed_buf_pos) && !__other.empty()))
-                return _Data{__result_buf_pos + __len + __other.__result_buf_pos, __other.__len, __other.__windowed_buf_pos};
-            return _Data{__other.__result_buf_pos + __other.__len + __result_buf_pos, __len, __windowed_buf_pos};
+            if (__b.__windowed_buf_pos > __a.__windowed_buf_pos || ((__b.__windowed_buf_pos == __a.__windowed_buf_pos) && !__b.empty()))
+                return _Data{__a.__result_buf_pos + __a.__len + __b.__result_buf_pos, __b.__len, __b.__windowed_buf_pos};
+            return _Data{__b.__result_buf_pos + __b.__len + __a.__result_buf_pos, __a.__len, __a.__windowed_buf_pos};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3424,9 +3423,9 @@ struct _SetRangeCombiner
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{__a.__data[0].combine_with(__b.__data[0])} << ")" << "\n";
+                      << "\t\t -> (" << _SetRange{_SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[0], __b.__data[0])} << ")" << "\n";
 #endif
-            return {__a.__data[0].combine_with(__b.__data[0])};
+            return {_SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[0], __b.__data[0])};
         }
         else
         {
@@ -3435,10 +3434,12 @@ struct _SetRangeCombiner
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
                       << "\t\t -> ("
-                      << _SetRange{__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])}
+                      << _SetRange{_SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[0], __b.__data[0]),
+                                   _SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[1], __b.__data[1])}
                       << ")" << "\n";
 #endif
-            return {__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])};
+            return {_SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[0], __b.__data[0]),
+                    _SetRangeImpl<__Bounded, _DifferenceType>::_Data::combine_with(__a.__data[1], __b.__data[1])};
         }
     }
 };
