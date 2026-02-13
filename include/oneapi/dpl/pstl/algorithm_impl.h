@@ -3341,9 +3341,9 @@ struct _SetRangeImpl
 {
     struct _Data
     {
-        _DifferenceType __pos{};           // Offset in output range w/o limitation to output data size
-        _DifferenceType __len{};           // Length in temporary buffer w/o limitation to output data size
-        _DifferenceType __buf_pos{};       // Position in temporary buffer w/o limitation to output data size
+        _DifferenceType __result_buf_pos{};   // Offset in output range w/o limitation to output data size
+        _DifferenceType __len{};              // The length of data pack: the same for windowed and result buffers
+        _DifferenceType __windowed_buf_pos{}; // Offset in temporary buffer w/o limitation to output data size
 
         bool
         empty() const
@@ -3354,11 +3354,9 @@ struct _SetRangeImpl
         _Data
         combine_with(const _Data& __other) const
         {
-            const auto __other_buf_pos = __other.__buf_pos;
-
-            if (__other_buf_pos > __buf_pos || ((__other_buf_pos == __buf_pos) && !__other.empty()))
-                return _Data{__pos + __len + __other.__pos, __other.__len, __other_buf_pos};
-            return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
+            if (__other.__windowed_buf_pos > __windowed_buf_pos || ((__other.__windowed_buf_pos == __windowed_buf_pos) && !__other.empty()))
+                return _Data{__result_buf_pos + __len + __other.__result_buf_pos, __other.__len, __other.__windowed_buf_pos};
+            return _Data{__other.__result_buf_pos + __other.__len + __result_buf_pos, __len, __windowed_buf_pos};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3366,9 +3364,9 @@ struct _SetRangeImpl
         friend OStream&
         operator<<(OStream& os, const _Data& data)
         {
-            os << "__pos = " << data.__pos << ", "
-               << "__len = " << data.__len << ", "
-               << "__buf_pos = " << data.__buf_pos;
+            os << "__windowed_buf_pos = " << data.__windowed_buf_pos << ", "
+               << "__len = "              << data.__len              << ", "
+               << "__result_buf_pos = "   << data.__result_buf_pos;
             return os;
         }
 #endif
@@ -3377,13 +3375,13 @@ struct _SetRangeImpl
     //                                       [.........................)
     // Temporary windowed buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
     //                                       ^                         ^
-    //                                       +<-(buf_pos)              +<-(buf_pos + __len)
+    //                                       +<-(__windowed_buf_pos)   +<-(__windowed_buf_pos + __len)
     //                                       |                         |
-    //                                        \                         \
-    //                                         \                         \
-    //                                          |<-(__pos)                |<-(__pos + __len)
+    //                                       +--+                      +--+
+    //                                          |                         |
+    //                                          |<-(__result_buf_pos)     |<-(__result_buf_pos + __len)
     //                                          V                         V
-    // Temporary result buffer:    OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+    // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
     static constexpr std::size_t __data_size = __Bounded ? 2 : 1;
 
@@ -3911,12 +3909,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
             if constexpr (!__Bounded)
             {
-                __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+                __res_reachedOutPos = __total.__data[0].__result_buf_pos + __total.__data[0].__len;
             }
             else
             {
-                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
-                __res_reachedMaskPos = __total.__data[1].__pos + __total.__data[1].__len;
+                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__result_buf_pos + __total.__data[0].__len);
+                __res_reachedMaskPos = __total.__data[1].__result_buf_pos + __total.__data[1].__len;
             }
 
 #if DUMP_PARALLEL_SET_OP_WORK
