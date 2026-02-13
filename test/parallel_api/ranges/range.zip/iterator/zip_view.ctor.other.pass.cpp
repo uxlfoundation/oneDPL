@@ -31,7 +31,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 using ConstIterIncompatibleView = BasicView<forward_iterator<int*>, forward_iterator<int*>,
                                             random_access_iterator<const int*>, random_access_iterator<const int*>>;

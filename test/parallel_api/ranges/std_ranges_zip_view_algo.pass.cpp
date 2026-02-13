@@ -26,31 +26,32 @@ main()
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
+	namespace dpl_ranges_exp = oneapi::dpl::experimental::ranges;
 
     const int n = medium_size;
 
     auto zip_proj = [](auto&& val) ->decltype(auto) { return std::get<0>(val); };
 
     //find_if with zip_view
-    test_range_algo<0>{n}.test_view_host(dpl_ranges::views::zip, dpl_ranges::find_if, std::ranges::find_if, pred, zip_proj);
+    test_range_algo<0>{n}.test_view_host(dpl_ranges_exp::views::zip, dpl_ranges::find_if, std::ranges::find_if, pred, zip_proj);
 
     //sort with zip_view
-    test_range_algo<1>{n}.test_view_host(dpl_ranges::views::zip, dpl_ranges::sort, std::ranges::sort, std::less{}, zip_proj);
+    test_range_algo<1>{n}.test_view_host(dpl_ranges_exp::views::zip, dpl_ranges::sort, std::ranges::sort, std::less{}, zip_proj);
 
     //count_if with zip_view
-    test_range_algo<2>{n}.test_view_host(dpl_ranges::views::zip, dpl_ranges::count_if, std::ranges::count_if, pred, zip_proj);
+    test_range_algo<2>{n}.test_view_host(dpl_ranges_exp::views::zip, dpl_ranges::count_if, std::ranges::count_if, pred, zip_proj);
 
 #if TEST_DPCPP_BACKEND_PRESENT
     auto exec = TestUtils::get_dpcpp_test_policy();
 
     //find_if with zip_view
-    test_range_algo<0>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::find_if, std::ranges::find_if, pred, zip_proj);
+    test_range_algo<0>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges_exp::views::zip, dpl_ranges::find_if, std::ranges::find_if, pred, zip_proj);
 
     //sort with zip_view
-    test_range_algo<1>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::sort, std::ranges::sort, std::less{}, zip_proj);
+    test_range_algo<1>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges_exp::views::zip, dpl_ranges::sort, std::ranges::sort, std::less{}, zip_proj);
 
     //count_if with zip_view
-    test_range_algo<2>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges::views::zip, dpl_ranges::count_if, std::ranges::count_if, pred, zip_proj);
+    test_range_algo<2>{n}.test_view_hetero(CLONE_TEST_POLICY(exec), dpl_ranges_exp::views::zip, dpl_ranges::count_if, std::ranges::count_if, pred, zip_proj);
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 

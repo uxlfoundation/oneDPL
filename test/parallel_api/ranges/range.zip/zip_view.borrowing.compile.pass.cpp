@@ -25,7 +25,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 struct Borrowed : std::ranges::view_base {
   int* begin() const;
