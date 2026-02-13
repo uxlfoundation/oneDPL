@@ -3535,15 +3535,16 @@ struct __mask_buffers<false>
     }
 };
 
-template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator>
 struct _ScanPred
 {
-    RawDataPtr __buf_raw_data_begin;
-    RawDataPtr __buf_raw_data_end;
-    MaskDataPtr __buf_mask_rng_raw_data_begin;
-    MaskDataPtr __buf_mask_rng_res_raw_data_begin;
-    _OutputIterator __result1;
-    _OutputIterator __result2;
+    __parallel_tag<_IsVector> __tag;
+    ProcessingDataPointer     __windowed_processed_data_buf_begin;
+    ProcessingDataPointer     __windowed_processed_data_buf_end;
+    MaskDataPointer           __windowed_mask_data_buf_begin;
+    MaskDataPointer           __result_mask_data_buf_begin;
+    _OutputIterator           __result1;
+    _OutputIterator           __result2;
 
     template <typename _DifferenceType1, typename _SetRange>
     void
@@ -3556,7 +3557,9 @@ struct _ScanPred
                       << "\t__brick_move_destroy - data";
 #endif
             // Processed data
-            __move_data_no_bounds(__s.__data[0], __buf_raw_data_begin, __result1);
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_begin + __s.__data[0].__windowed_buf_pos,
+                                                    __windowed_processed_data_buf_begin + __s.__data[0].__windowed_buf_pos + __s.__data[0].__len,
+                                                    __result1 + __s.__data[0].__result_buf_pos, _IsVector{});
         }
         else
         {
@@ -3564,84 +3567,32 @@ struct _ScanPred
             std::cout << "ST.4:\n"
                       << "\t__brick_move_destroy - data";
 #endif
-            // Processed data
-            __move_processed_data_bounded(__s.__data[0]);
+            // Copy source data (bounded)
+            {
+                // Evalueate output range boundaries for current data chunk
+                const auto __result_from = __advance_clamped(__result1, __s.__data[0].__result_buf_pos,                       __result2);
+                const auto __result_to   = __advance_clamped(__result1, __s.__data[0].__result_buf_pos + __s.__data[0].__len, __result2);
+                const auto __result_remaining = __result_to - __result_from;
+
+                // Evaluate pointers to current data chunk in temporary buffer
+                const auto __windowed_processed_data_buf_from = __advance_clamped(__windowed_processed_data_buf_begin, __s.__data[0].__windowed_buf_pos,                                                     __windowed_processed_data_buf_end);
+                const auto __windowed_processed_data_buf_to   = __advance_clamped(__windowed_processed_data_buf_begin, __s.__data[0].__windowed_buf_pos + std::min(__result_remaining, __s.__data[0].__len), __windowed_processed_data_buf_end);
+                // Copy results data into results range to have final output
+                __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_from, __windowed_processed_data_buf_to, __result_from, _IsVector{});
+            }
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.4:\n"
                       << "\t__brick_move_destroy - mask";
 #endif
-            // Process mask
-            __move_data_no_bounds(__s.__data[1], __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin);
+            // Copy mask
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_mask_data_buf_begin + __s.__data[1].__windowed_buf_pos,
+                                                    __windowed_mask_data_buf_begin + __s.__data[1].__windowed_buf_pos + __s.__data[1].__len,
+                                                    __result_mask_data_buf_begin + __s.__data[1].__result_buf_pos, _IsVector{});
         }
     }
 
   protected:
-
-    template <typename ItFrom, typename ItTo>
-    void
-    __move_data_no_bounds(auto __s_data, ItFrom __from, ItTo __to) const
-    {
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__from + __s_data.__buf_pos,
-                                                          __from + __s_data.__buf_pos + __s_data.__len,
-                                                          __to + __s_data.__pos, _IsVector{});
-    }
-
-    void
-    __move_processed_data_bounded(auto __s_data) const
-    {
-        // Work schema of copying data from temporary buffer to output range:
-        //
-        //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
-        //                                              |
-        //                                              |                                          +<-(__buf_raw_data_begin + __s.__buf_pos + __s.__len)
-        //                                              | <--- what to copy w/o output limits ---->|
-        //                                              V                                          V
-        // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-        //                                              |                             |            |
-        //                                              |<----- __out_remaining ----->|            |
-        //                                              |                             |            |
-        //                                               \                             \            \
-        //                                                \ We shoult `move/destroy`    \            \
-        //                                                 \  this data from temporary   \            \
-        //                                                  \   buffer to output range    \            \
-        //                                                   \     (__s.__len)             \            \
-        //                                                    |                             |            |
-        //                                                    V                             V            V
-        // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
-        //                      ^                             ^                             ^            ^
-        //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
-        //                      |                (__output_write_pos_begin)                 |            |
-        //                      |                                                           \____________/
-        //                      |                                                           |      ^
-        //                      |                                                           |      this data no longer fit into output range
-        //                      |                                                           |
-        //                      |                                                           |<-(__output_write_pos_end)
-        //                      |                                                           |
-        // Output range bounds: +<-(__result1)                                              +<-(__result2)
-
-        // Evalueate output range boundaries for current data chunk
-        const auto __result_from = __advance_clamped(__result1, __s_data.__pos, __result2);
-        const auto __result_to = __advance_clamped(__result1, __s_data.__pos + __s_data.__len, __result2);
-        const auto __result_remaining = __result_to - __result_from;
-
-        // Evaluate pointers to current data chunk in temporary buffer
-        const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos, __buf_raw_data_end);
-        const auto __buf_raw_data_to = __advance_clamped(__buf_raw_data_begin, __s_data.__buf_pos + std::min(__result_remaining, __s_data.__len), __buf_raw_data_end);
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        const auto __items = __buf_raw_data_to - __buf_raw_data_from;
-        std::cout << "("
-                    << "srcFrom = " << __buf_raw_data_from - __buf_raw_data_begin << ", "
-                    << "srcTo = " << __buf_raw_data_to - __buf_raw_data_begin << ", "
-                    << "dstTo = " << __result_from - __result1 << ") : writes " << __items << " data items : ";
-        dump_buffer(std::cout, __buf_raw_data_from, __buf_raw_data_to);
-        std::cout << "\n";
-#endif
-
-        // Copy results data into results range to have final output
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from, _IsVector{});
-    }
 
     // Move it1 forward by n, but not beyond it2
     template <typename _RandomAccessIterator,
@@ -3886,7 +3837,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, decltype(__buf_raw_data_begin), decltype(__buf_mask_rng_raw_data_begin),
                   _OutputIterator>
-            __scan_pred{__buf_raw_data_begin, __buf_raw_data_end,
+            __scan_pred{__tag,
+                        __buf_raw_data_begin, __buf_raw_data_end,
                         __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin,
                         __result1, __result2};
 
