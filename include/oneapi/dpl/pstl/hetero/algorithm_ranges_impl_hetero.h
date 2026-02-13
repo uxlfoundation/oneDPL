@@ -851,23 +851,11 @@ __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
-#if 0
-    auto __idx = oneapi::dpl::__internal::__ranges::__pattern_unique_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
-        oneapi::dpl::__ranges::views::all_write(__out_r), __pred_2);
-
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + oneapi::dpl::__ranges::__size(__r);
-    auto __beg_out = std::ranges::begin(__out_r);
-
-    return {__end, __beg_out + __idx};
-#else
     std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
         oneapi::dpl::__ranges::views::all_write(__out_r), __n, __n_out, __pred_2);
 
     return {std::ranges::begin(__r) + __stops[1], std::ranges::begin(__out_r) + __stops[0]};
-#endif
 }
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
