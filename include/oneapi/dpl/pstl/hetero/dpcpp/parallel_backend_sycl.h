@@ -511,8 +511,9 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
     template <typename _InRng, typename _OutRng, typename _Size, typename _UnaryOp, typename _Assign>
     std::array<_Size, 2>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _Size __n_out, _UnaryOp __unary_op,
-               _Assign __assign, std::uint16_t __max_wg_size)
+               _Assign __assign, std::size_t __max_wg_size)
     {
+        assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
         // This type is used as a workaround for when an internal tuple is assigned to std::tuple, such as
         // with zip_iterator
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
@@ -923,8 +924,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::uint16_t __max_elem_per_item = 2;
-    std::uint16_t __max_wg_size =
-        static_cast<std::uint16_t>(oneapi::dpl::__internal::__max_work_group_size(__q_local, 8192));
+    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
