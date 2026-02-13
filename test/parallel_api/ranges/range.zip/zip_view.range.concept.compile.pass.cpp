@@ -32,7 +32,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 void testConceptPair() {
   int buffer1[2] = {1, 2};

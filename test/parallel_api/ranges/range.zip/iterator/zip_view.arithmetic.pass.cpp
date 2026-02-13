@@ -40,7 +40,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 template <class T, class U>
 concept canPlusEqual = requires(T& t, U& u) { t += u; };

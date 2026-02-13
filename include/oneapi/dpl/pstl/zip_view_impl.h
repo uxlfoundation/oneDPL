@@ -20,7 +20,6 @@
 
 #    include <ranges>
 #    include <type_traits>
-#	 include <cstdlib>
 
 #    include "tuple_impl.h"
 #    include "iterator_impl.h"
@@ -106,8 +105,6 @@ __apply_to_tuples(_F __f, _Tuple1& __t1, _Tuple2& __t2)
     __apply_to_tuples_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
 }
 
-} //namespace __internal
-
 template <std::ranges::input_range... _Views>
     requires((std::ranges::view<_Views> && ...) && (sizeof...(_Views) > 0))
 class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
@@ -158,6 +155,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 
       private:
         constexpr explicit iterator(__iterators_type __current) : __current(std::move(__current)) {}
+
+        template <class _Tp>
+        static constexpr _Tp __abs(_Tp __t)
+        {
+            return __t < 0 ? -__t : __t;
+        }
 
       public:
         template <typename... Iterators>
@@ -290,7 +293,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __calc_val = [&]<std::size_t... In>(std::index_sequence<In...>) {
                 return std::ranges::min({difference_type(std::get<In>(__x.__current) - std::get<In>(__y.__current))...},
-                                        std::less{}, [](auto __a) { return std::abs(__a); });
+                                        std::less{}, [](auto __a) { return __abs(__a); });
             };
 
             return __calc_val(std::make_index_sequence<sizeof...(_Views)>());
@@ -305,7 +308,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
                 return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
-                                        std::less{}, [](auto __a) { return std::abs(__a); });
+                                        std::less{}, [](auto __a) { return __abs(__a); });
             };
 
             return calc_val(std::make_index_sequence<sizeof...(_Views)>());
@@ -413,7 +416,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-		template <bool _OtherConst>
+        template <bool _OtherConst>
 		friend decltype(auto) __get_current(const sentinel<_OtherConst>&);
 
         __tuple_type<std::ranges::sentinel_t<__internal::__maybe_const<_Const, _Views>>...> __end;
@@ -520,17 +523,15 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 template <typename... Rs>
 zip_view(Rs&&...) -> zip_view<std::views::all_t<Rs>...>;
 
-namespace __internal
-{
 struct zip_fn
 {
     template <class... _Ranges>
     constexpr auto
     operator()(_Ranges&&... __rs) const noexcept(
-        noexcept(oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
-        -> decltype(oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...))
+        noexcept(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
+        -> decltype(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...))
     {
-        return oneapi::dpl::ranges::zip_view<std::views::all_t<_Ranges>...>(std::forward<_Ranges>(__rs)...);
+        return oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges>...>(std::forward<_Ranges>(__rs)...);
     }
 
     constexpr auto
@@ -539,25 +540,18 @@ struct zip_fn
         return std::ranges::empty_view<oneapi::dpl::__internal::tuple<>>{};
     }
 };
+
+inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
+
 } // namespace __internal
 
-namespace views
-{
-inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
-} //namespace views
-
 } // namespace ranges
-
-namespace views
-{
-using ranges::views::zip;
-} //namespace views
 
 } // namespace dpl
 } // namespace oneapi
 
 template <class... _Ranges>
-inline constexpr bool std::ranges::enable_borrowed_range<oneapi::dpl::ranges::zip_view<_Ranges...>> =
+inline constexpr bool std::ranges::enable_borrowed_range<oneapi::dpl::ranges::__internal::zip_view<_Ranges...>> =
     (std::ranges::enable_borrowed_range<_Ranges> && ...);
 
 #endif //_ONEDPL_CPP20_RANGES_PRESENT

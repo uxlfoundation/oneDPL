@@ -31,7 +31,7 @@
 
 #include <oneapi/dpl/ranges>
 
-namespace dpl_ranges = oneapi::dpl::ranges;
+namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 struct InputRange : IntBufferView {
   using IntBufferView::IntBufferView;

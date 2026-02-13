@@ -27,12 +27,13 @@
 void test_zip_view_base_op()
 {
     namespace dpl_ranges = oneapi::dpl::ranges;
+	namespace dpl_ranges_exp = oneapi::dpl::experimental::ranges;
 
     constexpr int max_n = 100;
     std::vector<int> vec1(max_n);
     std::vector<int> vec2(max_n/2);
 
-    auto zip_view = dpl_ranges::views::zip(vec1, vec2);
+    auto zip_view = dpl_ranges_exp::views::zip(vec1, vec2);
 
     static_assert(std::is_trivially_copyable_v<decltype(zip_view)>);
 
@@ -52,7 +53,7 @@ void test_zip_view_base_op()
     EXPECT_TRUE(zip_view[zip_view.size() - 1] == zip_view.back(), "zip_view::back method returns a wrong result.");
     EXPECT_TRUE(!zip_view.empty(), "zip_view::empty() method returns a wrong result.");
 
-    using zip_view_t = dpl_ranges::zip_view<std::ranges::iota_view<int>>;
+    using zip_view_t = dpl_ranges_exp::zip_view<std::ranges::iota_view<int>>;
     static_assert(std::is_trivially_copyable_v<zip_view_t>);
 
     auto zip_view_0 = zip_view_t();
@@ -68,6 +69,7 @@ main()
     test_zip_view_base_op();
 
     namespace dpl_ranges = oneapi::dpl::ranges;
+	namespace dpl_ranges_exp = oneapi::dpl::experimental::ranges;
 
 // Suppress warnings about array bounds in GCC, due to static analysis limitations;
 // A false positive in case of std::sort call:
@@ -83,7 +85,7 @@ main()
     constexpr int max_n = 10;
     int data[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    auto zip_view = dpl_ranges::views::zip(data, std::views::iota(0, max_n)) | std::views::take(5);
+    auto zip_view = dpl_ranges_exp::views::zip(data, std::views::iota(0, max_n)) | std::views::take(5);
     assert(zip_view.size() == 5);
     assert(zip_view.begin() + 5 == zip_view.end());
     std::ranges::for_each(zip_view, test_std_ranges::f_mutuable, [](auto&& val) ->decltype(auto) { return std::get<0>(val); });
@@ -95,7 +97,7 @@ main()
 
     {
     int data2[max_n] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto zip_view_sort = dpl_ranges::views::zip(data2, data2);
+    auto zip_view_sort = dpl_ranges_exp::views::zip(data2, data2);
 
     [[maybe_unused]] oneapi::dpl::zip_iterator<int*, int*> zip_it = zip_view_sort.begin(); //check conversion to oneapi::dpl::zip_iterator
 
