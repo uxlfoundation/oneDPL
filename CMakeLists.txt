@@ -27,6 +27,7 @@ include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
+option(ONEDPL_CMAKE_QUIET_CHECKS "Silence output from compiler/header checks during configuration" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/internal/version_impl.h
@@ -83,11 +84,28 @@ endforeach()
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
+include(CMakePushCheckState)
 include(GNUInstallDirs)
+
+# Macro to conditionally silence compiler/header checks based on ONEDPL_CMAKE_QUIET_CHECKS
+macro(_onedpl_push_quiet_checks)
+    if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_push_check_state()
+        set(CMAKE_REQUIRED_QUIET TRUE)
+    endif()
+endmacro()
+
+macro(_onedpl_pop_quiet_checks)
+    if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_pop_check_state()
+    endif()
+endmacro()
 
 # Detect SYCL support
 if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
     message(STATUS "Checking for SYCL support")
+
+    _onedpl_push_quiet_checks()
 
     set(FSYCL_OPTION "-fsycl")
     check_cxx_compiler_flag(${FSYCL_OPTION} _fsycl_option)
@@ -102,6 +120,8 @@ if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
     if (SYCL_HEADER OR SYCL_HEADER_OLD)
         set(SYCL_SUPPORT TRUE)
     endif()
+
+    _onedpl_pop_quiet_checks()
 
     if (SYCL_SUPPORT)
         message(STATUS "SYCL is supported")
@@ -153,6 +173,7 @@ if (ONEDPL_ENABLE_SIMD)
     # TODO: check if -openmp:experimental can be used
     if ((NOT INTEL_LLVM_COMPILER AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
+        _onedpl_push_quiet_checks()
         foreach(_simd_flag -fopenmp-simd /Qopenmp-simd -qopenmp-simd -openmp-simd)
             string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_DISPLAY_NAME)
             check_cxx_compiler_flag(${_simd_flag} ${FLAG_DISPLAY_NAME}_option)
@@ -162,6 +183,7 @@ if (ONEDPL_ENABLE_SIMD)
                 break()
             endif()
         endforeach()
+        _onedpl_pop_quiet_checks()
     endif()
 
     if (_simd_enabled_flag)
@@ -313,7 +335,9 @@ if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
         message(FATAL_ERROR "Unknown value of _ONEDPL_PSTL_OFFLOAD = ${_ONEDPL_PSTL_OFFLOAD}")
     endif()
 
+    _onedpl_push_quiet_checks()
     check_cxx_compiler_flag("${FSYCL_PSTL_OFFLOAD_OPTION}" _fsycl_pstl_offload_option)
+    _onedpl_pop_quiet_checks()
     if (_fsycl_pstl_offload_option)
         message(STATUS "Adding ${FSYCL_PSTL_OFFLOAD_OPTION} compiler option")
         target_compile_options(oneDPL INTERFACE ${FSYCL_PSTL_OFFLOAD_OPTION})
