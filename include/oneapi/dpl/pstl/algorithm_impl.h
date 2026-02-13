@@ -4279,7 +4279,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
-                        /*CopyFromFirstSet = */ std::true_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
                 __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
@@ -4313,12 +4312,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2,                                                      // bounds for data1
-                        __first1, __last1,                                                      // bounds for data2
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
                         __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
-                        /*CopyFromFirstSet = */ std::false_type{},
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
                 __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator

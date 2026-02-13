@@ -1380,7 +1380,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
-                        /*CopyFromFirstSet = */ std::true_type{},
                         __comp, __proj1, __proj2);
                 },
                 __set_intersection_offsets{},                                                   // _ReachedPositionsEvaluator __reached_positions_evaluator
@@ -1414,13 +1413,12 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
                 {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2,                                                      // bounds for data1
-                        __first1, __last1,                                                      // bounds for data2
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
                         __result,                                                               // results
                         __mask,                                                                 // source data usage masks
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
-                        /*CopyFromFirstSet = */ std::false_type{},
-                        __comp, __proj2, __proj1);
+                        __comp, __proj1, __proj2);
                 },
                 __set_intersection_offsets{},                                                   // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, __proj1, __proj2)
