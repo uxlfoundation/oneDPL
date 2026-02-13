@@ -988,7 +988,6 @@ struct __set_op_bounded_offsets_evaluator
             });
         auto __it_transformOut = oneapi::dpl::make_transform_iterator(
             __mask_begin, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
-
                 return __include_to_output_pred(__m);
             });
 
@@ -1000,13 +999,15 @@ struct __set_op_bounded_offsets_evaluator
 
         // Calculate prefix summs of counts for output items to find the position where output size limit is reached
         __par_backend::__buffer<_DifferenceType> __prefix_summ_buf_out(__req_mask_size);
-        const auto __processed_items_in_output = __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
+        const auto __processed_items_in_output =
+            __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
 
         // Find the position where output size limit is reached
         //  - we should try to find the next processed position so we use the value __reachedOutPos + 1
-        const auto __prefix_summ_buf_out_begin   = __prefix_summ_buf_out.get();
-        const auto __prefix_summ_buf_out_end     = __prefix_summ_buf_out.get() + __req_mask_size;
-        const auto __prefix_summ_buf_out_reached = std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
+        const auto __prefix_summ_buf_out_begin = __prefix_summ_buf_out.get();
+        const auto __prefix_summ_buf_out_end = __prefix_summ_buf_out.get() + __req_mask_size;
+        const auto __prefix_summ_buf_out_reached =
+            std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
 
         const auto __prefix_summ_buf_out_reached_offset = __prefix_summ_buf_out_reached - __prefix_summ_buf_out_begin;
         const auto __buf_size_to_process = __prefix_summ_buf_out_reached_offset + 1;
@@ -1033,22 +1034,6 @@ struct __set_op_bounded_offsets_evaluator
 
         return {__n1_reached, __n2_reached};
     }
-
-  protected:
-    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-    struct _Counts
-    {
-        _DifferenceType1 __processed1 = 0;     // Counter of processed items from the first range
-        _DifferenceType2 __processed2 = 0;     // Counter of processed items from the second range
-        _DifferenceTypeOut __processedOut = 0; // Counter of items included to output range
-
-        _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
-        operator+(const _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>& __other) const
-        {
-            return {__processed1 + __other.__processed1, __processed2 + __other.__processed2,
-                    __processedOut + __other.__processedOut};
-        }
-    };
 };
 
 // for bounded implementation of std::ranges::set_union
@@ -1371,8 +1356,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                __first1, __last1, __first2, __last2, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                               /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
+                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
+                               __proj2);
                        },
                        __set_intersection_offsets{}, __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
@@ -1392,9 +1377,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _Tp* __result, auto __mask,
                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
-                               __first2, __last2, __first1, __last1, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                               /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
+                               __first1, __last1, __first2, __last2, __result, __mask,
+                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
+                               __proj2);
                        },
                        __set_intersection_offsets{}, __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();

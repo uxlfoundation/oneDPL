@@ -3320,9 +3320,9 @@ struct _SetRangeImpl
 {
     struct _Data
     {
-        _DifferenceType __pos{};     // Offset in output range w/o limitation to output data size
-        _DifferenceType __len{};     // Length in temporary buffer w/o limitation to output data size
-        _DifferenceType __buf_pos{}; // Position in temporary buffer w/o limitation to output data size
+        _DifferenceType __result_buf_pos{};   // Offset in output range w/o limitation to output data size
+        _DifferenceType __len{};              // The length of data pack: the same for windowed and result buffers
+        _DifferenceType __windowed_buf_pos{}; // Offset in temporary buffer w/o limitation to output data size
 
         bool
         empty() const
@@ -3330,33 +3330,65 @@ struct _SetRangeImpl
             return __len == 0;
         }
 
-        _Data
-        combine_with(const _Data& __other) const
+        static _Data combine_with(const _Data& __a, const _Data& __b)
         {
-            const auto __other_buf_pos = __other.__buf_pos;
+            if (__a.__windowed_buf_pos < __b.__windowed_buf_pos)
+            {
+                return _Data{__a.__result_buf_pos + __a.__len + __b.__result_buf_pos, __b.__len, __b.__windowed_buf_pos};
+            }
 
-            if (__other_buf_pos > __buf_pos || ((__other_buf_pos == __buf_pos) && !__other.empty()))
-                return _Data{__pos + __len + __other.__pos, __other.__len, __other_buf_pos};
-            return _Data{__other.__pos + __other.__len + __pos, __len, __buf_pos};
+            if (__b.__windowed_buf_pos == __a.__windowed_buf_pos && !__b.empty())
+            {
+                return _Data{__a.__result_buf_pos + __a.__len + __b.__result_buf_pos, __b.__len, __b.__windowed_buf_pos};
+            }
+
+            return _Data{__b.__result_buf_pos + __b.__len + __a.__result_buf_pos, __a.__len, __a.__windowed_buf_pos};
+        }
+    };
+
+    struct _MaskData
+    {
+        _Data           __mask_buf_data;            // Mask buffer data
+
+        _DifferenceType __reached_offset1{};        // The amount of processed items in the first input range
+        _DifferenceType __reached_offset2{};        // The amount of processed items in the second input range
+        _DifferenceType __reached_offsetOutput{};   // The amount of saved items into output range
+        _DifferenceType __reached_offset_mask{};    // The amount of generated mask items
+
+        bool
+        empty() const
+        {
+            return __mask_buf_data.empty();
+        }
+
+        static _MaskData combine_with(const _MaskData& __a, const _MaskData& __b)
+        {
+            _MaskData __mask_data;
+            __mask_data.__mask_buf_data = _Data::combine_with(__a.__mask_buf_data, __b.__mask_buf_data);
+
+            // TODO is this correct logic?
+            __mask_data.__reached_offset1      = __a.__reached_offset1      + __b.__reached_offset1;
+            __mask_data.__reached_offset2      = __a.__reached_offset2      + __b.__reached_offset2;
+            __mask_data.__reached_offsetOutput = __a.__reached_offsetOutput + __b.__reached_offsetOutput;
+            __mask_data.__reached_offset_mask  = __a.__reached_offset_mask  + __b.__reached_offset_mask;
+
+            return __mask_data;
         }
     };
 
     //                                       [.........................)
     // Temporary windowed buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
     //                                       ^                         ^
-    //                                       +<-(buf_pos)              +<-(buf_pos + __len)
+    //                                       +<-(__windowed_buf_pos)   +<-(__windowed_buf_pos + __len)
     //                                       |                         |
     //                                       +--+                      +--+
     //                                          |                         |
-    //                                          |<-(__pos)                |<-(__pos + __len)
+    //                                          |<-(__result_buf_pos)     |<-(__result_buf_pos + __len)
     //                                          V                         V
-    // Temporary result buffer:    OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+    // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
-    static constexpr std::size_t __data_size = __Bounded ? 2 : 1;
-
-    // [0]: describes processing data in temporary windowed buffer and temporary result buffer
-    // [1]: describes mask data in temporary windowed buffer and temporary result buffer
-    std::array<_Data, __data_size> __data;
+    using _DataStorage = std::conditional_t<!__Bounded, std::tuple<_Data>, std::tuple<_Data, _MaskData>>;
+    _DataStorage __data;
 };
 
 template <bool __Bounded, typename _DifferenceType>
@@ -3369,11 +3401,15 @@ struct _SetRangeCombiner
     {
         if constexpr (!__Bounded)
         {
-            return {__a.__data[0].combine_with(__b.__data[0])};
+            return {_SetRange::_Data::combine_with(std::get<0>(__a.__data), std::get<0>(__b.__data))};
         }
         else
         {
-            return {__a.__data[0].combine_with(__b.__data[0]), __a.__data[1].combine_with(__b.__data[1])};
+            auto __new_processing_data = _SetRange::_Data::combine_with(std::get<0>(__a.__data), std::get<0>(__b.__data));
+            auto __new_mask_data = _SetRange::_MaskData::combine_with(std::get<1>(__a.__data), std::get<1>(__b.__data));
+            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data};
+
+            return _SetRange{_ds};
         }
     }
 };
@@ -3448,15 +3484,16 @@ struct __mask_buffers<false>
     }
 };
 
-template <bool __Bounded, class _IsVector, typename RawDataPtr, typename MaskDataPtr, typename _OutputIterator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator>
 struct _ScanPred
 {
-    RawDataPtr __buf_raw_data_begin;
-    RawDataPtr __buf_raw_data_end;
-    MaskDataPtr __buf_mask_rng_raw_data_begin;
-    MaskDataPtr __buf_mask_rng_res_raw_data_begin;
-    _OutputIterator __result1;
-    _OutputIterator __result2;
+    __parallel_tag<_IsVector> __tag;
+    ProcessingDataPointer     __windowed_processed_data_buf_begin;
+    ProcessingDataPointer     __windowed_processed_data_buf_end;
+    MaskDataPointer           __windowed_mask_data_buf_begin;
+    MaskDataPointer           __result_mask_data_buf_begin;
+    _OutputIterator           __result1;
+    _OutputIterator           __result2;
 
     template <typename _DifferenceType1, typename _SetRange>
     void
@@ -3465,75 +3502,36 @@ struct _ScanPred
         if constexpr (!__Bounded)
         {
             // Processed data
-            __move_data_no_bounds(__s.__data[0], __buf_raw_data_begin, __result1);
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_begin + std::get<0>(__s.__data).__windowed_buf_pos,
+                                                    __windowed_processed_data_buf_begin + std::get<0>(__s.__data).__windowed_buf_pos + std::get<0>(__s.__data).__len,
+                                                    __result1 + std::get<0>(__s.__data).__result_buf_pos, _IsVector{});
         }
         else
         {
-            // Processed data
-            __move_processed_data_bounded(__s.__data[0]);
+            // Copy source data (bounded)
+            {
+                // Evalueate output range boundaries for current data chunk
+                const auto __result_from = __advance_clamped(__result1, std::get<0>(__s.__data).__result_buf_pos,                       __result2);
+                const auto __result_to   = __advance_clamped(__result1, std::get<0>(__s.__data).__result_buf_pos + std::get<0>(__s.__data).__len, __result2);
+                const auto __result_remaining = __result_to - __result_from;
 
-            // Process mask
-            __move_data_no_bounds(__s.__data[1], __buf_mask_rng_raw_data_begin, __buf_mask_rng_res_raw_data_begin);
+                // Evaluate pointers to current data chunk in temporary buffer
+                const auto __windowed_processed_data_buf_from = __advance_clamped(__windowed_processed_data_buf_begin, std::get<0>(__s.__data).__windowed_buf_pos,
+                                                                                  __windowed_processed_data_buf_end);
+                const auto __windowed_processed_data_buf_to   = __advance_clamped(__windowed_processed_data_buf_begin, std::get<0>(__s.__data).__windowed_buf_pos + std::min(__result_remaining, std::get<0>(__s.__data).__len),
+                                                                                  __windowed_processed_data_buf_end);
+                // Copy results data into results range to have final output
+                __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_from, __windowed_processed_data_buf_to, __result_from, _IsVector{});
+            }
+
+            // Copy mask
+            __brick_move_destroy<decltype(__tag)>{}(__windowed_mask_data_buf_begin + std::get<1>(__s.__data).__mask_buf_data.__windowed_buf_pos,
+                                                    __windowed_mask_data_buf_begin + std::get<1>(__s.__data).__mask_buf_data.__windowed_buf_pos + std::get<1>(__s.__data).__mask_buf_data.__len,
+                                                    __result_mask_data_buf_begin + std::get<1>(__s.__data).__mask_buf_data.__result_buf_pos, _IsVector{});
         }
     }
 
   protected:
-    template <typename _Data, typename ItFrom, typename ItTo>
-    void
-    __move_data_no_bounds(_Data __data, ItFrom __from, ItTo __to) const
-    {
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-            __from + __data.__buf_pos, __from + __data.__buf_pos + __data.__len, __to + __data.__pos, _IsVector{});
-    }
-
-    template <typename _Data>
-    void
-    __move_processed_data_bounded(_Data __data) const
-    {
-        // Work schema of copying data from temporary buffer to output range:
-        //
-        //                                              +<-(__buf_raw_data_begin + __s.__buf_pos)
-        //                                              |
-        //                                              |                                          +<-(__buf_raw_data_begin + __s.__buf_pos + __s.__len)
-        //                                              | <--- what to copy w/o output limits ---->|
-        //                                              V                                          V
-        // Temporary buffer:    TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-        //                                              |                             |            |
-        //                                              |<----- __out_remaining ----->|            |
-        //                                              |                             |            |
-        //                                              |                             |            |
-        //                                              |   We should `move/destroy`  +-----+      +-----+
-        //                                              |     this data from temporary      |            |
-        //                                              |       buffer to output range      |            |
-        //                                              +-----+    (__s.__len)              |            |
-        //                                                    |                             |            |
-        //                                                    V                             V            V
-        // Output range:        OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.....................
-        //                      ^                             ^                             ^            ^
-        //                      |                             |<-(__result1 + __s.__pos)    |            |<-(__result1 +  __s.__pos + __s.__len))
-        //                      |                (__output_write_pos_begin)                 |            |
-        //                      |                                                           +____________+
-        //                      |                                                           |      ^
-        //                      |                                                           |      this data no longer fit into output range
-        //                      |                                                           |
-        //                      |                                                           |<-(__output_write_pos_end)
-        //                      |                                                           |
-        // Output range bounds: +<-(__result1)                                              +<-(__result2)
-
-        // Evaluate output range boundaries for current data chunk
-        const auto __result_from = __advance_clamped(__result1, __data.__pos, __result2);
-        const auto __result_to = __advance_clamped(__result1, __data.__pos + __data.__len, __result2);
-        const auto __result_remaining = __result_to - __result_from;
-
-        // Evaluate pointers to current data chunk in temporary buffer
-        const auto __buf_raw_data_from = __advance_clamped(__buf_raw_data_begin, __data.__buf_pos, __buf_raw_data_end);
-        const auto __buf_raw_data_to = __advance_clamped(
-            __buf_raw_data_begin, __data.__buf_pos + std::min(__result_remaining, __data.__len), __buf_raw_data_end);
-
-        // Copy results data into results range to have final output
-        __brick_move_destroy<__parallel_tag<_IsVector>>{}(__buf_raw_data_from, __buf_raw_data_to, __result_from,
-                                                          _IsVector{});
-    }
 
     // Move it1 forward by n, but not beyond it2
     template <typename _RandomAccessIterator,
@@ -3595,15 +3593,29 @@ struct _ParallelSetOpStrictScanPred
                 __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
                                                                  __comp, __proj2, __proj1);
 
+            typename _SetRange::_Data __new_processing_data{0, 0, __size_func((__b - __first1), (__bb - __first2))};
+
             if constexpr (!__Bounded)
             {
-                return _SetRange{typename _SetRange::_Data{0, 0, __size_func((__b - __first1), (__bb - __first2))}};
+                auto _ds = typename _SetRange::_DataStorage{__new_processing_data};
+                return _SetRange{_ds};
             }
             else
             {
-                return _SetRange{
-                    typename _SetRange::_Data{0, 0, __size_func((__b - __first1), (__bb - __first2))},
-                    typename _SetRange::_Data{0, 0, __mask_size_func((__b - __first1), (__bb - __first2))}};
+                typename _SetRange::_MaskData __new_mask_data{
+                    typename _SetRange::_Data
+                    {
+                        0,                                                      // position in mask buffer
+                        0,                                                      // length of mask in temporary mask buffer
+                        __mask_size_func((__b - __first1), (__bb - __first2)),  // position in temporary mask buffer
+                    },
+                    0,                                                      // The amount of processed items in the first input range
+                    0,                                                      // The amount of processed items in the second input range
+                    0,                                                      // The amount of saved items into output range
+                    0};                                                     // The amount of generated mask items
+
+                auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data};
+                return _SetRange{_ds};
             }
         }
 
@@ -3626,18 +3638,55 @@ struct _ParallelSetOpStrictScanPred
 
         auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
 
-        auto [__res, __mask_e] = __set_union_op(__b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
+        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
+            __set_union_op(__b, __e,   // set1 : begin, end
+                           __bb, __ee, // set2 : begin, end
+                           __buffer_b, // output : begin
+                           __mask_b,   // mask : begin
+                           __comp, __proj1, __proj2);
+
+        if constexpr (__Bounded)
+        {
+            assert(__mask_reached - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
+        }
+
+        // The amount of saved items into output range
+        const auto __reached_offsetOutput = __output_reached - __buffer_b;
+
+        // Prepare processed data info
+        const typename _SetRange::_Data __new_processing_data{0, __reached_offsetOutput, __buf_pos};
 
         if constexpr (!__Bounded)
         {
-            return _SetRange{typename _SetRange::_Data{0, __res - __buffer_b, __buf_pos}};
+            auto _ds = typename _SetRange::_DataStorage{__new_processing_data};
+            return _SetRange{_ds};
         }
         else
         {
-            assert(__mask_e - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
+            auto __reached_offset1 = __it1_reached - __b;                // The amount of processed items in the first input range
+            auto __reached_offset2 = __it2_reached - __bb;               // The amount of processed items in the second input range
+            auto __reached_offset_mask = __mask_reached - __mask_b;      // The amount of generated mask items
 
-            return _SetRange{typename _SetRange::_Data{0, __res - __buffer_b, __buf_pos},
-                             typename _SetRange::_Data{0, __mask_e - __mask_b, __buf_mask_pos}};
+            // Prepare processed mask info
+            const typename _SetRange::_MaskData __new_mask_data{
+                typename _SetRange::_Data{
+                    0,                         // position in mask buffer
+                    __reached_offset_mask,     // length of mask in temporary mask buffer
+                    __buf_mask_pos,            // position in temporary mask buffer
+                },
+                __reached_offset1,      // The amount of processed items in the first input range
+                __reached_offset2,      // The amount of processed items in the second input range
+                __reached_offsetOutput, // The amount of saved items into output range
+                __reached_offset_mask}; // The amount of generated mask items
+
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "\t\t mask : ";
+            dump_buffer<decltype(std::cout), decltype(__mask_b), int>(std::cout, __mask_b, __mask_b + __buf_len);
+            std::cout << "\n";
+            std::cout << "\t\t <- (" << _SetRange{__new_processing_data, __new_mask_data} << ")" << "\n";
+#endif
+            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data};
+            return _SetRange{_ds};
         }
     }
 };
@@ -3693,6 +3742,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
+            __tag,
             __buf_raw_data_begin,
             __buf_raw_data_end,
             __buf_mask_rng_raw_data_begin,
@@ -3702,23 +3752,27 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         _ParallelSetOpStrictScanPred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
                                      _OutputIterator, _SizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__first1,       __last1, __first2, __last2, __size_func,
-                          __set_union_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin,
+            __reduce_pred{__first1, __last1,
+                          __first2, __last2,
+                          __size_func,
+                          __set_union_op,
+                          __comp, __proj1, __proj2,
+                          __buf_raw_data_begin,
                           __mask_bufs};
 
-        auto __apex_pred = [__n_out, &__res_reachedOutPos, &__res_reachedMaskPos, &__scan_pred](const _SetRange& __total) {
+        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedOutPos, &__res_reachedMaskPos,
+                            &__scan_pred](const _SetRange& __total) {
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
             if constexpr (!__Bounded)
             {
-                (void)__n_out;
-                __res_reachedOutPos = __total.__data[0].__pos + __total.__data[0].__len;
+                __res_reachedOutPos = std::get<0>(__total.__data).__result_buf_pos + std::get<0>(__total.__data).__len;
             }
             else
             {
-                __res_reachedOutPos = std::min(__n_out, __total.__data[0].__pos + __total.__data[0].__len);
-                __res_reachedMaskPos = __total.__data[1].__pos + __total.__data[1].__len;
+                __res_reachedOutPos = std::min(__n_out, std::get<0>(__total.__data).__result_buf_pos + std::get<0>(__total.__data).__len);
+                __res_reachedMaskPos = std::get<1>(__total.__data).__mask_buf_data.__result_buf_pos + std::get<1>(__total.__data).__mask_buf_data.__len;
             }
         };
 
@@ -4050,9 +4104,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                           _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
                                __first1, __last1, __first2, __last2, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                               /*CopyFromFirstSet = */ std::true_type{}, __comp, oneapi::dpl::identity{},
-                               oneapi::dpl::identity{});
+                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
                        },
                        __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
@@ -4072,10 +4125,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _T* __result, auto __mask,
                           _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
                            return oneapi::dpl::__utils::__set_intersection_construct(
-                               __first2, __last2, __first1, __last1, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                               /*CopyFromFirstSet = */ std::false_type{}, __comp, oneapi::dpl::identity{},
-                               oneapi::dpl::identity{});
+                               __first1, __last1, __first2, __last2, __result, __mask,
+                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                               oneapi::dpl::identity{}, oneapi::dpl::identity{});
                        },
                        __set_op_unbounded_offsets_eval{}, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
