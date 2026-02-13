@@ -923,7 +923,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     std::array<_Size, 2> __ret = {__n_out, __n};
     sycl::queue __q_local = __exec.queue();
 
-    constexpr std::uint16_t __max_elem_per_item = 2;
+    constexpr std::size_t __max_elem_per_item = 2;
     std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
 
     // Note: earlier the data size for the single group kernel was capped by 2048
