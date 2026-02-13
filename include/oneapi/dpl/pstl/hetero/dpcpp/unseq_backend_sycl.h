@@ -859,23 +859,41 @@ struct __scan
     _GlobalAssigner __gl_assigner;
     _DataAccessor __data_acc;
 
-    template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
-    void
-    scan_impl(_NDItemId __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
-              _ItersPerWG __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
+    template <typename _AccLocal>
+    _Tp
+    __log_scan_over_group(std::size_t __wgroup_size, sycl::nd_item<1> __item, std::size_t __local_id,
+                          _AccLocal& __local_acc, _Tp __adder) const
     {
-        ::std::size_t __group_id = __item.get_group(0);
-        ::std::size_t __global_id = __item.get_global_id(0);
-        ::std::size_t __local_id = __item.get_local_id(0);
+        _Tp __value = __local_acc[__local_id];
+        __dpl_sycl::__group_barrier(__item);
+        // Hillis-Steele algorithm
+        for (std::size_t __shift = 1; __shift < __wgroup_size; __shift *= 2)
+        {
+            if (__local_id >= __shift)
+                __value = __bin_op(__local_acc[__local_id - __shift], __value);
+            __dpl_sycl::__group_barrier(__item);
+            __local_acc[__local_id] = __value;
+            __dpl_sycl::__group_barrier(__item);
+        }
+        return __bin_op(__adder, __value);
+    }
+
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
+    void
+    __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+              std::size_t __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
+    {
+        std::size_t __group_id = __item.get_group(0);
+        std::size_t __global_id = __item.get_global_id(0);
+        std::size_t __local_id = __item.get_local_id(0);
         __init_processing<_Tp> __use_init{};
 
-        constexpr ::std::size_t __shift = _Inclusive{} ? 0 : 1;
+        constexpr std::size_t __shift = _Inclusive{} ? 0 : 1;
 
-        ::std::size_t __adjusted_global_id = __local_id + __size_per_wg * __group_id;
+        std::size_t __adjusted_global_id = __local_id + __size_per_wg * __group_id;
         auto __adder = __local_acc[0];
-        for (_ItersPerWG __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
+        for (std::size_t __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
         {
             if (__adjusted_global_id < __n)
             {
@@ -890,7 +908,7 @@ struct __scan
                 __use_init(__init, __local_acc[__global_id], __bin_op);
 
             // 1. reduce
-            ::std::size_t __k = 1;
+            std::size_t __k = 1;
             // TODO: use adjacent work items for better SIMD utilization
             // Consider the example with the mask of work items performing reduction:
             // iter    now         proposed
@@ -915,7 +933,7 @@ struct __scan
             do
             {
                 // use signed type to avoid overflowing
-                ::std::int32_t __shifted_local_id = __local_id - __local_id % __k - 1;
+                std::int32_t __shifted_local_id = __local_id - __local_id % __k - 1;
                 if (__shifted_local_id >= 0 && __adjusted_global_id < __n && __local_id % (2 * __k) >= __k &&
                     __local_id % (2 * __k) < 2 * __k - 1)
                 {
@@ -939,12 +957,11 @@ struct __scan
             __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
     }
 
-    template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
     void
-    scan_impl(_NDItemId __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
-              _ItersPerWG __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
+    __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+              std::size_t __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
     {
         std::size_t __group_id = __item.get_group(0);
         std::size_t __local_id = __item.get_local_id(0);
@@ -966,22 +983,14 @@ struct __scan
             }
             else
                 __local_acc[__local_id] = _Tp{__known_identity<_BinaryOperation, _Tp>};
-
-            _Tp __old_value = __local_acc[__local_id];
-            __dpl_sycl::__group_barrier(__item);
-#if 1
+#if 0
+            _Tp __value = __local_acc[__local_id];
             __local_acc[__local_id] =
-                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __old_value, __bin_op, __adder);
+                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __value, __bin_op, __adder);
 #else
-            for (_Size __i = __local_id; __i > 0; --__i)
-            {
-                __old_value = __bin_op(__unary_op(__i - 1, __local_acc), __old_value);
-            }
-            __dpl_sycl::__group_barrier(__item);
-            __local_acc[__local_id] = __bin_op(__adder, __old_value);
+            __local_acc[__local_id] = __log_scan_over_group(__wgroup_size, __item, __local_id, __local_acc, __adder);
 #endif
             __dpl_sycl::__group_barrier(__item);
-
             __adder = __local_acc[__wgroup_size - 1];
 
             __gl_assigner(__acc, __out_acc, __adjusted_global_id + __shift, __n, __n_out, __local_acc, __local_id);
@@ -994,15 +1003,14 @@ struct __scan
             __wg_assigner(__wg_sums_ptr, __group_id, __local_acc, __local_id);
     }
 
-    template <typename _NDItemId, typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc,
-              typename _WGSumsPtr, typename _SizePerWG, typename _WGSize, typename _ItersPerWG>
-    void operator()(_NDItemId __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-                    _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, _SizePerWG __size_per_wg, _WGSize __wgroup_size,
-                    _ItersPerWG __iters_per_wg,
+    template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
+    void operator()(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+                    _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+                    std::size_t __iters_per_wg,
                     _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
     {
-        scan_impl(__item, __n, __n_out, __local_acc, __acc, __out_acc, __wg_sums_ptr, __size_per_wg, __wgroup_size,
-                  __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});
+        __scan_impl(__item, __n, __n_out, __local_acc, __acc, __out_acc, __wg_sums_ptr, __size_per_wg, __wgroup_size,
+                    __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});
     }
 };
 
