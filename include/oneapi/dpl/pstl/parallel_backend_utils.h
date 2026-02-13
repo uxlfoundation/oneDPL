@@ -247,11 +247,11 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
-          typename _CopyFromFirstSet, typename _Compare, typename _Proj1, typename _Proj2>
+          typename _Compare, typename _Proj1, typename _Proj2>
 _OutputIterator
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _CopyFromFirstSet,
-                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _Compare __comp,
+                             _Proj1 __proj1, _Proj2 __proj2)
 {
     while (__first1 != __last1 && __first2 != __last2)
     {
@@ -261,10 +261,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
             ++__first2;
         else
         {
-            if constexpr (_CopyFromFirstSet::value)
-                _copy(*__first1, *__result);
-            else
-                _copy(*__first2, *__result);
+            _copy(*__first1, *__result);
 
             ++__first1;
             ++__first2;
