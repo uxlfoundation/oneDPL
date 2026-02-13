@@ -963,7 +963,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj2, __proj1);
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2);
             return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
