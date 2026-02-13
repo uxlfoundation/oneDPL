@@ -15,7 +15,7 @@
 
 #include "std_ranges_test.h"
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
 template<>
@@ -37,14 +37,10 @@ void test_mixed_types_host()
     std::vector<int> out_unseq(out_expected.size(), 0xCD);
     std::vector<int> out_par_unseq(out_expected.size(), 0xCD);
 
-    oneapi::dpl::ranges::set_difference(
-        oneapi::dpl::execution::seq, r1, r2, out_seq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_difference(
-        oneapi::dpl::execution::par, r1, r2, out_par, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_difference(
-        oneapi::dpl::execution::unseq, r1, r2, out_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
-    oneapi::dpl::ranges::set_difference(
-        oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::seq,       r1, r2, out_seq,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::par,       r1, r2, out_par,       std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::unseq,     r1, r2, out_unseq,     std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
+    oneapi::dpl::ranges::set_difference(oneapi::dpl::execution::par_unseq, r1, r2, out_par_unseq, std::ranges::less{}, test_std_ranges::proj_a, test_std_ranges::proj_b);
 
     EXPECT_EQ_RANGES(out_expected, out_seq, "wrong result with seq policy");
     EXPECT_EQ_RANGES(out_expected, out_par, "wrong result with par policy");
@@ -79,47 +75,90 @@ void test_mixed_types_device()
     }
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+
+struct
+{
+    template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
+              typename Proj2 = std::identity>
+    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>
+    operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
+    {
+        auto in1 = std::ranges::begin(r_1);
+        auto in2 = std::ranges::begin(r_2);
+        auto out = std::ranges::begin(r_out);
+
+        const auto n1 = std::ranges::size(r_1);
+        const auto n2 = std::ranges::size(r_2);
+        const auto nOut = std::ranges::size(r_out);
+
+        std::size_t idx1 = 0;
+        std::size_t idx2 = 0;
+        std::size_t idxOut = 0;
+
+        while (idx1 < n1 && idx2 < n2)
+        {
+            if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
+            {
+                if (idxOut < nOut)
+                {
+                    out[idxOut] = in1[idx1];
+                    ++idx1;
+                    ++idxOut;
+                }
+                else
+                    break;
+            }
+            else if (!std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
+            {
+                ++idx1;
+                ++idx2;
+            }
+            else
+            {
+                ++idx2;
+            }
+        }
+
+        const auto remaining_space = nOut - idxOut;
+        const auto remaining_input = n1 - idx1;
+        const auto to_copy = std::min(remaining_space, remaining_input);
+        std::copy(in1 + idx1, in1 + idx1 + to_copy, out + idxOut);
+
+        idx1 += to_copy;
+        idxOut += to_copy;
+
+        assert(idx1 <= n1);
+        assert(idxOut <= nOut);
+
+        return {in1 + idx1, out + idxOut};
+    }
+} set_difference_checker;
+#endif // _ENABLE_STD_RANGES_TESTING
 
 int
 main()
 {
     bool bProcessed = false;
 
-#if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // TODO: use data_in_in_out_lim when set_difference supports
-    // output range not-sufficiently large to hold all the processed elements
-    // this will also require adding a custom serial implementation of the algorithm into the checker
-
-    auto checker = [](std::ranges::random_access_range auto&& r1,
-                      std::ranges::random_access_range auto&& r2,
-                      std::ranges::random_access_range auto&& r_out, auto&&... args)
-    {
-        auto res = std::ranges::set_difference(std::forward<decltype(r1)>(r1), std::forward<decltype(r2)>(r2),
-                                               std::ranges::begin(r_out), std::forward<decltype(args)>(args)...);
-
-        using ret_type = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<decltype(r1)>,
-                                                            std::ranges::borrowed_iterator_t<decltype(r_out)>>;
-        return ret_type{res.in, res.out};
-    };
-
-    test_range_algo<0, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker);
-    test_range_algo<1, int, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj);
+    test_range_algo<0, int, data_in_in_out_lim, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, set_difference_checker);
+    test_range_algo<1, int, data_in_in_out_lim, data_in_in_out, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out, div3_t, mul1_t>{100}(dpl_ranges::set_difference, checker, std::ranges::less{}, proj, proj);
+    test_range_algo<2, int, data_in_in_out_lim, data_in_in_out, div3_t, mul1_t>{100}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    test_range_algo<3,  P2, data_in_in_out_lim, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
+    test_range_algo<4,  P2, data_in_in_out_lim, data_in_in_out, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Testing no intersection
     auto large_shift = [](auto&& v) { return v + 5000; };
     using ls_t = decltype(large_shift);
-    test_range_algo<5, int, data_in_in_out, mul1_t, ls_t>{1000}(dpl_ranges::set_difference, checker);
-    test_range_algo<6, int, data_in_in_out, ls_t, mul1_t>{1000}(dpl_ranges::set_difference, checker);
+    test_range_algo<5, int, data_in_in_out_lim, data_in_in_out,  mul1_t, ls_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
+    test_range_algo<6, int, data_in_in_out_lim, data_in_in_out, ls_t, mul1_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
 
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
@@ -129,7 +168,7 @@ main()
 
     bProcessed = true;
 
-#endif //_ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+#endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(bProcessed);
 }
