@@ -33,15 +33,19 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
 {
     if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, n);
+        constexpr size_t guard_size = 5;
+        const size_t total_size = n + guard_size;
+        const T sentinel = static_cast<T>(-999); // Distinct from trash
+
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
         oneapi::dpl::counting_iterator<int> counting(0);
         // usm_device
-        TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> device_data(exec, n);
+        TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> device_data(exec, total_size);
         auto usm_device = device_data.get_data();
         //test all modes / wrappers
-        wrap_recurse<__recurse, 0>(std::forward<Policy>(exec), usm_device, usm_device + n, counting, copy_out.get_data(), usm_device,
-                                   copy_out.get_data(), counting, trash,
-                                   std::string("usm_device<") + type_text + std::string(">"));
+        wrap_recurse<__recurse, 0>(std::forward<Policy>(exec), usm_device, usm_device + n, counting,
+                                   copy_out.get_data(), usm_device, copy_out.get_data(), counting, trash,
+                                   std::string("usm_device<") + type_text + std::string(">"), guard_size, sentinel);
     }
     else
     {
