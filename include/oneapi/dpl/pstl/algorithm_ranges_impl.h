@@ -964,12 +964,6 @@ struct __set_op_bounded_offsets_evaluator
         // Our reached output position should not exceed requested mask output size
         assert(__reachedOutPos <= __req_mask_size);
 
-#if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "=== __set_intersection_offsets call ===" << std::endl;
-        std::cout << "__n1 = " << __n1 << ", __n2 = " << __n2 << ", __n_out = " << __n_out
-                  << ", __reachedOutPos = " << __reachedOutPos << "\n";
-#endif
-
         // Calculate counts through transform_iterator
         auto __it_transform1 = oneapi::dpl::make_transform_iterator(
             __mask_begin, [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
@@ -985,7 +979,6 @@ struct __set_op_bounded_offsets_evaluator
             });
         auto __it_transformOut = oneapi::dpl::make_transform_iterator(
             __mask_begin, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
-
                 return __include_to_output_pred(__m);
             });
 
@@ -997,13 +990,15 @@ struct __set_op_bounded_offsets_evaluator
 
         // Calculate prefix summs of counts for output items to find the position where output size limit is reached
         __par_backend::__buffer<_DifferenceType> __prefix_summ_buf_out(__req_mask_size);
-        const auto __processed_items_in_output = __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
+        const auto __processed_items_in_output =
+            __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
 
         // Find the position where output size limit is reached
         //  - we should try to find the next processed position so we use the value __reachedOutPos + 1
-        const auto __prefix_summ_buf_out_begin   = __prefix_summ_buf_out.get();
-        const auto __prefix_summ_buf_out_end     = __prefix_summ_buf_out.get() + __req_mask_size;
-        const auto __prefix_summ_buf_out_reached = std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
+        const auto __prefix_summ_buf_out_begin = __prefix_summ_buf_out.get();
+        const auto __prefix_summ_buf_out_end = __prefix_summ_buf_out.get() + __req_mask_size;
+        const auto __prefix_summ_buf_out_reached =
+            std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
 
         const auto __prefix_summ_buf_out_reached_offset = __prefix_summ_buf_out_reached - __prefix_summ_buf_out_begin;
         const auto __buf_size_to_process = __prefix_summ_buf_out_reached_offset + 1;
@@ -1038,33 +1033,6 @@ struct __set_op_bounded_offsets_evaluator
 
         return {__n1_reached, __n2_reached};
     }
-
-  protected:
-
-    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-    struct _Counts
-    {
-        _DifferenceType1   __processed1 = 0;    // Counter of processed items from the first range
-        _DifferenceType2   __processed2 = 0;    // Counter of processed items from the second range
-        _DifferenceTypeOut __processedOut = 0;  // Counter of items included to output range
-
-#if DUMP_PARALLEL_SET_OP_WORK
-        template <typename OStream>
-        friend OStream&
-        operator<<(OStream& os, const _Counts& data)
-        {
-            os << "(" << data.__processed1 << ", " << data.__processed2 << ", " << data.__processedOut << ")";
-            return os;
-        }
-#endif
-
-        _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
-        operator+(const _Counts<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>& __other) const
-        {
-            return {__processed1 + __other.__processed1, __processed2 + __other.__processed2,
-                    __processedOut + __other.__processedOut};
-        }
-    };
 };
 
 // for bounded implementation of std::ranges::set_union
