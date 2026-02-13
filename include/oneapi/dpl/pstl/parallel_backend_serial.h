@@ -79,6 +79,16 @@ __make_enumerable_tls(Args&&... __args)
 template <typename _Tp>
 using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 
+template <class _T>
+using __unique_ptr = std::unique_ptr<_T>;
+
+template <class _T, class... _Args>
+std::enable_if_t<!std::is_array<_T>::value, __unique_ptr<_T>>
+__make_unique(_Args&&... __args)
+{
+    return std::make_unique<_T>(std::forward<_Args>(__args)...);
+}
+
 inline void
 __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 {
