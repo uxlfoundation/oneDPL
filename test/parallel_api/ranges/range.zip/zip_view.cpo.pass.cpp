@@ -33,6 +33,7 @@
 #include <oneapi/dpl/ranges>
 
 namespace dpl = oneapi::dpl;
+namespace dpl_exp = oneapi::dpl::experimental;
 
 #if 1
 template <typename... Types>
@@ -59,8 +60,8 @@ void test() {
   {
     // zip a view
     int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    std::same_as<dpl::ranges::zip_view<SizedRandomAccessView>> decltype(auto) v =
-        dpl::views::zip(SizedRandomAccessView{buffer});
+    std::same_as<dpl_exp::ranges::zip_view<SizedRandomAccessView>> decltype(auto) v =
+        dpl_exp::views::zip(SizedRandomAccessView{buffer});
     assert(std::ranges::size(v) == 8);
     static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, tuple_type<int&>>);
   }
@@ -68,8 +69,8 @@ void test() {
   {
     // zip a viewable range
     std::array a{1, 2, 3};
-    std::same_as<dpl::ranges::zip_view<std::ranges::ref_view<std::array<int, 3>>>> decltype(auto) v =
-        dpl::views::zip(a);
+    std::same_as<dpl_exp::ranges::zip_view<std::ranges::ref_view<std::array<int, 3>>>> decltype(auto) v =
+        dpl_exp::views::zip(a);
     assert(&(std::get<0>(*v.begin())) == &(a[0]));
     static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v)>, tuple_type<int&>>);
   }
@@ -77,12 +78,12 @@ void test() {
   {
     // zip the zip_view
     int buffer[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    std::same_as<dpl::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>> decltype(auto) v =
-        dpl::views::zip(SizedRandomAccessView{buffer}, SizedRandomAccessView{buffer});
+    std::same_as<dpl_exp::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>> decltype(auto) v =
+        dpl_exp::views::zip(SizedRandomAccessView{buffer}, SizedRandomAccessView{buffer});
 
     std::same_as<
-        dpl::ranges::zip_view<dpl::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>>> decltype(auto) v2 =
-        dpl::views::zip(v);
+        dpl_exp::ranges::zip_view<dpl_exp::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>>> decltype(auto) v2 =
+        dpl_exp::views::zip(v);
 
 #ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
     static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<std::pair<int&, int&>>>);
