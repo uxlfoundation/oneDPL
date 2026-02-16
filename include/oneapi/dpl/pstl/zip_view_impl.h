@@ -293,7 +293,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __calc_val = [&]<std::size_t... In>(std::index_sequence<In...>) {
                 return std::ranges::min({difference_type(std::get<In>(__x.__current) - std::get<In>(__y.__current))...},
-                                        std::less{}, [](auto __a) { return __abs(__a); });
+                                        std::less{}, [](auto __a) { return iterator::__abs(__a); });
             };
 
             return __calc_val(std::make_index_sequence<sizeof...(_Views)>());
@@ -308,7 +308,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
                 return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
-                                        std::less{}, [](auto __a) { return __abs(__a); });
+                                        std::less{}, [](auto __a) { return iterator::__abs(__a); });
             };
 
             return calc_val(std::make_index_sequence<sizeof...(_Views)>());
