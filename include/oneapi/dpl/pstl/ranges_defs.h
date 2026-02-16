@@ -84,6 +84,14 @@ using oneapi::dpl::ranges::__internal::zip;
 } // namespace views
 
 } // namespace ranges
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace views
+{
+using oneapi::dpl::ranges::__internal::zip;
+} // namespace views
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 } // namespace experimental
 } // namespace dpl
 } // namespace oneapi
