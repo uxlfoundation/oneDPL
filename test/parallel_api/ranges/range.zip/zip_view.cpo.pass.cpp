@@ -42,17 +42,17 @@ using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
 using tuple_type = std::tuple<Types...>;
 #endif
 
-static_assert(std::is_invocable_v<decltype((dpl::views::zip))>);
-static_assert(!std::is_invocable_v<decltype((dpl::views::zip)), int>);
-static_assert(std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView>);
+static_assert(std::is_invocable_v<decltype((dpl_exp::views::zip))>);
+static_assert(!std::is_invocable_v<decltype((dpl_exp::views::zip)), int>);
+static_assert(std::is_invocable_v<decltype((dpl_exp::views::zip)), SizedRandomAccessView>);
 static_assert(
-    std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, std::ranges::iota_view<int, int>>);
-static_assert(!std::is_invocable_v<decltype((dpl::views::zip)), SizedRandomAccessView, int>);
+    std::is_invocable_v<decltype((dpl_exp::views::zip)), SizedRandomAccessView, std::ranges::iota_view<int, int>>);
+static_assert(!std::is_invocable_v<decltype((dpl_exp::views::zip)), SizedRandomAccessView, int>);
 
 void test() {
   {
     // zip zero arguments
-    auto v = dpl::views::zip();
+    auto v = dpl_exp::views::zip();
     assert(std::ranges::empty(v));
     static_assert(std::is_same_v<decltype(v), std::ranges::empty_view<tuple_type<>>>);
   }
