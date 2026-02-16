@@ -157,7 +157,7 @@ main()
         usm_subrange<int> cont_keys(exec, keys.data(), n);
         auto view_vals = cont_vals();
         auto view_keys = cont_keys();
-        auto view_s = dpl_ranges::views::zip(view_vals, view_keys);
+        auto view_s = dpl_ranges_exp::views::zip(view_vals, view_keys);
 
         //call Range based sort with a device policy
         dpl_ranges::stable_sort(exec, view_s, std::ranges::greater{}, [](const auto& a) { return std::get<1>(a);});
