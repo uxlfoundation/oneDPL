@@ -223,9 +223,14 @@ struct __serial_move_merge
 
 enum class __parallel_set_op_mask : std::uint8_t
 {
-    eData1 = 0x10,          // mask for first input data item usage
-    eData2 = 0x01,          // mask for second input data item usage
-    eBoth = eData1 | eData2 // mask for both input data items usage
+    eData1   = 0b00000010,                  // mask for first input data item usage
+    eData2   = 0b00000001,                  // mask for second input data item usage
+    eDataOut = 0b00000100,                  // mask for output data item usage
+
+    eBoth    = eData1 | eData2,             // mask for both input data items usage
+    eData1Out = eData1 | eDataOut,          // mask for first input data item usage and output data item usage
+    eData2Out = eData2 | eDataOut,          // mask for second input data item usage and output data item usage
+    eBothOut = eData1 | eData2 | eDataOut   // mask for both input data items usage
 };
 
 inline std::nullptr_t
@@ -299,7 +304,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     auto __op_val1_lt_val2 = [_uninitialized_copy_from1](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
         _uninitialized_copy_from1(__first1++, __result++);
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -308,7 +313,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     auto __op_val2_lt_val1 = [_uninitialized_copy_from2](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
         _uninitialized_copy_from2(__first2++, __result++);
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -318,7 +323,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     {
         _uninitialized_copy_from1(__first1++, __result++);
         ++__first2;
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -339,14 +344,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
 
     if (__first2 == __last2)
     {
-        __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
         __result = __cc_range(__first1, __last1, __result);
+        __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
         return {__last1, __first2, __result, __mask};
     }
 
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     __result = __cc_range(__first2, __last2, __result);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
 
     return {__first1, __last2, __result, __mask};
 }
@@ -373,8 +378,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             __result = __cc_range(__first1, __last1, __result);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
             return {__last1, __first2, __result, __mask};
         }
@@ -384,9 +389,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
 
         if (std::invoke(__comp, __proj2_val, __proj1_val))
         {
-            _uninitialized_copy_from2(__first2, __result);
-            ++__first2;
-            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+            _uninitialized_copy_from2(__first2++, __result);
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
         }
         else
         {
@@ -394,18 +398,18 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
             if (!std::invoke(__comp, __proj1_val, __proj2_val))
             {
                 ++__first2;
-                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
             }
             else
             {
-                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
             }
             ++__first1;
         }
     }
 
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     __result = __cc_range(__first2, __last2, __result);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
 
     return {__first1, __last2, __result, __mask};
 }
@@ -444,12 +448,9 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     // __proj1_val == __proj2_val
     auto __op_val1_eq_val2 = [_copy](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
-        _copy(*__first1, *__result);
-
-        ++__first1;
+        _copy(*__first1++, *__result++);
         ++__first2;
-        ++__result;
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -504,12 +505,9 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
         else
         {
-            _copy(*__first1, *__result);
-
-            ++__first1;
+            _copy(*__first1++, *__result++);
             ++__first2;
-            ++__result;
-            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
         }
     }
 
@@ -539,7 +537,8 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     auto __op_val1_lt_val2 = [_uninitialized_copy_from1](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
         _uninitialized_copy_from1(__first1++, __result++);
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
+
         return {__first1, __first2, __result, __mask};
     };
 
@@ -576,8 +575,8 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
     if (__first2 == __last2)
     {
-        __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
         __result = __cc_range(__first1, __last1, __result);
+        __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
         return {__last1, __first2, __result, __mask};
     }
@@ -604,8 +603,8 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             __result = __cc_range(__first1, __last1, __result);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
             return {__last1, __first2, __result, __mask};
         }
@@ -615,10 +614,8 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
         if (std::invoke(__comp, __proj1_val, __proj2_val))
         {
-            _uninitialized_copy_from1(__first1, __result);
-            ++__result;
-            ++__first1;
-            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+            _uninitialized_copy_from1(__first1++, __result++);
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
         }
         else
         {
@@ -659,7 +656,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     {
         // We should use placement new here because this method really works with raw unitialized memory
         _uninitialized_copy_from1(__first1++, __result++);
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -669,7 +666,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     {
         // We should use placement new here because this method really works with raw unitialized memory
         _uninitialized_copy_from2(__first2++, __result++);
-        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+        __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
 
         return {__first1, __first2, __result, __mask};
     };
@@ -688,8 +685,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             __result = __cc_range(__first1, __last1, __result);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
             return {__last1, __first2, __result, __mask};
         }
@@ -706,8 +703,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
                                              : __op_val1_eq_val2(__first1, __first2, __result, __mask));
     }
 
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     __result = __cc_range(__first2, __last2, __result);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
 
     return {__first1, __last2, __result, __mask};
 }
@@ -731,8 +728,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     {
         if (__first2 == __last2)
         {
-            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
             __result = __cc_range(__first1, __last1, __result);
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
 
             return {__last1, __first2, __result, __mask};
         }
@@ -743,31 +740,28 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         if (std::invoke(__comp, __proj1_val, __proj2_val))
         {
             // We should use placement new here because this method really works with raw unitialized memory
-            _uninitialized_copy_from1(__first1, __result);
-            ++__result;
-            ++__first1;
-            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+            _uninitialized_copy_from1(__first1++, __result++);
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
         }
         else
         {
             if (std::invoke(__comp, __proj2_val, __proj1_val))
             {
                 // We should use placement new here because this method really works with raw unitialized memory
-                _uninitialized_copy_from2(__first2, __result);
-                ++__result;
-                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+                _uninitialized_copy_from2(__first2++, __result++);
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
             }
             else
             {
                 ++__first1;
+                ++__first2;
                 __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
             }
-            ++__first2;
         }
     }
 
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
     __result = __cc_range(__first2, __last2, __result);
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
 
     return {__first1, __last2, __result, __mask};
 }
