@@ -3576,6 +3576,7 @@ template <>
 struct __mask_buffers<true>
 {
     using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
+    using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
 
     __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size), __buf_mask_rng_res(__mask_buf_size)
     {
@@ -3602,6 +3603,7 @@ template <>
 struct __mask_buffers<false>
 {
     using _mask_ptr_t = std::nullptr_t;
+    using _difference_t = std::ptrdiff_t;
 
     __mask_buffers(std::size_t)
     {
