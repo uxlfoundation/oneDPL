@@ -3662,7 +3662,7 @@ struct _ScanPred
     ProcessingDataPointer     __buf_pos_begin;
     ProcessingDataPointer     __buf_pos_end;
     MaskDataPointer           __mask_buf_pos_begin;
-    MaskDataPointer           __mask_buf_pos_end;
+    MaskDataPointer           __mask_res_buf_pos_begin;
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
@@ -3747,7 +3747,7 @@ struct _ScanPred
             // Copy mask
             __brick_move_destroy<decltype(__tag)>{}(__mask_buf_pos_begin + __s.get_mask_part().__buf_pos,
                                                     __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len,
-                                                    __mask_buf_pos_end + __s.get_mask_part().__pos, _IsVector{});
+                                                    __mask_res_buf_pos_begin + __s.get_mask_part().__pos, _IsVector{});
         }
     }
 
