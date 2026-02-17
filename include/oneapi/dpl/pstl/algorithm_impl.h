@@ -3868,7 +3868,7 @@ struct _ParallelSetOpStrictScanPred
                     0,       // The amount of saved items into output range
                     0};      // The amount of generated mask items
 
-                auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
+                typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, __new_reached_offsets_data };
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.1.1:\n"
@@ -3937,7 +3937,7 @@ struct _ParallelSetOpStrictScanPred
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "\t\t <- (" << _SetRange{__new_processing_data} << ")" << "\n";
 #endif
-            auto _ds = typename _SetRange::_DataStorage{__new_processing_data};
+            typename _SetRange::_DataStorage _ds{ __new_processing_data };
             return _SetRange{_ds};
         }
         else
@@ -3958,7 +3958,7 @@ struct _ParallelSetOpStrictScanPred
                 __reached_offsetOutput, // The amount of saved items into output range
                 __reached_offset_mask}; // The amount of generated mask items
 
-            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
+            typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, __new_reached_offsets_data };
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "\t\t mask : ";
