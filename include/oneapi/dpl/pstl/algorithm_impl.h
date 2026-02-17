@@ -4031,7 +4031,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-            __res_reachedPosOut = __total.get_data_part().__pos + __total.get_data_part().__len;
+            __res_reachedPosOut = std::min(__total.get_data_part().__pos + __total.get_data_part().__len, __n_out);
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
@@ -4059,7 +4059,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + std::min(__res_reachedPosOut, __n_out)};
+            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + __res_reachedPosOut};
     });
 }
 
