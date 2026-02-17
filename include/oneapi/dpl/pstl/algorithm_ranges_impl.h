@@ -28,8 +28,6 @@
 #    include "execution_impl.h"
 #    include "algorithm_impl.h"
 
-#define __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL 1
-
 namespace oneapi
 {
 namespace dpl
@@ -769,7 +767,6 @@ using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set union: performs set_union with output range capacity checking.
 // Truncates result if output range is too small.
 template<std::ranges::random_access_range _R1,
@@ -844,58 +841,6 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
 
     return {__copy1.in, __copy2.in, __copy2.out};
 }
-#else
-// Bounded set union: performs set_union with output range capacity checking.
-// Truncates result if output range is too small.
-template<std::ranges::random_access_range _R1,
-         std::ranges::random_access_range _R2,
-         std::ranges::random_access_range _OutRange,
-         typename _Comp, typename _Proj1, typename _Proj2>
-__set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
-                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
-
-    // 1. Main set_union operation
-    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            *__out_it = *__it1;
-            ++__it1;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            *__out_it = *__it2;
-            ++__it2;
-        }
-        else
-        {
-            *__out_it = *__it1;
-            ++__it1;
-            ++__it2;
-        }
-        ++__out_it;
-    }
-
-    // 2. Copying the residual elements if one of the input sequences is exhausted
-    const auto __remaining_capacity1 = __out_end - __out_it;
-    const auto __copy_n1 = __end1 - __it1;
-    const auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
-
-    const auto __remaining_capacity2 = __out_end - __copy1.out;
-    const auto __copy_n2 = __end2 - __it2;
-    const auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
-
-    return {__copy1.in, __copy2.in, __copy2.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
@@ -980,7 +925,6 @@ using __set_intersection_return_t =
     std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                          std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set intersection: performs set_intersection with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1049,52 +993,6 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
 
     return {__it1, __it2, __out_it};
 }
-#else
-// Bounded set intersection: performs set_intersection with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_intersection_return_t<_R1, _R2, _OutRange>
-__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    bool __output_full = false;
-
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            ++__it1;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            ++__it2;
-        }
-        else if (__out_it != __out_end)
-        {
-            *__out_it = *__it1;
-            ++__out_it;
-            ++__it1;
-            ++__it2;
-        }
-        else
-        {
-            __output_full = true;
-            break;
-        }
-    }
-
-    __it1 = __output_full ? __it1 : __end1;
-    __it2 = __output_full ? __it2 : __end2;
-
-    return {__it1, __it2, __out_it};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
@@ -1254,7 +1152,6 @@ template <typename _R1, typename _OutRange>
 using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                                                      std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set difference: performs set_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1325,53 +1222,6 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
 
     return {__copy.in, __copy.out};
 }
-#else
-// Bounded set difference: performs set_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_difference_return_t<_R1, _OutRange>
-__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    // 1. Main set_union operation
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
-            }
-            else 
-                break;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            ++__it2;
-        }
-        else
-        {
-            ++__it1;
-            ++__it2;
-        }
-    }
-
-    // 2. Copying the rest of the first sequence
-    auto __remaining_capacity = __out_end - __out_it;
-    auto __copy_n = __end1 - __it1;
-    auto __copy = std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
-
-    return {__copy.in, __copy.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
@@ -1510,7 +1360,6 @@ using __set_symmetric_difference_return_t =
                                                  std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1596,65 +1445,6 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
 
     return {__copy1.in, __copy2.in, __copy2.out};
 }
-#else
-// Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    // 1. Main set_symmetric_difference operation
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
-            }
-            else 
-                break;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it2;
-                ++__it2;
-                ++__out_it;
-            }
-            else 
-                break;
-        }
-        else
-        {
-            ++__it1;
-            ++__it2;
-        }
-    }
-
-    // 2. Copying the residual elements if one of the input sequences is exhausted
-    auto __remaining_capacity1 = __out_end - __out_it;
-    auto __copy_n1 = __end1 - __it1;
-    auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
-
-    auto __remaining_capacity2 = __out_end - __copy1.out;
-    auto __copy_n2 = __end2 - __it2;
-    auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
-
-    return {__copy1.in, __copy2.in, __copy2.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
