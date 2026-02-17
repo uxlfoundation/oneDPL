@@ -3951,7 +3951,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         _DifferenceType2 __res_reachedPos2 = __n2; // offset to the first unprocessed item from the second input range
         _DifferenceType __res_reachedPosOut = 0;   // offset to the first unprocessed item from output range
 
-        _SetRangeCombiner<__Bounded, _DifferenceType> __combine_pred;
+        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType> __combine_pred;
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
