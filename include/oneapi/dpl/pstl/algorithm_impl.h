@@ -3674,7 +3674,6 @@ struct _ScanPred
 
     _DifferenceType1&         __res_reachedPos1;
     _DifferenceType2&         __res_reachedPos2;
-    bool&                     __res_reachedPosCalculated;
 
     template <typename _SetRange>
     void
@@ -3709,44 +3708,35 @@ struct _ScanPred
                 //if (__result_remaining < __s.get_data_part().__len)
                 if (__s.get_data_part().__pos <= __n_out && (__s.get_data_part().__pos + __s.get_data_part().__len) > __n_out)
                 {
-                    if (!__res_reachedPosCalculated)
+                    // The rest of output data
+                    const auto __rest_of_data = __n_out;
+
+                    auto __mask_buffer_begin = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos;
+                    auto __mask_buffer_end   = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len;
+
+                    std::decay_t<decltype(__rest_of_data)> __new_data_item = 0;
+                    auto __mask_buffer_it = __mask_buffer_begin;
+                    for (; __mask_buffer_it != __mask_buffer_end && __new_data_item < (__rest_of_data + 1); ++__mask_buffer_it)
                     {
-                        __res_reachedPosCalculated = true;
+                        if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
+                            ++__new_data_item;
+                    }
 
-                        // The rest of output data
-                        const auto __rest_of_data = __n_out;
-
-                        auto __mask_buffer_begin = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos;
-                        auto __mask_buffer_end   = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len;
-
-                        std::decay_t<decltype(__rest_of_data)> __new_data_item = 0;
-                        auto __mask_buffer_it = __mask_buffer_begin;
-                        for (; __mask_buffer_it != __mask_buffer_end && __new_data_item < (__rest_of_data + 1); ++__mask_buffer_it)
+                    __res_reachedPos1 = std::count_if(
+                        __mask_buffer_begin, __mask_buffer_it,
+                        [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
                         {
-                            if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
-                                ++__new_data_item;
-                        }
+                            return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
+                        });
+                    __res_reachedPos1 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset1;
 
-                        __res_reachedPos1 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                            {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
-                            });
-                        __res_reachedPos1 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset1;
-
-                        __res_reachedPos2 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                            {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
-                            });
-                        __res_reachedPos2 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset2;
-                    }
-                    else
-                    {
-                        assert(false);
-                    }
+                    __res_reachedPos2 = std::count_if(
+                        __mask_buffer_begin, __mask_buffer_it,
+                        [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                        {
+                            return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
+                        });
+                    __res_reachedPos2 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset2;
                 }
 
                 // Evaluate pointers to current data chunk in temporary buffer
@@ -4041,7 +4031,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType, _mask_ptr_t> __combine_pred{__n_out, __buf_mask_rng_raw_data_begin};
 
         // Scan predicate
-        bool __res_reachedPosCalculated = false;
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
             __scan_pred{
             __tag,
@@ -4052,8 +4041,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             __result1,
             __result2,
             __res_reachedPos1,
-            __res_reachedPos2,
-            __res_reachedPosCalculated};
+            __res_reachedPos2};
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
@@ -4095,9 +4083,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             /* ST.2 */ __combine_pred, // _Cp __combine    step 2 : __combine(__initial, (1))
             /* ST.4 */ __scan_pred,    // _Sp __scan_pred  step 4 : __scan_pred(0, __n, __initial)
             /* ST.3 */ __apex_pred);   // _Ap __apex       step 3 : __apex((2))
-
-        if constexpr (__Bounded)
-            assert(__res_reachedPosOut <= __n_out || __res_reachedPosCalculated);
 
 #if DUMP_PARALLEL_SET_OP_WORK
         if constexpr (__Bounded)
