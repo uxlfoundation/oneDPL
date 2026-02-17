@@ -3667,7 +3667,7 @@ struct __mask_buffers<false>
     }
 };
 
-template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator>
+template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
@@ -3678,7 +3678,11 @@ struct _ScanPred
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
-    template <typename _DifferenceType1, typename _SetRange>
+    _DifferenceType1&         __res_reachedPos1;
+    _DifferenceType2&         __res_reachedPos2;
+    bool&                     __res_reachedPosCalculated;
+
+    template <typename _SetRange>
     void
     operator()(_DifferenceType1, _DifferenceType1, const _SetRange& __s) const
     {
@@ -3701,10 +3705,55 @@ struct _ScanPred
 #endif
             // Copy source data (bounded)
             {
+                const auto __n_out = __result2 - __result1;
+
                 // Evalueate output range boundaries for current data chunk
                 const auto __result_from = __advance_clamped(__result1, __s.get_data_part().__result_buf_pos,                             __result2);
                 const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__result_buf_pos + __s.get_data_part().__len, __result2);
                 const auto __result_remaining = __result_to - __result_from;
+
+                //if (__result_remaining < __s.get_data_part().__len)
+                if (__s.get_data_part().__result_buf_pos <= __n_out && (__s.get_data_part().__result_buf_pos + __s.get_data_part().__len) > __n_out)
+                {
+                    if (!__res_reachedPosCalculated)
+                    {
+                        __res_reachedPosCalculated = true;
+
+                        // The rest of output data
+                        const auto __rest_of_data = __n_out;
+
+                        auto __mask_buffer_begin = __windowed_mask_data_buf_begin + __s.get_mask_part().__windowed_buf_pos;
+                        auto __mask_buffer_end   = __windowed_mask_data_buf_begin + __s.get_mask_part().__windowed_buf_pos + __s.get_mask_part().__len;
+
+                        std::decay_t<decltype(__rest_of_data)> __new_data_item = 0;
+                        auto __mask_buffer_it = __mask_buffer_begin;
+                        for (; __mask_buffer_it != __mask_buffer_end && __new_data_item < (__rest_of_data + 1); ++__mask_buffer_it)
+                        {
+                            if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
+                                ++__new_data_item;
+                        }
+
+                        __res_reachedPos1 = std::count_if(
+                            __mask_buffer_begin, __mask_buffer_it,
+                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                            {
+                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
+                            });
+                        __res_reachedPos1 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset1;
+
+                        __res_reachedPos2 = std::count_if(
+                            __mask_buffer_begin, __mask_buffer_it,
+                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                            {
+                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
+                            });
+                        __res_reachedPos2 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset2;
+                    }
+                    else
+                    {
+                        assert(false);
+                    }
+                }
 
                 // Evaluate pointers to current data chunk in temporary buffer
                 const auto __windowed_processed_data_buf_from = __advance_clamped( __windowed_processed_data_buf_begin, __s.get_data_part().__windowed_buf_pos, __windowed_processed_data_buf_end);
@@ -3733,7 +3782,8 @@ struct _ScanPred
     _RandomAccessIterator
     __advance_clamped(_RandomAccessIterator it1, Size n, _RandomAccessIterator it2) const
     {
-        return it1 + (it2 >= it1 ? std::min(it2 - it1, n) : 0);
+        assert(it1 <= it2);
+        return it1 + std::min(it2 - it1, n);
     }
 };
 
