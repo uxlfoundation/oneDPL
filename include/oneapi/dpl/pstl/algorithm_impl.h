@@ -3336,9 +3336,12 @@ static std::size_t _s_SetRangeImplCounter = 0;
 #endif
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
-template <bool __Bounded, typename _DifferenceType>
-struct _SetRangeImpl
+template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
+          typename _DifferenceTypeOut, typename _DifferenceType>
+class _SetRangeImpl
 {
+  public:
+
     struct _Data
     {
         _DifferenceType __result_buf_pos{};   // Offset in output range w/o limitation to output data size
@@ -3379,47 +3382,37 @@ struct _SetRangeImpl
 #endif
     };
 
-    struct _MaskData
+    using _MaskData = _Data;
+
+    struct _ReachedOffsetsData
     {
-        _Data           __mask_buf_data;            // Mask buffer data
+        _DifferenceType1    __reached_offset1;       // The amount of processed items in the first input range
+        _DifferenceType2    __reached_offset2;       // The amount of processed items in the second input range
+        _DifferenceTypeMask __reached_offsetOutput;  // The amount of saved items into output range
+        _DifferenceTypeOut  __reached_offset_mask;   // The amount of generated mask items
 
-        _DifferenceType __reached_offset1{};        // The amount of processed items in the first input range
-        _DifferenceType __reached_offset2{};        // The amount of processed items in the second input range
-        _DifferenceType __reached_offsetOutput{};   // The amount of saved items into output range
-        _DifferenceType __reached_offset_mask{};    // The amount of generated mask items
-
-        bool
-        empty() const
+        static _ReachedOffsetsData
+        combine_with(const _ReachedOffsetsData& __a, const _ReachedOffsetsData& __b)
         {
-            return __mask_buf_data.empty();
-        }
+            _ReachedOffsetsData __result;
 
-        static _MaskData combine_with(const _MaskData& __a, const _MaskData& __b)
-        {
-            _MaskData __mask_data;
-            __mask_data.__mask_buf_data = _Data::combine_with(__a.__mask_buf_data, __b.__mask_buf_data);
+            __result.__reached_offset1      = __a.__reached_offset1      + __b.__reached_offset1;
+            __result.__reached_offset2      = __a.__reached_offset2      + __b.__reached_offset2;
+            __result.__reached_offsetOutput = __a.__reached_offsetOutput + __b.__reached_offsetOutput;
+            __result.__reached_offset_mask  = __a.__reached_offset_mask  + __b.__reached_offset_mask;
 
-            // TODO is this correct logic?
-            __mask_data.__reached_offset1      = __a.__reached_offset1      + __b.__reached_offset1;
-            __mask_data.__reached_offset2      = __a.__reached_offset2      + __b.__reached_offset2;
-            __mask_data.__reached_offsetOutput = __a.__reached_offsetOutput + __b.__reached_offsetOutput;
-            __mask_data.__reached_offset_mask  = __a.__reached_offset_mask  + __b.__reached_offset_mask;
-
-            return __mask_data;
+            return __result;
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
         template <typename OStream>
         friend OStream&
-        operator<<(OStream& os, const _MaskData& data)
+        operator<<(OStream& os, const _ReachedOffsetsData& data)
         {
-            os << "__windowed_buf_pos = "     << data.__windowed_buf_pos     << ", "
-               << "__len = "                  << data.__len                  << ", "
-               << "__result_buf_pos = "       << data.__result_buf_pos       << ", "
-               << "__reached_offset1 = "      << data.__reached_offset1      << ", "
+            os << "__reached_offset1 = "      << data.__reached_offset1      << ", "
                << "__reached_offset2 = "      << data.__reached_offset2      << ", "
                << "__reached_offsetOutput = " << data.__reached_offsetOutput << ", "
-               << "__reached_offset_mask = "  << data.__reached_offset_mask;
+               << "__reached_offset_mask = "  << data.__reached_offset_mask  << ", ";
             return os;
         }
 #endif
@@ -3436,7 +3429,39 @@ struct _SetRangeImpl
     //                                          V                         V
     // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 
-    using _DataStorage = std::conditional_t<!__Bounded, std::tuple<_Data>, std::tuple<_Data, _MaskData>>;
+    static constexpr std::size_t _DataIndex = 0;
+    static constexpr std::size_t _MaskDataIndex = 1;
+    static constexpr std::size_t _ReachedOffsetsDataIndex = 2;
+
+    using _DataStorage = std::conditional_t<!__Bounded, std::tuple<_Data>, std::tuple<_Data, _MaskData, _ReachedOffsetsData>>;
+
+    _SetRangeImpl() = default;
+    _SetRangeImpl(const _SetRangeImpl&) = default;
+
+    _SetRangeImpl(const _DataStorage& data) : __data(data) {}
+
+    constexpr auto&&
+    get_data_part() const
+    {
+        return std::get<_DataIndex>(__data);
+    }
+
+    constexpr auto&&
+    get_mask_part() const
+    {
+        static_assert(__Bounded);
+        return std::get<_MaskDataIndex>(__data);
+    }
+
+    constexpr auto&&
+    get_reached_offsets_part() const
+    {
+        static_assert(__Bounded);
+        return std::get<_ReachedOffsetsDataIndex>(__data);
+    }
+
+  protected:
+
     _DataStorage __data;
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3449,11 +3474,14 @@ struct _SetRangeImpl
     friend OStream&
     operator<<(OStream& os, const _SetRangeImpl& data)
     {
-        os << "__counter = " << data.__counter
-           << ", processing data : (" << data.__processing_data << ")";
+        os << "__counter = " << data.__counter;
+        os << ", processing data : (" << data.get_data_part() << ")";
 
         if constexpr (__Bounded)
-            os << ", mask data : (" << data.__mask_data << ")";
+        {
+            os << ", mask data : (" << data.get_mask_part() << ")";
+            os << ", reached offsets data : (" << data.get_reached_offsets_part() << ")";
+        }
 
         return os;
     }
