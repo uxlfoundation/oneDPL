@@ -4049,14 +4049,19 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType, _mask_ptr_t> __combine_pred{__n_out, __buf_mask_rng_raw_data_begin};
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator> __scan_pred{
+        bool __res_reachedPosCalculated = false;
+        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
+            __scan_pred{
             __tag,
             __buf_raw_data_begin,
             __buf_raw_data_end,
             __buf_mask_rng_raw_data_begin,
             __buf_mask_rng_res_raw_data_begin,
             __result1,
-            __result2};
+            __result2,
+            __res_reachedPos1,
+            __res_reachedPos2,
+            __res_reachedPosCalculated};
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
