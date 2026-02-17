@@ -903,8 +903,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
+    std::size_t __n1 = std::ranges::size(__r1);
+    std::size_t __n2 = std::ranges::size(__r2);
 
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
@@ -932,45 +932,61 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__left_bound_seq_2 == __last2)
         return {__last1, __last2, __result};
 
-    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (__m1 > oneapi::dpl::__internal::__set_algo_cut_off)
+    // Two trimming strategies are available (mutually exclusive):
+    // Strategy A: Trim range1 (elements < *__first2), keep range2 full
+    // Strategy B: Trim range2 (elements < *__first1), keep range1 full
+    // Choose the strategy that trims more elements (eliminates more non-overlapping work).
+
+    const std::size_t __trimmed_from_range1 = __left_bound_seq_1 - __first1;
+    const std::size_t __trimmed_from_range2 = __left_bound_seq_2 - __first2;
+
+    _RandomAccessIterator1 __begin1 = __first1;
+    _RandomAccessIterator2 __begin2 = __first2;
+
+    if (__trimmed_from_range1 >= __trimmed_from_range2)
     {
-        //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __begin1 = __left_bound_seq_1;
+        __n1 = __last1 - __begin1;
+    }
+    else
+    {
+        __begin2 = __left_bound_seq_2;
+        __n2 = __last2 - __begin2;
+    }
+
+    const std::size_t __total_work = __n1 + __n2;
+    if (__total_work > oneapi::dpl::__internal::__set_algo_cut_off)
+    {
         return __internal::__except_handler([&]() {
-            auto __out_last = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1, __proj2);
-                },
-                __comp, __proj1, __proj2);
-            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            // Decide which range to partition based on size
+            if (__n1 >= __n2)
+            {
+                // Partition the larger trimmed_range1, search into full_range2
+                return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            }
+            else
+            {
+                // Partition the larger full_range2, search into trimmed_range1
+                auto __out_last = __internal::__parallel_set_op(
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin2, __last2, __begin1, __last1, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    [](_RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2,
+                       _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
+                       _Comp __comp, _Proj2 __proj2, _Proj1 __proj1) {
+                        // Lambda params: __lmda_first2 = chunk of range2, __lmda_first1 = chunk of range1
+                        // Swap to pass logical range1 first
+                        return oneapi::dpl::__utils::__set_intersection_construct(
+                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
+                            __proj2);
+                    },
+                    __comp, __proj2, __proj1);
+                return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
+            }
         });
     }
 
-    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (__m2 > oneapi::dpl::__internal::__set_algo_cut_off)
-    {
-        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        return __internal::__except_handler([&]() {
-            auto __out_last = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1, __proj2);
-                },
-                __comp, __proj1, __proj2);
-            return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
-        });
-    }
-
-    // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
+    // Work too small for parallelization - use serial algorithm
     return std::ranges::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2,
                                          std::ranges::begin(__out_r), __comp, __proj1, __proj2);
 }
@@ -983,7 +999,6 @@ template <typename _R1, typename _OutRange>
 using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                                                      std::ranges::borrowed_iterator_t<_OutRange>>;
 
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept

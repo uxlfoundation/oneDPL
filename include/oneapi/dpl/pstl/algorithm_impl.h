@@ -3637,8 +3637,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    std::size_t __n1 = __last1 - __first1;
+    std::size_t __n2 = __last2 - __first2;
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -3656,48 +3656,72 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__left_bound_seq_2 == __last2)
         return __result;
 
-    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (__m1 > __set_algo_cut_off)
+    // Two trimming strategies are available (mutually exclusive):
+    // Strategy A: Trim range1 (elements < *__first2), keep range2 full
+    // Strategy B: Trim range2 (elements < *__first1), keep range1 full
+    // Choose the strategy that trims more elements (eliminates more non-overlapping work).
+
+    const std::size_t __trimmed_from_range1 = __left_bound_seq_1 - __first1;
+    const std::size_t __trimmed_from_range2 = __left_bound_seq_2 - __first2;
+
+    _RandomAccessIterator1 __begin1 = __first1;
+    _RandomAccessIterator2 __begin2 = __first2;
+
+    if (__trimmed_from_range1 >= __trimmed_from_range2)
     {
-        //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __begin1 = __left_bound_seq_1;
+        __n1 = __last1 - __begin1;
+    }
+    else
+    {
+        __begin2 = __left_bound_seq_2;
+        __n2 = __last2 - __begin2;
+    }
+
+    const std::size_t __total_work = __n1 + __n2;
+    if (__total_work > __set_algo_cut_off)
+    {
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-                   oneapi::dpl::identity) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                        oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            // Decide which range to partition based on size
+            if (__n1 >= __n2)
+            {
+                // Partition the larger trimmed_range1, search into full_range2
+                return __internal::__parallel_set_op(
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2,
+                    __result, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
+                        _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
+                        _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
+                        // Lambda params match __parallel_set_op order: trimmed_range1, full_range2
+                        return oneapi::dpl::__utils::__set_intersection_construct(
+                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                            oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    },
+                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            }
+            else
+            {
+                // Partition the larger full_range2, search into trimmed_range1
+                return __internal::__parallel_set_op(
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin2, __last2, __begin1, __last1,
+                    __result, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    [](_RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2,
+                        _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
+                        _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
+                        // Lambda params: __first1 = chunk of full_range2, __first2 = chunk of trimmed_range1
+                        // Swap to pass logical range1 first
+                        return oneapi::dpl::__utils::__set_intersection_construct(
+                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                            oneapi::dpl::identity{}, oneapi::dpl::identity{});
+                    },
+                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            }
         });
     }
 
-    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (__m2 > __set_algo_cut_off)
-    {
-        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        return __internal::__except_handler([&]() {
-            __result = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-                   oneapi::dpl::identity) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                        oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            return __result;
-        });
-    }
-
-    // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
+    // Work too small for parallelization - use serial algorithm
     return std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
 }
 
