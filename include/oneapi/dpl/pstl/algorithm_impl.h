@@ -3699,7 +3699,6 @@ struct _ScanPred
                 const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__pos + __s.get_data_part().__len, __result2);
                 const auto __result_remaining = __result_to - __result_from;
 
-                //if (__result_remaining < __s.get_data_part().__len)
                 if (__s.get_data_part().__pos <= __n_out && (__s.get_data_part().__pos + __s.get_data_part().__len) > __n_out)
                 {
                     // The rest of output data
