@@ -4104,6 +4104,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             /* ST.4 */ __scan_pred,    // _Sp __scan_pred  step 4 : __scan_pred(0, __n, __initial)
             /* ST.3 */ __apex_pred);   // _Ap __apex       step 3 : __apex((2))
 
+        if constexpr (__Bounded)
+            assert(__res_reachedPosOut <= __n_out || __res_reachedPosCalculated);
+
 #if DUMP_PARALLEL_SET_OP_WORK
         if constexpr (__Bounded)
         {
