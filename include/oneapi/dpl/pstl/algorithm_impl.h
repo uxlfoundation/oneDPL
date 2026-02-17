@@ -3409,16 +3409,14 @@ class _SetRangeImpl
 
     struct _ReachedOffsetsBaseData
     {
-        _DifferenceType1    __reached_offset1      = {};    // The amount of processed items in the first input range
-        _DifferenceType2    __reached_offset2      = {};    // The amount of processed items in the second input range
-        _DifferenceTypeOut  __reached_offset_mask  = {};    // The amount of generated mask items
+        _DifferenceType1 __reached_offset1 = {}; // The amount of processed items in the first input range
+        _DifferenceType2 __reached_offset2 = {}; // The amount of processed items in the second input range
 
         _ReachedOffsetsBaseData
         operator+(const _ReachedOffsetsBaseData& other) const
         {
-            return { __reached_offset1      + other.__reached_offset1,
-                     __reached_offset2      + other.__reached_offset2,
-                     __reached_offset_mask  + other.__reached_offset_mask };
+            return { __reached_offset1 + other.__reached_offset1,
+                     __reached_offset2 + other.__reached_offset2 };
         }
     };
 
@@ -3443,9 +3441,8 @@ class _SetRangeImpl
         friend OStream&
         operator<<(OStream& os, const _ReachedOffsetsData& data)
         {
-            os << "__reached_offset1 = "     << data.__reached_offset1 << ", "
-               << "__reached_offset2 = "     << data.__reached_offset2 << ", "
-               << "__reached_offset_mask = " << data.__reached_offset_mask;
+            os << "__reached_offset1 = " << data.__reached_offset1 << ", "
+               << "__reached_offset2 = " << data.__reached_offset2;
             return os;
         }
 #endif
@@ -3950,9 +3947,8 @@ struct _ParallelSetOpStrictScanPred
                 __buf_mask_pos};           // position in temporary mask buffer
 
             const typename _SetRange::_ReachedOffsetsData __new_reached_offsets_data{
-                __reached_offset1,      // The amount of processed items in the first input range
-                __reached_offset2,      // The amount of processed items in the second input range
-                __reached_offset_mask}; // The amount of generated mask items
+                __reached_offset1,  // The amount of processed items in the first input range
+                __reached_offset2}; // The amount of processed items in the second input range
 
             typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, __new_reached_offsets_data };
 
