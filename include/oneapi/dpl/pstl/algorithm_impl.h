@@ -3525,7 +3525,7 @@ class _SetRangeImpl
 };
 
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
-          typename _DifferenceTypeOut, typename _DifferenceType>
+          typename _DifferenceTypeOut, typename _DifferenceType, typename _MaskBuffer>
 struct _SetRangeCombiner
 {
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeMask, _DifferenceTypeOut, _DifferenceType>;
@@ -3533,22 +3533,28 @@ struct _SetRangeCombiner
     _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
+        const typename _SetRange::_Data __new_processing_data = _SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part());
+
         if constexpr (!__Bounded)
         {
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{_SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part())} << ")" << "\n";
+                      << "\t\t -> (" << _SetRange{__new_processing_data} << ")" << "\n";
 #endif
-            return _SetRange{_SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part())};
+            typename _SetRange::_DataStorage _ds{ __new_processing_data };
+            return _SetRange{_ds};
         }
         else
         {
-            auto __new_processing_data = _SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part());
-            auto __new_mask_data = _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
-            auto __new_reached_offsets_data = _SetRange::_ReachedOffsetsData::combine_with(__a.get_reached_offsets_part(), __b.get_reached_offsets_part());
-            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
+            typename _SetRange::_MaskData __new_mask_data = _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
+            bool __is_left = _SetRange::_Data::is_left(__a.get_data_part(), __b.get_data_part());
+            typename _SetRange::_ReachedOffsetsData __new_reached_offsets_data =
+                __is_left
+                ? _SetRange::_ReachedOffsetsData::combine_with_lr(__a.get_reached_offsets_part(), __b.get_reached_offsets_part())
+                : _SetRange::_ReachedOffsetsData::combine_with_lr(__b.get_reached_offsets_part(), __a.get_reached_offsets_part());
+            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
@@ -3560,6 +3566,9 @@ struct _SetRangeCombiner
             return _SetRange{_ds};
         }
     }
+
+    const _DifferenceTypeOut __n_out = {};  // Size of output range
+    const _MaskBuffer __mask_buffer;        // Pointer to windowed mask buffer
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
