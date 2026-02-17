@@ -3354,19 +3354,42 @@ class _SetRangeImpl
             return __len == 0;
         }
 
+        _DifferenceType
+        get_reached_output_offset() const
+        {
+            return __result_buf_pos + __len;
+        }
+
+        static bool is_left(const _Data& __a, const _Data& __b)
+        {
+            return __a.__windowed_buf_pos < __b.__windowed_buf_pos ||
+                   (__b.__windowed_buf_pos == __a.__windowed_buf_pos && !__b.empty());
+        }
+
+        static const _Data&
+        get_left(const _Data& __a, const _Data& __b)
+        {
+            if (is_left(__a, __b))
+                return __a;
+
+            return __b;
+        }
+
+        static const _Data&
+        get_right(const _Data& __a, const _Data& __b)
+        {
+            if (is_left(__a, __b))
+                return __b;
+
+            return __a;
+        }
+
         static _Data combine_with(const _Data& __a, const _Data& __b)
         {
-            if (__a.__windowed_buf_pos < __b.__windowed_buf_pos)
-            {
-                return _Data{__a.__result_buf_pos + __a.__len + __b.__result_buf_pos, __b.__len, __b.__windowed_buf_pos};
-            }
+            const _Data& __left = get_left(__a, __b);
+            const _Data& __right = get_right(__a, __b);
 
-            if (__b.__windowed_buf_pos == __a.__windowed_buf_pos && !__b.empty())
-            {
-                return _Data{__a.__result_buf_pos + __a.__len + __b.__result_buf_pos, __b.__len, __b.__windowed_buf_pos};
-            }
-
-            return _Data{__b.__result_buf_pos + __b.__len + __a.__result_buf_pos, __a.__len, __a.__windowed_buf_pos};
+            return _Data{__left.get_reached_output_offset() + __right.__result_buf_pos, __right.__len, __right.__windowed_buf_pos};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3384,22 +3407,35 @@ class _SetRangeImpl
 
     using _MaskData = _Data;
 
+    struct _ReachedOffsetsBaseData
+    {
+        _DifferenceType1    __reached_offset1      = {};    // The amount of processed items in the first input range
+        _DifferenceType2    __reached_offset2      = {};    // The amount of processed items in the second input range
+        _DifferenceTypeMask __reached_offsetOutput = {};    // The amount of saved items into output range
+        _DifferenceTypeOut  __reached_offset_mask  = {};    // The amount of generated mask items
+
+        _ReachedOffsetsBaseData
+        operator+(const _ReachedOffsetsBaseData& other) const
+        {
+            return { __reached_offset1      + other.__reached_offset1,
+                     __reached_offset2      + other.__reached_offset2,
+                     __reached_offsetOutput + other.__reached_offsetOutput,
+                     __reached_offset_mask  + other.__reached_offset_mask };
+        }
+    };
+
     struct _ReachedOffsetsData
     {
-        _DifferenceType1    __reached_offset1;       // The amount of processed items in the first input range
-        _DifferenceType2    __reached_offset2;       // The amount of processed items in the second input range
-        _DifferenceTypeMask __reached_offsetOutput;  // The amount of saved items into output range
-        _DifferenceTypeOut  __reached_offset_mask;   // The amount of generated mask items
+        _ReachedOffsetsBaseData __data;
+        _ReachedOffsetsBaseData __prev_left_data;
 
         static _ReachedOffsetsData
-        combine_with(const _ReachedOffsetsData& __a, const _ReachedOffsetsData& __b)
+        combine_with_lr(const _ReachedOffsetsData& __left, const _ReachedOffsetsData& __right)
         {
             _ReachedOffsetsData __result;
 
-            __result.__reached_offset1      = __a.__reached_offset1      + __b.__reached_offset1;
-            __result.__reached_offset2      = __a.__reached_offset2      + __b.__reached_offset2;
-            __result.__reached_offsetOutput = __a.__reached_offsetOutput + __b.__reached_offsetOutput;
-            __result.__reached_offset_mask  = __a.__reached_offset_mask  + __b.__reached_offset_mask;
+            __result.__data = __left.__data + __right.__data;
+            __result.__prev_left_data = __left.__data;
 
             return __result;
         }
@@ -3440,20 +3476,20 @@ class _SetRangeImpl
 
     _SetRangeImpl(const _DataStorage& data) : __data(data) {}
 
-    constexpr auto&&
+    constexpr _Data
     get_data_part() const
     {
         return std::get<_DataIndex>(__data);
     }
 
-    constexpr auto&&
+    constexpr _MaskData
     get_mask_part() const
     {
         static_assert(__Bounded);
         return std::get<_MaskDataIndex>(__data);
     }
 
-    constexpr auto&&
+    constexpr _ReachedOffsetsData
     get_reached_offsets_part() const
     {
         static_assert(__Bounded);
