@@ -3678,7 +3678,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         __n2 = __last2 - __begin2;
     }
 
-    const std::size_t __total_work = __n1 + __n2;
+    const _DifferenceType __total_work = __n1 + __n2;
     if (__total_work > __set_algo_cut_off)
     {
         return __internal::__except_handler([&]() {
@@ -3706,8 +3706,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     [](_RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2,
                        _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
                        _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
-                        // Lambda params: __first1 = chunk of range2, __first2 = chunk of range1
-                        // Swap to pass logical range1 first for semantic correctness (copy from first range)
+                        // Lambda params: __lmda_first1 = iter of range2, __lmda_first2 = iter of range1
+                        // Swap to pass logical range1 first for semantic correctness (must copy from first range)
                         return oneapi::dpl::__utils::__set_intersection_construct(
                             __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
                             oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
