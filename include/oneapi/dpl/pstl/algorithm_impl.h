@@ -3880,7 +3880,6 @@ struct _ParallelSetOpStrictScanPred
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp,
-          class _ReachedPositionsEvaluator,
           class _Compare, class _Proj1, class _Proj2>
 __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
@@ -3890,7 +3889,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                   _SizeFunction __size_func,
                   _MaskSizeFunction __mask_size_func,
                   _SetUnionOp __set_union_op,
-                  _ReachedPositionsEvaluator __reached_positions_evaluator,
                   _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -3936,7 +3934,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                                          __size_func,
                                          __mask_size_func,
                                          __set_union_op,
-                                         __reached_positions_evaluator,
                                          &__buf,
                                          &__mask_bufs,
                                          __buf_size,
@@ -4022,25 +4019,14 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         std::cout << "\n";
 #endif
 
-        // Evaluate reached offsets in input ranges
-        const auto __reached_positions = __reached_positions_evaluator(
-            __tag, std::forward<_ExecutionPolicy>(__exec),
-            __n1, __n2, __n_out,
-            __size_func,
-            __res_reachedOutPos,
-            __buf_mask_rng_res_raw_data_begin,
-            __mask_bufs.get_buf_mask_rng_res_data(__res_reachedMaskPos));   // call get_buf_mask_rng_res_data() to avoid compile errors if get_buf_mask_rng_res_data() return nullptr
-
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            { __first1 + __reached_positions.first,
-              __first2 + __reached_positions.second,
-              __result1 + __res_reachedOutPos };
+            { __first1, __first2, __result1 + __res_reachedOutPos };
     });
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
-          class _RandomAccessIterator2, class _OutputIterator, class _SetUnionOp, class _ReachedPositionsEvaluator,
+          class _RandomAccessIterator2, class _OutputIterator, class _SetUnionOp,
           class _Compare, class _Proj1, class _Proj2>
 oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
 __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
@@ -4048,7 +4034,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,    // bounds for data2
                         _OutputIterator __result1, _OutputIterator __result2,               // bounds for results
                         _SetUnionOp __set_union_op,
-                        _ReachedPositionsEvaluator __reached_positions_evaluator,
                         _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
@@ -4163,7 +4148,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
                     __set_union_op,                         // _SetUnionOp __set_union_op
-                    __reached_positions_evaluator,          // _ReachedPositionsEvaluator __reached_positions_evaluator
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4193,7 +4177,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __size_fnc,                             // _SizeFunction __size_func
                     __mask_size_fnc,                        // _MaskSizeFunction __mask_size_fnc
                     __set_union_op,                         // _SetUnionOp __set_union_op
-                    __reached_positions_evaluator,          // _ReachedPositionsEvaluator __reached_positions_evaluator
                     __comp, __proj1, __proj2);
             });
         return __finish;
@@ -4207,7 +4190,6 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         __size_fnc,                                         // _SizeFunction __size_func
         __mask_size_fnc,                                    // _MaskSizeFunction __mask_size_fnc
         __set_union_op,                                     // _SetUnionOp __set_union_op
-        __reached_positions_evaluator,                      // _ReachedPositionsEvaluator __reached_positions_evaluator
         __comp, __proj1, __proj2);
 }
 
@@ -4292,7 +4274,6 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                 __BrickCopyConstruct<_IsVector>(),              // _CopyConstructRange __cc_range
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
         },
-        __set_op_unbounded_offsets_eval{},
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
         .__get_reached_out();
 }
@@ -4398,7 +4379,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
-                __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
@@ -4436,7 +4416,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                         oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
                         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
                 },
-                __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
                 __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
                 .__get_reached_out();
         });
@@ -4543,7 +4522,6 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     }
@@ -4626,7 +4604,6 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                     __BrickCopyConstruct<_IsVector>(),                              // _CopyConstructRange __cc_range
                     __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
             },
-            __set_op_unbounded_offsets_eval{},                                    // _ReachedPositionsEvaluator __reached_positions_evaluator
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__get_reached_out();
     });
