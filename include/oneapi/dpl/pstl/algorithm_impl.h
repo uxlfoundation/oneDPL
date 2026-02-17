@@ -3678,12 +3678,22 @@ struct _ScanPred
 #endif
             // Copy source data (bounded)
             {
-                const auto __n_out = __result2 - __result1;
-
                 // Evalueate output range boundaries for current data chunk
                 const auto __result_from = __advance_clamped(__result1, __s.get_data_part().__pos,                             __result2);
                 const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__pos + __s.get_data_part().__len, __result2);
                 const auto __result_remaining = __result_to - __result_from;
+
+                // Evaluate pointers to current data chunk in temporary buffer
+                const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos, __buf_pos_end);
+                const auto __buf_pos_to   = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos + std::min(__result_remaining, __s.get_data_part().__len), __buf_pos_end);
+
+                // Copy results data into results range to have final output
+                __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
+            }
+
+            // Evaluate final positions in the first and the second input ranges
+            {
+                const auto __n_out = __result2 - __result1;
 
                 if (__s.get_data_part().__pos <= __n_out && (__s.get_data_part().__pos + __s.get_data_part().__len) > __n_out)
                 {
@@ -3717,13 +3727,6 @@ struct _ScanPred
                         });
                     __res_reachedPos2 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset2;
                 }
-
-                // Evaluate pointers to current data chunk in temporary buffer
-                const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos, __buf_pos_end);
-                const auto __buf_pos_to   = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos + std::min(__result_remaining, __s.get_data_part().__len), __buf_pos_end);
-
-                // Copy results data into results range to have final output
-                __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
             }
         }
     }
