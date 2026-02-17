@@ -3686,11 +3686,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             if (__n1 >= __n2)
             {
                 return __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2,
-                    __result, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                     [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
-                        _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
-                        _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
+                       _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
+                       _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
                         return oneapi::dpl::__utils::__set_intersection_construct(
                             __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
                             oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
@@ -3701,11 +3701,11 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             else
             {
                 return __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin2, __last2, __begin1, __last1,
-                    __result, [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin2, __last2, __begin1, __last1, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                     [](_RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2,
-                        _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
-                        _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
+                       _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
+                       _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
                         // Lambda params: __first1 = chunk of range2, __first2 = chunk of range1
                         // Swap to pass logical range1 first for semantic correctness (copy from first range)
                         return oneapi::dpl::__utils::__set_intersection_construct(
