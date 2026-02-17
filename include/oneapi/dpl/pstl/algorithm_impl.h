@@ -3665,10 +3665,10 @@ template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typen
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    ProcessingDataPointer     __windowed_processed_data_buf_begin;
-    ProcessingDataPointer     __windowed_processed_data_buf_end;
-    MaskDataPointer           __windowed_mask_data_buf_begin;
-    MaskDataPointer           __result_mask_data_buf_begin;
+    ProcessingDataPointer     __buf_pos_begin;
+    ProcessingDataPointer     __buf_pos_end;
+    MaskDataPointer           __mask_buf_pos_begin;
+    MaskDataPointer           __mask_buf_pos_end;
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
@@ -3687,9 +3687,9 @@ struct _ScanPred
                       << "\t__brick_move_destroy - data";
 #endif
             // Processed data
-            __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_begin + __s.get_data_part().__buf_pos,
-                                                    __windowed_processed_data_buf_begin + __s.get_data_part().__buf_pos + __s.get_data_part().__len,
-                                                    __result1 + __s.get_data_part().__result_buf_pos, _IsVector{});
+            __brick_move_destroy<decltype(__tag)>{}(__buf_pos_begin + __s.get_data_part().__buf_pos,
+                                                    __buf_pos_begin + __s.get_data_part().__buf_pos + __s.get_data_part().__len,
+                                                    __result1 + __s.get_data_part().__pos, _IsVector{});
         }
         else
         {
@@ -3702,12 +3702,12 @@ struct _ScanPred
                 const auto __n_out = __result2 - __result1;
 
                 // Evalueate output range boundaries for current data chunk
-                const auto __result_from = __advance_clamped(__result1, __s.get_data_part().__result_buf_pos,                             __result2);
-                const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__result_buf_pos + __s.get_data_part().__len, __result2);
+                const auto __result_from = __advance_clamped(__result1, __s.get_data_part().__pos,                             __result2);
+                const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__pos + __s.get_data_part().__len, __result2);
                 const auto __result_remaining = __result_to - __result_from;
 
                 //if (__result_remaining < __s.get_data_part().__len)
-                if (__s.get_data_part().__result_buf_pos <= __n_out && (__s.get_data_part().__result_buf_pos + __s.get_data_part().__len) > __n_out)
+                if (__s.get_data_part().__pos <= __n_out && (__s.get_data_part().__pos + __s.get_data_part().__len) > __n_out)
                 {
                     if (!__res_reachedPosCalculated)
                     {
@@ -3716,8 +3716,8 @@ struct _ScanPred
                         // The rest of output data
                         const auto __rest_of_data = __n_out;
 
-                        auto __mask_buffer_begin = __windowed_mask_data_buf_begin + __s.get_mask_part().__buf_pos;
-                        auto __mask_buffer_end   = __windowed_mask_data_buf_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len;
+                        auto __mask_buffer_begin = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos;
+                        auto __mask_buffer_end   = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len;
 
                         std::decay_t<decltype(__rest_of_data)> __new_data_item = 0;
                         auto __mask_buffer_it = __mask_buffer_begin;
@@ -3750,8 +3750,8 @@ struct _ScanPred
                 }
 
                 // Evaluate pointers to current data chunk in temporary buffer
-                const auto __windowed_processed_data_buf_from = __advance_clamped( __windowed_processed_data_buf_begin, __s.get_data_part().__buf_pos, __windowed_processed_data_buf_end);
-                const auto __windowed_processed_data_buf_to   = __advance_clamped( __windowed_processed_data_buf_begin, __s.get_data_part().__buf_pos + std::min(__result_remaining, __s.get_data_part().__len), __windowed_processed_data_buf_end);
+                const auto __windowed_processed_data_buf_from = __advance_clamped( __buf_pos_begin, __s.get_data_part().__buf_pos, __buf_pos_end);
+                const auto __windowed_processed_data_buf_to   = __advance_clamped( __buf_pos_begin, __s.get_data_part().__buf_pos + std::min(__result_remaining, __s.get_data_part().__len), __buf_pos_end);
 
                 // Copy results data into results range to have final output
                 __brick_move_destroy<decltype(__tag)>{}(__windowed_processed_data_buf_from, __windowed_processed_data_buf_to, __result_from, _IsVector{});
@@ -3762,9 +3762,9 @@ struct _ScanPred
                       << "\t__brick_move_destroy - mask";
 #endif
             // Copy mask
-            __brick_move_destroy<decltype(__tag)>{}(__windowed_mask_data_buf_begin + __s.get_mask_part().__buf_pos,
-                                                    __windowed_mask_data_buf_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len,
-                                                    __result_mask_data_buf_begin + __s.get_mask_part().__result_buf_pos, _IsVector{});
+            __brick_move_destroy<decltype(__tag)>{}(__mask_buf_pos_begin + __s.get_mask_part().__buf_pos,
+                                                    __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len,
+                                                    __mask_buf_pos_end + __s.get_mask_part().__pos, _IsVector{});
         }
     }
 
