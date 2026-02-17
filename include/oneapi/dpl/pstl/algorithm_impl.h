@@ -3340,10 +3340,25 @@ template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, 
           typename _DifferenceTypeOut, typename _DifferenceType>
 class _SetRangeImpl
 {
+    static constexpr std::size_t _DataIndex = 0;
+    static constexpr std::size_t _MaskDataIndex = 1;
+    static constexpr std::size_t _ReachedOffsetsDataIndex = 2;
+
   public:
 
     struct _Data
     {
+        //                                       [.........................)
+        // Temporary windowed buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+        //                                       ^                         ^
+        //                                       +<-(__buf_pos)            +<-(__buf_pos + __len)
+        //                                       |                         |
+        //                                       +--+                      +--+
+        //                                          |                         |
+        //                                          |<-(__pos)                |<-(__pos + __len)
+        //                                          V                         V
+        // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+
         _DifferenceType __pos{};     // Offset in output range w/o limitation to output data size
         _DifferenceType __len{};     // The length of data pack: the same for windowed and result buffers
         _DifferenceType __buf_pos{}; // Offset in temporary buffer w/o limitation to output data size
@@ -3360,28 +3375,20 @@ class _SetRangeImpl
                    (__b.__buf_pos == __a.__buf_pos && !__b.empty());
         }
 
-        static const _Data&
-        get_left(const _Data& __a, const _Data& __b)
+        template <typename _DataType>
+        static std::pair<_DataType&&, _DataType&&>
+        get_left_right(_DataType&& __a, _DataType&& __b)
         {
             if (is_left(__a, __b))
-                return __a;
+                return {std::forward<_DataType>(__a), std::forward<_DataType>(__b)};
 
-            return __b;
+            return {std::forward<_DataType>(__b), std::forward<_DataType>(__a)};
         }
 
-        static const _Data&
-        get_right(const _Data& __a, const _Data& __b)
+        template <typename _DataType>
+        static _Data combine_with(_DataType&& __a, _DataType&& __b)
         {
-            if (is_left(__a, __b))
-                return __b;
-
-            return __a;
-        }
-
-        static _Data combine_with(const _Data& __a, const _Data& __b)
-        {
-            const _Data& __left = get_left(__a, __b);
-            const _Data& __right = get_right(__a, __b);
+            auto&& [__left, __right] = get_left_right(std::forward<_DataType>(__a), std::forward<_DataType>(__b));
 
             return _Data{__left.__pos + __left.__len + __right.__pos, __right.__len, __right.__buf_pos};
         }
@@ -3442,45 +3449,40 @@ class _SetRangeImpl
 #endif
     };
 
-    //                                       [.........................)
-    // Temporary windowed buffer:        TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-    //                                       ^                         ^
-    //                                       +<-(__buf_pos)            +<-(__buf_pos + __len)
-    //                                       |                         |
-    //                                       +--+                      +--+
-    //                                          |                         |
-    //                                          |<-(__pos)                |<-(__pos + __len)
-    //                                          V                         V
-    // Result buffer:                 OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-
-    static constexpr std::size_t _DataIndex = 0;
-    static constexpr std::size_t _MaskDataIndex = 1;
-    static constexpr std::size_t _ReachedOffsetsDataIndex = 2;
-
-    using _DataStorage = std::conditional_t<!__Bounded, std::tuple<_Data>, std::tuple<_Data, _MaskData, _ReachedOffsetsData>>;
+    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _ReachedOffsetsData>>;
 
     _SetRangeImpl() = default;
     _SetRangeImpl(const _SetRangeImpl&) = default;
 
     _SetRangeImpl(const _DataStorage& data) : __data(data) {}
+    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data)) {}
 
-    constexpr _Data
+    _SetRangeImpl&
+    operator=(const _SetRangeImpl&) = default;
+
+    _SetRangeImpl&
+    operator=(_SetRangeImpl&&) = default;
+
+    const _Data&
     get_data_part() const
     {
-        return std::get<_DataIndex>(__data);
+        if constexpr (!__Bounded)
+            return __data;
+        else
+            return std::get<_DataIndex>(__data);
     }
 
-    constexpr _MaskData
+    const _MaskData&
     get_mask_part() const
     {
-        static_assert(__Bounded);
+        static_assert(__Bounded, "Mask data part is available only for bounded set operations");
         return std::get<_MaskDataIndex>(__data);
     }
 
-    constexpr _ReachedOffsetsData
+    const _ReachedOffsetsData&
     get_reached_offsets_part() const
     {
-        static_assert(__Bounded);
+        static_assert(__Bounded, "Reached offsets data part is available only for bounded set operations");
         return std::get<_ReachedOffsetsDataIndex>(__data);
     }
 
@@ -3531,8 +3533,7 @@ struct _SetRangeCombiner
                       << "\t__b = (" << __b << ")\n"
                       << "\t\t -> (" << _SetRange{__new_processing_data} << ")" << "\n";
 #endif
-            typename _SetRange::_DataStorage _ds{ __new_processing_data };
-            return _SetRange{_ds};
+            return __new_processing_data;
         }
         else
         {
@@ -3819,13 +3820,7 @@ struct _ParallelSetOpStrictScanPred
                     0,                                                      // length of mask in temporary mask buffer
                     __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
 
-                typename _SetRange::_ReachedOffsetsData __new_reached_offsets_data{
-                    0,       // The amount of processed items in the first input range
-                    0,       // The amount of processed items in the second input range
-                    0,       // The amount of saved items into output range
-                    0};      // The amount of generated mask items
-
-                typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, __new_reached_offsets_data };
+                typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, typename _SetRange::_ReachedOffsetsData{} };
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.1.1:\n"
@@ -3894,8 +3889,7 @@ struct _ParallelSetOpStrictScanPred
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "\t\t <- (" << _SetRange{__new_processing_data} << ")" << "\n";
 #endif
-            typename _SetRange::_DataStorage _ds{ __new_processing_data };
-            return _SetRange{_ds};
+            return __new_processing_data;
         }
         else
         {
