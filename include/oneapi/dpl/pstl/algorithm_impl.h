@@ -4059,7 +4059,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
-            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + __res_reachedPosOut};
+            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + std::min(__res_reachedPosOut, __n_out)};
     });
 }
 
