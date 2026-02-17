@@ -3488,10 +3488,11 @@ class _SetRangeImpl
 #endif
 };
 
-template <bool __Bounded, typename _DifferenceType>
+template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
+          typename _DifferenceTypeOut, typename _DifferenceType>
 struct _SetRangeCombiner
 {
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeMask, _DifferenceTypeOut, _DifferenceType>;
 
     _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
@@ -3502,15 +3503,16 @@ struct _SetRangeCombiner
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{_SetRange::_Data::combine_with(std::get<0>(__a.__data), std::get<0>(__b.__data))} << ")" << "\n";
+                      << "\t\t -> (" << _SetRange{_SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part())} << ")" << "\n";
 #endif
-            return {_SetRange::_Data::combine_with(std::get<0>(__a.__data), std::get<0>(__b.__data))};
+            return _SetRange{_SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part())};
         }
         else
         {
-            auto __new_processing_data = _SetRange::_Data::combine_with(std::get<0>(__a.__data), std::get<0>(__b.__data));
-            auto __new_mask_data = _SetRange::_MaskData::combine_with(std::get<1>(__a.__data), std::get<1>(__b.__data));
-            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data};
+            auto __new_processing_data = _SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part());
+            auto __new_mask_data = _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
+            auto __new_reached_offsets_data = _SetRange::_ReachedOffsetsData::combine_with(__a.get_reached_offsets_part(), __b.get_reached_offsets_part());
+            auto _ds = typename _SetRange::_DataStorage{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
