@@ -3899,8 +3899,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType>;
-
     const _DifferenceType1   __n1 = __last1 - __first1;     // Size of first input range
     const _DifferenceType2   __n2 = __last2 - __first2;     // Size of second input range
     const _DifferenceType __n_out = __result2 - __result1;  // Size of output range
@@ -3920,10 +3918,11 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
               << "\n\t__mask_buf_size = " << __mask_buf_size << "\n";
 #endif
 
-    __par_backend::__buffer<_T> __buf(__buf_size);   // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);
+    __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
+    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);                                   // Temporary (windowed) buffer for mask preparation
+    using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
 
-    using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType>;
 
     return __internal::__except_handler([__tag, &__exec,
                                         __n1, __n2, __n_out,
@@ -3967,12 +3966,18 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
                                      _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__tag, __exec,
-                          __first1, __last1,
-                          __first2, __last2,
-                          __size_func, __mask_size_func,
+            __reduce_pred{__tag,
+                          __exec,
+                          __first1,
+                          __last1,
+                          __first2,
+                          __last2,
+                          __size_func,
+                          __mask_size_func,
                           __set_union_op,
-                          __comp, __proj1, __proj2,
+                          __comp,
+                          __proj1,
+                          __proj2,
                           __buf_raw_data_begin,
                           __mask_bufs};
 
@@ -4009,18 +4014,23 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             /* ST.3 */ __apex_pred);   // _Ap __apex       step 3 : __apex((2))
 
 #if DUMP_PARALLEL_SET_OP_WORK
-        // Dump mask into std::cout for debug purposes
-        std::cout << "\n\tMASK: ";
-        dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_res_raw_data_begin), int>(std::cout, __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __mask_buf_size);
-        std::cout << "\n";
+        if constexpr (__Bounded)
+        {
+            std::cout << "\n\tReached offsets: " << __res_reachedPos1 << ", " << __res_reachedPos2 << ", " << __res_reachedPosOut << "\n";
+
+            // Dump mask into std::cout for debug purposes
+            std::cout << "\n\tMASK: ";
+            dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_res_raw_data_begin), int>(std::cout, __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __mask_buf_size);
+            std::cout << "\n";
+        }
 
         std::cout << "\n\tRESULT: ";
         dump_buffer(std::cout, __result1, __result2);
         std::cout << "\n";
 #endif
 
-        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
-            { __first1, __first2, __result1 + __res_reachedOutPos };
+        return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
+            __first1 + __res_reachedPos1, __first2 + __res_reachedPos2, __result1 + __res_reachedPosOut};
     });
 }
 
