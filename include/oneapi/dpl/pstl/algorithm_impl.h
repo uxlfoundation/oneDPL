@@ -3526,23 +3526,6 @@ struct _SetRangeCombiner
     }
 };
 
-// The structure __set_op_offsets_full should be used when we apriory know
-// that output buffer is enough to keep all output data and all input data will be processed
-struct __set_op_unbounded_offsets_eval
-{
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               [[maybe_unused]] _DifferenceTypeOut __n_out, [[maybe_unused]] _SizeFunction __size_func,
-               _DifferenceTypeOut, std::nullptr_t, std::nullptr_t) const
-    {
-        assert(__size_func(__n1, __n2) <= __n_out);
-
-        return {__n1, __n2};
-    }
-};
-
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
