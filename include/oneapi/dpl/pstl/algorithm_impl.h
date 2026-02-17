@@ -3611,7 +3611,7 @@ struct __mask_buffers<true>
     using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
     using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
 
-    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size), __buf_mask_rng_res(__mask_buf_size)
+    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size)
     {
     }
 
@@ -3621,15 +3621,8 @@ struct __mask_buffers<true>
         return __buf_mask_rng.get() + __offset;
     }
 
-    _mask_ptr_t
-    get_buf_mask_rng_res_data(std::size_t __offset = 0) const
-    {
-        return __buf_mask_rng_res.get() + __offset;
-    }
-
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
     _MaskBuffer __buf_mask_rng;     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
-    _MaskBuffer __buf_mask_rng_res; // Temporary buffer for the input range1 + range2 item usage mask
 };
 
 template <>
@@ -3647,12 +3640,6 @@ struct __mask_buffers<false>
     {
         return nullptr;
     }
-
-    _mask_ptr_t
-    get_buf_mask_rng_res_data(std::size_t = 0) const
-    {
-        return nullptr;
-    }
 };
 
 template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
@@ -3662,7 +3649,6 @@ struct _ScanPred
     ProcessingDataPointer     __buf_pos_begin;
     ProcessingDataPointer     __buf_pos_end;
     MaskDataPointer           __mask_buf_pos_begin;
-    MaskDataPointer           __mask_res_buf_pos_begin;
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
@@ -3739,15 +3725,6 @@ struct _ScanPred
                 // Copy results data into results range to have final output
                 __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
             }
-
-#if DUMP_PARALLEL_SET_OP_WORK
-            std::cout << "ST.4:\n"
-                      << "\t__brick_move_destroy - mask";
-#endif
-            // Copy mask
-            __brick_move_destroy<decltype(__tag)>{}(__mask_buf_pos_begin + __s.get_mask_part().__buf_pos,
-                                                    __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len,
-                                                    __mask_res_buf_pos_begin + __s.get_mask_part().__pos, _IsVector{});
         }
     }
 
@@ -4015,7 +3992,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         // Temporary "window"-organized mask of used items in input ranges
         using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
         _mask_ptr_t __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
-        _mask_ptr_t __buf_mask_rng_res_raw_data_begin = __mask_bufs.get_buf_mask_rng_res_data();
 
         _DifferenceType1 __res_reachedPos1 = __n1; // offset to the first unprocessed item from the first input range
         _DifferenceType2 __res_reachedPos2 = __n2; // offset to the first unprocessed item from the second input range
@@ -4030,7 +4006,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             __buf_raw_data_begin,
             __buf_raw_data_end,
             __buf_mask_rng_raw_data_begin,
-            __buf_mask_rng_res_raw_data_begin,
             __result1,
             __result2,
             __res_reachedPos1,
@@ -4079,14 +4054,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
 #if DUMP_PARALLEL_SET_OP_WORK
         if constexpr (__Bounded)
-        {
             std::cout << "\n\tReached offsets: " << __res_reachedPos1 << ", " << __res_reachedPos2 << ", " << __res_reachedPosOut << "\n";
-
-            // Dump mask into std::cout for debug purposes
-            std::cout << "\n\tMASK: ";
-            dump_buffer<decltype(std::cout), decltype(__buf_mask_rng_res_raw_data_begin), int>(std::cout, __buf_mask_rng_res_raw_data_begin, __buf_mask_rng_res_raw_data_begin + __mask_buf_size);
-            std::cout << "\n";
-        }
 
         std::cout << "\n\tRESULT: ";
         dump_buffer(std::cout, __result1, __result2);
