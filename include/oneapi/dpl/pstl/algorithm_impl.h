@@ -3354,12 +3354,6 @@ class _SetRangeImpl
             return __len == 0;
         }
 
-        _DifferenceType
-        get_reached_output_offset() const
-        {
-            return __pos + __len;
-        }
-
         static bool is_left(const _Data& __a, const _Data& __b)
         {
             return __a.__buf_pos < __b.__buf_pos ||
@@ -3389,7 +3383,7 @@ class _SetRangeImpl
             const _Data& __left = get_left(__a, __b);
             const _Data& __right = get_right(__a, __b);
 
-            return _Data{__left.get_reached_output_offset() + __right.__pos, __right.__len, __right.__buf_pos};
+            return _Data{__left.__pos + __left.__len + __right.__pos, __right.__len, __right.__buf_pos};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -4066,7 +4060,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-            __res_reachedPosOut = __total.get_data_part().get_reached_output_offset();
+            __res_reachedPosOut = __total.get_data_part().__pos + __total.get_data_part().__len;
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
