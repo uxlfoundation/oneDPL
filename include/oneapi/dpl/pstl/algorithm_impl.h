@@ -4086,16 +4086,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-            if constexpr (!__Bounded)
-            {
-                __res_reachedPosOut = __total.get_data_part().__result_buf_pos + __total.get_data_part().__len;
-            }
-            else
-            {
-                __res_reachedPos1   = __total.get_reached_offsets_part().__reached_offset1;
-                __res_reachedPos2   = __total.get_reached_offsets_part().__reached_offset2;
-                __res_reachedPosOut = __total.get_reached_offsets_part().__reached_offsetOutput;
-            }
+            __res_reachedPosOut = __total.get_data_part().get_reached_output_offset();
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
