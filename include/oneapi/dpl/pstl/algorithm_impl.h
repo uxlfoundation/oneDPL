@@ -3531,6 +3531,18 @@ using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 #if DUMP_PARALLEL_SET_OP_WORK
+
+template <typename T, typename TOutputStream, typename = void>
+struct IsOutputStreamable : std::false_type
+{
+};
+
+template <typename T, typename TOutputStream>
+struct IsOutputStreamable<T, TOutputStream, std::void_t<decltype(std::declval<TOutputStream>() << std::declval<T>())>>
+    : std::true_type
+{
+};
+
 template <typename OStream, typename Iterator, typename ValueType = std::iterator_traits<Iterator>::value_type>
 OStream&
 dump_buffer(OStream& os, Iterator first, Iterator last)
@@ -3544,7 +3556,10 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
         if (bCommaNeeded)
             os << ", ";
 
-        os << (ValueType)*it;
+        if constexpr (IsOutputStreamable<decltype(*it), OStream>::value)
+            os << (ValueType)*it;
+        else
+            os << "(unable to log value)";
 
         bCommaNeeded = true;
     }
