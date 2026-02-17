@@ -903,8 +903,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    std::size_t __n1 = std::ranges::size(__r1);
-    std::size_t __n2 = std::ranges::size(__r2);
+    _DifferenceType __n1 = std::ranges::size(__r1);
+    _DifferenceType __n2 = std::ranges::size(__r2);
 
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
@@ -937,8 +937,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     // Strategy B: Trim range2 (elements < *__first1), keep range1 full
     // Choose the strategy that trims more elements (eliminates more non-overlapping work).
 
-    const std::size_t __trimmed_from_range1 = __left_bound_seq_1 - __first1;
-    const std::size_t __trimmed_from_range2 = __left_bound_seq_2 - __first2;
+    _DifferenceType1 __trimmed_from_range1 = __left_bound_seq_1 - __first1;
+    _DifferenceType2 __trimmed_from_range2 = __left_bound_seq_2 - __first2;
 
     _RandomAccessIterator1 __begin1 = __first1;
     _RandomAccessIterator2 __begin2 = __first2;
@@ -954,7 +954,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         __n2 = __last2 - __begin2;
     }
 
-    const std::size_t __total_work = __n1 + __n2;
+    const _DifferenceType __total_work = __n1 + __n2;
     if (__total_work > oneapi::dpl::__internal::__set_algo_cut_off)
     {
         return __internal::__except_handler([&]() {
@@ -967,8 +967,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
                        _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
                        _Comp __comp, _Proj2 __proj2, _Proj1 __proj1) {
-                        // Lambda params: __lmda_first2 = chunk of range2, __lmda_first1 = chunk of range1
-                        // Swap to pass logical range1 first
                         return oneapi::dpl::__utils::__set_intersection_construct(
                             __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
                             oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
@@ -987,7 +985,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                        _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
                        _Comp __comp, _Proj2 __proj2, _Proj1 __proj1) {
                         // Lambda params: __lmda_first2 = chunk of range2, __lmda_first1 = chunk of range1
-                        // Swap to pass logical range1 first
+                        // Swap to pass logical range1 first for semantic correctness (copy from first set)
                         return oneapi::dpl::__utils::__set_intersection_construct(
                             __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
                             oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
