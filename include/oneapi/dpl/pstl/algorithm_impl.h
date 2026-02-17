@@ -3315,7 +3315,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
 template <typename Size>
 constexpr bool
-__is_great_that_set_algo_cut_off(Size size)
+__is_set_algo_cutoff_exceeded(Size size)
 {
     // 1000 is chosen as a cut-off value based on benchmarking source data sizes
     constexpr Size __set_algo_cut_off = 1000;
@@ -4168,7 +4168,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     auto __mask_size_fnc = __size_fnc;
 
     const auto __m1 = __left_bound_seq_1 - __first1;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
@@ -4197,7 +4197,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     const auto __m2 = __left_bound_seq_2 - __first2;
     assert(__m1 == 0 || __m2 == 0);
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m2))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
 
@@ -4293,7 +4293,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
@@ -4390,7 +4390,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __result;
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m1))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
@@ -4427,7 +4427,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__m2))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
@@ -4541,7 +4541,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                  __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
-    if (oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
     {
         return __parallel_set_op</*__Bounded*/false>(
             __tag, std::forward<_ExecutionPolicy>(__exec),
@@ -4621,7 +4621,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const auto __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_great_that_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
