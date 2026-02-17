@@ -961,7 +961,20 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
             // Decide which range to partition based on size
             if (__n1 >= __n2)
             {
-                // Partition the larger trimmed_range1, search into full_range2
+                auto __out_last = __internal::__parallel_set_op(
+                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+                    [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
+                       _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
+                       _Comp __comp, _Proj2 __proj2, _Proj1 __proj1) {
+                        // Lambda params: __lmda_first2 = chunk of range2, __lmda_first1 = chunk of range1
+                        // Swap to pass logical range1 first
+                        return oneapi::dpl::__utils::__set_intersection_construct(
+                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
+                            __proj2);
+                    },
+                    __comp, __proj2, __proj1);
                 return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
             }
             else
@@ -999,6 +1012,7 @@ template <typename _R1, typename _OutRange>
 using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                                                      std::ranges::borrowed_iterator_t<_OutRange>>;
 
+template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
 __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2,
                        /*__is_vector=*/std::false_type) noexcept
