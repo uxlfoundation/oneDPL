@@ -85,7 +85,7 @@ template <int __recurse, int __reverses, bool __read = true, bool __reset_read =
           bool __check_write = true, bool __usable_as_perm_map = true, bool __usable_as_perm_src = true,
           bool __is_reversible = true, typename Policy, typename InputIterator1, typename InputIterator2,
           typename OutputIterator, typename OriginalIterator1, typename OriginalIterator2, typename ExpectedIterator,
-          typename T = std::iterator_traits<OutputIterator>::value_type>
+          typename T = typename std::iterator_traits<OutputIterator>::value_type>
 void
 wrap_recurse(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIterator2 copy_from_first,
              OutputIterator copy_to_first, OriginalIterator1 orig_first, OriginalIterator2 orig_out_first,
