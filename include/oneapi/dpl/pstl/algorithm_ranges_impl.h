@@ -1168,7 +1168,7 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
         return {__it1, __it2, __out_it};
     };
 
-    // 1. Main set_union operation
+    // 1. Main set_difference operation
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
