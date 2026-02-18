@@ -903,8 +903,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _DifferenceType __n1 = std::ranges::size(__r1);
-    _DifferenceType __n2 = std::ranges::size(__r2);
+    _DifferenceType1 __n1 = std::ranges::size(__r1);
+    _DifferenceType2 __n2 = std::ranges::size(__r2);
 
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
