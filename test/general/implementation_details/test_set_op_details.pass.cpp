@@ -35,7 +35,17 @@ evalMaskSize(const Container1& cont1, const Container2& cont2)
     return cont1.size() + cont2.size();
 }
 
-// For details please see decsciption of the enum oneapi::dpl::__utils::__parallel_set_op_mask
+struct CopyValueOp
+{
+    template <typename _SourceT, typename _TargetT>
+    void
+    operator()(_SourceT&& __source, _TargetT& __target) const
+    {
+        __target = std::forward<_SourceT>(__source);
+    }
+};
+
+// For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
 using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
@@ -337,7 +347,7 @@ test_set_intersection_construct()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_construct");
@@ -364,7 +374,7 @@ test_set_intersection_construct()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -394,7 +404,7 @@ test_set_intersection_construct_edge_cases()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -417,7 +427,7 @@ test_set_intersection_construct_edge_cases()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -440,7 +450,7 @@ test_set_intersection_construct_edge_cases()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -463,7 +473,7 @@ test_set_intersection_construct_edge_cases()
             cont2.begin(), cont2.end(),
             contOut.begin(),
             mask_b,
-            oneapi::dpl::__internal::__op_uninitialized_copy<int>{},
+            CopyValueOp{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
