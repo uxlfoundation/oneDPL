@@ -3771,25 +3771,31 @@ struct _ScanPred
 
                     const typename _SetRange::_SourceProcessingDataOffsets& __source_data_offsets = __s.get_source_data_offsets_part();
 
-                    if (__res_reachedPos1 != nullptr)
-                    {
-                        *__res_reachedPos1 =
-                            __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
-                                            [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
-                                                return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __m);
-                                            });
-                        *__res_reachedPos1 += __source_data_offsets.__start_offset1;
-                    }
-
-                    if (__res_reachedPos2 != nullptr)
-                    {
-                        *__res_reachedPos2 =
-                            __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
-                                            [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
-                                                return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __m);
-                                            });
-                        *__res_reachedPos2 += __source_data_offsets.__start_offset2;
-                    }
+                    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+                    __par_backend::__parallel_invoke(
+                        __backend_tag{}, __exec,
+                        [&, __start_offset = __source_data_offsets.__start_offset1]() {
+                            if (__res_reachedPos1 != nullptr)
+                            {
+                                *__res_reachedPos1 = __pattern_count(
+                                    __tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                    [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                        return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __m);
+                                    });
+                                *__res_reachedPos1 += __start_offset;
+                            }
+                        },
+                        [&, __start_offset = __source_data_offsets.__start_offset2]() {
+                            if (__res_reachedPos2 != nullptr)
+                            {
+                                *__res_reachedPos2 = __pattern_count(
+                                    __tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                    [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                        return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __m);
+                                    });
+                                *__res_reachedPos2 += __start_offset;
+                            }
+                        });
                 }
             }
 
