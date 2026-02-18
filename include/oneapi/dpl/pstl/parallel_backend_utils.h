@@ -303,7 +303,7 @@ struct _UninitializedCopyItem
         }
         else
         {
-            // We should use placement new here because this method really works with raw unitialized memory
+            // We should use placement new here because this method really works with raw uninitialized memory
             new (std::addressof(*__it_out)) _OutValueType(*__it_in);
         }
     }

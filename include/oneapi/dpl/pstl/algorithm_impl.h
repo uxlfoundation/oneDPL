@@ -3536,7 +3536,7 @@ struct _ScanPred
             // 1. Copy source data (bounded)
             const typename _SetRange::_Data& __s_data_part = __s.get_data_part();
             {
-                // Evalueate output range boundaries for current data chunk
+                // Evaluate output range boundaries for current data chunk
                 const auto __result_from = __advance_clamped(__result1, __s_data_part.__pos, __result2);
                 const auto __result_to =
                     __advance_clamped(__result1, __s_data_part.__pos + __s_data_part.__len, __result2);
@@ -3564,7 +3564,7 @@ struct _ScanPred
 
                 if (__s_data_part.__pos <= __n_out && (__s_data_part.__pos + __s_data_part.__len) > __n_out)
                 {
-                    // Process masks states in the output result (continious, not windowed) mask buffer
+                    // Process masks states in the temporary (windowed) mask buffer
                     auto __mask_buffer_begin = __temporary_mask_buf + __s_mask_data.__buf_pos;
                     auto __mask_buffer_end = __temporary_mask_buf + __s_mask_data.__buf_pos + __s_mask_data.__len;
 
