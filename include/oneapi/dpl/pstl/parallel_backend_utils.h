@@ -231,13 +231,13 @@ enum class __parallel_set_op_mask : std::uint8_t
     eBothOut  = eData1 | eData2 | eDataOut  // mask for both input data items usage
 };
 
-template <__parallel_set_op_mask __mask>
-constexpr bool
-__test_parallel_set_op_mask_state(__parallel_set_op_mask __mask_state) noexcept
+inline constexpr bool
+__test_parallel_set_op_mask_state(__parallel_set_op_mask __checking_mask_state,
+                                  __parallel_set_op_mask __real_mask_state) noexcept
 {
     using _UT = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
-    const _UT __state_value = static_cast<_UT>(__mask_state);
+    const _UT __state_value = static_cast<_UT>(__real_mask_state);
 
     // The zero state is incorrect mask state!
     assert(__state_value != 0);
@@ -246,7 +246,7 @@ __test_parallel_set_op_mask_state(__parallel_set_op_mask __mask_state) noexcept
     constexpr _UT __valid_bits = static_cast<_UT>(__parallel_set_op_mask::eBothOut);
     assert((__state_value & (~__valid_bits)) == 0);
 
-    return __state_value & static_cast<_UT>(__mask);
+    return __state_value & static_cast<_UT>(__checking_mask_state);
 }
 
 inline std::nullptr_t
