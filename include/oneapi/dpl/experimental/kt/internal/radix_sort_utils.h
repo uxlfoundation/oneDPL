@@ -40,6 +40,30 @@ struct __sycl_tag
 };
 
 //-----------------------------------------------------------------------------
+// Tag-specific histogram kernel configuration
+//-----------------------------------------------------------------------------
+template <typename _KtTag>
+struct __radix_sort_histogram_params;
+
+template <>
+struct __radix_sort_histogram_params<__esimd_tag>
+{
+    // Occupies all 64 XE cores on PVC-1550 tile
+    static constexpr std::uint32_t __work_group_count = 64;
+    // 64 XVEs ~ 2048 SIMD lanes. Each work group fully controls Xe core
+    static constexpr std::uint32_t __work_group_size = 64;
+};
+
+template <>
+struct __radix_sort_histogram_params<__sycl_tag>
+{
+    // Guarantees full hardware occupancy on PVC with oversubscription showing improved performance
+    static constexpr std::uint32_t __work_group_count = 128 * 10;
+    // Max work-group size in SYCL gives us control over 1024 lanes, allowing 2 work-groups per Xe core
+    static constexpr std::uint32_t __work_group_size = 1024;
+};
+
+//-----------------------------------------------------------------------------
 // Parameter validation
 //-----------------------------------------------------------------------------
 template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
