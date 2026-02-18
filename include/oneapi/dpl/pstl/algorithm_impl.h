@@ -3872,7 +3872,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             if constexpr (!__Bounded)
 #endif
             {
-                __res_reachedPosOut = __total.get_data_part().__pos + __total.get_data_part().__len
+                __res_reachedPosOut = __total.get_data_part().__pos + __total.get_data_part().__len;
             }
             else
             {
