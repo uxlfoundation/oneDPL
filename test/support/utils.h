@@ -1498,7 +1498,7 @@ struct SetDataItem
     friend OStream&
     operator<<(OStream& os, const SetDataItem& item)
     {
-        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}\n";
+        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}";
         return os;
     }
 };
