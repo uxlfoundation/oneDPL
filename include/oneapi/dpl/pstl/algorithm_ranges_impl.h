@@ -903,8 +903,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _DifferenceType1 __n1 = std::ranges::size(__r1);
-    _DifferenceType2 __n2 = std::ranges::size(__r2);
+    _DifferenceType __n1 = std::ranges::size(__r1);
+    _DifferenceType __n2 = std::ranges::size(__r2);
 
     auto __first1 = std::ranges::begin(__r1);
     auto __last1 = __first1 + __n1;
@@ -966,13 +966,13 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
                     [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
                        _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
-                       _Comp __comp, _Proj2 __proj2, _Proj1 __proj1) {
+                       _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                         return oneapi::dpl::__utils::__set_intersection_construct(
                             __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
                             oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
                             __proj2);
                     },
-                    __comp, __proj2, __proj1);
+                    __comp, __proj1, __proj2);
                 return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
             }
             else
