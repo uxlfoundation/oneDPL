@@ -276,7 +276,7 @@ struct _UninitializedCopyItem
         }
         else
         {
-            // We should use placement new here because this method really works with raw unitialized memory
+            // We should use placement new here because this method really works with raw uninitialized memory
             new (std::addressof(*__it_out)) _OutValueType(*__it_in);
         }
     }
@@ -494,7 +494,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     // __proj1_val < __proj2_val
     auto __op_val1_lt_val2 = [_uninitialized_copy_from1](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
-        // We should use placement new here because this method really works with raw unitialized memory
+        // We should use placement new here because this method really works with raw uninitialized memory
         _uninitialized_copy_from1(__first1++, __result++);
         __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
 
@@ -504,7 +504,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
     // __proj2_val < __proj1_val
     auto __op_val2_lt_val1 = [_uninitialized_copy_from2](_ForwardIterator1 __first1, _ForwardIterator2 __first2, _OutputIterator __result, _MaskIterator __mask) -> _OperationRes
     {
-        // We should use placement new here because this method really works with raw unitialized memory
+        // We should use placement new here because this method really works with raw uninitialized memory
         _uninitialized_copy_from2(__first2++, __result++);
         __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
 
