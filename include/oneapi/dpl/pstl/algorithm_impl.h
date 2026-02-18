@@ -3422,7 +3422,7 @@ struct _SetRangeImpl
 };
 
 // __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                             true
+#define IMPLEMENT_SET_OP_AS_BOUNDED                             false
 #if IMPLEMENT_SET_OP_AS_BOUNDED
 #    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS             1
 #    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
@@ -3527,6 +3527,7 @@ template <bool __Bounded>
 struct __mask_buffers
 {
     using _mask_ptr_t = std::nullptr_t;
+    using _difference_t = std::ptrdiff_t;
 
     __mask_buffers(std::size_t) {}
 
