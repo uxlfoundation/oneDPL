@@ -694,8 +694,8 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
 
     // TODO wht this code absent in __pattern_includes + __parallel_tag for iterators?
     // use serial algorithm
-    // if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
-    //    return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
+        return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 
     using _DifferenceType1 = typename std::iterator_traits<decltype(__first1)>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<decltype(__first2)>::difference_type;
