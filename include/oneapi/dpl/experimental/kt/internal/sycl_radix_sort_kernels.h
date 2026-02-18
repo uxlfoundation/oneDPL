@@ -216,12 +216,6 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
     }
 
     static constexpr std::uint32_t
-    __get_slm_global_fix_offset()
-    {
-        return __get_slm_global_incoming_offset() + __global_hist_size;
-    }
-
-    static constexpr std::uint32_t
     __calc_slm_alloc()
     {
         // SLM Layout Visualization:
@@ -236,16 +230,16 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         //                                    │              │
         //                                    v              v
         // Phase 2 (Reorder):
-        // ┌──────────────────────────┬──────────────┬──────────────────┬─────────────────┐
-        // │   Reorder Space          │  Group Hist  │ Global Incoming  │  Global Fix     │
-        // │ max(__work_item_all_     │  __group_    │ __global_hist    │ __global_hist   │
-        // │     hists_size,          │  hist_size   │     _size        │     _size       │
-        // │     __reorder_size)      │              │                  │                 │
-        // └──────────────────────────┴──────────────┴──────────────────┴─────────────────┘
+        // ┌──────────────────────────┬──────────────┬──────────────────┐
+        // │   Reorder Space          │  Group Hist  │   Global Fix     │
+        // │ max(__work_item_all_     │  __group_    │  __global_hist   │
+        // │     hists_size,          │  hist_size   │      _size       │
+        // │     __reorder_size)      │              │                  │
+        // └──────────────────────────┴──────────────┴──────────────────┘
         //
         constexpr std::uint32_t __reorder_size = __calc_reorder_slm_size();
-        constexpr std::uint32_t __slm_size = std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size +
-                                             __global_hist_size + __global_hist_size;
+        constexpr std::uint32_t __slm_size =
+            std::max(__work_item_all_hists_size, __reorder_size) + __group_hist_size + __global_hist_size;
 
         return __slm_size;
     }
@@ -604,16 +598,28 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         }
     }
 
-    void inline __global_fix_to_slm(const sycl::nd_item<1>& __idx, _GlobOffsetT* __slm_global_fix,
-                                    _GlobOffsetT* __slm_global_incoming, _LocOffsetT* __slm_group_hist) const
+    void inline __global_fix_to_slm(const sycl::nd_item<1>& __idx, _GlobOffsetT* __slm_global_incoming,
+                                    _LocOffsetT* __slm_group_hist) const
     {
-        // compute __global_fix
+        // When we reorder into SLM there are indexing offsets between bins due to contiguous storage that should not be reflected in global output as any given bin's
+        // total global offset is defined in __slm_global_incoming. We account for this by subtracting each bin's incoming slm index offset
+        // from __slm_global_incoming so that later adding the reorderered key's slm index to the fixed global offset yields the correct output index in the final stage.
+        //
+        //
+        // The sequence of computations for the fixed global offset is shown below, showing how we yield a valid output index in __reorder_slm_to_glob.
+        // For demonstration, slm_global_fix is separated from slm_global_incoming which can actually be modified in-place.
+        // slm_global_fix[bin] = slm_global_incoming[bin] - slm_group_hist[bin]
+        // slm_idx[key]        = slm_group_hist[bin] + key offset within bin
+        // out_idx[key]        = slm_global_fix[bin] + slm_idx[key]
+        //                     = slm_global_incoming[bin] - slm_group_hist[bin] + slm_group_hist[bin] + key offset within bin
+        //                     = slm_global_incoming[bin] + key offset within bin
+        //
+        // The case where __slm_group_hist[_i] > __slm_global_incoming[__i] is valid resulting in
+        // the difference yielding a large number due to guaranteed wrap around behavior with unsigned integers in the C++ spec.
+        // When this global fix is added to the reordered offset index the wraparound is undone, yielding the valid output index shown above.
         for (_LocIdxT __i = __idx.get_local_id(); __i < __bin_count; __i += __work_group_size)
         {
-            // Note that this difference may be negative, but we use unsigned types. This is safe as wraparound for unsigned types
-            // is guaranteed.
-            __slm_global_fix[__i] = static_cast<_GlobOffsetT>(__slm_global_incoming[__i]) -
-                                    static_cast<_GlobOffsetT>(__slm_group_hist[__i]);
+            __slm_global_incoming[__i] -= __slm_group_hist[__i];
         }
         __dpl_sycl::__group_barrier(__idx);
     }
@@ -623,14 +629,13 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                                      _LocOffsetT (&__ranks)[__data_per_work_item],
                                      const _LocOffsetT (&__bins)[__data_per_work_item], std::uint32_t __sub_group_id,
                                      _LocOffsetT* __slm_subgroup_hists, _LocOffsetT* __slm_group_hist,
-                                     _GlobOffsetT* __slm_global_incoming, _GlobOffsetT* __slm_global_fix,
-                                     _KeyT* __slm_keys, _ValT* __slm_vals) const
+                                     _GlobOffsetT* __slm_global_incoming, _KeyT* __slm_keys, _ValT* __slm_vals) const
     {
         // 1. update ranks to reflect sub-group offsets in and across bins
         __propagate_ranks_across_sub_groups(__ranks, __bins, __slm_subgroup_hists, __slm_group_hist, __sub_group_id);
 
-        // 2. compute __global_fix
-        __global_fix_to_slm(__idx, __slm_global_fix, __slm_global_incoming, __slm_group_hist);
+        // 2. Apply fix to __slm_global_incoming
+        __global_fix_to_slm(__idx, __slm_global_incoming, __slm_group_hist);
 
         // 3. Write keys (and values) to SLM at computed ranks
         _ONEDPL_PRAGMA_UNROLL
@@ -730,12 +735,11 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
                 __slm_vals =
                     reinterpret_cast<_ValT*>(__slm_raw + __work_group_size * __data_per_work_item * sizeof(_KeyT));
             }
-            _GlobOffsetT* __slm_global_fix = reinterpret_cast<_GlobOffsetT*>(__slm_raw + __get_slm_global_fix_offset());
 
             __reorder_reg_to_slm(__idx, __values_pack, __ranks, __bins, __sg_id, __slm_subgroup_hists, __slm_group_hist,
-                                 __slm_global_incoming, __slm_global_fix, __slm_keys, __slm_vals);
+                                 __slm_global_incoming, __slm_keys, __slm_vals);
 
-            __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_fix, __slm_keys,
+            __reorder_slm_to_glob(__idx, __values_pack, __sg_id, __sg_local_id, __slm_global_incoming, __slm_keys,
                                   __slm_vals);
 
             sycl::group_barrier(__idx.get_group());
