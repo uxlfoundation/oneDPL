@@ -3422,7 +3422,7 @@ struct _SetRangeImpl
 };
 
 // __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                             false
+#define IMPLEMENT_SET_OP_AS_BOUNDED                             true
 #if IMPLEMENT_SET_OP_AS_BOUNDED
 #    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS             1
 #    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
