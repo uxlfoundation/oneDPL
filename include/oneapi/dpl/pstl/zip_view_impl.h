@@ -258,12 +258,6 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             }
         }
 
-		template <bool _OtherConst>
-		static decltype(auto) __get_current(const sentinel<_OtherConst>& __y)
-		{
-			return __y.__end;
-		}
-
         template <bool _OtherConst>
             requires(std::sentinel_for<std::ranges::sentinel_t<__internal::__maybe_const<_OtherConst, _Views>>,
                                        std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
@@ -372,6 +366,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             __internal::__apply_to_tuples(std::ranges::iter_swap, __x.__current, __y.__current);
         }
 
+private:
         template <std::size_t... _In>
         constexpr bool
         __compare_equal(iterator __y, std::index_sequence<_In...>) const
@@ -385,6 +380,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             return ((std::get<_In>(__current) == std::get<_In>(__sentinels)) || ...);
         }
+		
+        template <bool _OtherConst>
+		static decltype(auto) __get_current(const sentinel<_OtherConst>& __y)
+		{
+			return __y.__end;
+		}
 
         friend class zip_view;
 
