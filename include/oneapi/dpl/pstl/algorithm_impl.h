@@ -3851,8 +3851,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             __reduce_pred{__first1,       __last1, __first2, __last2, __size_func,          __mask_size_func,
                           __set_union_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin, __mask_bufs};
 
-        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedPosOut,
-                            &__scan_pred](const _SetRange& __total) {
+        auto __apex_pred = [__n_out, &__res_reachedPosOut, &__scan_pred](const _SetRange& __total) {
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
@@ -3860,6 +3859,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
             if constexpr (__Bounded)
                 __res_reachedPosOut = std::min(__res_reachedPosOut, __n_out);
+            else
+                __n_out = __n_out; // to avoid "unused variable" warning for __n_out
         };
 
         __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
