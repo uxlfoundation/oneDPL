@@ -4123,6 +4123,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
             if constexpr (__Bounded)
                 __res_reachedPosOut = std::min(__res_reachedPosOut, __n_out);
+            else
+                (void)__n_out; // to avoid "unused variable" warning for __n_out
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
