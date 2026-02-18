@@ -3325,15 +3325,16 @@ __is_set_algo_cutoff_exceeded(Size size)
 // KSATODO required to remove in the end of development all debug code linked with this macro
 #define DUMP_PARALLEL_SET_OP_WORK 0
 
+#if DUMP_PARALLEL_SET_OP_WORK
+#define DUMP_PARALLEL_SET_OP_WORK_BUFFERS 0
+static std::size_t _s_SetRangeImplCounter = 0;
+#endif
+
 // _ReachedOffset - desrcibes reached offset in input range
 //  - the first field contains the amount of processed items
 //  - the second field contains the amount of processed (i.e. skipped) items in the end
 template <typename _DifferenceType>
 using _ReachedOffset = std::pair<_DifferenceType, _DifferenceType>;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-static std::size_t _s_SetRangeImplCounter = 0;
-#endif
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
@@ -3342,7 +3343,7 @@ class _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _MaskDataIndex = 1;
-    static constexpr std::size_t _ReachedOffsetsDataIndex = 2;
+    static constexpr std::size_t _SourceDataOffsetsIndex = 2;
 
   public:
 
@@ -3398,9 +3399,9 @@ class _SetRangeImpl
         friend OStream&
         operator<<(OStream& os, const _Data& data)
         {
-            os << "__buf_pos = " << data.__buf_pos << ", "
-               << "__len = "     << data.__len     << ", "
-               << "__pos = "     << data.__pos;
+            os << "__pos = " << data.__pos << ", "
+               << "__len = " << data.__len << ", "
+               << "__buf_pos = " << data.__buf_pos;
             return os;
         }
 #endif
@@ -3408,54 +3409,75 @@ class _SetRangeImpl
 
     using _MaskData = _Data;
 
-    struct _ReachedOffsetsBaseData
+    struct _SourceProcessingDataOffsets
     {
-        _DifferenceType1 __reached_offset1 = {}; // The amount of processed items in the first input range
-        _DifferenceType2 __reached_offset2 = {}; // The amount of processed items in the second input range
+        //                                             __start_offset1                 __start_offset2
+        //                                                   |                               |
+        //                                                   |                               |
+        // First input range:                 [..............V...............................|.........)
+        // Second input range:                [..............................................V...............................)
+        //                                                          [.........................)
+        // Temporary windowed result buffer:  TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+        //                                                          ^                         ^
+        //                                                          +<-(__buf_pos)            +<-(__buf_pos + __len)
 
-        _ReachedOffsetsBaseData
-        operator+(const _ReachedOffsetsBaseData& other) const
+        _DifferenceType1 __start_offset1 = {}; // Offset in the first input range to start processing data in the window
+        _DifferenceType2 __start_offset2 = {}; // Offset in the second input range to start processing data in the window
+
+        static _SourceProcessingDataOffsets
+        combine_with(const _SourceProcessingDataOffsets& __a, const _SourceProcessingDataOffsets& __b)
         {
-            return { __reached_offset1 + other.__reached_offset1,
-                     __reached_offset2 + other.__reached_offset2 };
-        }
-    };
-
-    struct _ReachedOffsetsData
-    {
-        _ReachedOffsetsBaseData __data;
-        _ReachedOffsetsBaseData __prev_left_data;
-
-        static _ReachedOffsetsData
-        combine_with_lr(const _ReachedOffsetsData& __left, const _ReachedOffsetsData& __right)
-        {
-            _ReachedOffsetsData __result;
-
-            __result.__data = __left.__data + __right.__data;
-            __result.__prev_left_data = __left.__data;
-
-            return __result;
+            return {std::max(__a.__start_offset1, __b.__start_offset1),
+                    std::max(__a.__start_offset2, __b.__start_offset2)};
         }
 
 #if DUMP_PARALLEL_SET_OP_WORK
         template <typename OStream>
         friend OStream&
-        operator<<(OStream& os, const _ReachedOffsetsData& data)
+        operator<<(OStream& os, const _SourceProcessingDataOffsets& data)
         {
-            os << "__reached_offset1 = " << data.__reached_offset1 << ", "
-               << "__reached_offset2 = " << data.__reached_offset2;
+            os << "__start_offset1 = " << data.__start_offset1 << ", "
+               << "__start_offset2 = " << data.__start_offset2;
             return os;
         }
 #endif
     };
 
-    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _ReachedOffsetsData>>;
+    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _SourceProcessingDataOffsets>>;
 
-    _SetRangeImpl() = default;
-    _SetRangeImpl(const _SetRangeImpl&) = default;
+    _SetRangeImpl()
+    {
+#if DUMP_PARALLEL_SET_OP_WORK
+        __increment_counter();
+#endif
+    }
 
-    _SetRangeImpl(const _DataStorage& data) : __data(data) {}
-    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data)) {}
+    _SetRangeImpl(const _SetRangeImpl& __other) : __data(__other.__data)
+    {
+#if DUMP_PARALLEL_SET_OP_WORK
+        __increment_counter();
+#endif
+    }
+    _SetRangeImpl(_SetRangeImpl&& __other) : __data(std::move(__other.__data))
+    {
+#if DUMP_PARALLEL_SET_OP_WORK
+        __increment_counter();
+#endif
+    }
+
+    _SetRangeImpl(const _DataStorage& data) : __data(data)
+    {
+#if DUMP_PARALLEL_SET_OP_WORK
+        __increment_counter();
+#endif
+    }
+
+    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data))
+    {
+#if DUMP_PARALLEL_SET_OP_WORK
+        __increment_counter();
+#endif
+    }
 
     _SetRangeImpl&
     operator=(const _SetRangeImpl&) = default;
@@ -3479,11 +3501,11 @@ class _SetRangeImpl
         return std::get<_MaskDataIndex>(__data);
     }
 
-    const _ReachedOffsetsData&
-    get_reached_offsets_part() const
+    const _SourceProcessingDataOffsets&
+    get_source_data_offsets_part() const
     {
-        static_assert(__Bounded, "Reached offsets data part is available only for bounded set operations");
-        return std::get<_ReachedOffsetsDataIndex>(__data);
+        static_assert(__Bounded, "Source data offsets part is available only for bounded set operations");
+        return std::get<_SourceDataOffsetsIndex>(__data);
     }
 
   protected:
@@ -3492,7 +3514,14 @@ class _SetRangeImpl
 
 #if DUMP_PARALLEL_SET_OP_WORK
     // For debug purposes only (should be places after!!! __pos, __len, __buf_pos fields due used aggregate initialization)
-    std::size_t __counter = _s_SetRangeImplCounter++;
+    std::size_t __counter = {};
+
+    void __increment_counter()
+    {
+        __counter = _s_SetRangeImplCounter++;
+
+        std::cout << "The new _SetRangeImpl created: __counter = " << __counter << std::endl;
+    }
 #endif
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -3502,20 +3531,18 @@ class _SetRangeImpl
     {
         os << "__counter = " << data.__counter;
         os << ", processing data : (" << data.get_data_part() << ")";
-
         if constexpr (__Bounded)
         {
             os << ", mask data : (" << data.get_mask_part() << ")";
-            os << ", reached offsets data : (" << data.get_reached_offsets_part() << ")";
+            os << ", source data offsets : (" << data.get_source_data_offsets_part() << ")";
         }
-
         return os;
     }
 #endif
 };
 
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
-          typename _DifferenceTypeOut, typename _DifferenceType, typename _MaskBuffer>
+          typename _DifferenceTypeOut, typename _DifferenceType>
 struct _SetRangeCombiner
 {
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeMask, _DifferenceTypeOut, _DifferenceType>;
@@ -3531,33 +3558,37 @@ struct _SetRangeCombiner
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{__new_processing_data} << ")" << "\n";
+                      << "\t\t -> (" << _SetRange{__new_processing_data} << ")" << std::endl;
 #endif
             return __new_processing_data;
         }
         else
         {
             typename _SetRange::_MaskData __new_mask_data = _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
-            bool __is_left = _SetRange::_Data::is_left(__a.get_data_part(), __b.get_data_part());
-            typename _SetRange::_ReachedOffsetsData __new_reached_offsets_data =
-                __is_left
-                ? _SetRange::_ReachedOffsetsData::combine_with_lr(__a.get_reached_offsets_part(), __b.get_reached_offsets_part())
-                : _SetRange::_ReachedOffsetsData::combine_with_lr(__b.get_reached_offsets_part(), __a.get_reached_offsets_part());
-            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data, __new_reached_offsets_data};
+
+            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_a = __a.get_source_data_offsets_part();
+            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_b = __b.get_source_data_offsets_part();
+
+            typename _SetRange::_SourceProcessingDataOffsets __new_offsets_to_processing_data =
+                _SetRange::_SourceProcessingDataOffsets::combine_with(___source_data_offsets_a, ___source_data_offsets_b);
+
+            typename _SetRange::_DataStorage _ds{
+                __new_processing_data,              // Describes data
+                __new_mask_data,                    // Describes mask
+                __new_offsets_to_processing_data }; // Describes offsets to processing data
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
                       << "\t\t -> (" << _SetRange{_ds}
-                      << ")" << "\n";
+                      << ")" << std::endl;
 #endif
             return _SetRange{_ds};
         }
     }
 
     const _DifferenceTypeOut __n_out = {};  // Size of output range
-    const _MaskBuffer __mask_buffer;        // Pointer to windowed mask buffer
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
@@ -3581,10 +3612,11 @@ template <typename OStream, typename Iterator, typename ValueType = std::iterato
 OStream&
 dump_buffer(OStream& os, Iterator first, Iterator last)
 {
-#if 1
+    os << "(";
+
+#if DUMP_PARALLEL_SET_OP_WORK_BUFFERS
     bool bCommaNeeded = false;
 
-    os << "(";
     for (auto it = first; it != last; ++it)
     {
         if (bCommaNeeded)
@@ -3597,8 +3629,11 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
 
         bCommaNeeded = true;
     }
-    os << ")";
+#else
+    os << "...";
 #endif
+    os << ")";
+
     return os;
 }
 #endif
@@ -3616,6 +3651,7 @@ struct __mask_buffers<true>
     {
     }
 
+    // Get pointer to the windowed mask buffer with offset
     _mask_ptr_t
     get_buf_mask_rng_data(std::size_t __offset = 0) const
     {
@@ -3636,6 +3672,7 @@ struct __mask_buffers<false>
     {
     }
 
+    // Get pointer to the windowed mask buffer with offset
     _mask_ptr_t
     get_buf_mask_rng_data(std::size_t = 0) const
     {
@@ -3649,7 +3686,7 @@ struct _ScanPred
     __parallel_tag<_IsVector> __tag;
     ProcessingDataPointer     __buf_pos_begin;
     ProcessingDataPointer     __buf_pos_end;
-    MaskDataPointer           __mask_buf_pos_begin;
+    MaskDataPointer           __temporary_mask_buf;     // Pointer to the windowed mask buffer
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
@@ -3677,40 +3714,60 @@ struct _ScanPred
             std::cout << "ST.4:\n"
                       << "\t__brick_move_destroy - data";
 #endif
-            // Copy source data (bounded)
+
+            // 1. Copy source data (bounded)
+            const typename _SetRange::_Data& __s_data_part = __s.get_data_part();
             {
                 // Evalueate output range boundaries for current data chunk
-                const auto __result_from = __advance_clamped(__result1, __s.get_data_part().__pos,                             __result2);
-                const auto __result_to   = __advance_clamped(__result1, __s.get_data_part().__pos + __s.get_data_part().__len, __result2);
+                const auto __result_from = __advance_clamped(__result1, __s_data_part.__pos, __result2);
+                const auto __result_to   = __advance_clamped(__result1, __s_data_part.__pos + __s_data_part.__len, __result2);
+
                 const auto __result_remaining = __result_to - __result_from;
+                assert(__result_remaining <= __s_data_part.__len);
+                if (__result_remaining > 0)
+                {
+                    // Evaluate pointers to current data chunk in temporary buffer
+                    const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __s_data_part.__buf_pos,                      __buf_pos_end);
+                    const auto __buf_pos_to   = __advance_clamped(__buf_pos_begin, __s_data_part.__buf_pos + __result_remaining, __buf_pos_end);
 
-                // Evaluate pointers to current data chunk in temporary buffer
-                const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos, __buf_pos_end);
-                const auto __buf_pos_to   = __advance_clamped(__buf_pos_begin, __s.get_data_part().__buf_pos + std::min(__result_remaining, __s.get_data_part().__len), __buf_pos_end);
-
-                // Copy results data into results range to have final output
-                __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
+                    // Copy results data into results range to have final output
+                    __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
+                }
             }
 
-            // Evaluate final positions in the first and the second input ranges
+            // 2. Evaluate final positions in the first and the second input ranges
             {
+                const typename _SetRange::_MaskData& __s_mask_data = __s.get_mask_part();
                 const auto __n_out = __result2 - __result1;
 
-                if (__s.get_data_part().__pos <= __n_out && (__s.get_data_part().__pos + __s.get_data_part().__len) > __n_out)
+                if (__s_data_part.__pos <= __n_out && (__s_data_part.__pos + __s_data_part.__len) > __n_out)
                 {
-                    // The rest of output data
-                    const auto __rest_of_data = __n_out;
+                    // Process masks states in the output result (continious, not windowed) mask buffer
+                    auto __mask_buffer_begin = __temporary_mask_buf + __s_mask_data.__buf_pos;
+                    auto __mask_buffer_end   = __temporary_mask_buf + __s_mask_data.__buf_pos + __s_mask_data.__len;
 
-                    auto __mask_buffer_begin = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos;
-                    auto __mask_buffer_end   = __mask_buf_pos_begin + __s.get_mask_part().__buf_pos + __s.get_mask_part().__len;
-
-                    std::decay_t<decltype(__rest_of_data)> __new_data_item = 0;
+                    auto __pos_no = __s_data_part.__pos;
                     auto __mask_buffer_it = __mask_buffer_begin;
-                    for (; __mask_buffer_it != __mask_buffer_end && __new_data_item < (__rest_of_data + 1); ++__mask_buffer_it)
+
+                    // 1. Pass positions which generates output
+                    for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
                     {
                         if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
-                            ++__new_data_item;
+                            ++__pos_no;
                     }
+
+                    // 2. Take into account positions without generated output
+                    while (__mask_buffer_it != __mask_buffer_end
+                           && !oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
+                    {
+                        assert(*__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+                               *__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
+                               *__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth);
+
+                        ++__mask_buffer_it;
+                    }
+
+                    const typename _SetRange::_SourceProcessingDataOffsets& __source_data_offsets = __s.get_source_data_offsets_part();
 
                     __res_reachedPos1 = std::count_if(
                         __mask_buffer_begin, __mask_buffer_it,
@@ -3718,7 +3775,7 @@ struct _ScanPred
                         {
                             return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
                         });
-                    __res_reachedPos1 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset1;
+                    __res_reachedPos1 += __source_data_offsets.__start_offset1;
 
                     __res_reachedPos2 = std::count_if(
                         __mask_buffer_begin, __mask_buffer_it,
@@ -3726,9 +3783,14 @@ struct _ScanPred
                         {
                             return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
                         });
-                    __res_reachedPos2 += __s.get_reached_offsets_part().__prev_left_data.__reached_offset2;
+                    __res_reachedPos2 += __source_data_offsets.__start_offset2;
                 }
             }
+
+#if DUMP_PARALLEL_SET_OP_WORK
+            std::cout << "ST.4:\n"
+                      << "\t__brick_move_destroy - mask";
+#endif
         }
     }
 
@@ -3782,26 +3844,23 @@ struct _ParallelSetOpStrictScanPred
 
         //try searching for the first element which not equal to *__b
         if (__b != __first1)
-            __b +=
-                __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+            __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
 
         //try searching for the first element which not equal to *__e
         if (__e != __last1)
-            __e +=
-                __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+            __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
 
         //check is [__b; __e) empty
         if (__e - __b < 1)
         {
             _RandomAccessIterator2 __bb = __last2;
             if (__b != __last1)
-                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
-                                                                 __comp, __proj2, __proj1);
+                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b, __comp, __proj2, __proj1);
 
             typename _SetRange::_Data __new_processing_data{
-                0,                                                          // position in output range
-                0,                                                          // length of data in temporary buffer
-                __size_func((__b - __first1), (__bb - __first2))};          // position in temporary buffer
+                0,                                                          // Offset in output range w/o limitation to output data size
+                0,                                                          // The length of data pack: the same for windowed and result buffers
+                __size_func((__b - __first1), (__bb - __first2))};          // Offset in temporary buffer w/o limitation to output data size
 
             if constexpr (!__Bounded)
             {
@@ -3816,11 +3875,14 @@ struct _ParallelSetOpStrictScanPred
             else
             {
                 typename _SetRange::_MaskData __new_mask_data{
-                    0,                                                      // position in mask buffer
-                    0,                                                      // length of mask in temporary mask buffer
-                    __mask_size_func((__b - __first1), (__bb - __first2))}; // position in temporary mask buffer
+                    0,                                                      // Offset in output range w/o limitation to output data size
+                    0,                                                      // The length of data pack: the same for windowed and result buffers
+                    __mask_size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
-                typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, typename _SetRange::_ReachedOffsetsData{} };
+                typename _SetRange::_DataStorage _ds{
+                    __new_processing_data,                                  // Describes data
+                    __new_mask_data,                                        // Describes mask
+                    typename _SetRange::_SourceProcessingDataOffsets{} };   // Describes offsets to processing data
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.1.1:\n"
@@ -3844,14 +3906,12 @@ struct _ParallelSetOpStrictScanPred
                                                          __proj2, __proj1);
 
         const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
-        const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
 
         auto __buffer_b = __buf_raw_data_begin + __buf_pos;
-        auto __buffer_e = __buf_raw_data_begin + __buf_pos + __buf_len;
 
-        const _DifferenceType __buf_mask_pos = __mask_size_func(__b - __first1, __bb - __first2);
+        const _DifferenceType __mask_buf_pos = __mask_size_func(__b - __first1, __bb - __first2);
 
-        auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__buf_mask_pos);
+        auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__mask_buf_pos);
 
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_union_op(__b, __e,   // set1 : begin, end
@@ -3865,11 +3925,11 @@ struct _ParallelSetOpStrictScanPred
             assert(__mask_reached - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
         }
 
-        // The amount of saved items into output range
-        const auto __reached_offsetOutput = __output_reached - __buffer_b;
-
         // Prepare processed data info
-        const typename _SetRange::_Data __new_processing_data{0, __reached_offsetOutput, __buf_pos};
+        const typename _SetRange::_Data __new_processing_data{
+            0,                                  // Offset in output range w/o limitation to output data size
+            __output_reached - __buffer_b,      // The length of data pack: the same for windowed and result buffers
+            __buf_pos};                         // Offset in temporary buffer w/o limitation to output data size
 
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "ST.1.2:\n";
@@ -3880,42 +3940,42 @@ struct _ParallelSetOpStrictScanPred
         dump_buffer(std::cout, __bb, __ee);
         std::cout << "\n";
         std::cout << "\t\t result : ";
-        dump_buffer(std::cout, __buffer_b, __buffer_b + __reached_offsetOutput);
-        std::cout << "\n";
+        dump_buffer(std::cout, __buffer_b, __buffer_b + __new_processing_data.__len);
+        std::cout << std::endl;
 #endif
 
         if constexpr (!__Bounded)
         {
 #if DUMP_PARALLEL_SET_OP_WORK
-            std::cout << "\t\t <- (" << _SetRange{__new_processing_data} << ")" << "\n";
+            std::cout << "\t\t <- (" << _SetRange{__new_processing_data} << ")" << std::endl;
 #endif
-            return __new_processing_data;
+            return _SetRange{__new_processing_data};
         }
         else
         {
-            auto __reached_offset1 = __it1_reached - __b;                // The amount of processed items in the first input range
-            auto __reached_offset2 = __it2_reached - __bb;               // The amount of processed items in the second input range
-            auto __reached_offset_mask = __mask_reached - __mask_b;      // The amount of generated mask items
-
             // Prepare processed mask info
-            const typename _SetRange::_MaskData __new_mask_data{
-                0,                         // position in mask buffer
-                __reached_offset_mask,     // length of mask in temporary mask buffer
-                __buf_mask_pos};           // position in temporary mask buffer
+            typename _SetRange::_MaskData __new_mask_data{
+                0,                                  // Offset in output range w/o limitation to output data size
+                __mask_reached - __mask_b,          // The length of data pack: the same for windowed and result buffers
+                __mask_buf_pos };                   // Offset in temporary buffer w/o limitation to output data size
 
-            const typename _SetRange::_ReachedOffsetsData __new_reached_offsets_data{
-                __reached_offset1,  // The amount of processed items in the first input range
-                __reached_offset2}; // The amount of processed items in the second input range
+            typename _SetRange::_SourceProcessingDataOffsets __new_offsets_to_processing_data{
+                __b - __first1,                     // Absolute offset to processing data in the first data set
+                __bb - __first2 };                  // Absolute offset to processing data in the second data set
 
-            typename _SetRange::_DataStorage _ds{ __new_processing_data, __new_mask_data, __new_reached_offsets_data };
+            typename _SetRange::_DataStorage _ds{
+                __new_processing_data,              // Describes data
+                __new_mask_data,                    // Describes mask
+                __new_offsets_to_processing_data }; // Describes offsets to processing data
 
 #if DUMP_PARALLEL_SET_OP_WORK
+            const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
+
             std::cout << "\t\t mask : ";
             dump_buffer<decltype(std::cout), decltype(__mask_b), int>(std::cout, __mask_b, __mask_b + __buf_len);
             std::cout << "\n";
-            std::cout << "\t\t <- (" << _SetRange{_ds} << ")" << "\n";
+            std::cout << "\t\t <- (" << _SetRange{_ds} << ")" << std::endl;
 #endif
-            
             return _SetRange{_ds};
         }
     }
@@ -3959,12 +4019,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
     dump_buffer(std::cout, __first2, __last2);
     std::cout << "\n\t__n_out = " << __n_out
               << "\n\t__buf_size = " << __buf_size
-              << "\n\t__mask_buf_size = " << __mask_buf_size << "\n";
+              << "\n\t__mask_buf_size = " << __mask_buf_size << std::endl;
 #endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);                                   // Temporary (windowed) buffer for mask preparation
+    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);                                   // Temporary (windowed) buffer + result buffer for mask preparation
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
+    using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
 
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType>;
 
@@ -3986,15 +4047,11 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-        // Temporary "window"-organized mask of used items in input ranges
-        using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
-        _mask_ptr_t __buf_mask_rng_raw_data_begin = __mask_bufs.get_buf_mask_rng_data();
-
         _DifferenceType1 __res_reachedPos1 = __n1; // offset to the first unprocessed item from the first input range
         _DifferenceType2 __res_reachedPos2 = __n2; // offset to the first unprocessed item from the second input range
         _DifferenceType __res_reachedPosOut = 0;   // offset to the first unprocessed item from output range
 
-        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType, _mask_ptr_t> __combine_pred{__n_out, __buf_mask_rng_raw_data_begin};
+        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType> __combine_pred{__n_out};
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
@@ -4002,7 +4059,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             __tag,
             __buf_raw_data_begin,
             __buf_raw_data_end,
-            __buf_mask_rng_raw_data_begin,
+            __mask_bufs.get_buf_mask_rng_data(),        // Pointer to the windowed mask buffer
             __result1,
             __result2,
             __res_reachedPos1,
@@ -4036,7 +4093,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
                       << "\t\t <- (" << __total << ") " << "\n"
-                      << "\n\t\t -> __res_reachedPosOut = " << __res_reachedPosOut << "\n";
+                      << "\n\t\t -> __res_reachedPosOut = " << __res_reachedPosOut << std::endl;
 #endif
         };
 
@@ -4051,11 +4108,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
 #if DUMP_PARALLEL_SET_OP_WORK
         if constexpr (__Bounded)
+        {
             std::cout << "\n\tReached offsets: " << __res_reachedPos1 << ", " << __res_reachedPos2 << ", " << __res_reachedPosOut << "\n";
+        }
 
         std::cout << "\n\tRESULT: ";
         dump_buffer(std::cout, __result1, __result2);
-        std::cout << "\n";
+        std::cout << std::endl;
 #endif
 
         return __parallel_set_op_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>{
