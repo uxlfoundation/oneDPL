@@ -35,11 +35,12 @@ radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -59,11 +60,12 @@ radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_las
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -83,11 +85,12 @@ radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng,
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -112,11 +115,12 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __k
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -136,11 +140,12 @@ radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, 
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, std::move(__pack), std::move(__pack_out),
         __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 
 #endif
 }
@@ -168,11 +173,12 @@ radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_l
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, std::move(__pack), std::move(__pack_out),
         __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -195,11 +201,12 @@ radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rn
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, std::move(__pack), std::move(__pack_out),
         __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
@@ -233,11 +240,12 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, std::move(__pack), std::move(__pack_out),
         __param);
 #else
-    static_assert(false, "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                         "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
-                         "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                         "oneAPI DPC++/C++ Compiler, "
-                         "a minimum version of 2025.1.0 is also required.");
+    static_assert(oneapi::dpl::__internal::__always_false,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 #endif
 }
 
