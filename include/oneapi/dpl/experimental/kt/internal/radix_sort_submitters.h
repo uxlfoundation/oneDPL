@@ -17,7 +17,6 @@
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
-#include "../../../pstl/hetero/dpcpp/parallel_backend_sycl.h"
 #include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_utils.h"
 #include "../../../pstl/hetero/dpcpp/sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
@@ -36,10 +35,6 @@ namespace oneapi::dpl::experimental::kt::gpu::__impl
 //------------------------------------------------------------------------
 // Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
 //------------------------------------------------------------------------
-
-// Kernel name tag for SYCL one work group sort
-template <typename... _Name>
-struct __sycl_radix_sort_one_wg_kernel_name;
 
 template <bool __is_ascending, std::uint8_t __radix_bits, std::uint16_t __data_per_work_item,
           std::uint16_t __work_group_size, typename _KeyT, typename _KernelName>
@@ -63,30 +58,6 @@ struct __radix_sort_one_wg_submitter<__is_ascending, __radix_bits, __data_per_wo
                 __kernel(__n, __pack_in, __pack_out);
             __cgh.parallel_for<_Name...>(__nd_range, __kernel);
         });
-    }
-
-    template <typename _RngPack1, typename _RngPack2>
-    sycl::event
-    operator()(__sycl_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __n) const
-    {
-        // TODO: Use user-provided work-group sizes and data per work item. However, 8-bit radix is broken in oneDPL, so we
-        // must force 4-bit for now.
-        constexpr std::uint16_t __block_size = __data_per_work_item;
-        constexpr std::uint32_t __radix = 4;
-
-        // Create a unique kernel name using __kernel_name_provider
-        // Include range pack types to ensure uniqueness across different invocations
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __sycl_radix_sort_one_wg_kernel_name<_Name..., std::decay_t<_RngPack1>, std::decay_t<_RngPack2>>>;
-
-        using _SubgroupRadixSort =
-            oneapi::dpl::__par_backend_hetero::__subgroup_radix_sort<_KernelName, __work_group_size, __block_size,
-                                                                     __radix, __is_ascending>;
-
-        _SubgroupRadixSort __sorter;
-
-        auto __identity_proj = [](const _KeyT& __x) { return __x; };
-        return __sorter(__q, __pack_in.__keys_rng(), __pack_out.__keys_rng(), __identity_proj);
     }
 };
 
