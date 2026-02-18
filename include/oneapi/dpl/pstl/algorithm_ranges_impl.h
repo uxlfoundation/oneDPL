@@ -28,8 +28,6 @@
 #    include "execution_impl.h"
 #    include "algorithm_impl.h"
 
-#define __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL 1
-
 namespace oneapi
 {
 namespace dpl
@@ -785,7 +783,6 @@ using __set_union_return_t =
     std::ranges::set_union_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set union: performs set_union with output range capacity checking.
 // Truncates result if output range is too small.
 template<std::ranges::random_access_range _R1,
@@ -860,55 +857,6 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
 
     return {__copy1.in, __copy2.in, __copy2.out};
 }
-#else
-// Bounded set union: performs set_union with output range capacity checking.
-// Truncates result if output range is too small.
-template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
-          std::ranges::random_access_range _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
-
-    // 1. Main set_union operation
-    while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            *__out_it = *__it1;
-            ++__it1;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            *__out_it = *__it2;
-            ++__it2;
-        }
-        else
-        {
-            *__out_it = *__it1;
-            ++__it1;
-            ++__it2;
-        }
-        ++__out_it;
-    }
-
-    // 2. Copying the residual elements if one of the input sequences is exhausted
-    const auto __remaining_capacity1 = __out_end - __out_it;
-    const auto __copy_n1 = __end1 - __it1;
-    const auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
-
-    const auto __remaining_capacity2 = __out_end - __copy1.out;
-    const auto __copy_n2 = __end2 - __it2;
-    const auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
-
-    return {__copy1.in, __copy2.in, __copy2.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
@@ -941,153 +889,6 @@ __pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r
                              __proj1, __proj2, typename _Tag::__is_vector{});
 }
 
-template <class _IncludeToOutputPred>
-struct __set_op_bounded_offsets_evaluator
-{
-    _IncludeToOutputPred __include_to_output_pred;
-
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        assert(__n_out > 0);
-
-        // Initial optimisation - if generated output fitted into output size - no actions required
-        // - here we should check exactly less (not less or equal) because we are looking for the position where output size limit is reached
-        if (__reachedOutPos < __n_out)
-        {
-            return {__n1, __n2};
-        }
-
-        using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-        using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
-
-        const auto __req_mask_size = __mask_end - __mask_begin;
-
-        assert(__req_mask_size > 0);
-
-        // Our reached output position should not exceed requested mask output size
-        assert(__reachedOutPos <= __req_mask_size);
-
-        // Calculate counts through transform_iterator
-        auto __it_transform1 = oneapi::dpl::make_transform_iterator(
-            __mask_begin, [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
-                // (mask & 0x10) == 0x10
-                return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
-                       __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-            });
-        auto __it_transform2 = oneapi::dpl::make_transform_iterator(
-            __mask_begin, [](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
-                // (mask & 0x01) == 0x01
-                return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
-                       __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-            });
-        auto __it_transformOut = oneapi::dpl::make_transform_iterator(
-            __mask_begin, [this](oneapi::dpl::__utils::__parallel_set_op_mask __m) -> _DifferenceType {
-                return __include_to_output_pred(__m);
-            });
-
-        auto __call_pts = [__tag, &__exec](auto __it_start, auto __len, auto __it_out) {
-            return __pattern_transform_scan(__tag, __exec, __it_start, __it_start + __len, __it_out,
-                                            oneapi::dpl::identity{}, _DifferenceType{}, std::plus{},
-                                            /* _Inclusive */ std::true_type{});
-        };
-
-        // Calculate prefix summs of counts for output items to find the position where output size limit is reached
-        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf_out(__req_mask_size);
-        const auto __processed_items_in_output =
-            __call_pts(__it_transformOut, __req_mask_size, __prefix_summ_buf_out.get());
-
-        // Find the position where output size limit is reached
-        //  - we should try to find the next processed position so we use the value __reachedOutPos + 1
-        const auto __prefix_summ_buf_out_begin = __prefix_summ_buf_out.get();
-        const auto __prefix_summ_buf_out_end = __prefix_summ_buf_out.get() + __req_mask_size;
-        const auto __prefix_summ_buf_out_reached =
-            std::lower_bound(__prefix_summ_buf_out_begin, __prefix_summ_buf_out_end, __reachedOutPos + 1);
-
-        const auto __prefix_summ_buf_out_reached_offset = __prefix_summ_buf_out_reached - __prefix_summ_buf_out_begin;
-        const auto __buf_size_to_process = __prefix_summ_buf_out_reached_offset + 1;
-
-        // Calculate prefix sums for the first and second input buffers to find reached positions in them.
-        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf1(__buf_size_to_process);
-        __par_backend::__buffer<_DifferenceType> __prefix_summ_buf2(__buf_size_to_process);
-
-        __par_backend::__parallel_invoke(
-            __backend_tag{}, __exec,
-            [&]() { __call_pts(__it_transform1, __buf_size_to_process, __prefix_summ_buf1.get()); },
-            [&]() { __call_pts(__it_transform2, __buf_size_to_process, __prefix_summ_buf2.get()); });
-
-        // We processed all output items: this means we processed all first and second input items
-        if (__prefix_summ_buf_out_reached == __prefix_summ_buf_out_end)
-        {
-            return {__prefix_summ_buf1.get()[__buf_size_to_process - 1],
-                    __prefix_summ_buf2.get()[__buf_size_to_process - 1]};
-        }
-
-        // Initially we assume that we processed all first data range
-        const auto __n1_reached = __prefix_summ_buf1.get()[__prefix_summ_buf_out_reached_offset] - 1;
-        const auto __n2_reached = __prefix_summ_buf2.get()[__prefix_summ_buf_out_reached_offset] - 1;
-
-        return {__n1_reached, __n2_reached};
-    }
-};
-
-// for bounded implementation of std::ranges::set_union
-struct __set_union_offsets
-{
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
-
-        // No output size limits - return the end of the first and second input buffers
-        if (__n_out >= __size_func(__n1, __n2))
-            return {__n1, __n2};
-
-        // Calculate reached positions in the first and second input buffers using the __mask buffer
-        using __parallel_set_op_mask_underlying_t =
-            std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
-
-        auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
-                                 oneapi::dpl::__utils::__parallel_set_op_mask __state2) -> _Sizes {
-            assert(__state1 == __state2);
-            return _Sizes{
-                (__parallel_set_op_mask_underlying_t)__state1 &
-                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1
-                    ? 1
-                    : 0,
-                (__parallel_set_op_mask_underlying_t)__state1 &
-                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2
-                    ? 1
-                    : 0};
-        };
-
-        auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
-            return {__a.first + __b.first, __a.second + __b.second};
-        };
-
-        assert(__reachedOutPos <= __mask_end - __mask_begin);
-
-        // transform_reduce
-        const _Sizes __res = __pattern_transform_reduce(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
-            __mask_begin, __mask_begin + __reachedOutPos,
-            __mask_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
-            _Sizes{0, 0}, reduce_pred, transform_pred);
-
-        return {__res.first, __res.second};
-    }
-};
-
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
@@ -1103,21 +904,29 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return __serial_set_union(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2);
 
-    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/ true>(
-               __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
-               __result2,
-               [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                  _RandomAccessIterator2 __last2, _Tp* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
-                  _Proj2 __proj2) {
-                   return oneapi::dpl::__utils::__set_union_construct(
-                       __first1, __last1, __first2, __last2, __result, __mask,
-                       oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
-               },
-               __set_union_offsets{}, __comp, __proj1, __proj2)
+    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/true>(
+        __tag, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1,                                                  // bounds for data1
+        __first2, __last2,                                                  // bounds for data2
+        __result1, __result2,                                               // bounds for results
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // _SetUnionOp __set_union_op
+           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+           _Tp* __result,
+           auto __mask,
+           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
+            return oneapi::dpl::__utils::__set_union_construct(
+                __first1, __last1,                                          // bounds for data1
+                __first2, __last2,                                          // bounds for data2
+                __result,                                                   // results
+                __mask,                                                     // source data usage masks
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), // _CopyConstructRange __cc_range
+                __comp, __proj1, __proj2);
+        },
+        __comp, __proj1, __proj2)
         .template __get_reached_in1_in2_out<__set_union_return_t<_R1, _R2, _OutRange>>();
 }
 
@@ -1130,7 +939,6 @@ using __set_intersection_return_t =
     std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                          std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set intersection: performs set_intersection with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1199,52 +1007,6 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
 
     return {__it1, __it2, __out_it};
 }
-#else
-// Bounded set intersection: performs set_intersection with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_intersection_return_t<_R1, _R2, _OutRange>
-__serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    bool __output_full = false;
-
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            ++__it1;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            ++__it2;
-        }
-        else if (__out_it != __out_end)
-        {
-            *__out_it = *__it1;
-            ++__out_it;
-            ++__it1;
-            ++__it2;
-        }
-        else
-        {
-            __output_full = true;
-            break;
-        }
-    }
-
-    __it1 = __output_full ? __it1 : __end1;
-    __it2 = __output_full ? __it2 : __end2;
-
-    return {__it1, __it2, __out_it};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
@@ -1276,32 +1038,6 @@ __pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R
     return __brick_set_intersection(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                     __comp, __proj1, __proj2, typename _Tag::__is_vector{});
 }
-
-// for bounded implementation of std::ranges::set_intersection
-struct __set_intersection_offsets
-{
-    struct _IncludeToOutputPred
-    {
-        bool
-        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
-        {
-            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-        }
-    };
-
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
-            __mask_begin, __mask_end);
-    }
-};
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
@@ -1342,46 +1078,75 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return {__last1, __last2, __result1};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m1))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/ true>(
-                       __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2,
-                       __result1, __result2,
-                       [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                       [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                          _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _Tp* __result,
-                          auto __mask, // source data usage masks
-                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                           return oneapi::dpl::__utils::__set_intersection_construct(
-                               __first1, __last1, __first2, __last2, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
-                               __proj2);
-                       },
-                       __set_intersection_offsets{}, __comp, __proj1, __proj2)
+            return __internal::__parallel_set_op</*__Bounded*/true>(
+                __tag, std::forward<_ExecutionPolicy>(__exec),
+                __left_bound_seq_1, __last1,                    // bounds for data1
+                __first2, __last2,                              // bounds for data2
+                __result1, __result2,                           // bounds for results
+                [](_DifferenceType __n, _DifferenceType __m)                                                            // _SizeFunction __size_func
+                {
+                    return std::min(__n, __m);
+                },
+                [](_DifferenceType __n, _DifferenceType __m)                                                            // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
+                },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,                                     // _SetUnionOp __set_union_op
+                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                   _Tp* __result,
+                   auto __mask, // source data usage masks
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
+                        __result,                                                               // results
+                        __mask,                                                                 // source data usage masks
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        __comp, __proj1, __proj2);
+                },
+                __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
     }
 
     const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__m2))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op</*__Bounded*/ true>(
-                       __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2,
-                       __result1, __result2,
-                       [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                       [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                          _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _Tp* __result, auto __mask,
-                          _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
-                           return oneapi::dpl::__utils::__set_intersection_construct(
-                               __first1, __last1, __first2, __last2, __result, __mask,
-                               oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1,
-                               __proj2);
-                       },
-                       __set_intersection_offsets{}, __comp, __proj1, __proj2)
+            return __internal::__parallel_set_op</*__Bounded*/true>(
+                __tag, std::forward<_ExecutionPolicy>(__exec),
+                __first1, __last1,                                                              // bounds for data1
+                __left_bound_seq_2, __last2,                                                    // bounds for data2
+                __result1, __result2,                                                           // bounds for results
+                [](_DifferenceType __n, _DifferenceType __m)                                    // _SizeFunction __size_func
+                {
+                    return std::min(__n, __m);
+                },
+                [](_DifferenceType __n, _DifferenceType __m)                                    // _MaskSizeFunction __mask_size_fnc
+                {
+                    return __n + __m;
+                },
+                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,             // _SetUnionOp __set_union_op
+                   _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                   _Tp* __result,
+                   auto __mask, // source data usage masks
+                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                {
+                    return oneapi::dpl::__utils::__set_intersection_construct(
+                        __first1, __last1,                                                      // bounds for data1
+                        __first2, __last2,                                                      // bounds for data2
+                        __result,                                                               // results
+                        __mask,                                                                 // source data usage masks
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},   // _CopyConstructRange __cc_range
+                        __comp, __proj1, __proj2);
+                },
+                __comp, __proj1, __proj2)
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
     }
@@ -1400,7 +1165,6 @@ template <typename _R1, typename _OutRange>
 using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
                                                                      std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set difference: performs set_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1471,53 +1235,6 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
 
     return {__copy.in, __copy.out};
 }
-#else
-// Bounded set difference: performs set_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_difference_return_t<_R1, _OutRange>
-__serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    // 1. Main set_difference operation
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
-            }
-            else
-                break;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            ++__it2;
-        }
-        else
-        {
-            ++__it1;
-            ++__it2;
-        }
-    }
-
-    // 2. Copying the rest of the first sequence
-    auto __remaining_capacity = __out_end - __out_it;
-    auto __copy_n = __end1 - __it1;
-    auto __copy = std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
-
-    return {__copy.in, __copy.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
@@ -1549,32 +1266,6 @@ __pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&
     return __brick_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
                                   __comp, __proj1, __proj2, typename _Tag::__is_vector{});
 }
-
-// for bounded implementation of std::ranges::set_difference
-struct __set_difference_offsets
-{
-    struct _IncludeToOutputPred
-    {
-        bool
-        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
-        {
-            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
-        }
-    };
-
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
-            __mask_begin, __mask_end);
-    }
-};
 
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
@@ -1634,19 +1325,30 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return {__first1 + __n, __out_last};
     }
 
-    if (oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
+    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
     {
-        return __parallel_set_op</*__Bounded*/ true>(
-                   __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
-                   __result2, [](_DifferenceType __n, _DifferenceType) { return __n; },
-                   [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                      _RandomAccessIterator2 __last2, _T* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
-                      _Proj2 __proj2) {
-                       return oneapi::dpl::__utils::__set_difference_construct(
-                           __first1, __last1, __first2, __last2, __result, __mask, __BrickCopyConstruct<_IsVector>(),
-                           __comp, __proj1, __proj2);
-                   },
-                   __set_difference_offsets{}, __comp, __proj1, __proj2)
+        return __parallel_set_op</*__Bounded*/true>(
+            __tag, std::forward<_ExecutionPolicy>(__exec),
+            __first1, __last1,                              // bounds for data1
+            __first2, __last2,                              // bounds for data2
+            __result1, __result2,                           // bounds for results
+            [](_DifferenceType __n, _DifferenceType) { return __n; },
+            [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
+            [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+               _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+               _T* __result,
+               auto __mask,
+               _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+            {
+                return oneapi::dpl::__utils::__set_difference_construct(
+                    __first1, __last1,                      // bounds for data1
+                    __first2, __last2,                      // bounds for data2
+                    __result,                               // results
+                    __mask,                                 // source data usage masks
+                    __BrickCopyConstruct<_IsVector>(),      // _CopyConstructRange __cc_range
+                    __comp, __proj1, __proj2);
+            },
+            __comp, __proj1, __proj2)
             .template __get_reached_in1_out<__set_difference_return_t<_R1, _OutRange>>();
     }
 
@@ -1665,7 +1367,6 @@ using __set_symmetric_difference_return_t =
                                                  std::ranges::borrowed_iterator_t<_R2>,
                                                  std::ranges::borrowed_iterator_t<_OutRange>>;
 
-#if __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 // Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
@@ -1751,65 +1452,6 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
 
     return {__copy1.in, __copy2.in, __copy2.out};
 }
-#else
-// Bounded set symmetric difference: performs set_symmetric_difference with output range capacity checking.
-// Truncates result if output range is too small.
-template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
-__set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
-{
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
-
-    // 1. Main set_symmetric_difference operation
-    while (__it1 != __end1 && __it2 != __end2)
-    {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        if (std::invoke(__comp, __proj1_val, __proj2_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it1;
-                ++__it1;
-                ++__out_it;
-            }
-            else
-                break;
-        }
-        else if (std::invoke(__comp, __proj2_val, __proj1_val))
-        {
-            if (__out_it != __out_end)
-            {
-                *__out_it = *__it2;
-                ++__it2;
-                ++__out_it;
-            }
-            else
-                break;
-        }
-        else
-        {
-            ++__it1;
-            ++__it2;
-        }
-    }
-
-    // 2. Copying the residual elements if one of the input sequences is exhausted
-    auto __remaining_capacity1 = __out_end - __out_it;
-    auto __copy_n1 = __end1 - __it1;
-    auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
-
-    auto __remaining_capacity2 = __out_end - __copy1.out;
-    auto __copy_n2 = __end2 - __it2;
-    auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
-
-    return {__copy1.in, __copy2.in, __copy2.out};
-}
-#endif // __PSTL_RANGES_USE_BRANCLESS_SET_OP_IMPL
 
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
@@ -1845,33 +1487,6 @@ __pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& 
                                             typename _Tag::__is_vector{});
 }
 
-// for bounded implementation of std::ranges::set_symmetric_difference
-struct __set_symmetric_difference_offsets
-{
-    struct _IncludeToOutputPred
-    {
-        bool
-        operator()(oneapi::dpl::__utils::__parallel_set_op_mask __m) const
-        {
-            return __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
-                   __m == oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
-        }
-    };
-
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        return __set_op_bounded_offsets_evaluator<_IncludeToOutputPred>{}(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __n1, __n2, __n_out, __size_func, __reachedOutPos,
-            __mask_begin, __mask_end);
-    }
-};
-
 template <class _IsVector, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
@@ -1887,21 +1502,30 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_greater_than_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return __serial_set_symmetric_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2),
                                                  std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 
-    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/ true>(
-               __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
-               __result2,
-               [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                  _RandomAccessIterator2 __last2, _Tp* __result, auto __mask, _Comp __comp, _Proj1 __proj1,
-                  _Proj2 __proj2) {
-                   return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                       __first1, __last1, __first2, __last2, __result, __mask,
-                       oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(), __comp, __proj1, __proj2);
-               },
-               __set_symmetric_difference_offsets{}, __comp, __proj1, __proj2)
+    return oneapi::dpl::__internal::__parallel_set_union_op</*__Bounded*/true>(
+        __tag, std::forward<_ExecutionPolicy>(__exec),
+        __first1, __last1,
+        __first2, __last2,
+        __result1, __result2,
+        [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,         // _SetUnionOp __set_union_op
+           _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+           _Tp* __result,
+           auto __mask,
+           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+        {
+            return oneapi::dpl::__utils::__set_symmetric_difference_construct(
+                __first1, __last1,                                                  // bounds for data1                   
+                __first2, __last2,                                                  // bounds for data2
+                __result,                                                           // results
+                __mask,                                                             // source data usage masks
+                oneapi::dpl::__internal::__BrickCopyConstruct<_IsVector>(),         // _CopyConstructRange __cc_range
+                __comp, __proj1, __proj2);
+        },
+        __comp, __proj1, __proj2)
         .template __get_reached_in1_in2_out<__set_symmetric_difference_return_t<_R1, _R2, _OutRange>>();
 }
 

@@ -59,49 +59,6 @@ would make the span be at least O(N). */
 template <typename _Tp>
 using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, tbb::tbb_allocator>;
 
-template <class T>
-struct __tbb_allocator_deleter
-{
-    using __alloc_t = tbb::tbb_allocator<T>;
-
-    __alloc_t __alloc;
-
-    void
-    operator()(T* __raw_ptr) noexcept
-    {
-        if (nullptr == __raw_ptr)
-            return;
-
-        std::allocator_traits<__alloc_t>::destroy(__alloc, __raw_ptr);
-        std::allocator_traits<__alloc_t>::deallocate(__alloc, __raw_ptr, 1);
-    }
-};
-
-template <class _T>
-using __unique_ptr = std::unique_ptr<_T, __tbb_allocator_deleter<_T>>;
-
-template <class _T, class... _Args>
-std::enable_if_t<!std::is_array<_T>::value, __unique_ptr<_T>>
-__make_unique(_Args&&... __args)
-{
-    using __alloc_t = tbb::tbb_allocator<_T>;
-    using __traits_t = std::allocator_traits<__alloc_t>;
-
-    __alloc_t __alloc;
-    _T* __raw_ptr = __traits_t::allocate(__alloc, 1);
-
-    try
-    {
-        __traits_t::construct(__alloc, __raw_ptr, std::forward<_Args>(__args)...);
-        return __unique_ptr<_T>{__raw_ptr, __tbb_allocator_deleter<_T>{__alloc}};
-    }
-    catch (...)
-    {
-        __traits_t::deallocate(__alloc, __raw_ptr, 1);
-        throw;
-    }
-}
-
 // Wrapper for tbb::task
 inline void
 __cancel_execution(oneapi::dpl::__internal::__tbb_backend_tag)
