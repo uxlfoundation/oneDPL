@@ -3341,10 +3341,10 @@ struct _SetRangeImpl
             return __len == 0;
         }
 
-        static bool is_left(const _Data& __a, const _Data& __b)
+        static bool
+        is_left(const _Data& __a, const _Data& __b)
         {
-            return __a.__buf_pos < __b.__buf_pos ||
-                   (__b.__buf_pos == __a.__buf_pos && !__b.empty());
+            return __a.__buf_pos < __b.__buf_pos || (__b.__buf_pos == __a.__buf_pos && !__b.empty());
         }
 
         template <typename _DataType>
@@ -3358,7 +3358,8 @@ struct _SetRangeImpl
         }
 
         template <typename _DataType>
-        static _Data combine_with(_DataType&& __a, _DataType&& __b)
+        static _Data
+        combine_with(_DataType&& __a, _DataType&& __b)
         {
             auto&& [__left, __right] = get_left_right(std::forward<_DataType>(__a), std::forward<_DataType>(__b));
 
@@ -3381,7 +3382,8 @@ struct _SetRangeImpl
         //                                                          +<-(__buf_pos)            +<-(__buf_pos + __len)
 
         _DifferenceType1 __start_offset1 = {}; // Offset in the first input range to start processing data in the window
-        _DifferenceType2 __start_offset2 = {}; // Offset in the second input range to start processing data in the window
+        _DifferenceType2 __start_offset2 =
+            {}; // Offset in the second input range to start processing data in the window
 
         static _SourceProcessingDataOffsets
         combine_with(const _SourceProcessingDataOffsets& __a, const _SourceProcessingDataOffsets& __b)
@@ -3414,7 +3416,8 @@ struct _SetRangeImpl
         return std::get<_SourceDataOffsetsIndex>(__data);
     }
 
-    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _SourceProcessingDataOffsets>>;
+    using _DataStorage =
+        std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _SourceProcessingDataOffsets>>;
     _DataStorage __data;
 };
 
@@ -3437,12 +3440,14 @@ template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, 
           typename _DifferenceTypeOut, typename _DifferenceType>
 struct _SetRangeCombiner
 {
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeMask, _DifferenceTypeOut, _DifferenceType>;
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeMask,
+                                    _DifferenceTypeOut, _DifferenceType>;
 
     _SetRange
     operator()(const _SetRange& __a, const _SetRange& __b) const
     {
-        const typename _SetRange::_Data __new_processing_data = _SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part());
+        const typename _SetRange::_Data __new_processing_data =
+            _SetRange::_Data::combine_with(__a.get_data_part(), __b.get_data_part());
 
 #if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
         if constexpr (true)
@@ -3454,24 +3459,26 @@ struct _SetRangeCombiner
         }
         else
         {
-            typename _SetRange::_MaskData __new_mask_data = _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
+            typename _SetRange::_MaskData __new_mask_data =
+                _SetRange::_MaskData::combine_with(__a.get_mask_part(), __b.get_mask_part());
 
-            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_a = __a.get_source_data_offsets_part();
-            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_b = __b.get_source_data_offsets_part();
+            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_a =
+                __a.get_source_data_offsets_part();
+            const typename _SetRange::_SourceProcessingDataOffsets& ___source_data_offsets_b =
+                __b.get_source_data_offsets_part();
 
             typename _SetRange::_SourceProcessingDataOffsets __new_offsets_to_processing_data =
-                _SetRange::_SourceProcessingDataOffsets::combine_with(___source_data_offsets_a, ___source_data_offsets_b);
+                _SetRange::_SourceProcessingDataOffsets::combine_with(___source_data_offsets_a,
+                                                                      ___source_data_offsets_b);
 
-            typename _SetRange::_DataStorage _ds{
-                __new_processing_data,
-                __new_mask_data,
-                __new_offsets_to_processing_data }; 
+            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data,
+                                                 __new_offsets_to_processing_data};
 
             return _SetRange{_ds};
         }
     }
 
-    const _DifferenceTypeOut __n_out = {};  // Size of output range
+    const _DifferenceTypeOut __n_out = {}; // Size of output range
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
@@ -3538,14 +3545,14 @@ template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typen
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
-    ProcessingDataPointer     __buf_pos_begin;
-    ProcessingDataPointer     __buf_pos_end;
-    MaskDataPointer           __temporary_mask_buf;     // Pointer to the windowed mask buffer
-    _OutputIterator           __result1;
-    _OutputIterator           __result2;
+    ProcessingDataPointer __buf_pos_begin;
+    ProcessingDataPointer __buf_pos_end;
+    MaskDataPointer __temporary_mask_buf; // Pointer to the windowed mask buffer
+    _OutputIterator __result1;
+    _OutputIterator __result2;
 
-    _DifferenceType1&         __res_reachedPos1;
-    _DifferenceType2&         __res_reachedPos2;
+    _DifferenceType1& __res_reachedPos1;
+    _DifferenceType2& __res_reachedPos2;
 
     template <typename _SetRange>
     void
@@ -3644,7 +3651,6 @@ struct _ScanPred
     }
 
   protected:
-
     // Move it1 forward by n, but not beyond it2
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
@@ -3688,23 +3694,27 @@ struct _ParallelSetOpStrictScanPred
 
         //try searching for the first element which not equal to *__b
         if (__b != __first1)
-            __b += __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
+            __b +=
+                __internal::__pstl_upper_bound(__b, _DifferenceType1{0}, __last1 - __b, __b, __comp, __proj1, __proj1);
 
         //try searching for the first element which not equal to *__e
         if (__e != __last1)
-            __e += __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
+            __e +=
+                __internal::__pstl_upper_bound(__e, _DifferenceType1{0}, __last1 - __e, __e, __comp, __proj1, __proj1);
 
         //check is [__b; __e) empty
         if (__e - __b < 1)
         {
             _RandomAccessIterator2 __bb = __last2;
             if (__b != __last1)
-                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b, __comp, __proj2, __proj1);
+                __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
+                                                                 __comp, __proj2, __proj1);
 
             typename _SetRange::_Data __new_processing_data{
-                0,                                                          // Offset in output range w/o limitation to output data size
-                0,                                                          // The length of data pack: the same for windowed and result buffers
-                __size_func((__b - __first1), (__bb - __first2))};          // Offset in temporary buffer w/o limitation to output data size
+                0, // Offset in output range w/o limitation to output data size
+                0, // The length of data pack: the same for windowed and result buffers
+                __size_func((__b - __first1),
+                            (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
 #if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
             if constexpr (true)
@@ -3717,14 +3727,16 @@ struct _ParallelSetOpStrictScanPred
             else
             {
                 typename _SetRange::_MaskData __new_mask_data{
-                    0,                                                      // Offset in output range w/o limitation to output data size
-                    0,                                                      // The length of data pack: the same for windowed and result buffers
-                    __mask_size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
+                    0, // Offset in output range w/o limitation to output data size
+                    0, // The length of data pack: the same for windowed and result buffers
+                    __mask_size_func(
+                        (__b - __first1),
+                        (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
                 typename _SetRange::_DataStorage _ds{
-                    __new_processing_data,                                  // Describes data
-                    __new_mask_data,                                        // Describes mask
-                    typename _SetRange::_SourceProcessingDataOffsets{} };   // Describes offsets to processing data
+                    __new_processing_data,                               // Describes data
+                    __new_mask_data,                                     // Describes mask
+                    typename _SetRange::_SourceProcessingDataOffsets{}}; // Describes offsets to processing data
 
                 return _SetRange{_ds};
             }
@@ -3754,9 +3766,9 @@ struct _ParallelSetOpStrictScanPred
 
         // Prepare processed data info
         const typename _SetRange::_Data __new_processing_data{
-            0,                                  // Offset in output range w/o limitation to output data size
-            __output_reached - __buffer_b,      // The length of data pack: the same for windowed and result buffers
-            __buf_pos};                         // Offset in temporary buffer w/o limitation to output data size
+            0,                             // Offset in output range w/o limitation to output data size
+            __output_reached - __buffer_b, // The length of data pack: the same for windowed and result buffers
+            __buf_pos};                    // Offset in temporary buffer w/o limitation to output data size
 
 #if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
         if constexpr (true)
@@ -3770,18 +3782,18 @@ struct _ParallelSetOpStrictScanPred
         {
             // Prepare processed mask info
             typename _SetRange::_MaskData __new_mask_data{
-                0,                                  // Offset in output range w/o limitation to output data size
-                __mask_reached - __mask_b,          // The length of data pack: the same for windowed and result buffers
-                __mask_buf_pos };                   // Offset in temporary buffer w/o limitation to output data size
+                0,                         // Offset in output range w/o limitation to output data size
+                __mask_reached - __mask_b, // The length of data pack: the same for windowed and result buffers
+                __mask_buf_pos};           // Offset in temporary buffer w/o limitation to output data size
 
             typename _SetRange::_SourceProcessingDataOffsets __new_offsets_to_processing_data{
-                __b - __first1,                     // Absolute offset to processing data in the first data set
-                __bb - __first2 };                  // Absolute offset to processing data in the second data set
+                __b - __first1,   // Absolute offset to processing data in the first data set
+                __bb - __first2}; // Absolute offset to processing data in the second data set
 
             typename _SetRange::_DataStorage _ds{
-                __new_processing_data,              // Describes data
-                __new_mask_data,                    // Describes mask
-                __new_offsets_to_processing_data }; // Describes offsets to processing data
+                __new_processing_data,             // Describes data
+                __new_mask_data,                   // Describes mask
+                __new_offsets_to_processing_data}; // Describes offsets to processing data
 
             return _SetRange{_ds};
         }
@@ -3806,24 +3818,25 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
-    const _DifferenceType1   __n1 = __last1 - __first1;
-    const _DifferenceType2   __n2 = __last2 - __first2;
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
     const _DifferenceType __n_out = __result2 - __result1;
 
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
 
-    __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);                                   // Temporary (windowed) buffer + result buffer for mask preparation
+    __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
+    __mask_buffers<__Bounded> __mask_bufs(
+        __mask_buf_size); // Temporary (windowed) buffer + result buffer for mask preparation
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
     using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
 
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType>;
+    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t,
+                                    _DifferenceTypeOutput, _DifferenceType>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, __first2, __last2,
                                          __result1, __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
-                                         __set_union_op, &__buf, &__mask_bufs, __buf_size, __mask_buf_size]() 
-    {
+                                         __set_union_op, &__buf, &__mask_bufs, __buf_size, __mask_buf_size]() {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
@@ -3832,7 +3845,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _DifferenceType2 __res_reachedPos2 = __n2; // offset to the first unprocessed item from the second input range
         _DifferenceType __res_reachedPosOut = 0;   // offset to the first unprocessed item from output range
 
-        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType> __combine_pred{__n_out};
+        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t,
+                          _DifferenceTypeOutput, _DifferenceType>
+            __combine_pred{__n_out};
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
@@ -3979,18 +3994,18 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     const auto __m1 = __left_bound_seq_1 - __first1;
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
     {
-        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
+        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+            __finish;
 
         auto __res_or = __result1;
-        __result1 += __m1;                                                             //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        __result1 += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
             [=, &__exec] {
                 __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
             },
-            [=, &__exec, &__finish]
-            {
+            [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1, __result2, __size_fnc,
                     __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
@@ -4002,18 +4017,18 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     assert(__m1 == 0 || __m2 == 0);
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
     {
-        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator> __finish;
+        oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
+            __finish;
 
         auto __res_or = __result1;
-        __result1 += __m2;                                                              //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
+        __result1 += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
             [=, &__exec] {
                 __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
             },
-            [=, &__exec, &__finish]
-            {
+            [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
                     __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1, __result2, __size_fnc,
                     __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
