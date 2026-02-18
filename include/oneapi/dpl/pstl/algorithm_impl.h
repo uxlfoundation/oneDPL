@@ -3830,7 +3830,7 @@ struct _ScanPred
         assert(__state_value != 0);
 
         // Check correct memory state
-        constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return __state_value & static_cast<_UT>(__checking_mask_state);
