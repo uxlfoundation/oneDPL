@@ -3754,13 +3754,13 @@ struct _ScanPred
                     // 1. Pass positions which generates output
                     for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
                     {
-                        if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
+                        if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
                             ++__pos_no;
                     }
 
                     // 2. Take into account positions without generated output
-                    while (__mask_buffer_it != __mask_buffer_end
-                           && !oneapi::dpl::__utils::__test_parallel_set_op_mask_state(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
+                    while (__mask_buffer_it != __mask_buffer_end &&
+                           !__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
                     {
                         assert(*__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
                                *__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
@@ -3775,8 +3775,8 @@ struct _ScanPred
                     {
                         *__res_reachedPos1 =
                             __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
-                                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
-                                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __m);
+                                            [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                                return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __m);
                                             });
                         *__res_reachedPos1 += __source_data_offsets.__start_offset1;
                     }
@@ -3785,8 +3785,8 @@ struct _ScanPred
                     {
                         *__res_reachedPos2 =
                             __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
-                                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
-                                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __m);
+                                            [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                                return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __m);
                                             });
                         *__res_reachedPos2 += __source_data_offsets.__start_offset2;
                     }
@@ -3810,6 +3810,24 @@ struct _ScanPred
     {
         assert(it1 <= it2);
         return it1 + std::min(it2 - it1, n);
+    }
+
+    bool
+    __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask __checking_mask_state,
+                oneapi::dpl::__utils::__parallel_set_op_mask __real_mask_state) const noexcept
+    {
+        using _UT = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+        const _UT __state_value = static_cast<_UT>(__real_mask_state);
+
+        // The zero state is incorrect mask state!
+        assert(__state_value != 0);
+
+        // Check correct memory state
+        constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        assert((__state_value & (~__valid_bits)) == 0);
+
+        return __state_value & static_cast<_UT>(__checking_mask_state);
     }
 };
 
