@@ -181,7 +181,7 @@ constexpr bool is_any_char_type_v =
     || std::is_same_v<TValue, char16_t> || std::is_same_v<TValue, char32_t>;
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_any_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
     if (commaNeeded)
