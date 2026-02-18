@@ -4217,11 +4217,9 @@ __pattern_set_difference(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _RandomAccessIterator3, class _Compare>
 _RandomAccessIterator3
-__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
-                         _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
-                         _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                         _RandomAccessIterator3 __result,
-                         _Compare __comp)
+__pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                         _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
+                         _RandomAccessIterator2 __last2, _RandomAccessIterator3 __result, _Compare __comp)
 {
     using _T = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     using _DifferenceType = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
