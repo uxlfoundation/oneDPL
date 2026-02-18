@@ -3690,8 +3690,8 @@ struct _ScanPred
     _OutputIterator           __result1;
     _OutputIterator           __result2;
 
-    _DifferenceType1&         __res_reachedPos1;
-    _DifferenceType2&         __res_reachedPos2;
+    _DifferenceType1*         __res_reachedPos1 = nullptr;
+    _DifferenceType2*         __res_reachedPos2 = nullptr;
 
     template <typename _SetRange>
     void
@@ -3736,6 +3736,7 @@ struct _ScanPred
             }
 
             // 2. Evaluate final positions in the first and the second input ranges
+            assert(__res_reachedPos1 != nullptr || __res_reachedPos2 != nullptr);
             {
                 const typename _SetRange::_MaskData& __s_mask_data = __s.get_mask_part();
                 const auto __n_out = __result2 - __result1;
@@ -3769,21 +3770,27 @@ struct _ScanPred
 
                     const typename _SetRange::_SourceProcessingDataOffsets& __source_data_offsets = __s.get_source_data_offsets_part();
 
-                    __res_reachedPos1 = std::count_if(
-                        __mask_buffer_begin, __mask_buffer_it,
-                        [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                        {
-                            return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
-                        });
-                    __res_reachedPos1 += __source_data_offsets.__start_offset1;
+                    if (__res_reachedPos1 != nullptr)
+                    {
+                        *__res_reachedPos1 = std::count_if(
+                            __mask_buffer_begin, __mask_buffer_it,
+                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                            {
+                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
+                            });
+                        *__res_reachedPos1 += __source_data_offsets.__start_offset1;
+                    }
 
-                    __res_reachedPos2 = std::count_if(
-                        __mask_buffer_begin, __mask_buffer_it,
-                        [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                        {
-                            return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
-                        });
-                    __res_reachedPos2 += __source_data_offsets.__start_offset2;
+                    if (__res_reachedPos2 != nullptr)
+                    {
+                        *__res_reachedPos2 = std::count_if(
+                            __mask_buffer_begin, __mask_buffer_it,
+                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                            {
+                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
+                            });
+                        *__res_reachedPos2 += __source_data_offsets.__start_offset2;
+                    }
                 }
             }
 
@@ -4062,8 +4069,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             __mask_bufs.get_buf_mask_rng_data(),        // Pointer to the windowed mask buffer
             __result1,
             __result2,
-            __res_reachedPos1,
-            __res_reachedPos2};
+            __Bounded ? &__res_reachedPos1 : nullptr,
+            __Bounded ? &__res_reachedPos2 : nullptr};
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
