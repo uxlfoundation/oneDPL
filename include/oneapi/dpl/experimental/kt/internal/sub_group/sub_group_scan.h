@@ -43,21 +43,24 @@ struct __is_lazy_ctor_storage<oneapi::dpl::__internal::__lazy_ctor_storage<_T>> 
 {
 };
 
-template <typename _T, bool __is_lazy>
-struct __scan_input_type
+template <typename _T>
+struct __scan_input
 {
     using type = _T;
 };
 
 template <typename _T>
-struct __scan_input_type<_T, true>
+struct __scan_input<oneapi::dpl::__internal::__lazy_ctor_storage<_T>>
 {
-    using type = typename _T::__value_type;
+    using type = _T;
 };
 
 template <typename _T>
+using __scan_input_t = typename __scan_input<std::decay_t<_T>>::type;
+
+template <typename _T>
 decltype(auto)
-__extract_scan_input(_T& __value)
+__extract_scan_input(_T&& __value)
 {
     if constexpr (__is_lazy_ctor_storage<std::decay_t<_T>>::value)
         return (__value.__v);
@@ -80,8 +83,7 @@ auto
 __sub_group_scan(const _SubGroup& __sub_group, _InputTypeWrapped __input[__iters_per_item],
                  _BinaryOperation __binary_op, std::uint32_t __items_in_scan)
 {
-    using _InputType = typename __scan_input_type<std::decay_t<_InputTypeWrapped>,
-                                                  __is_lazy_ctor_storage<std::decay_t<_InputTypeWrapped>>::value>::type;
+    using _InputType = __scan_input_t<_InputTypeWrapped>;
     const bool __is_full = __items_in_scan == __sub_group_size * __iters_per_item;
     oneapi::dpl::__internal::__lazy_ctor_storage<_InputType> __carry;
     oneapi::dpl::__internal::__scoped_destroyer<_InputType> __destroy_when_leaving_scope{__carry};
