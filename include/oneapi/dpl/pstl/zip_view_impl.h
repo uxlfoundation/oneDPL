@@ -86,7 +86,10 @@ __apply_to_tuples_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence
 struct __gen_lambda
 {
     template <class... _Ts>
-    decltype(auto) operator()(_Ts&&...) const {}
+    decltype(auto)
+    operator()(_Ts&&...) const
+    {
+    }
 };
 
 template <typename _F, typename _Tuple, typename _ReturnAdapter = __gen_lambda>
@@ -116,7 +119,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     zip_view() = default;
     constexpr explicit zip_view(_Views... __views) : __views(std::move(__views)...) {}
 
-    //forward declaration of sentinel classes 
+    //forward declaration of sentinel classes
     template <bool _Const>
     class sentinel;
 
@@ -157,7 +160,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr explicit iterator(__iterators_type __current) : __current(std::move(__current)) {}
 
         template <class _Tp>
-        static constexpr _Tp __abs(_Tp __t)
+        static constexpr _Tp
+        __abs(_Tp __t)
         {
             return __t < 0 ? -__t : __t;
         }
@@ -265,7 +269,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         friend constexpr bool
         operator==(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
-            return __x.__compare_with_sentinels(iterator::__get_current(__y), std::make_index_sequence<sizeof...(_Views)>());
+            return __x.__compare_with_sentinels(iterator::__get_current(__y),
+                                                std::make_index_sequence<sizeof...(_Views)>());
         }
 
         friend constexpr auto
@@ -301,8 +306,9 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
-                return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
-                                        std::less{}, [](auto __a) { return iterator::__abs(__a); });
+                return std::ranges::min(
+                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
+                    std::less{}, [](auto __a) { return iterator::__abs(__a); });
             };
 
             return calc_val(std::make_index_sequence<sizeof...(_Views)>());
@@ -366,7 +372,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             __internal::__apply_to_tuples(std::ranges::iter_swap, __x.__current, __y.__current);
         }
 
-private:
+      private:
         template <std::size_t... _In>
         constexpr bool
         __compare_equal(iterator __y, std::index_sequence<_In...>) const
@@ -380,12 +386,13 @@ private:
         {
             return ((std::get<_In>(__current) == std::get<_In>(__sentinels)) || ...);
         }
-		
+
         template <bool _OtherConst>
-		static decltype(auto) __get_current(const sentinel<_OtherConst>& __y)
-		{
-			return __y.__end;
-		}
+        static decltype(auto)
+        __get_current(const sentinel<_OtherConst>& __y)
+        {
+            return __y.__end;
+        }
 
         friend class zip_view;
 
@@ -412,13 +419,14 @@ private:
                       ...)
             : __end(std::move(i.__end))
         {
-        }        
+        }
 
       private:
         friend class zip_view;
 
         template <bool _OtherConst>
-		friend decltype(auto) __get_current(const sentinel<_OtherConst>&);
+        friend decltype(auto)
+        __get_current(const sentinel<_OtherConst>&);
 
         __tuple_type<std::ranges::sentinel_t<__internal::__maybe_const<_Const, _Views>>...> __end;
     }; // class sentinel
@@ -528,9 +536,10 @@ struct zip_fn
 {
     template <class... _Ranges>
     constexpr auto
-    operator()(_Ranges&&... __rs) const noexcept(
-        noexcept(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
-        -> decltype(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...))
+    operator()(_Ranges&&... __rs) const noexcept(noexcept(
+        oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
+        -> decltype(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(
+            std::forward<_Ranges>(__rs)...))
     {
         return oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges>...>(std::forward<_Ranges>(__rs)...);
     }
