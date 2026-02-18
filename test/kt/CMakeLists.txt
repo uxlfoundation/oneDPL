@@ -107,7 +107,7 @@ function(_generate_sort_tests _variant _key_value_pairs)
     set(_base_file_by_key_all "radix_sort_by_key" "radix_sort_by_key_out_of_place")
     
     # Variant-specific configurations
-    if (${_variant} STREQUAL "sycl")
+    if ("${_variant}" STREQUAL "sycl")
         set(_data_per_work_item_all "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" "11" "12" "13" "14" "15" "16")
         set(_work_group_size_all "1024" "512")
     else() # esimd
