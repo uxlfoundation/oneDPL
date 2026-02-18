@@ -3645,18 +3645,13 @@ struct _ScanPred
     }
 };
 
-template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
-          typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
-          typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
+template <bool __Bounded, typename _SetRange, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+          typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction, typename _SetUnionOp,
+          typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictScanPred
 {
-    _Tag __tag;
-    _ExecutionPolicy __exec;
-
-    _RandomAccessIterator1 __first1;
-    _RandomAccessIterator1 __last1;
-    _RandomAccessIterator2 __first2;
-    _RandomAccessIterator2 __last2;
+    _RandomAccessIterator1 __first1, __last1;
+    _RandomAccessIterator2 __first2, __last2;
     _SizeFunction __size_func;
     _MaskSizeFunction __mask_size_func;
     _SetUnionOp __set_union_op;
@@ -3826,23 +3821,11 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                 __tag,     __buf_raw_data_begin, __buf_raw_data_end, __mask_bufs.get_buf_mask_rng_data(), __result1,
                 __result2, __res_reachedPos1,    __res_reachedPos2};
 
-        _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
-                                     _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
-                                     _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
-            __reduce_pred{__tag,
-                          __exec,
-                          __first1,
-                          __last1,
-                          __first2,
-                          __last2,
-                          __size_func,
-                          __mask_size_func,
-                          __set_union_op,
-                          __comp,
-                          __proj1,
-                          __proj2,
-                          __buf_raw_data_begin,
-                          __mask_bufs};
+        _ParallelSetOpStrictScanPred<__Bounded, _SetRange, _RandomAccessIterator1, _RandomAccessIterator2,
+                                     _OutputIterator, _SizeFunction, _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1,
+                                     _Proj2, _T>
+            __reduce_pred{__first1,       __last1, __first2, __last2, __size_func,          __mask_size_func,
+                          __set_union_op, __comp,  __proj1,  __proj2, __buf_raw_data_begin, __mask_bufs};
 
         auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedPos1, &__res_reachedPos2, &__res_reachedPosOut,
                             &__scan_pred](const _SetRange& __total) {
