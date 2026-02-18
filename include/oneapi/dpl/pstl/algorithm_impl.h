@@ -4083,12 +4083,15 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                           __buf_raw_data_begin,
                           __mask_bufs};
 
-        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedPos1, &__res_reachedPos2, &__res_reachedPosOut,
+        auto __apex_pred = [__n_out, __result1, __result2, &__res_reachedPosOut,
                             &__scan_pred](const _SetRange& __total) {
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-            __res_reachedPosOut = std::min(__total.get_data_part().__pos + __total.get_data_part().__len, __n_out);
+            __res_reachedPosOut = __total.get_data_part().__pos + __total.get_data_part().__len;
+
+            if constexpr (__Bounded)
+                __res_reachedPosOut = std::min(__res_reachedPosOut, __n_out);
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
