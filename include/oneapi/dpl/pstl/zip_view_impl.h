@@ -70,7 +70,7 @@ concept __simple_view = std::ranges::view<_R> && std::ranges::range<const _R> &&
                         std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
 template <typename _ReturnAdapter, typename _F, typename _Tuple, std::size_t... _Ip>
-static decltype(auto)
+decltype(auto)
 __apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
     return __tr(__f(std::get<_Ip>(__t))...);
