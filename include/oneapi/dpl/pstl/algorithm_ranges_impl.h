@@ -705,7 +705,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     const auto __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
-    if (!__is_greater_than_set_algo_cut_off(__n1 + __n2))
+    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return std::ranges::includes(std::forward<_R1>(__r1), std::forward<_R2>(__r2), __comp, __proj1, __proj2);
 
     auto __first1 = std::ranges::begin(__r1);
