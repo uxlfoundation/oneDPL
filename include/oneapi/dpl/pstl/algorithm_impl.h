@@ -3860,7 +3860,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             if constexpr (__Bounded)
                 __res_reachedPosOut = std::min(__res_reachedPosOut, __n_out);
             else
-                __n_out = __n_out; // to avoid "unused variable" warning for __n_out
+                (void)__n_out; // to avoid "unused variable" warning for __n_out
         };
 
         __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
