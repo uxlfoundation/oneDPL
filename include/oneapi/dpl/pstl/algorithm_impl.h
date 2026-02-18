@@ -3539,10 +3539,11 @@ struct __mask_buffers
 };
 #endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
-template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
+template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
+    ExecutionPolicy __exec;
     ProcessingDataPointer __buf_pos_begin;
     ProcessingDataPointer __buf_pos_end;
     MaskDataPointer __temporary_mask_buf; // Pointer to the windowed mask buffer
@@ -3615,15 +3616,13 @@ struct _ScanPred
                     // 1. Pass positions which generates output
                     for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
                     {
-                        if (oneapi::dpl::__utils::__test_parallel_set_op_mask_state<
-                                oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
+                        if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
                             ++__pos_no;
                     }
 
                     // 2. Take into account positions without generated output
                     while (__mask_buffer_it != __mask_buffer_end &&
-                           !oneapi::dpl::__utils::__test_parallel_set_op_mask_state<
-                               oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut>(*__mask_buffer_it))
+                           !__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
                     {
                         assert(*__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
                                *__mask_buffer_it == oneapi::dpl::__utils::__parallel_set_op_mask::eData2 ||
@@ -3635,27 +3634,31 @@ struct _ScanPred
                     const typename _SetRange::_SourceProcessingDataOffsets& __source_data_offsets =
                         __s.get_source_data_offsets_part();
 
-                    if (__res_reachedPos1 != nullptr)
-                    {
-                        *__res_reachedPos1 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+                    __par_backend::__parallel_invoke(
+                        __backend_tag{}, __exec,
+                        [&, __start_offset = __source_data_offsets.__start_offset1]() {
+                            if (__res_reachedPos1 != nullptr)
                             {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
-                            });
-                        *__res_reachedPos1 += __source_data_offsets.__start_offset1;
-                    }
-
-                    if (__res_reachedPos2 != nullptr)
-                    {
-                        *__res_reachedPos2 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
+                                *__res_reachedPos1 = __pattern_count(
+                                    __tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                    [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                        return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, __m);
+                                    });
+                                *__res_reachedPos1 += __start_offset;
+                            }
+                        },
+                        [&, __start_offset = __source_data_offsets.__start_offset2]() {
+                            if (__res_reachedPos2 != nullptr)
                             {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
-                            });
-                        *__res_reachedPos2 += __source_data_offsets.__start_offset2;
-                    }
+                                *__res_reachedPos2 = __pattern_count(
+                                    __tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                    [&](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                        return __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, __m);
+                                    });
+                                *__res_reachedPos2 += __start_offset;
+                            }
+                        });
                 }
             }
         }
@@ -3670,6 +3673,24 @@ struct _ScanPred
     {
         assert(it1 <= it2);
         return it1 + std::min(it2 - it1, __size);
+    }
+
+    bool
+    __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask __checking_mask_state,
+                oneapi::dpl::__utils::__parallel_set_op_mask __real_mask_state) const noexcept
+    {
+        using _UT = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+        const _UT __state_value = static_cast<_UT>(__real_mask_state);
+
+        // The zero state is incorrect mask state!
+        assert(__state_value != 0);
+
+        // Check correct memory state
+        constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        assert((__state_value & (~__valid_bits)) == 0);
+
+        return __state_value & static_cast<_UT>(__checking_mask_state);
     }
 };
 
@@ -3861,8 +3882,10 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             __combine_pred{__n_out};
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
+        _ScanPred<__Bounded, _ExecutionPolicy, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1,
+                  _DifferenceType2>
             __scan_pred{__tag,
+                        __exec,
                         __buf_raw_data_begin,
                         __buf_raw_data_end,
                         __mask_bufs.get_buf_mask_rng_data(),
