@@ -3637,8 +3637,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _DifferenceType __n1 = __last1 - __first1;
-    _DifferenceType __n2 = __last2 - __first2;
+    _DifferenceType1 __n1 = __last1 - __first1;
+    _DifferenceType2 __n2 = __last2 - __first2;
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -3661,8 +3661,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     // Strategy B: Trim range2 (elements < *__first1), keep range1 full
     // Choose the strategy that trims more elements (eliminates more non-overlapping work).
 
-    const _DifferenceType __trimmed_from_range1 = __left_bound_seq_1 - __first1;
-    const _DifferenceType __trimmed_from_range2 = __left_bound_seq_2 - __first2;
+    const _DifferenceType1 __trimmed_from_range1 = __left_bound_seq_1 - __first1;
+    const _DifferenceType2 __trimmed_from_range2 = __left_bound_seq_2 - __first2;
 
     _RandomAccessIterator1 __begin1 = __first1;
     _RandomAccessIterator2 __begin2 = __first2;
