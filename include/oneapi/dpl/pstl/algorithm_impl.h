@@ -3310,14 +3310,14 @@ __is_set_algo_cutoff_exceeded(Size size)
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
           typename _DifferenceTypeOut, typename _DifferenceType>
-class _SetRangeImpl
+struct _SetRangeImpl
 {
+  protected:
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _MaskDataIndex = 1;
     static constexpr std::size_t _SourceDataOffsetsIndex = 2;
 
   public:
-
     struct _Data
     {
         //                                       [.........................)
@@ -3391,33 +3391,6 @@ class _SetRangeImpl
         }
     };
 
-    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _SourceProcessingDataOffsets>>;
-
-    _SetRangeImpl()
-    {
-    }
-
-    _SetRangeImpl(const _SetRangeImpl& __other) : __data(__other.__data)
-    {
-    }
-    _SetRangeImpl(_SetRangeImpl&& __other) : __data(std::move(__other.__data))
-    {
-    }
-
-    _SetRangeImpl(const _DataStorage& data) : __data(data)
-    {
-    }
-
-    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data))
-    {
-    }
-
-    _SetRangeImpl&
-    operator=(const _SetRangeImpl&) = default;
-
-    _SetRangeImpl&
-    operator=(_SetRangeImpl&&) = default;
-
     const _Data&
     get_data_part() const
     {
@@ -3441,8 +3414,7 @@ class _SetRangeImpl
         return std::get<_SourceDataOffsetsIndex>(__data);
     }
 
-  protected:
-
+    using _DataStorage = std::conditional_t<!__Bounded, _Data, std::tuple<_Data, _MaskData, _SourceProcessingDataOffsets>>;
     _DataStorage __data;
 };
 
@@ -3459,7 +3431,7 @@ struct _SetRangeCombiner
 
         if constexpr (!__Bounded)
         {
-            return __new_processing_data;
+            return _SetRange{__new_processing_data};
         }
         else
         {
