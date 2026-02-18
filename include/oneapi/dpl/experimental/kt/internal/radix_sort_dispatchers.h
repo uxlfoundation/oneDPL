@@ -206,7 +206,7 @@ template <typename _KernelName, bool __is_ascending, ::std::uint8_t __radix_bits
           typename _MemHolder>
 sycl::event
 __onesweep_impl(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __input_pack, _RngPack2&& __virt_pack1,
-                _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, ::std::size_t __n)
+                _RngPack3&& __virt_pack2, const _MemHolder& __mem_holder, std::size_t __n)
 {
     using _KeyT = typename ::std::decay_t<_RngPack1>::_KeyT;
     constexpr bool __has_values = ::std::decay_t<_RngPack1>::__has_values;
@@ -389,7 +389,7 @@ __radix_sort(_KtTag __kt_tag, sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&
         // at runtime.
         if constexpr (std::is_same_v<_KtTag, __esimd_tag>)
         {
-            constexpr ::std::uint32_t __one_wg_cap = __data_per_workitem * __workgroup_size;
+            constexpr std::uint32_t __one_wg_cap = __data_per_workitem * __workgroup_size;
             if (__n <= __one_wg_cap)
             {
                 // TODO: support different RadixBits values (only 7, 8, 9 are currently supported for ESIMD)

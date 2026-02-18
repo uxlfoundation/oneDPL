@@ -354,12 +354,14 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
         {
             _LocOffsetT __bin = __bins[__i];
             _SubGroupBitmaskT __matched_bins = __match_bins(__sub_group, __bin);
+            sycl::group_barrier(__sub_group);
             _LocOffsetT __pre_rank = __slm_offset[__bin];
             _SubGroupBitmaskT __matched_left_lanes = __matched_bins & __remove_right_lanes;
             _LocOffsetT __this_round_rank = sycl::popcount(__matched_left_lanes);
             _LocOffsetT __this_round_count = sycl::popcount(__matched_bins);
             _LocOffsetT __rank_after = __pre_rank + __this_round_rank;
             bool __is_leader = __this_round_rank == __this_round_count - 1;
+            sycl::group_barrier(__sub_group);
             if (__is_leader)
             {
                 __slm_offset[__bin] = __rank_after + 1;
