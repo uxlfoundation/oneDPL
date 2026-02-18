@@ -3422,16 +3422,13 @@ struct _SetRangeImpl
 };
 
 // __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                                                                         true
+#define IMPLEMENT_SET_OP_AS_BOUNDED                             true
 #if IMPLEMENT_SET_OP_AS_BOUNDED
-#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                         1
+#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS             1
 #    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS                                                       1
+#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS           1
 #        if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#            define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS                    1
-#            if ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_UNION_OFFSETS
-#                define ALWAYS_RECALCULATE_REACHED_POS_FROM_MASK_BUFFER_IN_SET_OP_BOUNDED_OFFSETS_EVALUATOR 1
-#            endif
+#            define ALWAYS_RECALCULATE_REACHED_POSITIONS        1
 #        endif
 #    endif
 #endif
@@ -3600,7 +3597,11 @@ struct _ScanPred
                 const typename _SetRange::_MaskData& __s_mask_data = __s.get_mask_part();
                 const auto __n_out = __result2 - __result1;
 
+#if !ALWAYS_RECALCULATE_REACHED_POSITIONS
                 if (__s_data_part.__pos <= __n_out && (__s_data_part.__pos + __s_data_part.__len) > __n_out)
+#else
+                if (__s_data_part.__pos == 0) // Always recalculate reached positions only for the first data chunk
+#endif
                 {
                     // Process masks states in the output result (continious, not windowed) mask buffer
                     auto __mask_buffer_begin = __temporary_mask_buf + __s_mask_data.__buf_pos;
