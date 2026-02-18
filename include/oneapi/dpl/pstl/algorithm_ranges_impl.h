@@ -785,16 +785,13 @@ using __set_union_return_t =
 
 // Bounded set union: performs set_union with output range capacity checking.
 // Truncates result if output range is too small.
-template<std::ranges::random_access_range _R1,
-         std::ranges::random_access_range _R2,
-         std::ranges::random_access_range _OutRange,
-         typename _Comp, typename _Proj1, typename _Proj2>
+template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+          std::ranges::random_access_range _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
-                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
-    auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
     using _Iterator1 = decltype(__it1);
@@ -804,8 +801,7 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
 
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         *__out_it = *__it1;
         ++__it1;
         ++__out_it;
@@ -813,8 +809,7 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         *__out_it = *__it2;
         ++__it2;
         ++__out_it;
@@ -822,8 +817,7 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         *__out_it = *__it1;
         ++__it1;
         ++__it2;
@@ -840,10 +834,10 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
         const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
         const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
 
-        std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it));
+        std::tie(__it1, __it2, __out_it) = __val1_lt_val2
+                                               ? __op_val1_lt_val2(__it1, __it2, __out_it)
+                                               : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
+                                                                 : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
@@ -948,22 +942,20 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
 
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         ++__it1;
         return {__it1, __it2, __out_it};
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         ++__it2;
         return {__it1, __it2, __out_it};
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it, bool& __output_full) -> _OperationRes
-    {
+    auto __op_val1_eq_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
+                                         bool& __output_full) -> _OperationRes {
         if (__out_it != __out_end)
         {
             *__out_it = *__it1;
@@ -1148,8 +1140,8 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
 
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it, bool& __output_full) -> _OperationRes
-    {
+    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
+                                         bool& __output_full) -> _OperationRes {
         if (__out_it != __out_end)
         {
             *__out_it = *__it1;
@@ -1164,15 +1156,13 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         ++__it2;
         return {__it1, __it2, __out_it};
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         ++__it1;
         ++__it2;
         return {__it1, __it2, __out_it};
@@ -1188,10 +1178,10 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
         const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
         const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
 
-        std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it));
+        std::tie(__it1, __it2, __out_it) = __val1_lt_val2
+                                               ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
+                                               : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
+                                                                 : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the rest of the first sequence
@@ -1341,8 +1331,8 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
 
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it, bool& __output_full) -> _OperationRes
-    {
+    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
+                                         bool& __output_full) -> _OperationRes {
         if (__out_it != __out_end)
         {
             *__out_it = *__it1;
@@ -1357,8 +1347,8 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it, bool& __output_full) -> _OperationRes
-    {
+    auto __op_val2_lt_val1 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
+                                         bool& __output_full) -> _OperationRes {
         if (__out_it != __out_end)
         {
             *__out_it = *__it2;
@@ -1374,8 +1364,7 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes
-    {
+    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
         ++__it1;
         ++__it2;
         return {__it1, __it2, __out_it};

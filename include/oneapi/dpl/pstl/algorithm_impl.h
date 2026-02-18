@@ -3475,9 +3475,7 @@ struct __mask_buffers<true>
     using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
     using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
 
-    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size)
-    {
-    }
+    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size) {}
 
     // Get pointer to the windowed mask buffer with offset
     _mask_ptr_t
@@ -3487,7 +3485,7 @@ struct __mask_buffers<true>
     }
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-    _MaskBuffer __buf_mask_rng;     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
+    _MaskBuffer __buf_mask_rng; // Temporary (windowed) buffer for the input range1 + range2 item usage mask
 };
 
 template <>
@@ -3506,7 +3504,8 @@ struct __mask_buffers<false>
     }
 };
 
-template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
+template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer,
+          typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
