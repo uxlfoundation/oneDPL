@@ -3680,10 +3680,11 @@ struct __mask_buffers<false>
     }
 };
 
-template <bool __Bounded, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
+template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
+    ExecutionPolicy           __exec;
     ProcessingDataPointer     __buf_pos_begin;
     ProcessingDataPointer     __buf_pos_end;
     MaskDataPointer           __temporary_mask_buf;     // Pointer to the windowed mask buffer
@@ -3772,23 +3773,23 @@ struct _ScanPred
 
                     if (__res_reachedPos1 != nullptr)
                     {
-                        *__res_reachedPos1 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                            {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
-                            });
+                        *__res_reachedPos1 =
+                            __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<
+                                                    oneapi::dpl::__utils::__parallel_set_op_mask::eData1>(__m);
+                                            });
                         *__res_reachedPos1 += __source_data_offsets.__start_offset1;
                     }
 
                     if (__res_reachedPos2 != nullptr)
                     {
-                        *__res_reachedPos2 = std::count_if(
-                            __mask_buffer_begin, __mask_buffer_it,
-                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m)
-                            {
-                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
-                            });
+                        *__res_reachedPos2 =
+                            __pattern_count(__tag, __exec, __mask_buffer_begin, __mask_buffer_it,
+                                            [](oneapi::dpl::__utils::__parallel_set_op_mask __m) {
+                                                return oneapi::dpl::__utils::__test_parallel_set_op_mask_state<
+                                                    oneapi::dpl::__utils::__parallel_set_op_mask::eData2>(__m);
+                                            });
                         *__res_reachedPos2 += __source_data_offsets.__start_offset2;
                     }
                 }
@@ -4061,16 +4062,17 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t, _DifferenceTypeOutput, _DifferenceType> __combine_pred{__n_out};
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1, _DifferenceType2>
-            __scan_pred{
-            __tag,
-            __buf_raw_data_begin,
-            __buf_raw_data_end,
-            __mask_bufs.get_buf_mask_rng_data(),        // Pointer to the windowed mask buffer
-            __result1,
-            __result2,
-            __Bounded ? &__res_reachedPos1 : nullptr,
-            __Bounded ? &__res_reachedPos2 : nullptr};
+        _ScanPred<__Bounded, _ExecutionPolicy, _IsVector, _T*, _mask_ptr_t, _OutputIterator, _DifferenceType1,
+                  _DifferenceType2>
+            __scan_pred{__tag,
+                        __exec,
+                        __buf_raw_data_begin,
+                        __buf_raw_data_end,
+                        __mask_bufs.get_buf_mask_rng_data(), // Pointer to the windowed mask buffer
+                        __result1,
+                        __result2,
+                        __Bounded ? &__res_reachedPos1 : nullptr,
+                        __Bounded ? &__res_reachedPos2 : nullptr};
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
                                      _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
