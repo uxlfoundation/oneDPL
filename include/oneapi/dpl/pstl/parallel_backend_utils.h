@@ -348,11 +348,8 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 
     while (__first1 != __last1 && __first2 != __last2)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__first1);
-        auto&& __proj2_val = std::invoke(__proj2, *__first2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
         std::tie(__first1, __first2, __result, __mask) =
             __val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
@@ -413,11 +410,8 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
 
     while (__first1 != __last1 && __first2 != __last2)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__first1);
-        auto&& __proj2_val = std::invoke(__proj2, *__first2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
         std::tie(__first1, __first2, __result, __mask) =
             __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
@@ -469,11 +463,8 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
     while (__first1 != __last1 && __first2 != __last2)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__first1);
-        auto&& __proj2_val = std::invoke(__proj2, *__first2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
         std::tie(__first1, __first2, __result, __mask) =
             __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
@@ -541,11 +532,8 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
             return {__last1, __first2, __result, __mask};
         }
 
-        auto&& __proj1_val = std::invoke(__proj1, *__first1);
-        auto&& __proj2_val = std::invoke(__proj2, *__first2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
         std::tie(__first1, __first2, __result, __mask) =
             __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)

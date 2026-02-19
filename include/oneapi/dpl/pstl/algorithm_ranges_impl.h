@@ -828,11 +828,8 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
 
         std::tie(__it1, __it2, __out_it) = __val1_lt_val2
                                                ? __op_val1_lt_val2(__it1, __it2, __out_it)
@@ -974,11 +971,8 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
 
         std::tie(__it1, __it2, __out_it) =
             __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it)
@@ -1172,11 +1166,8 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
 
         std::tie(__it1, __it2, __out_it) = __val1_lt_val2
                                                ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
@@ -1374,11 +1365,8 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        auto&& __proj1_val = std::invoke(__proj1, *__it1);
-        auto&& __proj2_val = std::invoke(__proj2, *__it2);
-
-        const bool __val1_lt_val2 = std::invoke(__comp, __proj1_val, __proj2_val);
-        const bool __val2_lt_val1 = std::invoke(__comp, __proj2_val, __proj1_val);
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
+        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
 
         std::tie(__it1, __it2, __out_it) =
             __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
