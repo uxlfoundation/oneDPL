@@ -3341,29 +3341,12 @@ struct _SetRangeImpl
             return __len == 0;
         }
 
-        static bool
-        is_left(const _Data& __a, const _Data& __b)
-        {
-            return __a.__buf_pos < __b.__buf_pos || (__b.__buf_pos == __a.__buf_pos && !__b.empty());
-        }
-
-        template <typename _DataType>
-        static std::pair<_DataType&&, _DataType&&>
-        get_left_right(_DataType&& __a, _DataType&& __b)
-        {
-            if (is_left(__a, __b))
-                return {std::forward<_DataType>(__a), std::forward<_DataType>(__b)};
-
-            return {std::forward<_DataType>(__b), std::forward<_DataType>(__a)};
-        }
-
-        template <typename _DataType>
         static _Data
-        combine_with(_DataType&& __a, _DataType&& __b)
+        combine_with(const _Data& __a, const _Data& __b)
         {
-            auto&& [__left, __right] = get_left_right(std::forward<_DataType>(__a), std::forward<_DataType>(__b));
-
-            return _Data{__left.__pos + __left.__len + __right.__pos, __right.__len, __right.__buf_pos};
+            if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
+                return _Data{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
+            return _Data{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
         }
     };
 
