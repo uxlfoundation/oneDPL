@@ -462,7 +462,7 @@ private:
     }
 
     template <TestDataMode mode, typename View>
-    auto
+    decltype(auto)
     get_view_part_for_output_wo_padding(View&& view)
     {
         if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
@@ -471,7 +471,7 @@ private:
         }
         else
         {
-            return view;
+            return std::forward<View>(view);
         }
     }
 
