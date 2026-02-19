@@ -1478,7 +1478,7 @@ struct DefaultInitializedToOne
     }
 };
 
-// The idea of this struct is to have a data item that can be used in set-tests.
+// The idea of this struct is to have a data item that can be used in set tests.
 // Each item has a value, an index in container and a container number.
 // This will allow us to test if the set-algorithms work correctly with sets of data.
 template <typename T>
