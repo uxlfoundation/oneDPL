@@ -256,7 +256,7 @@ enum class __parallel_set_op_mask : std::uint8_t
     eBoth = eData1 | eData2,              // mask for both input data items usage
     eData1Out = eData1 | eDataOut,        // mask for first input data item usage and output data item usage
     eData2Out = eData2 | eDataOut,        // mask for second input data item usage and output data item usage
-    eBothOut = eData1 | eData2 | eDataOut // mask for both input data items usage
+    eBothOut = eData1 | eData2 | eDataOut // mask for both input data items usage and output data item usage
 };
 
 inline std::nullptr_t
