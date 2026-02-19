@@ -794,46 +794,26 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
 
-    using _Iterator1 = decltype(__it1);
-    using _Iterator2 = decltype(__it2);
-    using _OutputIterator = decltype(__out_it);
-
-    using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
-
-    // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        *__out_it = *__it1;
-        ++__it1;
-        ++__out_it;
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        *__out_it = *__it2;
-        ++__it2;
-        ++__out_it;
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        *__out_it = *__it1;
-        ++__it1;
-        ++__it2;
-        ++__out_it;
-        return {__it1, __it2, __out_it};
-    };
-
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
-        std::tie(__it1, __it2, __out_it) =
-            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
-                ? __op_val1_lt_val2(__it1, __it2, __out_it)
-                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
-                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                       : __op_val1_eq_val2(__it1, __it2, __out_it));
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            *__out_it = *__it1;
+            ++__it1;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            *__out_it = *__it2;
+            ++__it2;
+        }
+        else
+        {
+            *__out_it = *__it1;
+            ++__it1;
+            ++__it2;
+        }
+        ++__out_it;
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
@@ -931,51 +911,30 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
-    using _Iterator1 = decltype(__it1);
-    using _Iterator2 = decltype(__it2);
-    using _OutputIterator = decltype(__out_it);
+    bool __output_full = false;
 
-    using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
-
-    // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        ++__it1;
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        ++__it2;
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
-                                         bool& __output_full) -> _OperationRes {
-        if (__out_it != __out_end)
+    while (__it1 != __end1 && __it2 != __end2)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            ++__it1;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            ++__it2;
+        }
+        else if (__out_it != __out_end)
         {
             *__out_it = *__it1;
+            ++__out_it;
             ++__it1;
             ++__it2;
-            ++__out_it;
         }
         else
         {
             __output_full = true;
+            break;
         }
-        return {__it1, __it2, __out_it};
-    };
-
-    // 1. Main set_intersection operation
-    bool __output_full = false;
-    while (__it1 != __end1 && __it2 != __end2 && !__output_full)
-    {
-        std::tie(__it1, __it2, __out_it) =
-            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
-                ? __op_val1_lt_val2(__it1, __it2, __out_it)
-                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
-                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                       : __op_val1_eq_val2(__it1, __it2, __out_it, __output_full));
     }
 
     __it1 = __output_full ? __it1 : __end1;
@@ -1125,51 +1084,29 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
-    using _Iterator1 = decltype(__it1);
-    using _Iterator2 = decltype(__it2);
-    using _OutputIterator = decltype(__out_it);
-
-    using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
-
-    // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
-                                         bool& __output_full) -> _OperationRes {
-        if (__out_it != __out_end)
+    // 1. Main set_union operation
+    while (__it1 != __end1 && __it2 != __end2)
+    {
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
         {
-            *__out_it = *__it1;
-            ++__it1;
-            ++__out_it;
+            if (__out_it != __out_end)
+            {
+                *__out_it = *__it1;
+                ++__it1;
+                ++__out_it;
+            }
+            else 
+                break;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            ++__it2;
         }
         else
         {
-            __output_full = true;
+            ++__it1;
+            ++__it2;
         }
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        ++__it2;
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        ++__it1;
-        ++__it2;
-        return {__it1, __it2, __out_it};
-    };
-
-    // 1. Main set_difference operation
-    bool __output_full = false;
-    while (__it1 != __end1 && __it2 != __end2 && !__output_full)
-    {
-        std::tie(__it1, __it2, __out_it) =
-            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
-                ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
-                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
-                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                       : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the rest of the first sequence
@@ -1312,62 +1249,36 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
-    using _Iterator1 = decltype(__it1);
-    using _Iterator2 = decltype(__it2);
-    using _OutputIterator = decltype(__out_it);
-
-    using _OperationRes = std::tuple<_Iterator1, _Iterator2, _OutputIterator>;
-
-    // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
-                                         bool& __output_full) -> _OperationRes {
-        if (__out_it != __out_end)
-        {
-            *__out_it = *__it1;
-            ++__it1;
-            ++__out_it;
-        }
-        else
-        {
-            __output_full = true;
-        }
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [__out_end](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it,
-                                         bool& __output_full) -> _OperationRes {
-        if (__out_it != __out_end)
-        {
-            *__out_it = *__it2;
-            ++__it2;
-            ++__out_it;
-        }
-        else
-        {
-            __output_full = true;
-        }
-
-        return {__it1, __it2, __out_it};
-    };
-
-    // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_Iterator1 __it1, _Iterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        ++__it1;
-        ++__it2;
-        return {__it1, __it2, __out_it};
-    };
-
     // 1. Main set_symmetric_difference operation
-    bool __output_full = false;
-    while (__it1 != __end1 && __it2 != __end2 && !__output_full)
+    while (__it1 != __end1 && __it2 != __end2)
     {
-        std::tie(__it1, __it2, __out_it) =
-            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
-                ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
-                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
-                       ? __op_val2_lt_val1(__it1, __it2, __out_it, __output_full)
-                       : __op_val1_eq_val2(__it1, __it2, __out_it));
+        if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
+        {
+            if (__out_it != __out_end)
+            {
+                *__out_it = *__it1;
+                ++__it1;
+                ++__out_it;
+            }
+            else 
+                break;
+        }
+        else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
+        {
+            if (__out_it != __out_end)
+            {
+                *__out_it = *__it2;
+                ++__it2;
+                ++__out_it;
+            }
+            else 
+                break;
+        }
+        else
+        {
+            ++__it1;
+            ++__it2;
+        }
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
