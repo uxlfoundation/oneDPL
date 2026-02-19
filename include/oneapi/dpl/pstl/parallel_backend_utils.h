@@ -346,17 +346,14 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         return {__first1, __first2, __result, __mask};
     };
 
-    bool __val1_lt_val2, __val2_lt_val1;
-
     while (__first1 != __last1 && __first2 != __last2)
     {
-        __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
-
         std::tie(__first1, __first2, __result, __mask) =
-            __val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
-                           : (__val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
-                                             : __op_val1_eq_val2(__first1, __first2, __result, __mask));
+            std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1))
+                ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
+                : (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2))
+                       ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
+                       : __op_val1_eq_val2(__first1, __first2, __result, __mask));
     }
 
     if (__first2 == __last2)
@@ -410,17 +407,14 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         return {__first1, __first2, __result, __mask};
     };
 
-    bool __val1_lt_val2, __val2_lt_val1;
-
     while (__first1 != __last1 && __first2 != __last2)
     {
-        __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
-
         std::tie(__first1, __first2, __result, __mask) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
-                                             : __op_val1_eq_val2(__first1, __first2, __result, __mask));
+            std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2))
+                ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
+                : (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1))
+                       ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
+                       : __op_val1_eq_val2(__first1, __first2, __result, __mask));
     }
 
     // This needed to save in mask that we processed all data till the end
@@ -465,17 +459,14 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         return {__first1, __first2, __result, __mask};
     };
 
-    bool __val1_lt_val2, __val2_lt_val1;
-
     while (__first1 != __last1 && __first2 != __last2)
     {
-        __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
-
         std::tie(__first1, __first2, __result, __mask) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
-                                             : __op_val1_eq_val2(__first1, __first2, __result, __mask));
+            std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2))
+                ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
+                : (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1))
+                       ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
+                       : __op_val1_eq_val2(__first1, __first2, __result, __mask));
     }
 
     if (__first2 == __last2)
@@ -528,8 +519,6 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         return {__first1, __first2, __result, __mask};
     };
 
-    bool __val1_lt_val2, __val2_lt_val1;
-
     while (__first1 != __last1)
     {
         if (__first2 == __last2)
@@ -540,13 +529,12 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
             return {__last1, __first2, __result, __mask};
         }
 
-        __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
-
         std::tie(__first1, __first2, __result, __mask) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
-                                             : __op_val1_eq_val2(__first1, __first2, __result, __mask));
+            std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2))
+                ? __op_val1_lt_val2(__first1, __first2, __result, __mask)
+                : (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1))
+                       ? __op_val2_lt_val1(__first1, __first2, __result, __mask)
+                       : __op_val1_eq_val2(__first1, __first2, __result, __mask));
     }
 
     __result = __cc_range(__first2, __last2, __result);
