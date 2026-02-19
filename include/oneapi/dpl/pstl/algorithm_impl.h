@@ -4016,19 +4016,23 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
 
-        auto __res_or = __result1;
-        __result1 += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
+        const auto __to_copy = __Bounded ? std::min(__m1, __n_out) : __m1;
+
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first1; left_bound_seq_1)
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __first1 + __to_copy, __result1,
+                                                  __copy_range);
             },
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
-                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1, __result2, __size_fnc,
-                    __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
+                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result1 + __to_copy, __result2,
+                    __size_fnc, __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
             });
+
+        __finish.__in1 = (__Bounded && __to_copy < __m1) ? (__first1 + __to_copy) : __finish.__in1;
+
         return __finish;
     }
 
@@ -4039,19 +4043,23 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
 
-        auto __res_or = __result1;
-        __result1 += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
+        const auto __to_copy = __Bounded ? std::min(__m2, __n_out) : __m2;
+
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             //do parallel copying of [first2; left_bound_seq_2)
             [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __first2 + __to_copy, __result1,
+                                                  __copy_range);
             },
             [=, &__exec, &__finish] {
                 __finish = __internal::__parallel_set_op<__Bounded>(
-                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1, __result2, __size_fnc,
-                    __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
+                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result1 + __to_copy, __result2,
+                    __size_fnc, __mask_size_fnc, __set_union_op, __comp, __proj1, __proj2);
             });
+
+        __finish.__in2 = (__Bounded && __to_copy < __m2) ? (__first2 + __to_copy) : __finish.__in2;
+
         return __finish;
     }
 
