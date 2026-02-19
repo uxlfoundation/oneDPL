@@ -124,13 +124,13 @@ main()
 
     unique_copy_checker.test_self();
 
-    test_range_algo<0, int, test_mode>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<1, int, test_mode, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
-    test_range_algo<2, int, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
-    test_range_algo<3, int, test_mode, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
-    test_range_algo<5, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
-    test_range_algo<6, int, test_mode, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
+    test_range_algo<0, int, test_mode, test_mode>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<1, int, test_mode, test_mode, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
+    test_range_algo<2, int, test_mode, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
+    test_range_algo<3, int, test_mode, test_mode, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
+    test_range_algo<4, P2,  test_mode, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
+    test_range_algo<5, P2,  test_mode, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
+    test_range_algo<6, int, test_mode, test_mode, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
