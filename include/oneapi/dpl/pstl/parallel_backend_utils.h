@@ -221,9 +221,9 @@ struct __serial_move_merge
 
 enum class __parallel_set_op_mask : std::uint8_t
 {
-    eData1   = 0b00000001,                  // mask for first input data item usage
-    eData2   = 0b00000010,                  // mask for second input data item usage
-    eDataOut = 0b00000100,                  // mask for output data item usage
+    eData1   = 0x01,                        // mask for first input data item usage
+    eData2   = 0x02,                        // mask for second input data item usage
+    eDataOut = 0x04,                        // mask for output data item usage
 
     eBoth     = eData1 | eData2,            // mask for both input data items usage
     eData1Out = eData1 | eDataOut,          // mask for first input data item usage and output data item usage
