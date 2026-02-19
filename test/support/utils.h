@@ -181,7 +181,7 @@ constexpr bool is_any_char_type_v =
     || std::is_same_v<TValue, char16_t> || std::is_same_v<TValue, char32_t>;
 
 template <typename TStream, typename TValue>
-std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !is_any_char_type_v<TValue>>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
 log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
 {
     if (commaNeeded)
@@ -223,13 +223,9 @@ log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& val
 
     bool bInternalCommaNeeded = false;
     os << "(";
-    std::size_t index = 0;
-    std::apply(
-        [&os, &bInternalCommaNeeded, &index](const auto&... elems) {
-            constexpr std::size_t N = sizeof...(T);
-            ((log_value_to_stream(os, elems, bInternalCommaNeeded), os << (++index < N ? ", " : "")), ...);
-        },
-        std_tuple);
+    std::apply([&os, &bInternalCommaNeeded](
+                   const auto&... elems) { (log_value_to_stream(os, elems, bInternalCommaNeeded), ...); },
+               std_tuple);
     os << ")";
 
     commaNeeded = true;
@@ -1502,7 +1498,7 @@ struct SetDataItem
     friend OStream&
     operator<<(OStream& os, const SetDataItem& item)
     {
-        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}\n";
+        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}";
         return os;
     }
 };

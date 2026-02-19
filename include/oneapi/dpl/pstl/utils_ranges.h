@@ -832,10 +832,10 @@ __get_subscription_view(_View&& __view)
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_ViewInstance>(__view);
 }
-#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 // Returns begin and end of the range
 template <typename _Range>
+    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>>
 auto
 __get_range_bounds(_Range&& __rng)
 {
@@ -848,6 +848,7 @@ __get_range_bounds(_Range&& __rng)
 
 // Returns begin, end and size of the range
 template <typename _Range>
+    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>>
 auto
 __get_range_bounds_n(_Range&& __rng)
 {
@@ -857,6 +858,7 @@ __get_range_bounds_n(_Range&& __rng)
 
     return std::make_tuple(__begin, __begin + __size, __size);
 }
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 } // namespace __ranges
 } // namespace dpl
