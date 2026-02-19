@@ -3492,9 +3492,7 @@ struct __mask_buffers<true>
     using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
     using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
 
-    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size)
-    {
-    }
+    __mask_buffers(std::size_t __mask_buf_size) : __buf_mask_rng(__mask_buf_size) {}
 
     // Get pointer to the windowed mask buffer with offset
     _mask_ptr_t
@@ -3504,7 +3502,7 @@ struct __mask_buffers<true>
     }
 
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-    _MaskBuffer __buf_mask_rng;     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
+    _MaskBuffer __buf_mask_rng; // Temporary (windowed) buffer for the input range1 + range2 item usage mask
 };
 
 template <>
@@ -3539,7 +3537,8 @@ struct __mask_buffers
 };
 #endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
-template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer, typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
+template <bool __Bounded, typename ExecutionPolicy, class _IsVector, typename ProcessingDataPointer,
+          typename MaskDataPointer, typename _OutputIterator, typename _DifferenceType1, typename _DifferenceType2>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
@@ -3574,7 +3573,7 @@ struct _ScanPred
             // 1. Copy source data (bounded)
             const typename _SetRange::_Data& __s_data_part = __s.get_data_part();
             {
-                // Evalueate output range boundaries for current data chunk
+                // Evaluate output range boundaries for current data chunk
                 const auto __result_from = __advance_clamped(__result1, __s_data_part.__pos, __result2);
                 const auto __result_to =
                     __advance_clamped(__result1, __s_data_part.__pos + __s_data_part.__len, __result2);
@@ -3606,7 +3605,7 @@ struct _ScanPred
                 if (__s_data_part.__pos == 0) // Always recalculate reached positions only for the first data chunk
 #endif
                 {
-                    // Process masks states in the output result (continious, not windowed) mask buffer
+                    // Process masks states in the temporary (windowed) mask buffer
                     auto __mask_buffer_begin = __temporary_mask_buf + __s_mask_data.__buf_pos;
                     auto __mask_buffer_end = __temporary_mask_buf + __s_mask_data.__buf_pos + __s_mask_data.__len;
 
@@ -3687,7 +3686,8 @@ struct _ScanPred
         assert(__state_value != 0);
 
         // Check correct memory state
-        constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        [[maybe_unused]] constexpr _UT __valid_bits =
+            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return __state_value & static_cast<_UT>(__checking_mask_state);
