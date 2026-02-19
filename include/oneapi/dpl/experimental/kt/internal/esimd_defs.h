@@ -23,13 +23,13 @@
 
 #define _ONEDPL_ESIMD_LSC_FENCE_PRESENT (_ONEDPL_LIBSYCL_VERSION >= 70200)
 
-namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
 
 // TODO: rename to show the meaning clearly: default vectorization factor
 constexpr int __data_per_step = 16;
 
-} // namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+} // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 // This namespace mostly consists of abstractions on the top of regular ESIMD functions.
 // The purpose is:
