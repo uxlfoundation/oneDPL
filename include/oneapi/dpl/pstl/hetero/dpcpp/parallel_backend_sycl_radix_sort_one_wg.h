@@ -31,7 +31,7 @@
 template <typename... _Name>
 class __radix_sort_one_wg_kernel;
 
-template <typename _KernelNameBase, uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
+template <typename _KernelNameBase, std::uint16_t __block_size = 16, std::uint32_t __radix = 4, bool __is_asc = true>
 struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
@@ -144,7 +144,7 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     auto
-    __check_slm_size(const sycl::queue& __q, _Size __n, uint16_t __wg_size)
+    __check_slm_size(const sycl::queue& __q, _Size __n, std::uint16_t __wg_size)
     {
         assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
 
@@ -174,7 +174,8 @@ struct __subgroup_radix_sort
     {
         template <typename _RangeIn, typename _Proj, typename _SLM_tag_val, typename _SLM_counter>
         sycl::event
-        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, uint16_t __wg_size, _SLM_tag_val, _SLM_counter)
+        operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::uint16_t __wg_size, _SLM_tag_val,
+                   _SLM_counter)
         {
             assert(__src.size() <= std::numeric_limits<std::uint16_t>::max());
             assert(__block_size * __wg_size <= std::numeric_limits<std::uint16_t>::max());
