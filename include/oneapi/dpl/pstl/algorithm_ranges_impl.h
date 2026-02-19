@@ -818,13 +818,12 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
-        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
-
         std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it));
+            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
+                ? __op_val1_lt_val2(__it1, __it2, __out_it)
+                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
+                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
+                       : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
@@ -973,13 +972,12 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
-        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
-
         std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it, __output_full));
+            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
+                ? __op_val1_lt_val2(__it1, __it2, __out_it)
+                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
+                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
+                       : __op_val1_eq_val2(__it1, __it2, __out_it, __output_full));
     }
 
     __it1 = __output_full ? __it1 : __end1;
@@ -1197,13 +1195,12 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
-        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
-
         std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it));
+            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
+                ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
+                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
+                       ? __op_val2_lt_val1(__it1, __it2, __out_it)
+                       : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the rest of the first sequence
@@ -1413,13 +1410,12 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     bool __output_full = false;
     while (__it1 != __end1 && __it2 != __end2 && !__output_full)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2));
-        const bool __val2_lt_val1 = std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1));
-
         std::tie(__it1, __it2, __out_it) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__it1, __it2, __out_it, __output_full)
-                                             : __op_val1_eq_val2(__it1, __it2, __out_it));
+            std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2))
+                ? __op_val1_lt_val2(__it1, __it2, __out_it, __output_full)
+                : (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1))
+                       ? __op_val2_lt_val1(__it1, __it2, __out_it, __output_full)
+                       : __op_val1_eq_val2(__it1, __it2, __out_it));
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
