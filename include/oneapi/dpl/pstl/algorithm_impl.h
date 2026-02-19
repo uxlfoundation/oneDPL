@@ -4268,6 +4268,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __set_union_op,                         // _SetUnionOp __set_union_op
                     __comp, __proj1, __proj2);
             });
+
+        if constexpr (__Bounded)
+            if (__to_copy < __m1)
+                __finish.__in1 = __first1 + __to_copy;
+
         return __finish;
     }
 
@@ -4297,6 +4302,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                     __set_union_op,                         // _SetUnionOp __set_union_op
                     __comp, __proj1, __proj2);
             });
+
+        if constexpr (__Bounded)
+            if (__to_copy < __m2)
+                __finish.__in2 = __first2 + __to_copy;
+
         return __finish;
     }
 
