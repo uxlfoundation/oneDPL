@@ -455,7 +455,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            // We should use placement new here because this method really works with raw unitialized memory
+            // We should use placement new here because this method really works with raw uninitialized memory
             _uninitialized_copy_from1(__first1, __result);
             ++__result;
             ++__first1;
@@ -465,7 +465,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-                // We should use placement new here because this method really works with raw unitialized memory
+                // We should use placement new here because this method really works with raw uninitialized memory
                 _uninitialized_copy_from2(__first2, __result);
                 ++__result;
                 __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
