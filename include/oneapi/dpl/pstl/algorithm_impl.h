@@ -3506,10 +3506,10 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     }
 
     auto __res_or = __result;
-    __result += __offset; 
+    __result += __offset;
     __par_backend::__parallel_invoke(
         __backend_tag{}, __exec,
-        //do parallel copying of the non-overlapping prefix
+        //do parallel copying of the non-overlapping
         [=, &__exec] {
             if (__prefer_range1_copy)
                 __internal::__pattern_walk2_brick(__tag, __exec, __first1, __begin1, __res_or, __copy_range);
@@ -3521,16 +3521,15 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
             {
                 __result = __internal::__parallel_set_op(
                     __tag, __exec, __begin1, __last1, __begin2, __last2, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp,
-                    __proj1, __proj2);
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
+                    __proj2);
             }
             else
             {
                 __result = __internal::__parallel_set_op(
                     __tag, __exec, __begin2, __last2, __begin1, __last1, __result,
                     [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __swap_set_op<_SetUnionOp>{__set_union_op},
-                    __comp, __proj2, __proj1);
+                    __swap_set_op<_SetUnionOp>{__set_union_op}, __comp, __proj2, __proj1);
             }
         });
     return __result;
