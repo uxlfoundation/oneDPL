@@ -417,11 +417,15 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1;
+                __id -
+                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp,
+                                                               __proj1, __proj1) +
+                1;
 
-            const std::size_t __count_b = 
-                oneapi::dpl::__internal::__pstl_right_bound_idx(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
+            const std::size_t __count_b = oneapi::dpl::__internal::__pstl_right_bound_idx(
+                                              __set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
+                                          oneapi::dpl::__internal::__pstl_left_bound_idx(
+                                              __set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -639,7 +643,7 @@ struct __get_bounds_partitioned
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, const _IndexT __id) const
+    operator()(const _Rng & __in_rng, const _IndexT __id) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -674,7 +678,7 @@ struct __get_bounds_simple
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, const _IndexT) const
+    operator()(const _Rng & __in_rng, const _IndexT) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1522,8 +1526,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
@@ -1696,8 +1701,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
