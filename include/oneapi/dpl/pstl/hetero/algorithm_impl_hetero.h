@@ -71,6 +71,15 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
         __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 
+template <class _BackendTag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_uninitialized_walk1(__hetero_tag<_BackendTag> tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                              _ForwardIterator __last, _Function __f)
+{
+    oneapi::dpl::__internal::__pattern_hetero_walk1<sycl::access_mode::write, /*_NoInit=*/false>(
+        tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
 //------------------------------------------------------------------------
 // walk1_n
 //------------------------------------------------------------------------
@@ -83,6 +92,17 @@ __pattern_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _F
 {
     __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, /*_IsNoInitRequested=*/false>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f);
+    return __first + __n;
+}
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Size,
+          typename _Function>
+_ForwardIterator
+__pattern_uninitialized_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                                _Size __n, _Function __f)
+{
+    __pattern_hetero_walk1<sycl::access_mode::write, /*_NoInit=*/false>(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                        __first, __first + __n, __f);
     return __first + __n;
 }
 
@@ -215,43 +235,6 @@ __pattern_walk3(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 }
 
 //------------------------------------------------------------------------
-// walk_brick, walk_brick_n
-//------------------------------------------------------------------------
-
-template <typename _Name>
-struct __walk_brick_wrapper;
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
-void
-__pattern_walk_brick(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
-                     _ForwardIterator __last, _Function __f)
-{
-    if (__last - __first <= 0)
-        return;
-
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(
-        __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk_brick_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __first, __last, __f);
-}
-
-template <typename _Name>
-struct __walk_brick_n_wrapper;
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Size,
-          typename _Function>
-_ForwardIterator
-__pattern_walk_brick_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n,
-                       _Function __f)
-{
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, false>(
-        __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk_brick_n_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
-        __first, __first + __n, __f);
-    return __first + __n;
-}
-
-//------------------------------------------------------------------------
 // walk2_brick, walk2_brick_n
 //------------------------------------------------------------------------
 
@@ -337,18 +320,6 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 // fill
 //------------------------------------------------------------------------
 
-template <typename _SourceT>
-struct fill_functor
-{
-    _SourceT __value;
-    template <typename _TargetT>
-    void
-    operator()(_TargetT& __target) const
-    {
-        __target = __value;
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _T>
 _ForwardIterator
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
@@ -358,7 +329,7 @@ __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Forw
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
-        fill_functor<_T>{__value});
+        __brick_fill<__hetero_tag<_BackendTag>, _T>{__value});
     return __last;
 }
 
@@ -946,8 +917,9 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
-    std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+    std::size_t __num_copied =
+        __par_backend_hetero::__parallel_copy_if(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
+                                                 __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -959,8 +931,8 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _Iterator3, typename _UnaryPredicate>
 ::std::pair<_Iterator2, _Iterator3>
-__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first,
-                         _Iterator1 __last, _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
+__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
+                         _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
 {
     if (__first == __last)
         return ::std::make_pair(__result1, __result2);
