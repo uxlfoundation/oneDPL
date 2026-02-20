@@ -269,7 +269,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         friend constexpr bool
         operator==(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
-            return __x.__compare_with_sentinels(iterator::__get_current(__y),
+            return __x.__compare_with_sentinels(__y.__get_end(),
                                                 std::make_index_sequence<sizeof...(_Views)>());
         }
 
@@ -307,7 +307,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
                 return std::ranges::min(
-                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(iterator::__get_current(__y)))...},
+                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__get_end()))...},
                     std::less{}, [](auto __a) { return iterator::__abs(__a); });
             };
 
@@ -387,13 +387,6 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             return ((std::get<_In>(__current) == std::get<_In>(__sentinels)) || ...);
         }
 
-        template <bool _OtherConst>
-        static decltype(auto)
-        __get_current(const sentinel<_OtherConst>& __y)
-        {
-            return __y.__end;
-        }
-
         friend class zip_view;
 
         __iterators_type __current;
@@ -424,9 +417,15 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-        template <bool _OtherConst>
-        friend decltype(auto)
-        __get_current(const sentinel<_OtherConst>&);
+#if defined(_MSC_VER)
+      //required for CL compiler, which does not find the friend iterator class
+      public:
+#endif
+        decltype(auto)
+        __get_end() const
+        {
+            return __end;
+        }
 
         __tuple_type<std::ranges::sentinel_t<__internal::__maybe_const<_Const, _Views>>...> __end;
     }; // class sentinel
