@@ -529,6 +529,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         return __internal::__apply_to_tuple(std::ranges::size, __views, __tr);
     }
 
+    const __tuple_type<_Views...>&
+    base() const
+    {
+        return __views; // Exposing the tuple of views for use in SYCL access requirement checks. Not part of the public API.
+    }
+
   private:
     __tuple_type<_Views...> __views;
 }; // class zip_view
