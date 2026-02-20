@@ -27,69 +27,6 @@ namespace dpl
 namespace __omp_backend
 {
 
-struct __grain_selector_any_workload
-{
-    inline std::size_t operator()(std::size_t __size, int __num_threads) const
-    {
-        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
-        // Min/Max are found empirically
-        constexpr std::size_t __min_chunk = 256;
-        constexpr std::size_t __max_chunk = 16384;
-        constexpr std::size_t __multiple_chunk = 64;
-
-        // Aim for 3 tasks per thread for better load balancing
-        std::size_t __grainsize = __size / (__num_threads * 3);
-        if (__grainsize < __min_chunk)
-            __grainsize = __min_chunk;
-        else if (__grainsize > __max_chunk)
-            __grainsize = __max_chunk;
-        // Round up to avoid too avoid small uneven chunk at the end
-        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
-    }
-};
-
-struct __grain_selector_small_workload
-{
-    inline std::size_t operator()(std::size_t __size, int __num_threads) const
-    {
-        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
-        // Min/Max are found empirically
-        constexpr std::size_t __min_chunk = 2048;
-        constexpr std::size_t __max_chunk = 16384;
-        constexpr std::size_t __multiple_chunk = 64;
-
-        // Aim for 3 tasks per thread for better load balancing
-        std::size_t __grainsize = __size / (__num_threads * 3);
-        if (__grainsize < __min_chunk)
-            __grainsize = __min_chunk;
-        else if (__grainsize > __max_chunk)
-            __grainsize = __max_chunk;
-        // Round up to avoid too avoid small uneven chunk at the end
-        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
-    }
-};
-
-struct __grain_selector_large_workload
-{
-    inline std::size_t operator()(std::size_t __size, int __num_threads) const
-    {
-        // Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
-        // Min/Max are found empirically
-        constexpr std::size_t __min_chunk = 64;
-        constexpr std::size_t __max_chunk = 1024;
-        constexpr std::size_t __multiple_chunk = 64;
-
-        // Aim for 3 tasks per thread for better load balancing
-        std::size_t __grainsize = __size / (__num_threads * 3);
-        if (__grainsize < __min_chunk)
-            __grainsize = __min_chunk;
-        else if (__grainsize > __max_chunk)
-            __grainsize = __max_chunk;
-        // Round up to avoid too avoid small uneven chunk at the end
-        return ((__grainsize + __multiple_chunk - 1) / __multiple_chunk) * __multiple_chunk;
-    }
-};
-
 template <class _Index, class _Fp, class _GrainSelector>
 void
 __parallel_for_body(_Index __first, _Index __last, _Fp __f, _GrainSelector __grain_selector)

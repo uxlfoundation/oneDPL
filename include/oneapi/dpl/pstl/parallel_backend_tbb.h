@@ -92,9 +92,11 @@ class __parallel_for_body
 
 struct __grain_selector_any_workload
 {
-    constexpr std::size_t operator()() const
+    constexpr std::size_t
+    operator()() const
     {
-        return 1; // matches the default grainsize value of tbb::blocked_range according to the specification
+        // matches the default grainsize value of tbb::blocked_range according to the specification
+        return 1;
     }
 };
 struct __grain_selector_small_workload: public __grain_selector_any_workload {};

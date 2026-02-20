@@ -86,7 +86,7 @@ __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 
 struct __grain_selector_any_workload
 {
-    inline std::size_t
+    constexpr std::size_t
     operator()(std::size_t __size, std::size_t __num_threads) const
     {
         return 1;
