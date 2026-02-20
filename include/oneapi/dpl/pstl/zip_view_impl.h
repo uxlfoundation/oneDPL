@@ -269,8 +269,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         friend constexpr bool
         operator==(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
-            return __x.__compare_with_sentinels(__y.__get_end(),
-                                                std::make_index_sequence<sizeof...(_Views)>());
+            return __x.__compare_with_sentinels(__y.__get_end(), std::make_index_sequence<sizeof...(_Views)>());
         }
 
         friend constexpr auto
@@ -307,8 +306,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
                 return std::ranges::min(
-                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__get_end()))...},
-                    std::less{}, [](auto __a) { return iterator::__abs(__a); });
+                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__get_end()))...}, std::less{},
+                    [](auto __a) { return iterator::__abs(__a); });
             };
 
             return calc_val(std::make_index_sequence<sizeof...(_Views)>());
@@ -417,10 +416,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-#if defined(_MSC_VER)
-      //required for CL compiler, which does not find the friend iterator class
+#    if defined(_MSC_VER)
+        //required for CL compiler, which does not find the friend iterator class
       public:
-#endif
+#    endif
         decltype(auto)
         __get_end() const
         {
