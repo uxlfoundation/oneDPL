@@ -127,11 +127,9 @@ __pattern_histogram(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Rando
         using _global_histogram_type = typename ::std::iterator_traits<_RandomAccessIterator2>::value_type;
         const auto __n = __last - __first;
 
-        // The access mode we we want here is "read_write" + no_init property to cover the reads required by the main
-        //  kernel, but also to avoid copying the data in unnecessarily.  In practice, this "write" access mode should
-        //  accomplish this as write implies read, and we avoid a copy-in from the host for "write" access mode.
+        // Use read_write with no_init to avoid copying data in unnecessarily while still allowing kernel reads.
         auto __keep_bins =
-            oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::write,
+            oneapi::dpl::__ranges::__get_sycl_range<oneapi::dpl::__par_backend_hetero::access_mode::read_write,
                                                     /*_IsNoInitRequested=*/true>();
         auto __bins_buf = __keep_bins(__histogram_first, __histogram_first + __num_bins);
         auto __bins = __bins_buf.all_view();
