@@ -160,31 +160,88 @@ std::string log_value_title(TagActual)
     return " got ";
 }
 
-template <typename TStream, typename Tag, typename TValue>
- void log_value(TStream& os, Tag, const TValue& value, bool bCommaNeeded)
+template <typename TStream, typename TValue>
+std::enable_if_t<!IsOutputStreamable<TValue, TStream>::value>
+log_value_to_stream(TStream& os, const TValue&, bool& commaNeeded)
 {
-    if (bCommaNeeded)
+    if (commaNeeded)
         os << ",";
+
+    os << "(unable to log value)";
+
+    commaNeeded = true;
+}
+
+template <typename TValue>
+constexpr bool is_any_char_type_v =
+    std::is_same_v<TValue, char> || std::is_same_v<TValue, signed char> || std::is_same_v<TValue, unsigned char>
+#if defined(__cpp_char8_t)
+    || std::is_same_v<TValue, char8_t>
+#endif
+    || std::is_same_v<TValue, char16_t> || std::is_same_v<TValue, char32_t>;
+
+template <typename TStream, typename TValue>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && !std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
+{
+    if (commaNeeded)
+        os << ",";
+
+    os << value;
+
+    commaNeeded = true;
+}
+
+template <typename TStream, typename TValue>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
+{
+    if (commaNeeded)
+        os << ",";
+
+    os << static_cast<int>(value);
+
+    commaNeeded = true;
+}
+
+template <typename TStream, typename TValue>
+std::enable_if_t<IsOutputStreamable<TValue, TStream>::value && std::is_enum_v<TValue> && !is_any_char_type_v<TValue>>
+log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
+{
+    log_value_to_stream(os, static_cast<std::underlying_type_t<TValue>>(value), commaNeeded);
+}
+
+template <typename TStream, typename... T>
+void
+log_value_to_stream(TStream& os, const oneapi::dpl::__internal::tuple<T...>& value, bool& commaNeeded)
+{
+    using std_tuple_t = typename oneapi::dpl::__internal::tuple<T...>::tuple_type;
+    std_tuple_t std_tuple = value;
+
+    if (commaNeeded)
+        os << ",";
+
+    bool bInternalCommaNeeded = false;
+    os << "(";
+    std::apply([&os, &bInternalCommaNeeded](
+                   const auto&... elems) { (log_value_to_stream(os, elems, bInternalCommaNeeded), ...); },
+               std_tuple);
+    os << ")";
+
+    commaNeeded = true;
+}
+
+template <typename TStream, typename Tag, typename TValue>
+void
+log_value(TStream& os, Tag, const TValue& value, bool commaNeeded)
+{
+    if (commaNeeded)
+        os << ",";
+
     os << log_value_title(Tag{});
 
-    if constexpr (IsOutputStreamable<TValue, decltype(os)>::value)
-    {
-        if constexpr (std::is_same_v<bool, std::decay_t<TValue>>)
-        {
-            if (value)
-                os << "true";
-            else
-                os << "false";
-        }
-        else
-        {
-            os << value;
-        }
-    }
-    else
-    {
-        os << "(unable to log value)";
-    }
+    bool bInternalCommaNeeded = false;
+    log_value_to_stream(os, value, bInternalCommaNeeded);
 }
 
 // Do not change signature to const T&.
@@ -1418,6 +1475,42 @@ struct DefaultInitializedToOne
     operator==(const DefaultInitializedToOne& x, const DefaultInitializedToOne& y)
     {
         return x.value == y.value;
+    }
+};
+
+// The idea of this struct is to have a data item that can be used in set tests.
+// Each item has a value, an index in container and a container number.
+// This will allow us to test if the set-algorithms work correctly with sets of data.
+template <typename T>
+struct SetDataItem
+{
+    T value{};                      // Value of the item
+    std::size_t index = 0;          // Index of the item in the container
+    std::size_t series = 0;         // Container number
+
+    friend bool
+    operator==(const SetDataItem& item1, const SetDataItem& item2)
+    {
+        return item1.value == item2.value && item1.index == item2.index && item1.series == item2.series;
+    }
+
+    template <typename OStream>
+    friend OStream&
+    operator<<(OStream& os, const SetDataItem& item)
+    {
+        os << "{ value = " << item.value << ", index = " << item.index << ", series = " << item.series << "}";
+        return os;
+    }
+};
+
+// Projection to extract 'value' field from SetDataItem
+struct SetDataItemProj
+{
+    template <typename T>
+    auto
+    operator()(const SetDataItem<T>& item) const -> decltype(item.value)
+    {
+        return item.value;
     }
 };
 

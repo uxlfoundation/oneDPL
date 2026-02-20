@@ -26,6 +26,10 @@
 
 #if _ENABLE_STD_RANGES_TESTING
 
+#    if TEST_DPCPP_BACKEND_PRESENT
+#        include "oneapi/dpl/pstl/hetero/dpcpp/execution_sycl_defs.h"
+#    endif
+
 static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 
 #if TEST_CPP20_SPAN_PRESENT
@@ -39,6 +43,7 @@ static_assert(ONEDPL_HAS_RANGE_ALGORITHMS >= 202509L);
 #include <algorithm>
 #include <memory>
 #include <array>
+#include <sstream>
 
 namespace test_std_ranges
 {
@@ -108,6 +113,14 @@ struct P2
 
     int proj() const { return x; }
     friend bool operator==(const P2& a, const P2& b) { return a.x == b.x && a.y == b.y; }
+
+    template <typename OStream>
+    friend OStream&
+    operator<<(OStream& os, const P2& item)
+    {
+        os << "{" << item.x << ", " << item.y << "}";
+        return os;
+    }
 };
 
 struct A
@@ -215,6 +228,12 @@ template <typename I1, typename I2>
 static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
 
 template <typename T>
+static constexpr bool check_in_out_result{};
+
+template <typename I1, typename O>
+static constexpr bool check_in_out_result<std::ranges::in_out_result<I1, O>> = true;
+
+template <typename T>
 static constexpr bool check_in_in_out_result{};
 
 template <typename I1, typename I2, typename O>
@@ -285,6 +304,21 @@ private:
 
     template <typename T>
     using TmpContainerType = std::array<T,0>;
+
+    static constexpr int kParts = 2;
+
+    static constexpr int kPaddingSize = 20;
+
+    // Get real range size considering padding for out ranges
+    template <TestDataMode mode>
+    int
+    get_padded_size(int n) const
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+            return n + kPaddingSize * kParts;
+        else
+            return n;
+    }
 
     // Test dangling iterators in return types for call with temporary data
     template <int idx, typename Policy, typename Algo, typename ...Args>
@@ -376,11 +410,27 @@ private:
             test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
     }
 
+    template <typename Policy, typename Algo, typename TransIn>
+    std::string
+    get_error_msg(Policy&&, Algo, TransIn tr_in, const std::string& prefix, const std::string& strSize) const
+    {
+        using TransInContainer = decltype(tr_in(std::declval<Container&>()()));
+
+        std::stringstream outstr;
+        outstr << prefix
+               << " " << typeid(Algo).name()
+               << " " << typeid(TransInContainer).name()
+               << " " << strSize
+               << " with execution policy " << typeid(Policy).name();
+
+        return outstr.str();
+    }
+
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
     process_data_in(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, auto... args)
     {
-        std::string sizes{" for "};
+        std::string sizes{"for "};
         sizes += std::to_string(max_n) + " elements";
 
         Container cont_in(exec, max_n, DataGen1{});
@@ -397,19 +447,52 @@ private:
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
         EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
-                  (std::string("wrong stop position with ") + typeid(Algo).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                  get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
         if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
             n = calc_res_size<std::remove_cvref_t<Algo>>(n, std::ranges::size(res));
 
-        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
-            + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n,
+                    get_error_msg(exec, algo, tr_in, "data mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
+    }
+
+    template <TestDataMode mode, typename View>
+    decltype(auto)
+    get_view_part_for_output_wo_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            return view | std::views::drop(kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
+        }
+        else
+        {
+            return std::forward<View>(view);
+        }
+    }
+
+    template <TestDataMode mode, typename View>
+    bool check_padding(View&& view)
+    {
+        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
+        {
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+            for (int idx = 0; idx < kPaddingSize; ++idx)
+            {
+                if (*(view.begin() + view.size() - kPaddingSize + idx) != data_gen_unprocessed(idx))
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
@@ -427,7 +510,7 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size<mode>(n_out), data_gen_unprocessed);
         Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
@@ -438,47 +521,57 @@ private:
         auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
-        typename Container::type& B = cont_out();
+        auto&& B_with_padding = cont_out();
+        auto&& B = get_view_part_for_output_wo_padding<mode>(B_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+                      get_error_msg(exec, algo, tr_out, "wrong input stop position with", sizes).c_str());
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong input stop position with", sizes).c_str());
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong output stop position with ") + names + sizes).c_str());
+                  get_error_msg(exec, algo, tr_out, "wrong output stop position with", sizes).c_str());
+
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(B_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + names).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
-                    (std::string("output mismatch with ") + names + sizes).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n,
+                    get_error_msg(exec, algo, tr_out, "output mismatch with", sizes).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
         EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
-                    (std::string("input mismatch with ") + names + sizes).c_str());
+                    get_error_msg(exec, algo, tr_in, "input mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -504,8 +597,8 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -526,8 +619,8 @@ public:
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
@@ -539,7 +632,7 @@ private:
     process_data_in_in(int max_n, int n_in1, int n_in2, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                        auto... args)
     {
-        std::string sizes{" for "};
+        std::string sizes{"for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements";
 
         assert(n_in1 <= max_n);
@@ -563,28 +656,22 @@ private:
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong stop position with", sizes).c_str());
         }
         else
         {
-            EXPECT_EQ(expected_res, res,
-                      (std::string("wrong return value from ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            EXPECT_EQ(expected_res, res, get_error_msg(exec, algo, tr_in, "wrong return value from", sizes).c_str());
         }
 
         // Test dangling iterators in return types for call with temporary data
@@ -604,7 +691,7 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, n_out, data_gen_unprocessed);
+        Container cont_out(exec, get_padded_size<mode>(n_out), data_gen_unprocessed);
         Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
@@ -617,36 +704,46 @@ private:
 
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
-        typename Container::type& C = cont_out();
+        auto&& C_with_padding = cont_out();
+        auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+
+        // Check padding data
+        EXPECT_TRUE(check_padding<mode>(C_with_padding),
+                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        if constexpr (check_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
+        }
+        else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong second input stop position with", sizes).c_str());
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong first input stop position with", sizes).c_str());
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+                      get_error_msg(exec, algo, tr_in, "wrong second input stop position with", sizes).c_str());
         }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
-                    (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+                  get_error_msg(exec, algo, tr_in, "wrong output stop position with", sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("output mismatch with ")
-                    + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n,
+                    get_error_msg(exec, algo, tr_in, "output mismatch with", sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -658,12 +755,12 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-        process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, 0, r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, 0, out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      0,                                          0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0,      r_size, out_size_with_empty_in1<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, 0,      out_size_with_empty_in2<Algo>(r_size), CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -671,13 +768,14 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size*2, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size/2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-	    //test cases with empty sequence(s)
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size * kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / kParts, r_size,          r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+
+        //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
@@ -922,8 +1020,9 @@ struct span_view_fo
 };
 #endif
 
-template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
-         typename DataGen2 = decltype(data_gen2_default)>
+template <int call_id = 0, typename T = int,
+          TestDataMode host_mode = data_in, TestDataMode hetero_mode = host_mode,
+          typename DataGen1 = std::identity, typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
 {
     const int n_serial = small_size;
@@ -952,14 +1051,14 @@ struct test_range_algo
 
     void test_view_host(auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
+        test<T, host_subrange<T>, host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, view, std::identity{}, args...);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT
     template <typename Policy>
     void test_view_hetero(Policy&& exec, auto view, auto algo, auto& checker, auto... args)
     {
-        test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
+        test<T, usm_subrange<T>, hetero_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id), algo, checker, view, std::identity{}, args...);
     }
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
@@ -971,13 +1070,13 @@ struct test_range_algo
         auto span_view = span_view_fo{};
 #endif
 
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
-        test<T, host_subrange<T>, mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_vector<T>,   host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::identity{},  std::identity{}, args...);
+        test<T, host_vector<T>,   host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, subrange_view,    std::identity{}, args...);
+        test<T, host_vector<T>,   host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_subrange<T>, host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-        test<T, host_vector<T>,   mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
-        test<T, host_span<T>,     mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
+        test<T, host_vector<T>,   host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, span_view,        std::identity{}, args...);
+        test<T, host_span<T>,     host_mode, DataGen1, DataGen2>{}.host_policies(n_serial, n_parallel, algo, checker, std::views::all,  std::identity{}, args...);
 #endif
     }
 
@@ -997,11 +1096,11 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   hetero_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                test<T, usm_subrange<T>, hetero_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                test<T, usm_vector<T>,   hetero_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                test<T, usm_span<T>,     hetero_mode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
             }
         }
