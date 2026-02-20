@@ -3399,6 +3399,22 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
     });
 }
 
+template <typename _SetOp>
+struct __swap_set_op
+{
+    _SetOp __set_op;
+
+    template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _OutputIterator,
+              typename _Compare, typename _Proj1, typename _Proj2>
+    _OutputIterator
+    operator()(_RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _RandomAccessIterator1 __first1,
+               _RandomAccessIterator1 __last1, _OutputIterator __result, _Compare __comp, _Proj2 __proj2,
+               _Proj1 __proj1) const
+    {
+        return __set_op(__first1, __last1, __first2, __last2, __result, __comp, __proj1, __proj2);
+    }
+};
+
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
@@ -3414,8 +3430,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    _DifferenceType1 __n1 = __last1 - __first1;
+    _DifferenceType2 __n2 = __last2 - __first2;
 
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
@@ -3467,50 +3483,56 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
         return __result + __n1 + __n2;
     }
 
-    const auto __m1 = __left_bound_seq_1 - __first1;
-    if (__m1 > __set_algo_cut_off)
+    const _DifferenceType1 __copy_from_range1 = __left_bound_seq_1 - __first1;
+    const _DifferenceType2 __copy_from_range2 = __left_bound_seq_2 - __first2;
+
+    _RandomAccessIterator1 __begin1 = __first1;
+    _RandomAccessIterator2 __begin2 = __first2;
+
+    _DifferenceType __offset = 0;
+    bool __prefer_range1_copy = __copy_from_range1 >= __copy_from_range2;
+
+    if (__prefer_range1_copy)
     {
-        auto __res_or = __result;
-        __result += __m1; //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
-        __par_backend::__parallel_invoke(
-            __backend_tag{}, __exec,
-            //do parallel copying of [first1; left_bound_seq_1)
-            [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __left_bound_seq_1, __res_or, __copy_range);
-            },
-            [=, &__exec, &__result] {
-                __result = __internal::__parallel_set_op(
-                    __tag, __exec, __left_bound_seq_1, __last1, __first2, __last2, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
-                    __proj2);
-            });
-        return __result;
+        __begin1 = __left_bound_seq_1;
+        __n1 = __last1 - __begin1;
+        __offset = __copy_from_range1;
+    }
+    else
+    {
+        __begin2 = __left_bound_seq_2;
+        __n2 = __last2 - __begin2;
+        __offset = __copy_from_range2;
     }
 
-    const auto __m2 = __left_bound_seq_2 - __first2;
-    assert(__m1 == 0 || __m2 == 0);
-    if (__m2 > __set_algo_cut_off)
-    {
-        auto __res_or = __result;
-        __result += __m2; //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        __par_backend::__parallel_invoke(
-            __backend_tag{}, __exec,
-            //do parallel copying of [first2; left_bound_seq_2)
-            [=, &__exec] {
-                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __left_bound_seq_2, __res_or, __copy_range);
-            },
-            [=, &__exec, &__result] {
+    auto __res_or = __result;
+    __result += __offset;
+    __par_backend::__parallel_invoke(
+        __backend_tag{}, __exec,
+        //do parallel copying of the non-overlapping
+        [=, &__exec] {
+            if (__prefer_range1_copy)
+                __internal::__pattern_walk2_brick(__tag, __exec, __first1, __begin1, __res_or, __copy_range);
+            else
+                __internal::__pattern_walk2_brick(__tag, __exec, __first2, __begin2, __res_or, __copy_range);
+        },
+        [=, &__exec, &__result] {
+            if (__n1 >= __n2)
+            {
                 __result = __internal::__parallel_set_op(
-                    __tag, __exec, __first1, __last1, __left_bound_seq_2, __last2, __result,
+                    __tag, __exec, __begin1, __last1, __begin2, __last2, __result,
                     [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
                     __proj2);
-            });
-        return __result;
-    }
-
-    return __internal::__parallel_set_op(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
-        [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1, __proj2);
+            }
+            else
+            {
+                __result = __internal::__parallel_set_op(
+                    __tag, __exec, __begin2, __last2, __begin1, __last1, __result,
+                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
+                    __swap_set_op<_SetUnionOp>{__set_union_op}, __comp, __proj2, __proj1);
+            }
+        });
+    return __result;
 }
 
 //------------------------------------------------------------------------
@@ -3567,8 +3589,11 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _OutputIterator __result, _Compare __comp)
 {
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
+    _DifferenceType1 __n1 = __last1 - __first1;
+    _DifferenceType2 __n2 = __last2 - __first2;
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
@@ -3835,8 +3860,11 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
                                    _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                                    _RandomAccessIterator3 __result, _Compare __comp)
 {
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
+    _DifferenceType1 __n1 = __last1 - __first1;
+    _DifferenceType2 __n2 = __last2 - __first2;
 
     // use serial algorithm
     if (__n1 + __n2 <= __set_algo_cut_off)
