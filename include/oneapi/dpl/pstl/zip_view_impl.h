@@ -47,6 +47,12 @@ concept __all_bidirectional = (std::ranges::bidirectional_range<__maybe_const<C,
 template <bool C, typename... _Views>
 concept __all_random_access = (std::ranges::random_access_range<__maybe_const<C, _Views>> && ...);
 
+// Determine when a zip_view can be a "common range" (where begin() and end() return the same type).
+// This is true in three cases:
+// 1. Only one range is being zipped and it's a common range
+// 2. All ranges are common ranges but NOT all bidirectional (simpler iteration logic)
+// 3. All ranges are both random-access AND sized (can calculate end position directly)
+// For details see https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2321r2.html#when-is-zip_view-a-common_range
 template <typename... Rs>
 concept __zip_is_common = (sizeof...(Rs) == 1 && (std::ranges::common_range<Rs> && ...)) ||
                           (!(std::ranges::bidirectional_range<Rs> && ...) && (std::ranges::common_range<Rs> && ...)) ||
