@@ -33,15 +33,20 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
 {
     if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, n);
+        constexpr size_t guard_size = 5;
+        const size_t total_size = n + guard_size;
+        const T sentinel = static_cast<T>(-999); // Distinct from trash
+
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
         auto copy_from = oneapi::dpl::counting_iterator<int>(0);
         // host iterator
-        std::vector<T> host_iter(n);
+        std::vector<T> host_iter(total_size);
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/false,
-                     /*__is_reversible=*/true>(std::forward<Policy>(exec), host_iter.begin(), host_iter.end(), copy_from,
-                                               copy_out.get_data(), host_iter.begin(), copy_out.get_data(), copy_from,
-                                               trash, std::string("host_iterator<") + type_text + std::string(">"));
+                     /*__is_reversible=*/true>(
+            std::forward<Policy>(exec), host_iter.begin(), host_iter.begin() + n, copy_from, copy_out.get_data(),
+            host_iter.begin(), copy_out.get_data(), copy_from, trash,
+            std::string("host_iterator<") + type_text + std::string(">"), guard_size, sentinel);
     }
     else
     {

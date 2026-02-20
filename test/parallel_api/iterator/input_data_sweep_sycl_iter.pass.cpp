@@ -33,17 +33,21 @@ call_wrap_recurse(Policy&& exec, T trash, size_t n, const std::string& type_text
 {
     if (TestUtils::has_types_support<T>(exec.queue().get_device()))
     {
-        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, n);
+        constexpr size_t guard_size = 5;
+        const size_t total_size = n + guard_size;
+        const T sentinel = static_cast<T>(-999); // Distinct from trash
+
+        TestUtils::usm_data_transfer<sycl::usm::alloc::shared, T> copy_out(exec, total_size);
         oneapi::dpl::counting_iterator<int> counting(0);
         // sycl iterator
-        sycl::buffer<T> buf(n);
+        sycl::buffer<T> buf(total_size);
         //test all modes / wrappers
         wrap_recurse<__recurse, 0, /*__read =*/true, /*__reset_read=*/true, /*__write=*/true,
                      /*__check_write=*/true, /*__usable_as_perm_map=*/true, /*__usable_as_perm_src=*/true,
-                     /*__is_reversible=*/false>(std::forward<Policy>(exec), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), counting,
-                                                copy_out.get_data(), oneapi::dpl::begin(buf), copy_out.get_data(),
-                                                counting, trash,
-                                                std::string("sycl_iterator<") + type_text + std::string(">"));
+                     /*__is_reversible=*/false>(
+            std::forward<Policy>(exec), oneapi::dpl::begin(buf), oneapi::dpl::begin(buf) + n, counting,
+            copy_out.get_data(), oneapi::dpl::begin(buf), copy_out.get_data(), counting, trash,
+            std::string("sycl_iterator<") + type_text + std::string(">"), guard_size, sentinel);
     }
     else
     {
