@@ -354,7 +354,7 @@ _ForwardIterator
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                _ForwardIterator __last, const _T& __value)
 {
-    __pattern_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
@@ -392,7 +392,7 @@ _ForwardIterator
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
-    __pattern_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, ::std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
