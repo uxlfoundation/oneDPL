@@ -1094,7 +1094,7 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
                 ++__it1;
                 ++__out_it;
             }
-            else 
+            else
                 break;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
@@ -1259,7 +1259,7 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
                 ++__it1;
                 ++__out_it;
             }
-            else 
+            else
                 break;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__it2), std::invoke(__proj1, *__it1)))
@@ -1270,7 +1270,7 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
                 ++__it2;
                 ++__out_it;
             }
-            else 
+            else
                 break;
         }
         else
