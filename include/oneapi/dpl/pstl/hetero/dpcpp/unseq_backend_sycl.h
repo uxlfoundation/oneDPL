@@ -691,7 +691,7 @@ struct __create_mask
     _ValueType
     operator()(const _Idx __idx, const oneapi::dpl::__ranges::zip_view<_Ranges...>& __input) const
     {
-        bool __mask_value = __pred(std::get<0>(__input.tuple()), __idx);
+        bool __mask_value = __pred(std::get<0>(__input.base()), __idx);
         std::get<1>(__input[__idx]) = __mask_value;
         return _ValueType(__mask_value);
     }
@@ -1279,7 +1279,7 @@ class __brick_set_op
         using std::get;
 
         // Get source tuple
-        auto&& __tuple = __inout_acc.tuple();
+        auto&& __tuple = __inout_acc.base();
 
         auto __a = get<0>(__tuple); // first sequence
         auto __b = get<1>(__tuple); // second sequence

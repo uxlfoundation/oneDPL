@@ -381,7 +381,7 @@ class zip_view
     }
 
     _tuple_ranges_t
-    tuple() const
+    base() const
     {
         return __m_ranges;
     }

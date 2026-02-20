@@ -253,6 +253,12 @@ using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace _dpl_ranges_zip = oneapi::dpl::ranges::__internal;
+#else
+namespace _dpl_ranges_zip = oneapi::dpl::__ranges;
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
 void
@@ -272,10 +278,10 @@ struct _require_access_args
 
 template <typename... _Ranges>
 void
-__require_access_zip(sycl::handler& __cgh, oneapi::dpl::__ranges::zip_view<_Ranges...>& __zip)
+__require_access_zip(sycl::handler& __cgh, _dpl_ranges_zip::zip_view<_Ranges...>& __zip)
 {
     const ::std::size_t __num_ranges = sizeof...(_Ranges);
-    oneapi::dpl::__ranges::invoke(__zip.tuple(), _require_access_args<decltype(__cgh)>{__cgh},
+    oneapi::dpl::__ranges::invoke(__zip.base(), _require_access_args<decltype(__cgh)>{__cgh},
                                   ::std::make_index_sequence<__num_ranges>());
 }
 
@@ -295,7 +301,7 @@ __require_access_range(sycl::handler& __cgh, oneapi::dpl::__ranges::all_view<T, 
 
 template <typename... _Ranges>
 void
-__require_access_range(sycl::handler& __cgh, zip_view<_Ranges...>& zip_rng)
+__require_access_range(sycl::handler& __cgh, _dpl_ranges_zip::zip_view<_Ranges...>& zip_rng)
 {
     __require_access_zip(__cgh, zip_rng);
 }

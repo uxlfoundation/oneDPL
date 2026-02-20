@@ -88,7 +88,7 @@ struct __extract_range_from_zip
     auto
     operator()(const _InRng& __in_rng) const
     {
-        return std::get<_EleId>(__in_rng.tuple());
+        return std::get<_EleId>(__in_rng.base());
     }
 };
 
@@ -186,7 +186,7 @@ struct __write_red_by_seg
         using std::get;
 
         // Get source tuple
-        auto&& __tuple = __out_rng.tuple();
+        auto&& __tuple = __out_rng.base();
 
         auto __out_keys = get<0>(__tuple);
         auto __out_values = get<1>(__tuple);
@@ -386,7 +386,7 @@ struct __gen_set_mask
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get tuple from source range
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -417,11 +417,15 @@ struct __gen_set_mask
             //duplication in __set_b then a mask is 1
 
             const std::size_t __count_a_left =
-                __id - oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp, __proj1, __proj1) + 1;
+                __id -
+                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_a, std::size_t{0}, __id, __set_a, __id, __comp,
+                                                               __proj1, __proj1) +
+                1;
 
-            const std::size_t __count_b = 
-                oneapi::dpl::__internal::__pstl_right_bound_idx(__set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
-                oneapi::dpl::__internal::__pstl_left_bound_idx(__set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
+            const std::size_t __count_b = oneapi::dpl::__internal::__pstl_right_bound_idx(
+                                              __set_b, __res, __nb, __set_b, __res, __comp, __proj2, __proj2) -
+                                          oneapi::dpl::__internal::__pstl_left_bound_idx(
+                                              __set_b, std::size_t{0}, __res, __set_b, __res, __comp, __proj2, __proj2);
 
             if constexpr (__is_difference)
                 bres = __count_a_left > __count_b; /*difference*/
@@ -639,16 +643,16 @@ struct __get_bounds_partitioned
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, const _IndexT __id) const
+    operator()(const _Rng & __in_rng, const _IndexT __id) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.tuple())))>,
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.base())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.base())))>,
             std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
@@ -674,10 +678,10 @@ struct __get_bounds_simple
 {
     template <typename _Rng, typename _IndexT>
     auto // Returns a tuple of the form (start1, end1, start2, end2)
-    operator()(const _Rng& __in_rng, const _IndexT) const
+    operator()(const _Rng & __in_rng, const _IndexT) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __rng1 = std::get<0>(__tuple); // first sequence
         const auto __rng2 = std::get<1>(__tuple); // second sequence
@@ -771,7 +775,7 @@ struct __gen_set_balanced_path
     calc_and_store_balanced_path(_InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -819,7 +823,7 @@ struct __gen_set_balanced_path
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -892,7 +896,7 @@ struct __gen_set_op_from_known_balanced_path
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -973,7 +977,7 @@ struct __gen_red_by_seg_reduce_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1000,8 +1004,8 @@ struct __gen_scan_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        // Get source base
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1030,7 +1034,7 @@ struct __gen_red_by_seg_scan_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1083,7 +1087,7 @@ struct __gen_scan_by_seg_scan_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1522,8 +1526,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
@@ -1696,8 +1701,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(
-                    __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=,
+                                                            *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(
+                                                               __sub_group_size)]] {
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.

@@ -21,6 +21,8 @@
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #include <ranges>
+//support zip_view (like in C++23) for C++20
+#    include "zip_view_impl.h"
 #endif
 
 #include "utils_ranges.h"
@@ -43,7 +45,11 @@ namespace ranges
 using oneapi::dpl::__ranges::all_view;
 #endif // _ONEDPL_BACKEND_SYCL
 using oneapi::dpl::__ranges::guard_view;
+#if _ONEDPL_CPP20_RANGES_PRESENT
+using oneapi::dpl::ranges::__internal::zip_view;
+#else
 using oneapi::dpl::__ranges::zip_view;
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //views
 using __nanorange::nano::ranges::drop_view;
@@ -72,9 +78,20 @@ using __nanorange::nano::views::take;
 using __nanorange::nano::views::transform;
 
 using __nanorange::nano::subrange;
+#if _ONEDPL_CPP20_RANGES_PRESENT
+using oneapi::dpl::ranges::__internal::zip;
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 } // namespace views
 
 } // namespace ranges
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace views
+{
+using oneapi::dpl::ranges::__internal::zip;
+} // namespace views
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
 } // namespace experimental
 } // namespace dpl
 } // namespace oneapi

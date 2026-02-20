@@ -240,8 +240,8 @@ struct make_tuplewrapper_functor
 
 template <typename MakeTupleF, typename F, size_t... indices, typename... T>
 auto
-map_tuple_impl(MakeTupleF mtf, F f, ::std::index_sequence<indices...>, T... in)
-    -> decltype(mtf(oneapi::dpl::__internal::apply_to_tuple<indices>(f, in...)...))
+map_tuple_impl(MakeTupleF mtf, F f, ::std::index_sequence<indices...>,
+               T... in) -> decltype(mtf(oneapi::dpl::__internal::apply_to_tuple<indices>(f, in...)...))
 {
     return mtf(oneapi::dpl::__internal::apply_to_tuple<indices>(f, in...)...);
 }
@@ -374,11 +374,11 @@ inline constexpr bool __is_std_tuple_v = __is_std_tuple<T>::value;
 //       responsible for creating this comparison operator.
 template <typename _ThisTuple, typename _U, typename _V>
 inline constexpr bool __enable_comparison_op_v =
-    (std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_U>> &&                         //LHS +
-                    (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_V>> ||        //RHS option 1
-                     oneapi::dpl::__internal::__is_internal_tuple_v<std::decay_t<_V>>)) || //RHS option 2  - OR -
-    (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_U>> &&                        //LHS +
-                    std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_V>>);           //RHS
+    (std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_U>> &&          //LHS +
+     (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_V>> ||        //RHS option 1
+      oneapi::dpl::__internal::__is_internal_tuple_v<std::decay_t<_V>>)) || //RHS option 2  - OR -
+    (oneapi::dpl::__internal::__is_std_tuple_v<std::decay_t<_U>> &&         //LHS +
+     std::is_same_v<std::decay_t<_ThisTuple>, std::decay_t<_V>>);           //RHS
 
 template <typename T1, typename... T>
 struct tuple<T1, T...>
@@ -416,7 +416,12 @@ struct tuple<T1, T...>
         return get_impl<I>()(::std::move(*this));
     }
 
-    tuple() = default;
+    template <typename _Tp = T1,
+              std::enable_if_t<
+                  std::conjunction_v<std::is_default_constructible<_Tp>, std::is_default_constructible<T>...>, int> = 0>
+    tuple() : holder{}, next{}
+    {
+    } //The std::tuple makes value-initialization all elements, so we also follow this.
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
@@ -460,7 +465,8 @@ struct tuple<T1, T...>
 
     // non-const subscript operator with tuple argument
     template <typename Size1, typename... SizeRest>
-    auto operator[](oneapi::dpl::__internal::tuple<Size1, SizeRest...> tuple_size)
+    auto
+    operator[](oneapi::dpl::__internal::tuple<Size1, SizeRest...> tuple_size)
         -> decltype(oneapi::dpl::__internal::get_value_by_idx<Size1, SizeRest...>()(*this, tuple_size))
     {
         return oneapi::dpl::__internal::get_value_by_idx<Size1, SizeRest...>()(*this, tuple_size);
@@ -468,7 +474,8 @@ struct tuple<T1, T...>
 
     // const subscript operator with tuple argument
     template <typename Size1, typename... SizeRest>
-    auto operator[](const oneapi::dpl::__internal::tuple<Size1, SizeRest...> tuple_size) const
+    auto
+    operator[](const oneapi::dpl::__internal::tuple<Size1, SizeRest...> tuple_size) const
         -> decltype(oneapi::dpl::__internal::get_value_by_idx<Size1, SizeRest...>()(*this, tuple_size))
     {
         return oneapi::dpl::__internal::get_value_by_idx<Size1, SizeRest...>()(*this, tuple_size);
@@ -476,7 +483,8 @@ struct tuple<T1, T...>
 
     // non-const subscript operator with scalar argument
     template <typename Idx>
-    auto operator[](Idx idx)
+    auto
+    operator[](Idx idx)
         -> decltype(oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::MapValue<Idx>{idx}, *this))
     {
         return oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::MapValue<Idx>{idx}, *this);
@@ -484,7 +492,8 @@ struct tuple<T1, T...>
 
     // const subscript operator with scalar argument
     template <typename Idx>
-    auto operator[](Idx idx) const
+    auto
+    operator[](Idx idx) const
         -> decltype(oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::MapValue<Idx>{idx}, *this))
     {
         return oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::MapValue<Idx>{idx}, *this);
@@ -493,6 +502,15 @@ struct tuple<T1, T...>
     template <typename U1, typename... U>
     tuple&
     operator=(const tuple<U1, U...>& other)
+    {
+        holder.value = other.holder.value;
+        next = other.next;
+        return *this;
+    }
+
+    template <typename U1, typename... U>
+    const tuple&
+    operator=(const tuple<U1, U...>& other) const
     {
         holder.value = other.holder.value;
         next = other.next;
@@ -582,8 +600,16 @@ struct tuple<>
 
     tuple(const ::std::tuple<>&) {}
 
-    tuple operator[](tuple) { return {}; }
-    tuple operator[](const tuple&) const { return {}; }
+    tuple
+    operator[](tuple)
+    {
+        return {};
+    }
+    tuple
+    operator[](const tuple&) const
+    {
+        return {};
+    }
     operator tuple_type() const { return tuple_type{}; }
     tuple&
     operator=(const tuple&) = default;
@@ -730,10 +756,9 @@ struct get_value_by_idx
     }
     template <typename... Acc>
     auto
-    operator()(const oneapi::dpl::__internal::tuple<Acc...>& acc,
-               const oneapi::dpl::__internal::tuple<Size...>& idx) const
-        -> decltype(oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::subscription_functor{}, acc,
-                                                              idx))
+    operator()(const oneapi::dpl::__internal::tuple<Acc...>& acc, const oneapi::dpl::__internal::tuple<Size...>& idx)
+        const -> decltype(oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::subscription_functor{},
+                                                                    acc, idx))
     {
         return oneapi::dpl::__internal::map_tuplewrapper(oneapi::dpl::__internal::subscription_functor{}, acc, idx);
     }
