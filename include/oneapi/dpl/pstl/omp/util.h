@@ -53,6 +53,36 @@ using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
 
+// Multiple is selected to allow vectorization inside a chunk with AVX-512 or narrower vector instructions
+template <std::size_t _MinChunkSize, std::size_t _MaxChunkSize, std::size_t _MultipleChunkSize = 64>
+struct __grain_selector
+{
+    std::size_t operator()(std::size_t __size, int __num_threads) const
+    {
+        // Aim for 3 tasks per thread for better load balancing
+        std::size_t __grainsize = __size / (__num_threads * 3);
+        if (__grainsize < _MinChunkSize)
+            __grainsize = _MinChunkSize;
+        // No upper bound if _MaxChunkSize is 0
+        else if (__grainsize > _MaxChunkSize && _MaxChunkSize != 0)
+            __grainsize = _MaxChunkSize;
+        // Round up to avoid unbalanced load due to an extra chunk
+        return ((__grainsize + _MultipleChunkSize - 1) / _MultipleChunkSize) * _MultipleChunkSize;
+    }
+};
+
+struct __grain_selector_any_workload: public __grain_selector<256, 0>
+{
+};
+
+struct __grain_selector_small_workload: public __grain_selector<2048, 0>
+{
+};
+
+struct __grain_selector_large_workload: public __grain_selector<64, 1024>
+{
+};
+
 // Convenience function to determine when we should run serial.
 template <typename _Iterator, std::enable_if_t<!std::is_integral_v<_Iterator>, bool> = true>
 constexpr auto

@@ -27,10 +27,12 @@ namespace dpl
 namespace __omp_backend
 {
 
-template <class _Index, class _Fp>
+template <class _Index, class _Fp, class _GrainSelector>
 void
-__parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grainsize)
+__parallel_for_body(_Index __first, _Index __last, _Fp __f, _GrainSelector __grain_selector)
 {
+    std::size_t __grainsize = __grain_selector(__last - __first, omp_get_num_threads());
+
     // initial partition of the iteration space into chunks
     auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
 
@@ -47,16 +49,16 @@ __parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grains
 // Evaluation of brick f[i,j) for each subrange [i,j) of [first, last)
 //------------------------------------------------------------------------
 
-template <class _ExecutionPolicy, class _Index, class _Fp>
+template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
 void
 __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
-               std::size_t __grainsize = __default_chunk_size)
+               _GrainSelector __grain_selector = _GrainSelector())
 {
     if (omp_in_parallel())
     {
         // we don't create a nested parallel region in an existing parallel
         // region: just create tasks
-        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grain_selector);
     }
     else
     {
@@ -65,7 +67,7 @@ __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _
         _ONEDPL_PRAGMA(omp parallel)
         _ONEDPL_PRAGMA(omp single nowait)
         {
-            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grain_selector);
         }
     }
 }
