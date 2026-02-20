@@ -102,7 +102,7 @@ __pattern_uninitialized_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolic
                                 _Size __n, _Function __f)
 {
     __pattern_hetero_walk1<sycl::access_mode::write, /*_NoInit=*/false>(__tag, std::forward<_ExecutionPolicy>(__exec), __first,
-                                                                 __first + __n, __f);
+                                                                        __first + __n, __f);
     return __first + __n;
 }
 
