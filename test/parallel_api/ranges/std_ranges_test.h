@@ -467,7 +467,7 @@ private:
     {
         if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
         {
-            return std::views::drop(view, kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
+            return view | std::views::drop(kPaddingSize) | std::views::take(std::ranges::size(view) - kPaddingSize * kParts);
         }
         else
         {
