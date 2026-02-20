@@ -88,7 +88,7 @@ struct __extract_range_from_zip
     auto
     operator()(const _InRng& __in_rng) const
     {
-        return std::get<_EleId>(__in_rng.tuple());
+        return std::get<_EleId>(__in_rng.base());
     }
 };
 
@@ -186,7 +186,7 @@ struct __write_red_by_seg
         using std::get;
 
         // Get source tuple
-        auto&& __tuple = __out_rng.tuple();
+        auto&& __tuple = __out_rng.base();
 
         auto __out_keys = get<0>(__tuple);
         auto __out_values = get<1>(__tuple);
@@ -386,7 +386,7 @@ struct __gen_set_mask
     operator()(const _InRng& __in_rng, std::size_t __id) const
     {
         // Get tuple from source range
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -642,13 +642,13 @@ struct __get_bounds_partitioned
     operator()(const _Rng& __in_rng, const _IndexT __id) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
 
         using _SizeType = std::common_type_t<
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.tuple())))>,
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.tuple())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.base())))>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.base())))>,
             std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
@@ -677,7 +677,7 @@ struct __get_bounds_simple
     operator()(const _Rng& __in_rng, const _IndexT) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __rng1 = std::get<0>(__tuple); // first sequence
         const auto __rng2 = std::get<1>(__tuple); // second sequence
@@ -771,7 +771,7 @@ struct __gen_set_balanced_path
     calc_and_store_balanced_path(_InRng& __in_rng, _IndexT __id, _BoundsProviderLocal __get_bounds_local) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -819,7 +819,7 @@ struct __gen_set_balanced_path
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -892,7 +892,7 @@ struct __gen_set_op_from_known_balanced_path
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
@@ -973,7 +973,7 @@ struct __gen_red_by_seg_reduce_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1000,8 +1000,8 @@ struct __gen_scan_by_seg_reduce_input
     auto
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
-        // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        // Get source base
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1030,7 +1030,7 @@ struct __gen_red_by_seg_scan_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
@@ -1083,7 +1083,7 @@ struct __gen_scan_by_seg_scan_input
     operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
     {
         // Get source tuple
-        auto&& __tuple = __in_rng.tuple();
+        auto&& __tuple = __in_rng.base();
 
         const auto __in_keys = std::get<0>(__tuple);
         const auto __in_vals = std::get<1>(__tuple);
