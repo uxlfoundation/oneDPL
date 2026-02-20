@@ -162,7 +162,7 @@ std::string log_value_title(TagActual)
 
 template <typename TStream, typename TValue>
 std::enable_if_t<!IsOutputStreamable<TValue, TStream>::value>
-log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
+log_value_to_stream(TStream& os, const TValue&, bool& commaNeeded)
 {
     if (commaNeeded)
         os << ",";
