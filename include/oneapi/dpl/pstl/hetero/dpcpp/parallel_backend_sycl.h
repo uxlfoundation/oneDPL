@@ -1146,8 +1146,8 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     // temporary buffer to store intermediate result
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff(__n2);
     auto __buf = __diff.get();
-    auto __keep_tmp1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf)>();
+    auto __keep_tmp1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
     auto __tmp_rng1 = __keep_tmp1(__buf, __buf + __n2);
 
     //1. Calc difference {2} \ {1}
@@ -1166,8 +1166,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     else
     {
         // merge if elements are in diff
-        auto __keep_tmp2 =
-            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf)>();
+        auto __keep_tmp2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
         auto __tmp_rng2 = __keep_tmp2(__buf, __buf + __n_diff);
         oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<__set_union_merge_wrapper<_CustomName>>(
             __q, std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), std::forward<_Range3>(__result), __comp, __proj1,
@@ -1207,10 +1206,10 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
     oneapi::dpl::__par_backend_hetero::__buffer<_ValueType2> __diff_2(__n2);
     auto __buf_2 = __diff_2.get();
 
-    auto __keep_tmp1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf_1)>();
-    auto __keep_tmp2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, decltype(__buf_2)>();
+    auto __keep_tmp1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
+    auto __keep_tmp2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
 
     auto __tmp_rng1 = __keep_tmp1(__buf_1, __buf_1 + __n1);
     auto __tmp_rng2 = __keep_tmp2(__buf_2, __buf_2 + __n2);
@@ -1226,10 +1225,8 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range2>(__rng2),
             std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), __comp, __proj2, __proj1);
 
-    auto __keep_tmp3 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf_1)>();
-    auto __keep_tmp4 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, decltype(__buf_2)>();
+    auto __keep_tmp3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keep_tmp4 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
 
     //3. Merge the differences
     if (__n_diff_1 == 0 && __n_diff_2 == 0)
@@ -2109,7 +2106,7 @@ __parallel_partial_sort(oneapi::dpl::__internal::__device_backend_tag, _Executio
 {
     const auto __mid_idx = __mid - __first;
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write, _Iterator>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __buf = __keep(__first, __last);
 
     return __parallel_partial_sort_impl(oneapi::dpl::__internal::__device_backend_tag{},
