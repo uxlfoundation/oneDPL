@@ -214,7 +214,7 @@ set(_regexp_switch_off_checked_it  "(test/general/header_order_ranges|test/paral
 set(_regexp_pstl_offload_only "(test/pstl_offload)")
 set(_regexp_pstl_offload_parallel_api "(test/xpu_api|test/parallel_api/algorithm|test/parallel_api/memory|test/parallel_api/numeric)")
 set(_regexp_pstl_offload_exclude "(test/parallel_api/algorithm/alg.sorting/alg.binary.search|test/parallel_api/numeric/numeric.ops/.*_by_segment)")
-
+set(_regexp_parallel_dynamic_selection "(test/parallel_api/dynamic_selection/parallel_tests/*)")
 # Some of the headers tests C++20/23 files that can or cannot be available in C++17 mode
 # So we need to check file presence and skip the test if no header available
 # The test should be placed in the special folder and the name should be the same as the header that is required to be present
@@ -222,6 +222,9 @@ set(_regexp_pstl_offload_header_presence_required "(test/pstl_offload/headers/he
 
 file(GLOB_RECURSE UNIT_TESTS "*.pass.cpp")
 foreach (_file IN LISTS UNIT_TESTS)
+    if (_file MATCHES "${_regexp_parallel_dynamic_selection}")
+        SET(CMAKE_CXX_FLAGS "-pthread")
+    endif()
     if (_file MATCHES "${_regexp_pstl_offload_only}")
         if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
             if (_file MATCHES "${_regexp_pstl_offload_header_presence_required}")
