@@ -3376,8 +3376,9 @@ struct _SourceProcessingDataOffsets
 
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
-template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, typename _DifferenceTypeMask>
-class _SetRangeImpl
+template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+          typename _DifferenceTypeMask>
+struct _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _MaskDataIndex = 1;
@@ -3385,28 +3386,12 @@ class _SetRangeImpl
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-  public:
+    using _DataStorage =
+        std::conditional_t<!__Bounded, _DataPart<_DifferenceType>,
+                           std::tuple<_DataPart<_DifferenceType>, _MaskPart<_DifferenceType>,
+                                      _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>>>;
 
-    using _DataStorage = std::conditional_t<!__Bounded,
-                                            _DataPart<_DifferenceType>,
-                                            std::tuple<_DataPart<_DifferenceType>,
-                                                       _MaskPart<_DifferenceType>,
-                                                       _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>>>;
-
-    _SetRangeImpl() {}
-
-    _SetRangeImpl(const _SetRangeImpl& __other) : __data(__other.__data) {}
-    _SetRangeImpl(_SetRangeImpl&& __other) : __data(std::move(__other.__data)) {}
-
-    _SetRangeImpl(const _DataStorage& data) : __data(data) {}
-
-    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data)) {}
-
-    _SetRangeImpl&
-    operator=(const _SetRangeImpl&) = default;
-
-    _SetRangeImpl&
-    operator=(_SetRangeImpl&&) = default;
+    _DataStorage __data;
 
     const _DataPart<_DifferenceType>&
     get_data_part() const
@@ -3430,10 +3415,6 @@ class _SetRangeImpl
         static_assert(__Bounded, "Source data offsets part is available only for bounded set operations");
         return std::get<_SourceDataOffsetsIndex>(__data);
     }
-
-  protected:
-
-    _DataStorage __data;
 };
 
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
@@ -3451,7 +3432,7 @@ struct _SetRangeCombiner
 
         if constexpr (!__Bounded)
         {
-            return __new_processing_data;
+            return _SetRange{__new_processing_data};
         }
         else
         {
