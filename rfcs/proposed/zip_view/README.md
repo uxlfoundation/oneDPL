@@ -1,27 +1,24 @@
 # zip_view Support for the oneDPL Range APIs with C++20
 
-## Introduction
-`std::ranges::zip_view` is a powerful utility that enables developers to combine two or more ranges into a single view,
-where each element is represented as a tuple containing corresponding elements from each input range.
+We propose to add `ranges::zip_view` to oneDPL, with at least the same API and functionality as `std::ranges::zip_view`.
 
-## Motivations
+## Motivation
 `std::ranges::zip_view` is a convenient way to combine multiple ranges into a single view, where each element of
-the resulting range is a tuple containing one element from each of the input ranges. This can be particularly
+the resulting range is a tuple referring to corresponding elements from each of the input ranges. This can be particularly
 useful for iterating over multiple collections in parallel. `std::ranges::zip_view` is added in C++23,
-but many developers are still using C++20 standard. oneDPL introduces `ranges::zip_view`,
-with the same API and functionality as `std::ranges::zip_view`.
+but many developers are still using the C++20 standard, and it is also the required standard for oneDPL parallel range algorithms.
 
-In case of C++23 `ranges::zip_view` using also makes sense at least for the device policies, because
-`std::ranges::zip_view` C++23 still is not device copyable. Any wrapper over `std::tuple` C++23 is not device copyable. (https://godbolt.org/z/brfvcMeM6)
+In case of C++23 having a `zip_view` in oneDPL also makes sense at least for the device policies, because
+`std::ranges::zip_view` still is not device copyable (any wrapper over `std::tuple` is not device copyable, see https://godbolt.org/z/brfvcMeM6)
 There are other technical issues with `std::tuple` (see below for the details).
 
-### Key Requirements
+## Key Requirements
 `ranges::zip_view` should be:
-- compilable with C++20 version (minimum)
-- API-compliant with `std::ranges::zip_view`
-- in case of a device usage: a device copyable view if the all "underlying" views are device copyable views.
-- The implementation may be based on tuple-like type underhood, but it must provide a transitive device copyability.
-- To satisfy trivially copyability to provide a transitive device copyability for the pipes created over `ranges::zip_view`.
+- compilable with C++20 version (minimum);
+- API-compliant with `std::ranges::zip_view`;
+- in case of device usage: a device copyable view if all underlying views are device copyable views;
+- The implementation may be based on tuple-like type underhood, but it must provide transitive device copyability
+  for view pipelines created over `ranges::zip_view`.
   
 `ranges::zip_view::iterator` should be:
 - value-swappable (https://en.cppreference.com/w/cpp/named_req/ValueSwappable)
@@ -39,9 +36,9 @@ There are other technical issues with `std::tuple` (see below for the details).
 - Passing `std::zip_view::iterator` instances to the iterator-based algorithms works only for gcc 14.1 and newer, clang 19.1 and newer or
   starting 17.01 with libc++ lib (https://godbolt.org/z/To6Mjr9M6)
 - Consideration `std::tuple` as `ranges::zip_view::iterator::value_type`. There are issues, at least, with `sortable`, `permutable`
-  and `indirectly_writable` concepts: const_cast<const std::iter_reference_t<Out>&&>(*o) = std::forward<T>(t) is not compiled till C++23.  (https://godbolt.org/z/zT9qqnjWq)
+  and `indirectly_writable` concepts: `const_cast<const std::iter_reference_t<Out>&&>(*o) = std::forward<T>(t)` is not compiled till C++23.  (https://godbolt.org/z/zT9qqnjWq)
 
-### Implementation proposal (C++20)
+## Implementation proposal (C++20)
 - `ranges::zip_view` is as a C++ class representing a range adaptor (see C++ Range Library).
 - The implementation derives from the C++ `std::ranges::view_interface`.
 This class encapsulates a tuple-like type to keep a combination of two or more ranges.
