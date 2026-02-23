@@ -4324,7 +4324,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                           __buf_raw_data_begin,
                           __mask_bufs};
 
-        auto __apex_pred = [__n_out, __result1, __result2, &__scan_pred](const _SetRange& __total) {
+        auto __apex_pred = [&__scan_pred](const _SetRange& __total) {
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
