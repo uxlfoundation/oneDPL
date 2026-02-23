@@ -3812,12 +3812,10 @@ struct _ScanPred
     __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
                                       _DifferenceType __result_remaining) const
     {
+        assert(__result_remaining <= __data_part.__len);
+
         // Evaluate output range boundaries for current data chunk
         const auto __result_from = __advance_clamped(__result_buf_pos_begin, __data_part.__pos, __result_buf_pos_end);
-        const auto __result_to =
-            __advance_clamped(__result_buf_pos_begin, __data_part.__pos + __data_part.__len, __result_buf_pos_end);
-
-        assert(__result_remaining <= __data_part.__len);
 
         // Evaluate pointers to current data chunk in temporary buffer
         const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __data_part.__buf_pos, __buf_pos_end);
