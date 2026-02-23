@@ -3984,7 +3984,7 @@ struct _ScanPred
 
     template <typename _DifferenceType>
     void
-    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part, auto __result_remaining) const
+    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part, _DifferenceType __result_remaining) const
     {
 #if DUMP_PARALLEL_SET_OP_WORK
         std::cout << "ST.4:\n"
