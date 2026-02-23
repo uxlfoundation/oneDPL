@@ -3420,64 +3420,50 @@ struct _SourceProcessingDataOffsets
 #endif
 };
 
+template <typename _DifferenceType1, typename _DifferenceType2>
+struct _SourceCopiedDataCounts
+{
+    _DifferenceType1 __copied_from1 = {}; // The amount of data copied from the first input range to the output range
+    _DifferenceType2 __copied_from2 = {}; // The amount of data copied from the second input range to the output range
+
+    static _SourceCopiedDataCounts
+    combine_with(const _SourceCopiedDataCounts& __a, const _SourceCopiedDataCounts& __b)
+    {
+        return {__a.__copied_from1 + __b.__copied_from1, __a.__copied_from2 + __b.__copied_from2};
+    }
+
+#if DUMP_PARALLEL_SET_OP_WORK
+    template <typename OStream>
+    friend OStream&
+    operator<<(OStream& os, const _SourceCopiedDataCounts& data)
+    {
+        os << "__copied_from1 = " << data.__copied_from1 << ", "
+           << "__copied_from2 = " << data.__copied_from2;
+        return os;
+    }
+#endif    
+};
+
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
-template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, typename _DifferenceTypeMask>
-class _SetRangeImpl
+template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
+          typename _DifferenceTypeMask>
+struct _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _MaskDataIndex = 1;
     static constexpr std::size_t _SourceDataOffsetsIndex = 2;
+    static constexpr std::size_t _SourceCopiedDataCountsIndex = 3;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-  public:
+    using _DataStorage =
+        std::conditional_t<!__Bounded, _DataPart<_DifferenceType>,
+                           std::tuple<_DataPart<_DifferenceType>, _MaskPart<_DifferenceType>,
+                                      _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>,
+                                      _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>>>;
 
-    using _DataStorage = std::conditional_t<!__Bounded,
-                                            _DataPart<_DifferenceType>,
-                                            std::tuple<_DataPart<_DifferenceType>,
-                                                       _MaskPart<_DifferenceType>,
-                                                       _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>>>;
-
-    _SetRangeImpl()
-    {
-#if DUMP_PARALLEL_SET_OP_WORK
-        __increment_counter();
-#endif
-    }
-
-    _SetRangeImpl(const _SetRangeImpl& __other) : __data(__other.__data)
-    {
-#if DUMP_PARALLEL_SET_OP_WORK
-        __increment_counter();
-#endif
-    }
-    _SetRangeImpl(_SetRangeImpl&& __other) : __data(std::move(__other.__data))
-    {
-#if DUMP_PARALLEL_SET_OP_WORK
-        __increment_counter();
-#endif
-    }
-
-    _SetRangeImpl(const _DataStorage& data) : __data(data)
-    {
-#if DUMP_PARALLEL_SET_OP_WORK
-        __increment_counter();
-#endif
-    }
-
-    _SetRangeImpl(_DataStorage&& data) : __data(std::move(data))
-    {
-#if DUMP_PARALLEL_SET_OP_WORK
-        __increment_counter();
-#endif
-    }
-
-    _SetRangeImpl&
-    operator=(const _SetRangeImpl&) = default;
-
-    _SetRangeImpl&
-    operator=(_SetRangeImpl&&) = default;
+    _DataStorage __data;
 
     const _DataPart<_DifferenceType>&
     get_data_part() const
@@ -3502,37 +3488,12 @@ class _SetRangeImpl
         return std::get<_SourceDataOffsetsIndex>(__data);
     }
 
-  protected:
-
-    _DataStorage __data;
-
-#if DUMP_PARALLEL_SET_OP_WORK
-    // For debug purposes only (should be places after!!! __pos, __len, __buf_pos fields due used aggregate initialization)
-    std::size_t __counter = {};
-
-    void __increment_counter()
+    const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>&
+    get_source_copied_data_counts_part() const
     {
-        __counter = _s_SetRangeImplCounter++;
-
-        std::cout << "The new _SetRangeImpl created: __counter = " << __counter << std::endl;
+        static_assert(__Bounded, "Source copied data counts part is available only for bounded set operations");
+        return std::get<_SourceCopiedDataCountsIndex>(__data);
     }
-#endif
-
-#if DUMP_PARALLEL_SET_OP_WORK
-    template <typename OStream>
-    friend OStream&
-    operator<<(OStream& os, const _SetRangeImpl& data)
-    {
-        os << "__counter = " << data.__counter;
-        os << ", processing data : (" << data.get_data_part() << ")";
-        if constexpr (__Bounded)
-        {
-            os << ", mask data : (" << data.get_mask_part() << ")";
-            os << ", source data offsets : (" << data.get_source_data_offsets_part() << ")";
-        }
-        return os;
-    }
-#endif
 };
 
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
@@ -3558,15 +3519,12 @@ struct _SetRangeCombiner
         }
         else
         {
-            _MaskPart<_DifferenceType> __new_mask_data = _MaskPart<_DifferenceType>::combine_with(__a.get_mask_part(), __b.get_mask_part());
-
-            auto __new_offsets_to_processing_data =
-                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_data_offsets_part(), __b.get_source_data_offsets_part());
-
             typename _SetRange::_DataStorage _ds{
-                __new_processing_data,              // Describes data
-                __new_mask_data,                    // Describes mask
-                __new_offsets_to_processing_data }; // Describes offsets to processing data
+                __new_processing_data,
+                _MaskPart<_DifferenceType>::combine_with(__a.get_mask_part(), __b.get_mask_part()),
+                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_data_offsets_part(), __b.get_source_data_offsets_part()),
+                _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_copied_data_counts_part(), __b.get_source_copied_data_counts_part())
+            };
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
@@ -3754,7 +3712,6 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
         __data_part = __data_part_arg;
         __mask_part = __mask_part_arg;
         __source_data_offsets = __source_data_offsets_arg;
-
         __reached_pos_found = false;
         __output_pos_reached = true;
     }
@@ -3918,11 +3875,12 @@ struct _ScanPred
         else
         {
             const _MaskPart<_DifferenceType>& __mask_part = __s.get_mask_part();
+            const auto __copied_data_counts = __s.get_source_copied_data_counts_part();
 
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
 
             bool __output_pos_reached_on_this_part = false;
-            const bool __write_mask_needed = __need_write_mask(__data_part, __output_pos_reached_on_this_part);
+            const bool __write_mask_needed = __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
 
             if (__remaining_data_size > 0 && __write_mask_needed)
             {
@@ -4022,9 +3980,11 @@ struct _ScanPred
                                                 __mask_res_buf_pos_begin + __mask_part.__pos, _IsVector{});
     }
 
-    template <typename _DifferenceType>
+    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceType>
     bool
-    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
+    __need_write_mask(const _DataPart<_DifferenceType>& __data_part,
+                      const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>& __copied_data_counts,
+                      bool& __output_pos_reached_on_this_part) const
     {
         __output_pos_reached_on_this_part = false;
 
@@ -4050,6 +4010,8 @@ struct _ScanPred
         //                                           ^                                                ^
         //                                           |                                                |
         //                                         __n_out                                          __n_out + 1
+        // where                  __n_out = __copied_from1(11) + __copied_from2(21)
+        // where                                                                 __n_out + 1 = __copied_from1(11) + __copied_from2(21)
 
         const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -4067,6 +4029,13 @@ struct _ScanPred
         // Last part condition
         if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
             return true;
+
+        // Copy the rest of parts where no copied data from the first range or from the second range
+        if (__n_out <= __data_part.__pos + __data_part.__len &&
+            (__copied_data_counts.__copied_from1 == 0 || __copied_data_counts.__copied_from2 == 0))
+        {
+            return true;
+        }
 
         return false;
     }
@@ -4155,11 +4124,13 @@ struct _ParallelSetOpStrictScanPred
                     __mask_size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{};
+                _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2> __new_copied_data_counts{};
 
                 typename _SetRange::_DataStorage _ds{
-                    __new_processing_data,              // Describes data
-                    __new_mask_data,                    // Describes mask
-                    __new_offsets_to_processing_data};  // Describes offsets to processing data
+                    __new_processing_data,            // Describes data
+                    __new_mask_data,                  // Describes mask
+                    __new_offsets_to_processing_data, // Describes offsets to processing data
+                    __new_copied_data_counts};        // Describes copied data counts
 
 #if DUMP_PARALLEL_SET_OP_WORK
                 std::cout << "ST.1.1:\n"
@@ -4190,7 +4161,7 @@ struct _ParallelSetOpStrictScanPred
 
         auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__mask_buf_pos);
 
-        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
+        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached, __copied_from_1, __copied_from_2] =
             __set_union_op(__b, __e,   // set1 : begin, end
                            __bb, __ee, // set2 : begin, end
                            __buffer_b, // output : begin
@@ -4240,10 +4211,13 @@ struct _ParallelSetOpStrictScanPred
                 __b - __first1,                     // Absolute offset to processing data in the first data set
                 __bb - __first2 };                  // Absolute offset to processing data in the second data set
 
+            _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2> __new_copied_data_counts{__copied_from_1, __copied_from_2};                
+
             typename _SetRange::_DataStorage _ds{
                 __new_processing_data,              // Describes data
                 __new_mask_data,                    // Describes mask
-                __new_offsets_to_processing_data }; // Describes offsets to processing data
+                __new_offsets_to_processing_data,   // Describes offsets to processing data
+                __new_copied_data_counts};			// Describes the amount of copied data from the first and second data sets
 
 #if DUMP_PARALLEL_SET_OP_WORK
             const _DifferenceType __buf_len = __size_func(__e - __b, __ee - __bb);
