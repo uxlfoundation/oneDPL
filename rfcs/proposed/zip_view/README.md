@@ -56,3 +56,8 @@ This class encapsulates a tuple-like type to keep a combination of two or more r
 - the base functionality test coverage may be extended by the adapted LLVM `std::ranges::zip_view` (C++23) tests.
 - should be tested with range based algorithms.
 - should be tested with iterator based algorithms.
+
+### Experimental stage
+Until the API is fully specified, it should go into `namespace oneapi::dpl::experimental`.
+For C++20 and higher, it replaces the current implementation in that namespace, extending applicability
+beyond experimental range algorithms but still supporting those.
