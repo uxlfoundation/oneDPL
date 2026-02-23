@@ -231,13 +231,15 @@ struct __radix_sort_onesweep_submitter<__is_ascending, __radix_bits, __data_per_
 
         const std::uint32_t __slm_size_bytes = _KernelType::__calc_slm_alloc();
 
+        sycl::kernel_id __kid = sycl::get_kernel_id<_KernelName>();
         sycl::kernel_bundle<sycl::bundle_state::executable> __bundle =
-            sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context());
+            sycl::get_kernel_bundle<sycl::bundle_state::executable>(__q.get_context(), {__q.get_device()}, {__kid});
         sycl::kernel __kernel = __bundle.get_kernel<_KernelName>();
         std::uint32_t __num_wgs = __get_num_work_groups(__kernel, __q, __sweep_work_group_count, __slm_size_bytes);
 
         sycl::nd_range<1> __nd_range(__num_wgs * __work_group_size, __work_group_size);
         return __q.submit([&](sycl::handler& __cgh) {
+            __cgh.use_kernel_bundle(__bundle);
             sycl::local_accessor<unsigned char, 1> __slm_accessor(__slm_size_bytes, __cgh);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_pack.__keys_rng(), __out_pack.__keys_rng());
             if constexpr (std::decay_t<_InRngPack>::__has_values)
