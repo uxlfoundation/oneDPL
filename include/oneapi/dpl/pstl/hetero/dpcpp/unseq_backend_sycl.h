@@ -881,8 +881,8 @@ struct __scan
     template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
     void
     __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
-              std::size_t __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
+                _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+                std::size_t __iters_per_wg, _InitType __init, std::false_type /*has_known_identity*/) const
     {
         std::size_t __group_id = __item.get_group(0);
         std::size_t __global_id = __item.get_global_id(0);
@@ -960,8 +960,8 @@ struct __scan
     template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
     void
     __scan_impl(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-              _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
-              std::size_t __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
+                _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+                std::size_t __iters_per_wg, _InitType __init, std::true_type /*has_known_identity*/) const
     {
         std::size_t __group_id = __item.get_group(0);
         std::size_t __local_id = __item.get_local_id(0);
@@ -1004,10 +1004,10 @@ struct __scan
     }
 
     template <typename _Size, typename _AccLocal, typename _InAcc, typename _OutAcc, typename _WGSumsPtr>
-    void operator()(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
-                    _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
-                    std::size_t __iters_per_wg,
-                    _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
+    void
+    operator()(sycl::nd_item<1> __item, _Size __n, _Size __n_out, _AccLocal& __local_acc, const _InAcc& __acc,
+               _OutAcc& __out_acc, _WGSumsPtr* __wg_sums_ptr, std::size_t __size_per_wg, std::size_t __wgroup_size,
+               std::size_t __iters_per_wg, _InitType __init = __no_init_value<typename _InitType::__value_type>{}) const
     {
         __scan_impl(__item, __n, __n_out, __local_acc, __acc, __out_acc, __wg_sums_ptr, __size_per_wg, __wgroup_size,
                     __iters_per_wg, __init, __has_known_identity<_BinaryOperation, _Tp>{});
