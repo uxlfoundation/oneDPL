@@ -323,7 +323,7 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
 {
     // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
     // the predicate is false. This preserves non-transformed elements in the output.
-    return __pattern_hetero_walk3<_BackendTag, __par_backend_hetero::access_mode::write,
+    return __pattern_hetero_walk3<__par_backend_hetero::access_mode::write,
                                   /*_IsOutNoInitRequested=*/false>(
         __tag,
         __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
