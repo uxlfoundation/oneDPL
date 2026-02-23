@@ -3537,9 +3537,10 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
                                 false>
 {
     _SourceFinalPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _DifferenceType1 __n1, _DifferenceType2 __n2,
-                             _DifferenceTypeOut __n_out)
-        : __res_data(__n1, __n2, 0)
+                             _DifferenceTypeOut /*__n_out*/)
     {
+        __res_data.__reached_pos1 = __n1;
+        __res_data.__reached_pos2 = __n2;
     }
 
     template <typename _DifferenceType>
