@@ -282,9 +282,12 @@ struct _UninitializedCopyItem
     }
 };
 
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
+using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>;
+
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
                       _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
                       _OutputIterator __result,
@@ -333,7 +336,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyFunc, typename _Compare, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                              _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                              _OutputIterator __result,                              // results
@@ -371,7 +374,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                            _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                            _OutputIterator __result,                              // results
@@ -416,7 +419,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator,
           typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+struct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                                      _OutputIterator __result,                              // results
