@@ -3369,11 +3369,9 @@ struct _SourceProcessingDataOffsets
     static _SourceProcessingDataOffsets
     combine_with(const _SourceProcessingDataOffsets& __a, const _SourceProcessingDataOffsets& __b)
     {
-        return {std::max(__a.__start_offset1, __b.__start_offset1),
-                std::max(__a.__start_offset2, __b.__start_offset2)};
+        return {std::max(__a.__start_offset1, __b.__start_offset1), std::max(__a.__start_offset2, __b.__start_offset2)};
     }
 };
-
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
@@ -3529,7 +3527,8 @@ struct _SourceFinalPosEvaluatorData
     _DifferenceTypeOut __reached_pos_out = {}; // Reached position in the output range
 };
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, bool __Bounded>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut, bool __Bounded>
 struct _SourceFinalPosEvaluator;
 
 template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
@@ -3562,8 +3561,10 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, true>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                true>
 {
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
@@ -3717,8 +3718,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     _DifferenceType __real_filled_mask_len = {};
 };
 
-template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
-          typename _SourceFinalPosEvaluator>
+template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
+          typename _SetRange, typename _OutputIterator, typename _SourceFinalPosEvaluator>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
@@ -4058,8 +4059,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const auto __buf_size = __size_func(__n1, __n2);
     const auto __mask_buf_size = __mask_size_func(__n1, __n2);
 
-    __par_backend::__buffer<_T> __buf(__buf_size);          // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size); // Temporary (windowed) buffer + result buffer for mask preparation
+    __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
+    __mask_buffers<__Bounded> __mask_bufs(
+        __mask_buf_size); // Temporary (windowed) buffer + result buffer for mask preparation
 
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
     using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
@@ -4307,7 +4309,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
 }
 
 template <typename _IsVector>
-struct __BrickCopyConstruct     // passed into __set_union_construct as _CopyConstructRange __cc_range
+struct __BrickCopyConstruct // passed into __set_union_construct as _CopyConstructRange __cc_range
 {
     template <typename _ForwardIterator, typename _OutputIterator>
     _OutputIterator
