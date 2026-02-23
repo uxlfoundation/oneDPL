@@ -4064,7 +4064,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         __mask_buf_size); // Temporary (windowed) buffer + result buffer for mask preparation
 
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
-    using _mask_ptr_t = typename __mask_buffers<__Bounded>::_mask_ptr_t;
 
     using _SetRange =
         _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
