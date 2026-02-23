@@ -4285,7 +4285,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                                          __first2, __last2,                                      // bounds for data2
                                          __result1, __result2,                                   // bounds for results
                                          __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_union_op,
-                                         &__buf, &__mask_bufs, __buf_size, __mask_buf_size]()
+                                         &__buf, &__mask_bufs, __buf_size]()
     {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
