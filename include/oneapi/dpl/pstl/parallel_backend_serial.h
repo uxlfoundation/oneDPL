@@ -84,21 +84,19 @@ __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 {
 }
 
-struct __grain_selector_any_workload
+template <std::size_t _MinChunkSize>
+struct __chunk_partitioning_policy
 {
-    constexpr std::size_t
-    operator()(std::size_t __size, std::size_t __num_threads) const
-    {
-        return 1;
-    }
+    static constexpr std::size_t __min_chunk_size = _MinChunkSize;
 };
-struct __grain_selector_small_workload: public __grain_selector_any_workload {};
-struct __grain_selector_large_workload: public __grain_selector_any_workload {};
+struct __any_workload: public __chunk_partitioning_policy<1> {};
+struct __small_workload: public __chunk_partitioning_policy<1> {};
+struct __large_workload: public __chunk_partitioning_policy<1> {};
 
-template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
+template <class _ExecutionPolicy, class _Index, class _Fp, class _ChunkPartitioningPolicy = __any_workload>
 void
 __parallel_for(oneapi::dpl::__internal::__serial_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last,
-               _Fp __f, _GrainSelector = _GrainSelector())
+               _Fp __f, _ChunkPartitioningPolicy = _ChunkPartitioningPolicy())
 {
     __f(__first, __last);
 }

@@ -90,26 +90,23 @@ class __parallel_for_body
     _RealBody _M_body;
 };
 
-struct __grain_selector_any_workload
+template <std::size_t _MinChunkSize>
+struct __chunk_partitioning_policy
 {
-    constexpr std::size_t
-    operator()() const
-    {
-        // matches the default grainsize value of tbb::blocked_range according to the specification
-        return 1;
-    }
+    static constexpr std::size_t __min_chunk_size = _MinChunkSize;
 };
-struct __grain_selector_small_workload: public __grain_selector_any_workload {};
-struct __grain_selector_large_workload: public __grain_selector_any_workload {};
+struct __any_workload: public __chunk_partitioning_policy<1> {};
+struct __small_workload: public __chunk_partitioning_policy<1> {};
+struct __large_workload: public __chunk_partitioning_policy<1> {};
 
 //! Evaluation of brick f[i,j) for each subrange [i,j) of [first,last)
 // wrapper over tbb::parallel_for
-template <class _ExecutionPolicy, class _Index, class _Fp, class _GrainSelector = __grain_selector_any_workload>
+template <class _ExecutionPolicy, class _Index, class _Fp, class _ChunkPartitioningPolicy = __any_workload>
 void
 __parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
-               _GrainSelector __grain_selector = _GrainSelector())
+               _ChunkPartitioningPolicy __partitioning_policy = _ChunkPartitioningPolicy())
 {
-    constexpr std::size_t __grainsize = __grain_selector();
+    constexpr std::size_t __grainsize = __partitioning_policy.__min_chunk_size;
     tbb::this_task_arena::isolate([=]() {
         tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last, __grainsize),
                           __parallel_for_body<_Index, _Fp>(__f));
