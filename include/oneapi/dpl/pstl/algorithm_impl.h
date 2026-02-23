@@ -3808,7 +3808,8 @@ struct _ScanPred
 
     template <typename _DifferenceType>
     void
-    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part, _DifferenceType __result_remaining) const
+    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
+                                      _DifferenceType __result_remaining) const
     {
         // Evaluate output range boundaries for current data chunk
         const auto __result_from = __advance_clamped(__result_buf_pos_begin, __data_part.__pos, __result_buf_pos_end);
