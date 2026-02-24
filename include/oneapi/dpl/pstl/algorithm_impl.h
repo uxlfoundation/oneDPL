@@ -3318,8 +3318,9 @@ constexpr bool
 __is_set_algo_cutoff_exceeded(Size size)
 {
     // 1000 is chosen as a cut-off value based on benchmarking source data sizes
-    constexpr Size __set_algo_cut_off = 1000;
-    return size > __set_algo_cut_off;
+    //constexpr Size __set_algo_cut_off = 1000;
+    //return size > __set_algo_cut_off;
+    return true;
 }
 
 // KSATODO required to remove in the end of development all debug code linked with this macro
@@ -3494,50 +3495,44 @@ struct _SetRangeImpl
         static_assert(__Bounded, "Source copied data counts part is available only for bounded set operations");
         return std::get<_SourceCopiedDataCountsIndex>(__data);
     }
-};
 
-template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
-          typename _DifferenceTypeOut, typename _DifferenceType>
-struct _SetRangeCombiner
-{
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>;
-
-    _SetRange
-    operator()(const _SetRange& __a, const _SetRange& __b) const
+    static _SetRangeImpl
+    combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
-        const _DataPart<_DifferenceType> __new_processing_data = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
+        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
 
         if constexpr (!__Bounded)
         {
-#if DUMP_PARALLEL_SET_OP_WORK
-            std::cout << "ST.2:\n"
-                      << "\t__a = (" << __a << ")\n"
-                      << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{__new_processing_data} << ")" << std::endl;
-#endif
-            return __new_processing_data;
+            return _SetRangeImpl{__new_data_part};
         }
         else
         {
-            typename _SetRange::_DataStorage _ds{
-                __new_processing_data,
-                _MaskPart<_DifferenceType>::combine_with(__a.get_mask_part(), __b.get_mask_part()),
-                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_data_offsets_part(), __b.get_source_data_offsets_part()),
-                _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_copied_data_counts_part(), __b.get_source_copied_data_counts_part())
-            };
+            typename _SetRangeImpl::_DataStorage __ds{
+                __new_data_part,
+                _MaskPart                   <_DifferenceType                   >::combine_with(__a.get_mask_part(),                      __b.get_mask_part()                     ),
+                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_data_offsets_part(),       __b.get_source_data_offsets_part()      ),
+                _SourceCopiedDataCounts     <_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_copied_data_counts_part(), __b.get_source_copied_data_counts_part())};
+            return _SetRangeImpl{__ds};
+        }
+    }
+};
 
+struct _SetRangeCombiner
+{
+    template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
+              typename _DifferenceTypeOut>
+    _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>
+    operator()(const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __a,
+               const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __b) const
+    {
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.2:\n"
                       << "\t__a = (" << __a << ")\n"
                       << "\t__b = (" << __b << ")\n"
-                      << "\t\t -> (" << _SetRange{_ds}
-                      << ")" << std::endl;
+                      << "\t\t -> (" << _SetRange::combine_with(__a, __b) << ")" << std::endl;
 #endif
-            return _SetRange{_ds};
-        }
+            return _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>::combine_with(__a, __b);
     }
-
-    const _DifferenceTypeOut __n_out = {};  // Size of output range
 };
 
 template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator>
@@ -3695,6 +3690,9 @@ protected:
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
+#define EVAL_REACHED_POS_IN_PARALLEL 0
+#define EVAL_REACHED_POS_FROM_START  1
+
 template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
 struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, true>
 {
@@ -3733,9 +3731,11 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
         if (!__reached_pos_found)
         {
             if (__output_pos_reached)
+            {
                 std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_positions(__mask_bufs);
+                __reached_pos_found = true;
+            }
 
-            __reached_pos_found = true;
         }
 
         return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
@@ -3743,74 +3743,92 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
 
 protected:
 
+    template <bool __Bounded, typename _DifferenceTypeArg>
+    _DifferenceTypeArg
+    __eval_reached_pos(typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin,
+                       typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end,
+                       oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state,
+                       _DifferenceTypeOut __pos_no, _DifferenceTypeArg __reached_pos) const
+    {
+#if EVAL_REACHED_POS_FROM_START
+        __pos_no = 0;
+        __reached_pos = 0;
+#endif
+
+        assert(__dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
+               __dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
+
+        auto __mask_buffer_it = __mask_buffer_begin;
+
+        for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
+        {
+            auto __state = *__mask_buffer_it;
+
+            __pos_no += __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state) ? 1 : 0;
+            __reached_pos +=  __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
+        }
+
+        // 2. Pass positions which not generates output
+        for (; __mask_buffer_it != __mask_buffer_end; ++__mask_buffer_it)
+        {
+            auto __state = *__mask_buffer_it;
+
+            // Breaks if we detected mask which describes output data generation from specified data set
+            if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state))
+                break;
+
+#if !EVAL_REACHED_POS_FROM_START
+             __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
+#else
+            if (__test_mask(__dest_data_mask_state, __state))
+                ++__reached_pos;
+#endif
+        }
+
+        return __reached_pos;
+    }
+
     template <bool __Bounded>
     std::pair<_DifferenceType1, _DifferenceType2>
     __eval_reached_positions(const __mask_buffers<__Bounded>& __mask_bufs) const
     {
-        _DifferenceType1 __res_reachedPos1 = __source_data_offsets.__start_offset1;
-        _DifferenceType2 __res_reachedPos2 = __source_data_offsets.__start_offset2;
+        _DifferenceType1 __res_reachedPos1 = {};
+        _DifferenceType2 __res_reachedPos2 = {};
 
         // Calculate analyzing area in the result mask buffer
         typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin  = __mask_bufs.get_buf_mask_rng_res_data() + __mask_part.__pos;
         typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end = __mask_bufs.get_buf_mask_rng_res_data() + __real_filled_mask_len;
 
+#if EVAL_REACHED_POS_FROM_START
+        __mask_buffer_begin = __mask_bufs.get_buf_mask_rng_res_data();
+#endif
+
         using __backend_tag = typename decltype(__tag)::__backend_tag;
 
+#if EVAL_REACHED_POS_IN_PARALLEL
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [&]()
+#endif
             {
-                typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_it = __mask_buffer_begin;
-
-                // 1. Pass positions which generates output
-                auto __pos_no = __data_part.__pos;
-                for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
-                {
-                    if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
-                    {
-                        ++__pos_no;
-
-                        if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out, *__mask_buffer_it))
-                            ++__res_reachedPos1;
-                    }
-                }
-
-                // 2. Pass positions which not generates output
-                for (; __mask_buffer_it != __mask_buffer_end; ++__mask_buffer_it)
-                {
-                    if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData1, *__mask_buffer_it) &&
-                        !__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
-                        ++__res_reachedPos1;
-                    else
-                        break;
-                }
-            },
+                __res_reachedPos1 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_end,
+                                                                  oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
+                                                                  __data_part.__pos,
+                                                                  __source_data_offsets.__start_offset1);
+            }
+#if EVAL_REACHED_POS_IN_PARALLEL
+            ,
             [&]()
+#endif
             {
-                typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_it = __mask_buffer_begin;
-
-                auto __pos_no = __data_part.__pos;
-                for (; __mask_buffer_it != __mask_buffer_end && __pos_no < __n_out; ++__mask_buffer_it)
-                {
-                    if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
-                    {
-                        ++__pos_no;
-
-                        if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out, *__mask_buffer_it))
-                            ++__res_reachedPos2;
-                    }
-                }
-
-                // 2. Pass positions which not generates output
-                for (; __mask_buffer_it != __mask_buffer_end; ++__mask_buffer_it)
-                {
-                    if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eData2, *__mask_buffer_it) &&
-                        !__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, *__mask_buffer_it))
-                        ++__res_reachedPos2;
-                    else
-                        break;
-                }
-            });
+                __res_reachedPos2 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_end,
+                                                                  oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
+                                                                  __data_part.__pos,
+                                                                  __source_data_offsets.__start_offset2);
+            }
+#if EVAL_REACHED_POS_IN_PARALLEL
+        );
+#endif
 
         return {__res_reachedPos1, __res_reachedPos2};
     }
@@ -3827,7 +3845,7 @@ protected:
         assert(__state_value != 0);
 
         // Check correct memory state
-        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return (__state_value & static_cast<_UT>(__checking_mask_state)) == static_cast<_UT>(__checking_mask_state);
@@ -3855,10 +3873,10 @@ template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename P
 struct _ScanPred
 {
     __parallel_tag<_IsVector>  __tag;
-    _ExecutionPolicy           __exec;
+    _ExecutionPolicy&          __exec;
     ProcessingDataPointer      __buf_pos_begin, __buf_pos_end;                  // Temporary data buffer (windowed)
     _OutputIterator            __result_buf_pos_begin, __result_buf_pos_end;    // Result data buffer
-    __mask_buffers<__Bounded>& __mask_bufs;
+    __mask_buffers<__Bounded>& __mask_bufs;                                     // Mask buffers: temporary (windowed) buffer and result buffer
     _SourceFinalPosEvaluator&  __source_final_pos_evaluator;                    // Evaluator of the final position in the source ranges
 
     template <typename _DifferenceType>
@@ -3897,15 +3915,19 @@ struct _ScanPred
                         __copy_mask_to_result_buf(__mask_part);
                     });
             }
-            else if (__remaining_data_size > 0)
+            else
             {
-                // Copy source data (bounded)
-                __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
-            }
-            else if (__write_mask_needed)
-            {
-                // Copy mask data
-                __copy_mask_to_result_buf(__mask_part);
+                if (__remaining_data_size > 0)
+                {
+                    // Copy source data (bounded)
+                    __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+                }
+
+                if (__write_mask_needed)
+                {
+                    // Copy mask data
+                    __copy_mask_to_result_buf(__mask_part);
+                }
             }
 
             if (__output_pos_reached_on_this_part)
@@ -4012,8 +4034,8 @@ struct _ScanPred
         //                                           ^                                                ^
         //                                           |                                                |
         //                                         __n_out                                          __n_out + 1
-        // where                  __n_out = __copied_from1(11) + __copied_from2(21)
-        // where                                                                 __n_out + 1 = __copied_from1(11) + __copied_from2(21)
+        // where                  __n_out = __copied_from1(11) + __copied_from2(12)
+        // where                                                               __n_out + 1 = __copied_from1(21) + __copied_from2(22)
 
         const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -4039,6 +4061,10 @@ struct _ScanPred
             return true;
         }
 
+#if EVAL_REACHED_POS_FROM_START
+        return true;
+#endif
+
         return false;
     }
 
@@ -4058,16 +4084,14 @@ template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _Se
           typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
 struct _ParallelSetOpStrictScanPred
 {
-    _Tag __tag;
-    _ExecutionPolicy __exec;
+    _Tag                   __tag;
+    _ExecutionPolicy&      __exec;
 
-    _RandomAccessIterator1 __first1;
-    _RandomAccessIterator1 __last1;
-    _RandomAccessIterator2 __first2;
-    _RandomAccessIterator2 __last2;
-    _SizeFunction __size_func;
-    _MaskSizeFunction __mask_size_func;
-    _SetUnionOp __set_union_op;
+    _RandomAccessIterator1 __first1, __last1;
+    _RandomAccessIterator2 __first2, __last2;
+    _SizeFunction          __size_func;
+    _MaskSizeFunction      __mask_size_func;
+    _SetUnionOp            __set_union_op;
 
     _Compare __comp;
     _Proj1 __proj1;
@@ -4076,10 +4100,10 @@ struct _ParallelSetOpStrictScanPred
     _T* __buf_raw_data_begin;
     __mask_buffers<__Bounded>& __mask_bufs;
 
-    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
-    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
+    using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator       >::difference_type;
+    using _DifferenceType       = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
 
     _SetRange
     operator()(_DifferenceType1 __i, _DifferenceType1 __len) const
@@ -4291,9 +4315,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-        _SetRangeCombiner<__Bounded, _DifferenceType1, _DifferenceType2, __mask_difference_type_t,
-                          _DifferenceTypeOutput, _DifferenceType>
-            __combine_pred{__n_out};
+        _SetRangeCombiner __combine_pred;
 
         _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __Bounded> __source_final_pos_evaluator(__tag, __exec, __n1, __n2, __n_out);
 

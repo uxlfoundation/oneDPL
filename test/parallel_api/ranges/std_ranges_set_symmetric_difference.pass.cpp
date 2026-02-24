@@ -121,11 +121,7 @@ struct
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
                 if (idxOut < nOut)
-                {
-                    out[idxOut] = in1[idx1];
-                    ++idx1;
-                    ++idxOut;
-                }
+                    out[idxOut++] = in1[idx1++];
                 else
                     break;
             }
@@ -134,10 +130,7 @@ struct
                 if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
                 {
                     if (idxOut < nOut)
-                    {
-                        out[idxOut] = in2[idx2];
-                        ++idxOut;
-                    }
+                        out[idxOut++] = in2[idx2];
                     else
                         break;
                 }

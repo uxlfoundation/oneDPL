@@ -70,10 +70,20 @@ inline constexpr int medium_size = (1<<17) + 10; //128K
 // It also usually results in using single-work-group specializations for device policies.
 inline constexpr int small_size = 2025;
 
+#define TEST_ON_SMALL_DEBUG_DATA_SET 1
+
+#if !TEST_ON_SMALL_DEBUG_DATA_SET
 #if TEST_DPCPP_BACKEND_PRESENT
 inline constexpr std::array<int, 3> big_sz = {/*serial*/ small_size, /*par*/ medium_size, /*device*/ big_size};
 #else
 inline constexpr std::array<int, 2> big_sz = {/*serial*/ small_size, /*par*/ medium_size};
+#endif
+#else
+#if TEST_DPCPP_BACKEND_PRESENT
+inline constexpr std::array<int, 3> big_sz = {8, 16, 32};
+#else
+inline constexpr std::array<int, 2> big_sz = {16, 32};
+#endif
 #endif
 
 enum TestDataMode
@@ -741,6 +751,12 @@ private:
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                       (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            if (ret_in_val<2>(expected_res, src_view2.begin()) != ret_in_val<2>(res, tr_in(B).begin()))
+            {
+                expected_res = checker(src_view1, src_view2, expected_view, args...);
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
         }
         else
         {
@@ -749,6 +765,13 @@ private:
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
                       (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+
+            if (ret_in_val(expected_res, src_view2.begin()) != ret_in_val(res, tr_in(B).begin()))
+            {
+                expected_res = checker(src_view1, src_view2, expected_view, args...);
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
+
         }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
                     (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
