@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <functional>
+#include <algorithm> // for std::count_if
 
 template <typename Container1, typename Container2>
 std::size_t
