@@ -3462,8 +3462,10 @@ struct _SetRangeCombiner
     template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
               typename _DifferenceTypeOut>
     _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>
-    operator()(const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __a,
-               const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, _DifferenceTypeMask>& __b) const
+    operator()(const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                   _DifferenceTypeMask>& __a,
+               const _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                   _DifferenceTypeMask>& __b) const
     {
         return _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
                              _DifferenceTypeMask>::combine_with(__a, __b);
@@ -3581,8 +3583,10 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, true>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                true>
 {
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
@@ -3623,20 +3627,18 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
                 std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_positions(__mask_bufs);
                 __reached_pos_found = true;
             }
-
         }
 
         return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
     }
 
-protected:
-
+  protected:
     template <bool __Bounded, typename _DifferenceTypeArg>
     _DifferenceTypeArg
     __eval_reached_pos(typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin,
                        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end,
-                       oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state,
-                       _DifferenceTypeOut __pos_no, _DifferenceTypeArg __reached_pos) const
+                       oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state, _DifferenceTypeOut __pos_no,
+                       _DifferenceTypeArg __reached_pos) const
     {
         assert(__dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
                __dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
@@ -3648,7 +3650,7 @@ protected:
             auto __state = *__mask_buffer_it;
 
             __pos_no += __test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state) ? 1 : 0;
-            __reached_pos +=  __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
+            __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
         }
 
         // 2. Pass positions which not generates output
@@ -3660,7 +3662,7 @@ protected:
             if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state))
                 break;
 
-             __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
+            __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
         }
 
         return __reached_pos;
@@ -3709,7 +3711,8 @@ protected:
         assert(__state_value != 0);
 
         // Check correct memory state
-        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12);
+        [[maybe_unused]] constexpr _UT __valid_bits =
+            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return (__state_value & static_cast<_UT>(__checking_mask_state)) == static_cast<_UT>(__checking_mask_state);
@@ -3735,12 +3738,12 @@ template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename P
           typename _SetRange, typename _OutputIterator, typename _SourceFinalPosEvaluator>
 struct _ScanPred
 {
-    __parallel_tag<_IsVector>  __tag;
-    _ExecutionPolicy&          __exec;
-    ProcessingDataPointer      __buf_pos_begin, __buf_pos_end;                  // Temporary data buffer (windowed)
-    _OutputIterator            __result_buf_pos_begin, __result_buf_pos_end;    // Result data buffer
-    __mask_buffers<__Bounded>& __mask_bufs;                                     // Mask buffers: temporary (windowed) buffer and result buffer
-    _SourceFinalPosEvaluator&  __source_final_pos_evaluator;                    // Evaluator of the final position in the source ranges
+    __parallel_tag<_IsVector> __tag;
+    _ExecutionPolicy& __exec;
+    ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
+    _OutputIterator __result_buf_pos_begin, __result_buf_pos_end; // Result data buffer
+    __mask_buffers<__Bounded>& __mask_bufs; // Mask buffers: temporary (windowed) buffer and result buffer
+    _SourceFinalPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
 
     template <typename _DifferenceType>
     void
@@ -3763,7 +3766,8 @@ struct _ScanPred
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
 
             bool __output_pos_reached_on_this_part = false;
-            const bool __write_mask_needed = __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
+            const bool __write_mask_needed =
+                __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
 
             if (__remaining_data_size > 0 && __write_mask_needed)
             {
@@ -4091,12 +4095,12 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
 
-    using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
+    using _SetRange =
+        _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, __first2, __last2,
                                          __result1, __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
-                                         __set_union_op, &__buf, &__mask_bufs, __buf_size]()
-    {
+                                         __set_union_op, &__buf, &__mask_bufs, __buf_size]() {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;

@@ -249,14 +249,14 @@ struct _MaskSize</*_Bounded*/ true>
 
 enum class __parallel_set_op_mask : std::uint8_t
 {
-    eData1    = 0x01,                       // mask for first input data item usage
-    eData2    = 0x02,                       // mask for second input data item usage
-    eDataOut  = 0x04,                       // mask for output data item usage
+    eData1 = 0x01,   // mask for first input data item usage
+    eData2 = 0x02,   // mask for second input data item usage
+    eDataOut = 0x04, // mask for output data item usage
 
-    eBoth = eData1 | eData2,                // mask for both input data items usage
-    eCopyFromData1 = eData1 | eDataOut,     // mask for copy data item from the first data set into output
-    eCopyFromData2 = eData2 | eDataOut,     // mask for copy data item from the second data set into output
-    eCopyFromData12 = eBoth | eDataOut      // mask for copy data item from the first and the second data set into output
+    eBoth = eData1 | eData2,            // mask for both input data items usage
+    eCopyFromData1 = eData1 | eDataOut, // mask for copy data item from the first data set into output
+    eCopyFromData2 = eData2 | eDataOut, // mask for copy data item from the second data set into output
+    eCopyFromData12 = eBoth | eDataOut  // mask for copy data item from the first and the second data set into output
 };
 
 inline std::nullptr_t
