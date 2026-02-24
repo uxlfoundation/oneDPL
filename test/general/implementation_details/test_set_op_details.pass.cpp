@@ -53,9 +53,9 @@ using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData1;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData2;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
 
 std::size_t
 calculate_saved_items1(const MaskContainer& masks, oneapi::dpl::__utils::__parallel_set_op_mask mask_to_check)
@@ -73,13 +73,13 @@ calculate_saved_items1(const MaskContainer& masks, oneapi::dpl::__utils::__paral
 std::size_t
 calculate_saved_items1(const MaskContainer& masks)
 {
-    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData1);
+    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out);
 }
 
 std::size_t
 calculate_saved_items2(const MaskContainer& masks)
 {
-    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData2);
+    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out);
 }
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
