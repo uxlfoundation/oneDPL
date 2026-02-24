@@ -88,11 +88,13 @@ auto
 __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     const int __num_threads, std::size_t __min_chunk_size) -> __chunk_metrics
 {
-    _Size __n_chunks = 1;
     _Size __n = __last - __first;
     if (__n <= __min_chunk_size)
     {
-        return __chunk_metrics{__n_chunks, __n, __n};
+        _Size __n_chunks = 1;
+        _Size __chunk_size = __n;
+        _Size __first_chunk_size = __n;
+        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
 
     // Aim for 3 tasks per thread for better load balancing
@@ -100,10 +102,14 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     _Size __target_task_count = __num_threads * __target_tasks_per_thread;
     _Size __chunk_size = __n / __target_task_count;
 
+    // TODO: reconsider __chunk_metrics structure.
+    // __first_chunk_size gets all the leftover items,
+    // which leads to load imbalance with a large number of small chunks.
+
     // Enough work - create the target number of tasks per thread
     if (__chunk_size >= __min_chunk_size)
     {
-        __n_chunks = __target_task_count;
+        _Size __n_chunks = __target_task_count;
         _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
         return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
@@ -111,7 +117,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     // make sure the number of tasks is multiple of the number of threads
     else if (__chunk_size * __target_tasks_per_thread >= __min_chunk_size)
     {
-        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
+        _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
         __chunk_size = __n / __n_chunks;
         _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
@@ -121,13 +127,9 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     else
     {
         __chunk_size = __min_chunk_size;
-        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk_size);
+        _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk_size);
         __chunk_size = __n / __n_chunks;
-        const _Size __n_leftover_items = __n - (__n_chunks * __chunk_size);
-        const _Size __n_extra_items_per_chunk = __n_leftover_items / __n_chunks;
-        const _Size __n_final_leftover_items = __n_leftover_items - (__n_extra_items_per_chunk * __n_chunks);
-        __chunk_size += __n_extra_items_per_chunk;
-        const _Size __first_chunk_size = __chunk_size + __n_final_leftover_items;
+        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
         return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
 }
