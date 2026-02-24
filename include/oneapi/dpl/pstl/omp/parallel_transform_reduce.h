@@ -44,7 +44,8 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
 
     // Initial partition of the iteration space into chunks. If the range is too small,
     // this will result in a nonsense policy, so we check on the size as well below.
-    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first + __num_threads, __last);
+    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first + __num_threads, __last, __num_threads,
+                                                                    __default_chunk_size);
 
     if (__size <= __num_threads || __policy.__n_chunks < 2)
     {

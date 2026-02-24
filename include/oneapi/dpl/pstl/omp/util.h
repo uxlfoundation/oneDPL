@@ -53,23 +53,27 @@ using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
 
+// Chunk size targeted for for_each and transform algorithms due to their varying functor complexity
+// Smaller chunk is beneficial for heavy functors
+constexpr std::size_t __any_workload_chunk_size = 256;
+
 // Convenience function to determine when we should run serial.
 template <typename _Iterator, std::enable_if_t<!std::is_integral_v<_Iterator>, bool> = true>
 constexpr auto
-__should_run_serial(_Iterator __first, _Iterator __last) -> bool
+__should_run_serial(_Iterator __first, _Iterator __last, const std::size_t __cutoff) -> bool
 {
     using _difference_type = typename std::iterator_traits<_Iterator>::difference_type;
     auto __size = std::distance(__first, __last);
-    return __size <= static_cast<_difference_type>(__default_chunk_size);
+    return __size <= static_cast<_difference_type>(__cutoff);
 }
 
 template <typename _Index, std::enable_if_t<std::is_integral_v<_Index>, bool> = true>
 constexpr auto
-__should_run_serial(_Index __first, _Index __last) -> bool
+__should_run_serial(_Index __first, _Index __last, const std::size_t __cutoff) -> bool
 {
     using _difference_type = _Index;
     auto __size = __last - __first;
-    return __size <= static_cast<_difference_type>(__default_chunk_size);
+    return __size <= static_cast<_difference_type>(__cutoff);
 }
 
 struct __chunk_metrics
@@ -79,49 +83,53 @@ struct __chunk_metrics
     std::size_t __first_chunk_size;
 };
 
-// The iteration space partitioner according to __requested_chunk_size
 template <class _RandomAccessIterator, class _Size = std::size_t>
 auto
 __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
-                    _Size __requested_chunk_size = __default_chunk_size) -> __chunk_metrics
+                    const int __num_threads, std::size_t __min_chunk_size) -> __chunk_metrics
 {
-    /*
-     * This algorithm improves distribution of elements in chunks by avoiding
-     * small tail chunks. The leftover elements that do not fit neatly into
-     * the chunk size are redistributed to early chunks. This improves
-     * utilization of the processor's prefetch and reduces the number of
-     * tasks needed by 1.
-     */
-
-    const _Size __n = __last - __first;
-    _Size __n_chunks = 0;
-    _Size __chunk_size = 0;
-    _Size __first_chunk_size = 0;
-    if (__n < __requested_chunk_size)
+    _Size __n_chunks = 1;
+    _Size __n = __last - __first;
+    if (__n <= __min_chunk_size)
     {
-        __chunk_size = __n;
-        __first_chunk_size = __n;
-        __n_chunks = 1;
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+        return __chunk_metrics{__n_chunks, __n, __n};
     }
 
-    __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __requested_chunk_size);
-    __chunk_size = __n / __n_chunks;
-    __first_chunk_size = __chunk_size;
-    const _Size __n_leftover_items = __n - (__n_chunks * __chunk_size);
+    // Aim for 3 tasks per thread for better load balancing
+    constexpr _Size __target_tasks_per_thread = 3;
+    _Size __target_task_count = __num_threads * __target_tasks_per_thread;
+    _Size __chunk_size = __n / __target_task_count;
 
-    if (__n_leftover_items == 0)
+    // Enough work - create the target number of tasks per thread
+    if (__chunk_size >= __min_chunk_size)
     {
+        __n_chunks = __target_task_count;
+        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
         return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
     }
-
-    const _Size __n_extra_items_per_chunk = __n_leftover_items / __n_chunks;
-    const _Size __n_final_leftover_items = __n_leftover_items - (__n_extra_items_per_chunk * __n_chunks);
-
-    __chunk_size += __n_extra_items_per_chunk;
-    __first_chunk_size = __chunk_size + __n_final_leftover_items;
-
-    return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+    // Enough work to occupy each thread with at least one task -
+    // make sure the number of tasks is multiple of the number of threads
+    else if (__chunk_size * __target_tasks_per_thread >= __min_chunk_size)
+    {
+        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
+        __n_chunks = (__n_chunks / __num_threads) * __num_threads;
+        __chunk_size = __n / __n_chunks;
+        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
+        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+    }
+    // Not enough work even for one task per thread
+    else
+    {
+        __chunk_size = __min_chunk_size;
+        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk_size);
+        __chunk_size = __n / __n_chunks;
+        const _Size __n_leftover_items = __n - (__n_chunks * __chunk_size);
+        const _Size __n_extra_items_per_chunk = __n_leftover_items / __n_chunks;
+        const _Size __n_final_leftover_items = __n_leftover_items - (__n_extra_items_per_chunk * __n_chunks);
+        __chunk_size += __n_extra_items_per_chunk;
+        const _Size __first_chunk_size = __chunk_size + __n_final_leftover_items;
+        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+    }
 }
 
 template <typename _Iterator, typename _Index, typename _Func>
