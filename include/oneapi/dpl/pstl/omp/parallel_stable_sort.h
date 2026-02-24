@@ -52,7 +52,8 @@ __parallel_move_range(_RandomAccessIterator __first1, _RandomAccessIterator __la
     }
 
     // Perform parallel moving of larger chunks
-    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first1, __last1);
+    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first1, __last1, omp_get_num_threads(),
+                                                                    __default_chunk_size);
 
     _ONEDPL_PRAGMA(omp taskloop)
     for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
@@ -90,7 +91,7 @@ __parallel_stable_sort_body(_RandomAccessIterator __xs, _RandomAccessIterator __
     using _MoveValue = oneapi::dpl::__omp_backend::__sort_details::__move_value;
     using _MoveRange = oneapi::dpl::__omp_backend::__sort_details::__move_range;
 
-    if (__should_run_serial(__xs, __xe))
+    if (__should_run_serial(__xs, __xe, __default_chunk_size))
     {
         __leaf_sort(__xs, __xe, __comp);
     }

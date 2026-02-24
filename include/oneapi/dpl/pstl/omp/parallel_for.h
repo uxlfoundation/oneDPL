@@ -32,7 +32,8 @@ void
 __parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grainsize)
 {
     // initial partition of the iteration space into chunks
-    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __grainsize);
+    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, omp_get_num_threads(),
+                                                                    __grainsize);
 
     // To avoid over-subscription we use taskloop for the nested parallelism
     _ONEDPL_PRAGMA(omp taskloop untied mergeable)
