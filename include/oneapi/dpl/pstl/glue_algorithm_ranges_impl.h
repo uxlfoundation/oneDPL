@@ -1295,7 +1295,7 @@ struct __remove_copy_if_fn
     {
         return oneapi::dpl::ranges::copy_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             std::forward<_OutR>(__out_r), oneapi::dpl::__internal::__not_pred<
-                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Predicate>>(__pred), __proj);
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred), __proj);
     }
 }; //__remove_copy_if_fn
 
