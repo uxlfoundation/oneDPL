@@ -53,9 +53,34 @@ using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData1;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData2;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12;
+
+std::size_t
+calculate_saved_items1(const MaskContainer& masks, oneapi::dpl::__utils::__parallel_set_op_mask mask_to_check)
+{
+    using UT = std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+    const UT ut_mask_to_check = static_cast<UT>(mask_to_check);
+
+    return std::count_if(masks.begin(), masks.end(),
+                         [ut_mask_to_check](oneapi::dpl::__utils::__parallel_set_op_mask mask) -> bool {
+                             return ((static_cast<UT>(mask) & ut_mask_to_check) == ut_mask_to_check) ? true : false;
+                         });
+}
+
+std::size_t
+calculate_saved_items1(const MaskContainer& masks)
+{
+    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData1);
+}
+
+std::size_t
+calculate_saved_items2(const MaskContainer& masks)
+{
+    return calculate_saved_items1(masks, oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData2);
+}
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
 void
@@ -75,7 +100,7 @@ test_set_union_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -83,6 +108,8 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -98,7 +125,7 @@ test_set_union_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -106,6 +133,8 @@ test_set_union_construct()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -128,7 +157,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -136,6 +165,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -151,7 +182,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -159,6 +190,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -174,7 +207,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -182,6 +215,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -197,7 +232,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -205,6 +240,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -220,7 +257,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -228,6 +265,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -243,7 +282,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -251,6 +290,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -266,7 +307,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -274,6 +315,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -289,7 +332,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -297,6 +340,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -312,7 +357,7 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_union_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -320,6 +365,8 @@ test_set_union_construct_edge_cases()
             oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
 
+        EXPECT_EQ(copied1, calculate_saved_items1(mask), "Incorrect number of copied items from the first container");
+        EXPECT_EQ(copied2, calculate_saved_items2(mask), "Incorrect number of copied items from the second container");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
@@ -344,7 +391,7 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -371,7 +418,7 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -401,7 +448,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -424,7 +471,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -447,7 +494,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -470,7 +517,7 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_intersection_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -500,7 +547,7 @@ test_set_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -523,7 +570,7 @@ test_set_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -553,7 +600,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -576,7 +623,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -599,7 +646,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -622,7 +669,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -645,7 +692,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -668,7 +715,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -691,7 +738,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -714,7 +761,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -737,7 +784,7 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -767,7 +814,7 @@ test_set_symmetric_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -790,7 +837,7 @@ test_set_symmetric_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -820,7 +867,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -843,7 +890,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -866,7 +913,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -889,7 +936,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -912,7 +959,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -935,7 +982,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -958,7 +1005,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -981,7 +1028,7 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
