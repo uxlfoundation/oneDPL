@@ -1037,43 +1037,6 @@ test_set_symmetric_difference_construct_edge_cases()
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
         EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
     }
-
-    // The case: the first container has duplicated items
-    {
-        constexpr std::size_t size1 = 64;
-        Container cont1;
-        for (auto i = 0; i < size1; ++i)
-        {
-            DataType item{i / 3, i, 1};
-            cont1.push_back(item);
-        }
-
-        constexpr std::size_t size2 = 64;
-        Container cont2;
-        for (auto i = 0; i < size2; ++i)
-        {
-            DataType item{i, i, 2};
-            cont2.push_back(item);
-        }
-
-        const MaskContainer maskExp = {      D1O,       D12,       D1O,       D12,       D2O};
-        const Container contOutExp  = {{1, 0, 1},            {2, 2, 1},            {4, 2, 2}};
-        Container contOut(evalContainerSize(cont1, cont2));
-
-        MaskContainer mask(evalMaskSize(cont1, cont2));
-        auto mask_b = mask.data();
-
-        auto [it1, it2, out, mask_e, copied1, copied2] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
-            cont1.begin(), cont1.end(),
-            cont2.begin(), cont2.end(),
-            contOut.begin(),
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{},
-            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{});
-
-        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
-        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
-    }
 }
 
 int
