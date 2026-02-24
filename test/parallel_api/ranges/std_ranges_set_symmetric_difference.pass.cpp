@@ -86,8 +86,9 @@ struct
     template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
               typename Proj2 = std::identity>
-    std::ranges::set_intersection_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
-                                         std::ranges::borrowed_iterator_t<_ROut>>
+    std::ranges::set_symmetric_difference_result<std::ranges::borrowed_iterator_t<_R1>,
+                                                 std::ranges::borrowed_iterator_t<_R2>,
+                                                 std::ranges::borrowed_iterator_t<_ROut>>
     operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         auto in1 = std::ranges::begin(r_1);
@@ -119,11 +120,7 @@ struct
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
             {
                 if (idxOut < nOut)
-                {
-                    out[idxOut] = in1[idx1];
-                    ++idx1;
-                    ++idxOut;
-                }
+                    out[idxOut++] = in1[idx1++];
                 else
                     break;
             }
@@ -132,10 +129,7 @@ struct
                 if (std::invoke(comp, std::invoke(proj2, in2[idx2]), std::invoke(proj1, in1[idx1])))
                 {
                     if (idxOut < nOut)
-                    {
-                        out[idxOut] = in2[idx2];
-                        ++idxOut;
-                    }
+                        out[idxOut++] = in2[idx2];
                     else
                         break;
                 }

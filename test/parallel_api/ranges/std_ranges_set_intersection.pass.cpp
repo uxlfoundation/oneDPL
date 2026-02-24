@@ -103,10 +103,8 @@ struct
             }
             else if (idxOut < nOut)
             {
-                out[idxOut] = in1[idx1];
-                ++idx1;
+                out[idxOut++] = in1[idx1++];
                 ++idx2;
-                ++idxOut;
             }
             else
             {
