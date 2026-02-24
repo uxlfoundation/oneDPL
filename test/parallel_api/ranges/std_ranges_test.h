@@ -70,7 +70,7 @@ inline constexpr int medium_size = (1<<17) + 10; //128K
 // It also usually results in using single-work-group specializations for device policies.
 inline constexpr int small_size = 2025;
 
-#define TEST_ON_SMALL_DEBUG_DATA_SET 1
+#define TEST_ON_SMALL_DEBUG_DATA_SET 0
 
 #if !TEST_ON_SMALL_DEBUG_DATA_SET
 #if TEST_DPCPP_BACKEND_PRESENT

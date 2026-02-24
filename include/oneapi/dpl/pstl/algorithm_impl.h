@@ -3690,8 +3690,8 @@ protected:
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
-#define EVAL_REACHED_POS_IN_PARALLEL 0
-#define EVAL_REACHED_POS_FROM_START  1
+#define EVAL_REACHED_POS_IN_PARALLEL 1
+#define EVAL_REACHED_POS_FROM_START  2
 
 template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
 struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, true>
