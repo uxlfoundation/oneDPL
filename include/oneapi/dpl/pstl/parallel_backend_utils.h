@@ -265,7 +265,8 @@ __set_iterator_mask(std::nullptr_t, __parallel_set_op_mask) noexcept
     return nullptr;
 }
 
-inline __parallel_set_op_mask*
+inline
+__parallel_set_op_mask*
 __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state) noexcept
 {
     *__mask = __state;
