@@ -3440,11 +3440,11 @@ struct _SetRangeImpl
     {
         auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
 
-#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-        if constexpr (true)
-#else
+//#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
+//        if constexpr (true)
+//#else
         if constexpr (!__Bounded)
-#endif
+//#endif
         {
             return _SetRangeImpl{__new_data_part};
         }
