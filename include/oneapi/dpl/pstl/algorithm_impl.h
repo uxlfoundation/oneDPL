@@ -3744,8 +3744,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
         assert(__state_value != 0);
 
         // Check correct memory state
-        [[maybe_unused]] constexpr _UT __valid_bits =
-            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eCopyFromData12);
+        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return (__state_value & static_cast<_UT>(__checking_mask_state)) == static_cast<_UT>(__checking_mask_state);
