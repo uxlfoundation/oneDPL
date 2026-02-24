@@ -43,7 +43,6 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    // input generator with a fair chance of repeating the previous value
     auto almost_always_two = [](auto i) {
         if (i%7 > 0 && (i - 1)%3 == 0)
             return i;

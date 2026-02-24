@@ -1282,15 +1282,14 @@ struct __remove_fn
 
 struct __remove_copy_if_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              std::ranges::random_access_range _OutR, typename _Proj = std::identity,
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, std::ranges::random_access_range _OutR,
+              typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
              && std::ranges::sized_range<_R> && std::ranges::sized_range<_OutR>
              && std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR>>
 
-    std::ranges::remove_copy_if_result<std::ranges::borrowed_iterator_t<_R>,
-                                       std::ranges::borrowed_iterator_t<_OutR>>
+    std::ranges::remove_copy_if_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Pred __pred, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::copy_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
@@ -1301,8 +1300,8 @@ struct __remove_copy_if_fn
 
 struct __remove_copy_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              std::ranges::random_access_range _OutR, typename _Proj = std::identity,
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, std::ranges::random_access_range _OutR,
+              typename _Proj = std::identity,
               typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
              && std::ranges::sized_range<_R> && std::ranges::sized_range<_OutR>
@@ -1310,8 +1309,7 @@ struct __remove_copy_fn
              && std::indirect_binary_predicate<std::ranges::equal_to,
                                                std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
 
-    std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<_R>,
-                                    std::ranges::borrowed_iterator_t<_OutR>>
+    std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, const _T& __value, _Proj __proj = {}) const
     {
         // TODO: make sure std::ranges::equal_to is used for comparison
