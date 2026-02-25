@@ -730,7 +730,7 @@ struct __parallel_multi_group_radix_sort
 
         // cap total segment size
         __keys_per_wi_count =
-            std::min(__keys_per_wi_count, __target_segment_size_bytes / (sizeof(_ValueT) *  __wg_size_count));
+            std::min(__keys_per_wi_count, __target_segment_size_bytes / (sizeof(_ValueT) * __wg_size_count));
 
         // apply hard limits
         __keys_per_wi_count = std::max(__keys_per_wi_count, __absolute_min_keys_per_wi);
