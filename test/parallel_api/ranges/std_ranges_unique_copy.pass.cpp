@@ -16,7 +16,6 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-#include <span>
 #include <initializer_list>
 
 struct
@@ -45,6 +44,7 @@ struct
     
     void test_self()
     {
+#if TEST_CPP20_SPAN_PRESENT
         int input[10] = {0,0, 1, 2,2, 8, 1,1,1, 8};
         int output[9] = {-9, -8, -7, -6, -5, -4, -3, -2, -1};
 
@@ -92,6 +92,7 @@ struct
                 }
             }
         }
+#endif // TEST_CPP20_SPAN_PRESENT
     }
 } unique_copy_checker;
 #endif // _ENABLE_STD_RANGES_TESTING
