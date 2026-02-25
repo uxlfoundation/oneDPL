@@ -11,9 +11,9 @@
 # See https://llvm.org/LICENSE.txt for license information.
 #
 ##===----------------------------------------------------------------------===##
-add_subdirectory(kt)
-
 enable_testing()
+
+add_subdirectory(kt)
 
 # rng_tests
 set (ranlux_24_48_test.pass_timeout_debug "900") # 15min
