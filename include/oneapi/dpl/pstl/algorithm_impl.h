@@ -3981,7 +3981,7 @@ struct _ParallelSetOpStrictScanPred
                         (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{};
-                
+
                 typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data,
                                                      __new_offsets_to_processing_data};
 
