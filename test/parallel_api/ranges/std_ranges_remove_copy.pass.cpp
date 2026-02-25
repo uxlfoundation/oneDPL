@@ -105,7 +105,7 @@ main()
     };
     using many_twos = decltype(almost_always_two);
 
-    remove_copy_if_checker.test_self();
+    remove_copy_checker.test_self();
 
     test_range_algo<0, int, data_in_out_lim>{179}(dpl_ranges::remove_copy, remove_copy_checker, 0);
     test_range_algo<1, int, data_in_out_lim, many_twos>{1127}(dpl_ranges::remove_copy, remove_copy_checker, 2);
