@@ -712,19 +712,29 @@ struct __parallel_multi_group_radix_sort
         std::size_t __wg_size_reorder = oneapi::dpl::__internal::__max_work_group_size(__q, 256);
         std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
 
+        constexpr std::uint32_t __unroll_elements = 8;
         // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.
-        // Empirically found values, but here we check limits to prevent overflow in counting phase.
-        constexpr std::size_t __keys_per_wi_count_max = 64;      // performs better for large sequences, avoids overflow
-        constexpr std::size_t __keys_per_wi_count_min = 16;      // performs better for small sequences
-        constexpr std::size_t __large_input_threshold = 1 << 20; // 1M elements, empirically found threshold for switch
-        static_assert(__keys_per_wi_count_max < std::numeric_limits<unsigned char>::max(),
+        // We target a segment size of ~24KB to keep the scatter region in the reorder phase
+        // within the L1 cache, preventing thrashing during uncoalesced memory accesses and scattered writes.
+        constexpr std::size_t __target_segment_size_bytes = 24 * 1024;
+        constexpr std::size_t __absolute_max_keys_per_wi = 255;
+        constexpr std::size_t __absolute_min_keys_per_wi = __unroll_elements;
+        constexpr std::size_t __target_minimum_segments = 128;
+
+        static_assert(__absolute_max_keys_per_wi <= std::numeric_limits<unsigned char>::max(),
                       "Too large keys per work-item may cause overflow in counting phase");
-        static_assert(__keys_per_wi_count_min <= __keys_per_wi_count_max, "Invalid min/max keys per work-item values");
-        std::size_t __keys_per_wi_count = __keys_per_wi_count_min;
-        if (__n >= __large_input_threshold)
-        {
-            __keys_per_wi_count = __keys_per_wi_count_max;
-        }
+
+        // target a number of segments
+        std::size_t __keys_per_wi_count =
+            oneapi::dpl::__internal::__dpl_ceiling_div(__n, (__wg_size_count * __target_minimum_segments));
+
+        // cap total segment size
+        __keys_per_wi_count =
+            std::min(__keys_per_wi_count, __target_segment_size_bytes / (sizeof(_ValueT) *  __wg_size_count));
+
+        // apply hard limits
+        __keys_per_wi_count = std::max(__keys_per_wi_count, __absolute_min_keys_per_wi);
+        __keys_per_wi_count = std::min(__keys_per_wi_count, __absolute_max_keys_per_wi);
 
         constexpr std::uint32_t __unroll_elements = 8;
 
