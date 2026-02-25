@@ -36,13 +36,13 @@ struct __subgroup_radix_sort
 {
     template <typename _RangeIn, typename _Proj>
     sycl::event
-    operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::uint16_t __max_wg_size)
+    operator()(sycl::queue& __q, _RangeIn&& __src, _Proj __proj, std::size_t __max_wg_size)
     {
-        using __block_size_t = std::integral_constant<::std::uint16_t, __block_size>;
-        using __radix_t = std::integral_constant<::std::uint32_t, __radix>;
-        using __call_0_t = std::integral_constant<::std::uint16_t, 0>;
-        using __call_1_t = std::integral_constant<::std::uint16_t, 1>;
-        using __call_2_t = std::integral_constant<::std::uint16_t, 2>;
+        using __block_size_t = std::integral_constant<std::uint16_t, __block_size>;
+        using __radix_t = std::integral_constant<std::uint32_t, __radix>;
+        using __call_0_t = std::integral_constant<std::uint16_t, 0>;
+        using __call_1_t = std::integral_constant<std::uint16_t, 1>;
+        using __call_2_t = std::integral_constant<std::uint16_t, 2>;
         using __is_asc_t = std::integral_constant<bool, __is_asc>;
 
         using _SortKernelLoc = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -57,9 +57,10 @@ struct __subgroup_radix_sort
         // Calculate work group size based on input size and block size
         // Round up to ensure we have enough work items to cover all elements
         assert(__src.size() <= std::numeric_limits<std::uint16_t>::max());
+        assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
         const std::uint16_t __n = __src.size();
         std::uint16_t __wg_size = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __block_size);
-        __wg_size = std::min(__wg_size, __max_wg_size);
+        __wg_size = std::min(__wg_size, static_cast<std::uint16_t>(__max_wg_size));
 
         //check SLM size
         const auto __SLM_available = __check_slm_size<_KeyT>(__q, __n, __wg_size);
