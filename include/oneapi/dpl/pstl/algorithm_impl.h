@@ -3720,7 +3720,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
         assert(__state_value != 0);
 
         // Check correct memory state
-        [[maybe_unused]] constexpr _UT __valid_bits = static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
+        [[maybe_unused]] constexpr _UT __valid_bits =
+            static_cast<_UT>(oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut);
         assert((__state_value & (~__valid_bits)) == 0);
 
         return (__state_value & static_cast<_UT>(__checking_mask_state)) == static_cast<_UT>(__checking_mask_state);
@@ -3731,7 +3732,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     _ExecutionPolicy& __exec;
 
     bool __reached_pos_evaluated = false;
-    bool __reached_pos_evaluated_due_output_size = false; // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
+    // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
+    bool __reached_pos_evaluated_due_output_size = false;
     bool __output_pos_reached = false;
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
     _DifferenceTypeOut __n_out = {}; // Size of output range
