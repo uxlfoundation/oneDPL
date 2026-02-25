@@ -283,7 +283,10 @@ template <typename _Size>
 __parallel_set_op_mask*
 __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count) noexcept
 {
-    return std::fill_n(__mask, __count, __state);
+    for (_Size __i = 0; __i < __count; ++__i)
+        __mask[__i] = __state;
+
+    return __mask + __count;
 }
 
 template <typename _InputIterator, typename _OutputIterator>
