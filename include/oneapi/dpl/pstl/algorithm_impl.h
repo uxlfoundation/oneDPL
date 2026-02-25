@@ -3440,11 +3440,7 @@ struct _SetRangeImpl
     {
         auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
 
-//#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-//        if constexpr (true)
-//#else
         if constexpr (!__Bounded)
-//#endif
         {
             return _SetRangeImpl{__new_data_part};
         }
@@ -3462,15 +3458,9 @@ struct _SetRangeImpl
 };
 
 // __Bounded state for non-range set operations
-#define IMPLEMENT_SET_OP_AS_BOUNDED                             true
+#define IMPLEMENT_SET_OP_AS_BOUNDED              true
 #if IMPLEMENT_SET_OP_AS_BOUNDED
-#    define CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS             1
-#    if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#        define FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS           1
-#        if FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-#            define ALWAYS_RECALCULATE_REACHED_POSITIONS        1
-#        endif
-#    endif
+#    define ALWAYS_RECALCULATE_REACHED_POSITIONS 1
 #endif
 
 struct _SetRangeCombiner
@@ -3492,7 +3482,6 @@ template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Out
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
-#if CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 template <bool __Bounded>
 struct __mask_buffers;
 
@@ -3556,22 +3545,6 @@ struct __mask_buffers<false>
         return nullptr;
     }
 };
-#else
-template <bool __Bounded>
-struct __mask_buffers
-{
-    using _mask_ptr_t = std::nullptr_t;
-    using _difference_t = std::ptrdiff_t;
-
-    __mask_buffers(std::size_t) {}
-
-    _mask_ptr_t
-    get_buf_mask_rng_data(std::size_t = 0)
-    {
-        return nullptr;
-    }
-};
-#endif // CREATE_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
 
 template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
 struct _SourceFinalPosEvaluatorData
@@ -4021,11 +3994,7 @@ struct _ParallelSetOpStrictScanPred
                 __size_func((__b - __first1),
                             (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
-#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-            if constexpr (true)
-#else
             if constexpr (!__Bounded)
-#endif
             {
                 return _SetRange{__new_processing_data};
             }
@@ -4078,11 +4047,7 @@ struct _ParallelSetOpStrictScanPred
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
 
-#if !FILL_MASK_BUFFERS_FOR_BOUNDED_SET_OPS
-        if constexpr (true)
-#else
         if constexpr (!__Bounded)
-#endif
         {
             return _SetRange{__new_processing_data};
         }
