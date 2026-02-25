@@ -162,14 +162,6 @@ __pattern_walk1(__parallel_forward_tag, _ExecutionPolicy&& __exec, _ForwardItera
     });
 }
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
-void
-__pattern_uninitialized_walk1(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
-                              _Function __f)
-{
-    oneapi::dpl::__internal::__pattern_walk1(tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
-}
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Function>
 void
 __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
@@ -221,13 +213,6 @@ __pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     oneapi::dpl::__internal::__pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
                                              __f);
     return __first + __n;
-}
-
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
-_ForwardIterator
-__pattern_uninitialized_walk1_n(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Function __f)
-{
-    return __pattern_walk1_n(tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __f);
 }
 
 //------------------------------------------------------------------------
