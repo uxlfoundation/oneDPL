@@ -306,8 +306,7 @@ __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
                                   __par_backend_hetero::access_mode::write,
                                   /*_IsOutNoInitRequested=*/false>(
         __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
+        __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __func);
 }
 
@@ -326,8 +325,7 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
     return __pattern_hetero_walk3<__par_backend_hetero::access_mode::write,
                                   /*_IsOutNoInitRequested=*/false>(
         __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
+        __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __first3, __func);
 }
 
