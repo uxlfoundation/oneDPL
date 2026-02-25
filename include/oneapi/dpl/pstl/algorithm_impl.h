@@ -3896,6 +3896,8 @@ struct _ScanPred
     void
     operator()(_DifferenceType, _DifferenceType, const _SetRange& __s) const
     {
+        using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
+
         const _DataPart<_DifferenceType>& __data_part = __s.get_data_part();
 
         if constexpr (!__Bounded)
@@ -3905,20 +3907,46 @@ struct _ScanPred
         }
         else
         {
-            // Copy source data (bounded)
-            const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
-            if (__remaining_data_size > 0)
-                __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
-
-            // Copy mask data
             const _MaskPart<_DifferenceType>& __mask_part = __s.get_mask_part();
-            const auto [__write_mask_needed, __output_pos_reached_on_this_part] = __need_write_mask(__data_part, __s.get_source_copied_data_counts_part());
-            if (__write_mask_needed)
-                __copy_mask_to_result_buf(__mask_part);
+            const auto __copied_data_counts = __s.get_source_copied_data_counts_part();
+
+            const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
+
+            bool __output_pos_reached_on_this_part = false;
+            const bool __write_mask_needed = __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
+
+            if (__remaining_data_size > 0 && __write_mask_needed)
+            {
+                __par_backend::__parallel_invoke(
+                    __backend_tag{}, __exec,
+                    [&]() {
+                        // Copy source data (bounded)
+                        __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+                    },
+                    [&]() {
+                        // Copy mask data
+                        __copy_mask_to_result_buf(__mask_part);
+                    });
+            }
+            else
+            {
+                if (__remaining_data_size > 0)
+                {
+                    // Copy source data (bounded)
+                    __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+                }
+
+                if (__write_mask_needed)
+                {
+                    // Copy mask data
+                    __copy_mask_to_result_buf(__mask_part);
+                }
+            }
 
             if (__output_pos_reached_on_this_part)
-                __source_final_pos_evaluator.__on_output_pos_reached(__data_part, __mask_part,
-                                                                     __s.get_source_data_offsets_part());
+            {
+                __source_final_pos_evaluator.__on_output_pos_reached(__data_part, __mask_part, __s.get_source_data_offsets_part());
+            }
         }
     }
 
@@ -3990,11 +4018,12 @@ struct _ScanPred
     }
 
     template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceType>
-    std::tuple<bool, bool>
+    bool
     __need_write_mask(const _DataPart<_DifferenceType>& __data_part,
-                      const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>& __copied_data_counts) const
+                      const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>& __copied_data_counts,
+                      bool& __output_pos_reached_on_this_part) const
     {
-        bool __output_pos_reached_on_this_part = false;
+        __output_pos_reached_on_this_part = false;
 
         //                                                                  We should write masks from these parts
         //                                                                                    |
@@ -4025,28 +4054,31 @@ struct _ScanPred
 
         // First parts condition
         if (__data_part.__pos <= __n_out && __n_out <= __data_part.__pos + __data_part.__len)
-            return {true, true};
+        {
+            __output_pos_reached_on_this_part = true;
+            return true;
+        }
 
         // Middle parts condition
         if (__n_out < __data_part.__pos && __data_part.__pos + __data_part.__len <= __n_out + 1)
-            return {true, false};
+            return true;
 
         // Last part condition
         if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
-            return {true, false};
+            return true;
 
         // Copy the rest of parts where no copied data from the first range or from the second range
         if (__n_out <= __data_part.__pos + __data_part.__len &&
             (__copied_data_counts.__copied_from1 == 0 || __copied_data_counts.__copied_from2 == 0))
         {
-            return {true, false};
+            return true;
         }
 
 #if EVAL_REACHED_POS_FROM_START
-        return {true, false};
+        return true;
 #endif
 
-        return {false, false};
+        return false;
     }
 
     // Move it1 forward by n, but not beyond it2
