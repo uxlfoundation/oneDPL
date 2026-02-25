@@ -3656,14 +3656,17 @@ struct _SourceFinalPosEvaluatorData
     _DifferenceTypeOut __reached_pos_out = {}; // Reached position in the output range
 };
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut, bool __Bounded>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut, class _SizeFunction, bool __Bounded>
 struct _SourceFinalPosEvaluator;
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, false>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut, class _SizeFunction>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                _SizeFunction, false>
 {
     _SourceFinalPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _DifferenceType1 __n1, _DifferenceType2 __n2,
-                             _DifferenceTypeOut /*__n_out*/)
+                             _DifferenceTypeOut /*__n_out*/, _SizeFunction)
     {
         __res_data.__reached_pos1 = __n1;
         __res_data.__reached_pos2 = __n2;
@@ -3692,15 +3695,22 @@ protected:
 #define EVAL_REACHED_POS_IN_PARALLEL 1
 #define EVAL_REACHED_POS_FROM_START  2
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut, true>
+template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
+          typename _DifferenceTypeOut, class _SizeFunction>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
+                                _SizeFunction, true>
 {
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-    _SourceFinalPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec,
-                             _DifferenceType1 __n1, _DifferenceType2 __n2, _DifferenceTypeOut __n_out)
+    _SourceFinalPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec, _DifferenceType1 __n1,
+                             _DifferenceType2 __n2, _DifferenceTypeOut __n_out, _SizeFunction __size_func)
         : __tag(__tag), __exec(__exec), __res_data{__n1, __n2, 0}, __n_out(__n_out)
     {
+        if (__size_func(__n1, __n2) <= __n_out)
+        {
+            // No calculation of reached positions in the first and in the second input ranges neeeded due we have enough output buffer size to place all data from input ranges
+            __reached_pos_evaluated_due_output_size = true;
+        }
     }
 
     void
@@ -3711,7 +3721,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
         __data_part = __data_part_arg;
         __mask_part = __mask_part_arg;
         __source_data_offsets = __source_data_offsets_arg;
-        __reached_pos_found = false;
+        __reached_pos_evaluated = false;
         __output_pos_reached = true;
     }
 
@@ -3727,14 +3737,17 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
     __get_reached_positions(const __mask_buffers<__Bounded>& __mask_bufs)
     {
-        if (!__reached_pos_found)
+        if (!__reached_pos_evaluated_due_output_size)
         {
-            if (__output_pos_reached)
+            if (!__reached_pos_evaluated && __output_pos_reached)
             {
                 std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_positions(__mask_bufs);
-                __reached_pos_found = true;
+                __reached_pos_evaluated = true;
             }
-
+        }
+        else
+        {
+            __reached_pos_evaluated = true;
         }
 
         return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
@@ -3855,7 +3868,8 @@ protected:
     __parallel_tag<_IsVector> __tag;
     _ExecutionPolicy& __exec;
 
-    bool __reached_pos_found = false;
+    bool __reached_pos_evaluated = false;
+    bool __reached_pos_evaluated_due_output_size = false; // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
     bool __output_pos_reached = false;
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
     _DifferenceTypeOut __n_out = {}; // Size of output range
@@ -4316,7 +4330,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
         _SetRangeCombiner __combine_pred;
 
-        _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __Bounded> __source_final_pos_evaluator(__tag, __exec, __n1, __n2, __n_out);
+        _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput,
+                                 _SizeFunction, __Bounded>
+            __source_final_pos_evaluator(__tag, __exec, __n1, __n2, __n_out, __size_func);
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator, decltype(__source_final_pos_evaluator)>
