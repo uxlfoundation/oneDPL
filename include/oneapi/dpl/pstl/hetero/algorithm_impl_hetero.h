@@ -914,7 +914,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
     auto __buf2 = __keep2(__result_first, __result_first + __n);
 
     std::size_t __num_copied = __par_backend_hetero::__parallel_copy_if(_BackendTag{},
-        std::forward<_ExecutionPolicy>(__exec),__buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
+        std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __n, __pred)[0];
 
     return __result_first + __num_copied;
 }
@@ -962,8 +962,8 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _BinaryPredicate>
 _Iterator2
-__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
-                      _Iterator2 __result_first, _BinaryPredicate __pred)
+__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, 
+                      _Iterator1 __last, _Iterator2 __result_first, _BinaryPredicate __pred)
 {
     using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
 
