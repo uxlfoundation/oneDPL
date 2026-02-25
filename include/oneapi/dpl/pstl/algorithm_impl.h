@@ -3777,7 +3777,8 @@ struct _ScanPred
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
 
             bool __output_pos_reached_on_this_part = false;
-            const bool __write_mask_needed = __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
+            const bool __write_mask_needed =
+                __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
 
             if (__remaining_data_size > 0 && __write_mask_needed)
             {
@@ -3809,7 +3810,8 @@ struct _ScanPred
 
             if (__output_pos_reached_on_this_part)
             {
-                __source_final_pos_evaluator.__on_output_pos_reached(__data_part, __mask_part, __s.get_source_data_offsets_part());
+                __source_final_pos_evaluator.__on_output_pos_reached(__data_part, __mask_part,
+                                                                     __s.get_source_data_offsets_part());
             }
         }
     }
