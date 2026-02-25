@@ -21,6 +21,7 @@
 
 #if _ONEDPL_HETERO_BACKEND
 #    include "hetero/algorithm_impl_hetero.h"
+#    include "hetero/memory_impl_hetero.h"
 #endif
 
 #include "memory_fwd.h"
