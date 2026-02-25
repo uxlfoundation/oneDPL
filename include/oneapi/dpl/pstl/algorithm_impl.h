@@ -3399,22 +3399,6 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
     });
 }
 
-template <typename _SetOp>
-struct __swap_set_op
-{
-    _SetOp __set_op;
-
-    template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _OutputIterator,
-              typename _Compare, typename _Proj1, typename _Proj2>
-    _OutputIterator
-    operator()(_RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, _RandomAccessIterator1 __first1,
-               _RandomAccessIterator1 __last1, _OutputIterator __result, _Compare __comp, _Proj2 __proj2,
-               _Proj1 __proj1) const
-    {
-        return __set_op(__first1, __last1, __first2, __last2, __result, __comp, __proj1, __proj2);
-    }
-};
-
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SetUnionOp, class _Compare, class _Proj1, class _Proj2>
@@ -3517,20 +3501,10 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
                 __internal::__pattern_walk2_brick(__tag, __exec, __first2, __begin2, __res_or, __copy_range);
         },
         [=, &__exec, &__result] {
-            if (__n1 >= __n2)
-            {
-                __result = __internal::__parallel_set_op(
-                    __tag, __exec, __begin1, __last1, __begin2, __last2, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
-                    __proj2);
-            }
-            else
-            {
-                __result = __internal::__parallel_set_op(
-                    __tag, __exec, __begin2, __last2, __begin1, __last1, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
-                    __swap_set_op<_SetUnionOp>{__set_union_op}, __comp, __proj2, __proj1);
-            }
+            __result = __internal::__parallel_set_op(
+                __tag, __exec, __begin1, __last1, __begin2, __last2, __result,
+                [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; }, __set_union_op, __comp, __proj1,
+                __proj2);
         });
     return __result;
 }
