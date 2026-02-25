@@ -273,14 +273,14 @@ __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __sta
 }
 
 template <typename _Size>
-std::nullptr_t
+inline std::nullptr_t
 __set_iterator_mask_n(std::nullptr_t, __parallel_set_op_mask, _Size) noexcept
 {
     return nullptr;
 }
 
 template <typename _Size>
-__parallel_set_op_mask*
+inline __parallel_set_op_mask*
 __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count) noexcept
 {
     for (_Size __i = 0; __i < __count; ++__i)
