@@ -926,8 +926,8 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterato
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _Iterator3, typename _UnaryPredicate>
 ::std::pair<_Iterator2, _Iterator3>
-__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
-                         _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
+__pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first,
+                         _Iterator1 __last, _Iterator2 __result1, _Iterator3 __result2, _UnaryPredicate __pred)
 {
     if (__first == __last)
         return ::std::make_pair(__result1, __result2);
@@ -962,8 +962,8 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
           typename _BinaryPredicate>
 _Iterator2
-__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, 
-                      _Iterator1 __last, _Iterator2 __result_first, _BinaryPredicate __pred)
+__pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first, _Iterator1 __last,
+                      _Iterator2 __result_first, _BinaryPredicate __pred)
 {
     using _It1DifferenceType = typename ::std::iterator_traits<_Iterator1>::difference_type;
 
