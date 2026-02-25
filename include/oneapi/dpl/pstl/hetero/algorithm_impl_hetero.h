@@ -1075,9 +1075,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode,
-                                  __par_backend_hetero::access_mode::read_write,
-                                  /*_IsOutNoInitRequested=*/false>(
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                                  /*_IsOutNoInitRequested=*/true>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
 }
