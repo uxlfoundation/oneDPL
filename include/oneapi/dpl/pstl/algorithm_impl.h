@@ -3848,8 +3848,6 @@ struct _ScanPred
     __need_write_mask(const _DataPart<_DifferenceType>& __data_part,
                       const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>& __copied_data_counts) const
     {
-        bool __output_pos_reached_on_this_part = false;
-
         //                                                                  We should write masks from these parts
         //                                                                                    |
         //                                                                                    V
