@@ -736,8 +736,6 @@ struct __parallel_multi_group_radix_sort
         __keys_per_wi_count = std::max(__keys_per_wi_count, __absolute_min_keys_per_wi);
         __keys_per_wi_count = std::min(__keys_per_wi_count, __absolute_max_keys_per_wi);
 
-        constexpr std::uint32_t __unroll_elements = 8;
-
         const ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
 
