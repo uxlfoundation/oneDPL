@@ -680,14 +680,10 @@ struct __get_sycl_range
     }
 
     //specialization for sycl_iterator (applies access mode resolution)
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter,
+              std::enable_if_t<is_sycl_iterator<_Iter>::value, int> = 0>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> std::enable_if_t<is_sycl_iterator<_Iter>::value,
-                            __range_holder<oneapi::dpl::__ranges::all_view<
-                                val_t<_Iter>, __iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
-                                __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
-                                __dpl_sycl::__target_device, sycl::access::placeholder::true_t>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
