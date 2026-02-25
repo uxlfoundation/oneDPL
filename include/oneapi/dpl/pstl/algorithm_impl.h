@@ -3596,7 +3596,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     {
         if (__size_func(__n1, __n2) <= __n_out)
         {
-            // No calculation of reached positions in the first and in the second input ranges neeeded due we have enough output buffer size to place all data from input ranges
+            // No calculation of reached positions in the first and in the second input ranges needed due we have enough output buffer size to place all data from input ranges
             __reached_pos_evaluated_due_output_size = true;
         }
     }
