@@ -3303,10 +3303,10 @@ inline constexpr auto __set_algo_cut_off = 1000;
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
 _OutputIterator
-__parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
-                  _Proj2 __proj2)
+__parallel_set_op_impl(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                       _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3397,6 +3397,38 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             });
         return __result + __m;
     });
+}
+
+// Thin wrapper over __parallel_set_op_impl that always partitions the larger range.
+// When range2 is larger, it swaps ranges and wraps __set_op / __size_func / projections
+// so that the leaf operation still sees the caller's original range order. This is
+// important to satisfy semantic requirements to use elements from the first sequence in
+// the output when elements are equivalent.
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
+_OutputIterator
+__parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
+                  _Proj2 __proj2)
+{
+    const auto __n1 = __last1 - __first1;
+    const auto __n2 = __last2 - __first2;
+
+    if (__n1 >= __n2)
+    {
+        return __parallel_set_op_impl(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                                      __last2, __result, __size_func, __set_op, __comp, __proj1, __proj2);
+    }
+    // Partition the larger range2, wrapping callbacks to preserve
+    // the caller's original range order for the leaf operation.
+    return __parallel_set_op_impl(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first1, __last1, __result,
+        [&__size_func](auto __n, auto __m) { return __size_func(__m, __n); },
+        [&__set_op](auto __f2, auto __l2, auto __f1, auto __l1, auto* __res, auto __comp, auto __p2, auto __p1) {
+            return __set_op(__f1, __l1, __f2, __l2, __res, __comp, __p1, __p2);
+        },
+        __comp, __proj2, __proj1);
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
@@ -3681,41 +3713,18 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     const _DifferenceType __total_work = __n1 + __n2;
     if (__total_work > __set_algo_cut_off)
     {
-        return __internal::__except_handler([&]() {
-            // Decide which range to partition based on size
-            if (__n1 >= __n2)
-            {
-                return __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                    [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
-                       _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result,
-                       _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
-                        return oneapi::dpl::__utils::__set_intersection_construct(
-                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
-                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                            oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                    },
-                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            }
-            else
-            {
-                return __internal::__parallel_set_op(
-                    __tag, std::forward<_ExecutionPolicy>(__exec), __begin2, __last2, __begin1, __last1, __result,
-                    [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                    [](_RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2,
-                       _RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1, _T* __result,
-                       _Compare __comp, oneapi::dpl::identity, oneapi::dpl::identity) {
-                        // Lambda params: __lmda_first1 = iter of range2, __lmda_first2 = iter of range1
-                        // Swap to pass logical range1 first for semantic correctness (must copy from first range)
-                        return oneapi::dpl::__utils::__set_intersection_construct(
-                            __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
-                            oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                            oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                    },
-                    __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-            }
-        });
+        return __internal::__parallel_set_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2, __result,
+            [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+            [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
+               _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result, _Compare __comp,
+               oneapi::dpl::identity, oneapi::dpl::identity) {
+                return oneapi::dpl::__utils::__set_intersection_construct(
+                    __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
     }
 
     // Work too small for parallelization - use serial algorithm
