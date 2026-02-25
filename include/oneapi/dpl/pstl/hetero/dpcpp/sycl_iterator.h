@@ -134,33 +134,34 @@ struct sycl_iterator
 
 // map access_mode tag to access_mode value
 // TODO: consider removing the logic for discard_read_write and discard_write which are deprecated in SYCL 2020
-template <typename _ModeTagT, typename _NoInitT = void>
+template <typename _ModeTagT, typename _IsNoInitRequestedT = void>
 struct __access_mode_resolver
 {
 };
 
-template <typename _NoInitT>
-struct __access_mode_resolver<std::decay_t<decltype(sycl::read_only)>, _NoInitT>
+template <typename _IsNoInitRequestedT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::read_only)>, _IsNoInitRequestedT>
 {
     static constexpr access_mode __value = access_mode::read;
 };
 
-template <typename _NoInitT>
-struct __access_mode_resolver<std::decay_t<decltype(sycl::write_only)>, _NoInitT>
+template <typename _IsNoInitRequestedT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::write_only)>, _IsNoInitRequestedT>
 {
     static constexpr access_mode __value =
-        std::is_same_v<_NoInitT, __dpl_sycl::__no_init> ? access_mode::discard_write : access_mode::write;
+        std::is_same_v<_IsNoInitRequestedT, __dpl_sycl::__no_init> ? access_mode::discard_write : access_mode::write;
 };
 
-template <typename _NoInitT>
-struct __access_mode_resolver<std::decay_t<decltype(sycl::read_write)>, _NoInitT>
+template <typename _IsNoInitRequestedT>
+struct __access_mode_resolver<std::decay_t<decltype(sycl::read_write)>, _IsNoInitRequestedT>
 {
-    static constexpr access_mode __value =
-        std::is_same_v<_NoInitT, __dpl_sycl::__no_init> ? access_mode::discard_read_write : access_mode::read_write;
+    static constexpr access_mode __value = std::is_same_v<_IsNoInitRequestedT, __dpl_sycl::__no_init>
+                                               ? access_mode::discard_read_write
+                                               : access_mode::read_write;
 };
 
-template <typename _ModeTagT, typename _NoInitT = void>
-constexpr access_mode __access_mode_resolver_v = __access_mode_resolver<_ModeTagT, _NoInitT>::__value;
+template <typename _ModeTagT, typename _IsNoInitRequestedT = void>
+constexpr access_mode __access_mode_resolver_v = __access_mode_resolver<_ModeTagT, _IsNoInitRequestedT>::__value;
 
 template <typename Iter, typename ValueType = std::decay_t<typename std::iterator_traits<Iter>::value_type>>
 using __default_alloc_vec_iter = typename std::vector<ValueType>::iterator;

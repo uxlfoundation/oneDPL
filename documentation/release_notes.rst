@@ -11,6 +11,11 @@ creating efficient heterogeneous applications.
 New in the next release
 =======================
 
+Fixed Issues
+------------
+- Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
+  instead of the corresponding libc++ versions.
+
 New in 2022.11.0
 =======================
 

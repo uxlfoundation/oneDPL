@@ -442,14 +442,14 @@ __brick_bounded_copy_if(_RandomAccessIterator1, typename std::iterator_traits<_R
                         _RandomAccessIterator2, typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
                         _UnaryPredicate, /*vector=*/std::true_type) noexcept;
 
-template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
+template <class _RandomAccessIterator, class _DifferenceType, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*,
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IndexPredicate, bool*,
                      /*vector=*/std::false_type) noexcept;
 
-template <class _RandomAccessIterator, class _DifferenceType, class _IterPredicate>
+template <class _RandomAccessIterator, class _DifferenceType, class _IndexPredicate>
 std::pair<_DifferenceType, _DifferenceType>
-__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IterPredicate, bool*,
+__brick_compute_mask(_RandomAccessIterator, _DifferenceType, _IndexPredicate, bool*,
                      /*vector=*/std::true_type) noexcept;
 
 template <bool, class _RandomAccessIterator1, class _RandomAccessIterator2, class _Bound, class _Assigner>
@@ -473,10 +473,10 @@ __brick_partition_by_mask(_RandomAccessIterator, _RandomAccessIterator, _OutputI
                           /*vector=*/::std::true_type) noexcept;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
-          class _RandomAccessIterator2, class _IterPredicate>
+          class _RandomAccessIterator2, class _IndexPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __parallel_selective_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _DifferenceType,
-                          _RandomAccessIterator2, _DifferenceType, _IterPredicate);
+                          _RandomAccessIterator2, _DifferenceType, _IndexPredicate);
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _UnaryPredicate>
 _OutputIterator
@@ -543,13 +543,20 @@ __pattern_unique(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIte
 // unique_copy
 //------------------------------------------------------------------------
 
-template <class _ForwardIterator, class OutputIterator, class _BinaryPredicate>
-OutputIterator __brick_unique_copy(_ForwardIterator, _ForwardIterator, OutputIterator, _BinaryPredicate,
-                                   /*vector=*/::std::false_type) noexcept;
+template <class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
+_OutputIterator __brick_unique_copy(_ForwardIterator, _ForwardIterator, _OutputIterator, _BinaryPredicate,
+                                    /*vector=*/std::false_type) noexcept;
 
-template <class _RandomAccessIterator, class _OutputIterator, class _BinaryPredicate>
-_OutputIterator __brick_unique_copy(_RandomAccessIterator, _RandomAccessIterator, _OutputIterator, _BinaryPredicate,
-                                    /*vector=*/::std::true_type) noexcept;
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
+_RandomAccessIterator2 __brick_unique_copy(_RandomAccessIterator1, _RandomAccessIterator1, _RandomAccessIterator2,
+                                           _BinaryPredicate, /*vector=*/std::true_type) noexcept;
+
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__brick_bounded_unique_copy(
+    _RandomAccessIterator1, typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
+    _RandomAccessIterator2, typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
+    _BinaryPredicate __pred, /*vector=*/std::true_type) noexcept;
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _OutputIterator, class _BinaryPredicate>
 _OutputIterator
@@ -561,6 +568,12 @@ template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
 _RandomAccessIterator2
 __pattern_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _RandomAccessIterator1,
                       _RandomAccessIterator2, _BinaryPredicate);
+
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
+          class _RandomAccessIterator2, class _BinaryPredicate>
+std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
+__pattern_bounded_unique_copy(__parallel_tag<_IsVector>, _ExecutionPolicy&&, _RandomAccessIterator1, _DifferenceType,
+                              _RandomAccessIterator2, _DifferenceType, _BinaryPredicate);
 
 //------------------------------------------------------------------------
 // reverse

@@ -26,9 +26,8 @@ get_directory_property(_onedpl_is_subproject PARENT_DIRECTORY)
 include(CMakeDependentOption)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-option(ONEDPL_FPGA_STATIC_REPORT "Enable the static report generation for the FPGA device" OFF)
-option(ONEDPL_USE_AOT_COMPILATION "Enable ahead of time compilation (deprecated)" OFF)
 option(ONEDPL_ENABLE_SIMD "Enable SIMD vectorization by passing an OpenMP SIMD flag to the compiler if supported" ON)
+option(ONEDPL_CMAKE_QUIET_CHECKS "Silence output from compiler/header checks during configuration" ON)
 cmake_dependent_option(ONEDPL_TEST_WIN_ICX_FIXES "Enable icx workarounds for Windows" ON "CMAKE_HOST_WIN32;NOT _onedpl_is_subproject" OFF)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/include/oneapi/dpl/internal/version_impl.h
@@ -85,11 +84,28 @@ endforeach()
 include(CMakePackageConfigHelpers)
 include(CheckCXXCompilerFlag)
 include(CheckIncludeFileCXX)
+include(CMakePushCheckState)
 include(GNUInstallDirs)
+
+# Macro to conditionally silence compiler/header checks based on ONEDPL_CMAKE_QUIET_CHECKS
+macro(_onedpl_push_quiet_checks)
+    if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_push_check_state()
+        set(CMAKE_REQUIRED_QUIET TRUE)
+    endif()
+endmacro()
+
+macro(_onedpl_pop_quiet_checks)
+    if (ONEDPL_CMAKE_QUIET_CHECKS)
+        cmake_pop_check_state()
+    endif()
+endmacro()
 
 # Detect SYCL support
 if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
     message(STATUS "Checking for SYCL support")
+
+    _onedpl_push_quiet_checks()
 
     set(FSYCL_OPTION "-fsycl")
     check_cxx_compiler_flag(${FSYCL_OPTION} _fsycl_option)
@@ -104,6 +120,8 @@ if (NOT DEFINED ONEDPL_BACKEND OR ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
     if (SYCL_HEADER OR SYCL_HEADER_OLD)
         set(SYCL_SUPPORT TRUE)
     endif()
+
+    _onedpl_pop_quiet_checks()
 
     if (SYCL_SUPPORT)
         message(STATUS "SYCL is supported")
@@ -155,6 +173,7 @@ if (ONEDPL_ENABLE_SIMD)
     # TODO: check if -openmp:experimental can be used
     if ((NOT INTEL_LLVM_COMPILER AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
+        _onedpl_push_quiet_checks()
         foreach(_simd_flag -fopenmp-simd /Qopenmp-simd -qopenmp-simd -openmp-simd)
             string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_DISPLAY_NAME)
             check_cxx_compiler_flag(${_simd_flag} ${FLAG_DISPLAY_NAME}_option)
@@ -164,6 +183,7 @@ if (ONEDPL_ENABLE_SIMD)
                 break()
             endif()
         endforeach()
+        _onedpl_pop_quiet_checks()
     endif()
 
     if (_simd_enabled_flag)
@@ -212,95 +232,29 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         $<$<BOOL:${SET_BACKEND_TBB}>:ONEDPL_USE_DPCPP_BACKEND=0>
         )
 
+    # Add error for removed feature ONEDPL_DEVICE_TYPE if used
+    if (DEFINED ONEDPL_DEVICE_TYPE OR DEFINED ONEDPL_DEVICE_BACKEND)
+        set(device_backend "*")
+        set(device_type "*")
+        if (DEFINED ONEDPL_DEVICE_TYPE)
+            string(TOLOWER "${ONEDPL_DEVICE_TYPE}" device_type)
+        endif()
+        if (DEFINED ONEDPL_DEVICE_BACKEND)
+            string(TOLOWER "${ONEDPL_DEVICE_BACKEND}" device_backend)
+        endif()
+        message(FATAL_ERROR "ONEDPL_DEVICE_TYPE and ONEDPL_DEVICE_BACKEND cmake settings have been removed.\nUse environment variable \"ONEAPI_DEVICE_SELECTOR=${device_backend}:${device_type}\" before running instead for the same effect.")
+    endif()
+
+    if (DEFINED ONEDPL_USE_AOT_COMPILATION)
+        message(FATAL_ERROR "ONEDPL_USE_AOT_COMPILATION is has been removed, instead use -fsycl-targets directly to CMAKE_CXX_FLAGS to specify ahead-of-time compilation targets.")
+    endif()
+
+
     if (ONEDPL_BACKEND MATCHES "^(dpcpp|dpcpp_only)$")
-        # check device type for oneDPL test targets
-        if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW)$")
-            if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-                message(FATAL_ERROR "PSTL offload does device selection on its own, ONEDPL_DEVICE_TYPE ${ONEDPL_DEVICE_TYPE} is useless.")
-            endif()
-            message(STATUS "Using ${ONEDPL_DEVICE_TYPE} device type")
-            set(ONEDPL_USE_DEVICE_${ONEDPL_DEVICE_TYPE} TRUE)
-        elseif (DEFINED ONEDPL_DEVICE_BACKEND)
-            message(FATAL_ERROR "Unsupported device type: ${ONEDPL_DEVICE_TYPE}.\n"
-                "Select one of the following devices: CPU, GPU, FPGA_EMU or FPGA_HW")
-        elseif (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-            # PSTL offload does device selection on its own
-        else()
-            set(ONEDPL_DEVICE_TYPE "GPU")
-            message(STATUS "Using a default device type (GPU)")
-        endif()
 
-        # check device backend
-        if (ONEDPL_DEVICE_BACKEND MATCHES "^(opencl|level_zero|cuda|hip|\\*)$")
-            message(STATUS "Using ${ONEDPL_DEVICE_BACKEND} device backend")
-        elseif (DEFINED ONEDPL_DEVICE_BACKEND)
-            message(FATAL_ERROR "Unsupported device backend: ${ONEDPL_DEVICE_BACKEND}.\n"
-                "Select one of the following device backends: opencl, level_zero, cuda, hip or *")
-        else()
-            set(ONEDPL_DEVICE_BACKEND "*")
-            message(STATUS "Using a default device backend (*)")
-        endif()
+        #DPC++ specific compiler options
+        target_compile_options(oneDPL INTERFACE ${FSYCL_OPTION_IF_SUPPORTED})
 
-        if (INTEL_LLVM_COMPILER AND INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2023.1)
-            set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
-            set(FPGA_DEVICE_TYPE "acc")
-        else()
-            set(DEVICE_SELECTION_VARIABLE "ONEAPI_DEVICE_SELECTOR")
-            set(FPGA_DEVICE_TYPE "fpga")
-        endif()
-
-        # set up device selection line basing on ONEDPL_DEVICE_BACKEND and ONEDPL_DEVICE_TYPE values
-        if (DEFINED ONEDPL_DEVICE_BACKEND AND DEFINED ONEDPL_DEVICE_TYPE)
-            if (ONEDPL_DEVICE_TYPE MATCHES "FPGA")
-                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${FPGA_DEVICE_TYPE}")
-            else()
-                string(TOLOWER ${ONEDPL_DEVICE_TYPE} ONEDPL_DEVICE_TYPE)
-                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${ONEDPL_DEVICE_TYPE}")
-            endif()
-        endif()
-
-        # Check correctness of STATIC_REPORT
-        if (ONEDPL_FPGA_STATIC_REPORT)
-            if (NOT ONEDPL_USE_DEVICE_FPGA_HW)
-                message(FATAL_ERROR "Static report can only be generated for FPGA hardware")
-            else()
-                message(STATUS "Static report will be generated")
-            endif()
-        endif()
-
-        # settings for the specific compilation type
-        if (NOT ONEDPL_USE_AOT_COMPILATION)
-            message(STATUS "Using just-in-time compilation")
-        else()
-            message(WARNING "ONEDPL_USE_AOT_COMPILATION is deprecated and will be removed in a future release")
-            if (NOT ONEDPL_AOT_ARCH)
-                if (ONEDPL_USE_DEVICE_GPU)
-                    set(ONEDPL_AOT_ARCH "*")
-                endif()
-                if (ONEDPL_USE_DEVICE_CPU)
-                    set(ONEDPL_AOT_ARCH "avx")
-                endif()
-            else()
-                message(WARNING "ONEDPL_AOT_ARCH is deprecated and will be removed in a future release")
-            endif()
-            message(STATUS "Using ahead-of-time compilation for \"${ONEDPL_AOT_ARCH}\" architecture(s)")
-
-            if (ONEDPL_USE_DEVICE_GPU)
-                # -cl-kernel-debug-enable is not needed since https://github.com/intel/compute-runtime/commit/9c237d99ec49ceb3678c815314bc7c745226e4a2
-                # TODO: remove that option when older driver versions are not expected to be used
-                set(ONEDPL_AOT_EXTRA_BACKEND_OPTIONS "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-internal_options -cl-kernel-debug-enable>")
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_gen -Xs \"-device ${ONEDPL_AOT_ARCH} ${ONEDPL_AOT_EXTRA_BACKEND_OPTIONS}\"")
-            endif()
-            if (ONEDPL_USE_DEVICE_CPU)
-                set(ONEDPL_AOT_OPTIONS "-fsycl-targets=spir64_x86_64 -Xs \"-march=${ONEDPL_AOT_ARCH}\"")
-            endif()
-        endif()
-
-        # DPC++ specific compiler options
-        target_compile_options(oneDPL INTERFACE
-            ${FSYCL_OPTION_IF_SUPPORTED}
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
-            )
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
             if(ONEDPL_USE_UNNAMED_LAMBDA)
                 message(STATUS "Adding -fsycl-unnamed-lambda option")
@@ -321,20 +275,9 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             endif()
         endif()
 
-        # DPC++ specific macro
-        target_compile_definitions(oneDPL INTERFACE
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:ONEDPL_FPGA_DEVICE>
-            $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>:ONEDPL_FPGA_EMULATOR>
-            )
-
         # DPC++ specific link options
-        target_link_libraries(oneDPL INTERFACE
-            ${FSYCL_OPTION_IF_SUPPORTED}
-            $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
-            $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
-            $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
-            ${ONEDPL_AOT_OPTIONS}
-            )
+        target_link_libraries(oneDPL INTERFACE ${FSYCL_OPTION_IF_SUPPORTED})
+
     endif()
 
 elseif(ONEDPL_BACKEND MATCHES "^(serial)$")
@@ -392,7 +335,9 @@ if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
         message(FATAL_ERROR "Unknown value of _ONEDPL_PSTL_OFFLOAD = ${_ONEDPL_PSTL_OFFLOAD}")
     endif()
 
+    _onedpl_push_quiet_checks()
     check_cxx_compiler_flag("${FSYCL_PSTL_OFFLOAD_OPTION}" _fsycl_pstl_offload_option)
+    _onedpl_pop_quiet_checks()
     if (_fsycl_pstl_offload_option)
         message(STATUS "Adding ${FSYCL_PSTL_OFFLOAD_OPTION} compiler option")
         target_compile_options(oneDPL INTERFACE ${FSYCL_PSTL_OFFLOAD_OPTION})
