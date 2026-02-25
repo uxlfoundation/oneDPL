@@ -3373,19 +3373,6 @@ struct _SourceProcessingDataOffsets
     }
 };
 
-template <typename _DifferenceType1, typename _DifferenceType2>
-struct _SourceCopiedDataCounts
-{
-    _DifferenceType1 __copied_from1 = {}; // The amount of data copied from the first input range to the output range
-    _DifferenceType2 __copied_from2 = {}; // The amount of data copied from the second input range to the output range
-
-    static _SourceCopiedDataCounts
-    combine_with(const _SourceCopiedDataCounts& __a, const _SourceCopiedDataCounts& __b)
-    {
-        return {__a.__copied_from1 + __b.__copied_from1, __a.__copied_from2 + __b.__copied_from2};
-    }
-};
-
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
           typename _DifferenceTypeMask>
@@ -3394,14 +3381,13 @@ struct _SetRangeImpl
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _MaskDataIndex = 1;
     static constexpr std::size_t _SourceDataOffsetsIndex = 2;
-    static constexpr std::size_t _SourceCopiedDataCountsIndex = 3;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-    using _DataStorage = std::conditional_t<!__Bounded, _DataPart<_DifferenceType>,
-                                            std::tuple<_DataPart<_DifferenceType>, _MaskPart<_DifferenceType>,
-                                                       _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>,
-                                                       _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>>>;
+    using _DataStorage =
+        std::conditional_t<!__Bounded, _DataPart<_DifferenceType>,
+                           std::tuple<_DataPart<_DifferenceType>, _MaskPart<_DifferenceType>,
+                                      _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>>>;
 
     _DataStorage __data;
 
@@ -3428,13 +3414,6 @@ struct _SetRangeImpl
         return std::get<_SourceDataOffsetsIndex>(__data);
     }
 
-    const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>&
-    get_source_copied_data_counts_part() const
-    {
-        static_assert(__Bounded, "Source copied data counts part is available only for bounded set operations");
-        return std::get<_SourceCopiedDataCountsIndex>(__data);
-    }
-
     static _SetRangeImpl
     combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
@@ -3449,9 +3428,7 @@ struct _SetRangeImpl
             typename _SetRangeImpl::_DataStorage __ds{
                 __new_data_part, _MaskPart<_DifferenceType>::combine_with(__a.get_mask_part(), __b.get_mask_part()),
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(
-                    __a.get_source_data_offsets_part(), __b.get_source_data_offsets_part()),
-                _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>::combine_with(
-                    __a.get_source_copied_data_counts_part(), __b.get_source_copied_data_counts_part())};
+                    __a.get_source_data_offsets_part(), __b.get_source_data_offsets_part())};
             return _SetRangeImpl{__ds};
         }
     }
@@ -3772,13 +3749,11 @@ struct _ScanPred
         else
         {
             const _MaskPart<_DifferenceType>& __mask_part = __s.get_mask_part();
-            const auto __copied_data_counts = __s.get_source_copied_data_counts_part();
 
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
 
             bool __output_pos_reached_on_this_part = false;
-            const bool __write_mask_needed =
-                __need_write_mask(__data_part, __copied_data_counts, __output_pos_reached_on_this_part);
+            const bool __write_mask_needed = __need_write_mask(__data_part, __output_pos_reached_on_this_part);
 
             if (__remaining_data_size > 0 && __write_mask_needed)
             {
@@ -3872,38 +3847,29 @@ struct _ScanPred
                                                 __mask_res_buf_pos_begin + __mask_part.__pos, _IsVector{});
     }
 
-    template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceType>
+    template <typename _DifferenceType>
     bool
-    __need_write_mask(const _DataPart<_DifferenceType>& __data_part,
-                      const _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2>& __copied_data_counts,
-                      bool& __output_pos_reached_on_this_part) const
+    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
     {
         __output_pos_reached_on_this_part = false;
 
-        //                                                                  We should write masks from these parts
+        //                                                             We should write masks from these parts: (1) - (5)
         //                                                                                    |
         //                                                                                    V
-        //                                              +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //                                              |                                                                               |
-        //                           (1).__buf_pos   (1).__buf_pos + (1).__len                                                          |
-        //                              |            (2).__buf_pos   (2).__buf_pos + (2).__len                                          |
-        //                              |               |            (3).__buf_pos   (3).__buf_pos + (3).__len                          |
-        //                              |               |               |            (4).__buf_pos   (4).__buf_pos + (4).__len          |
-        //                              |               |               |               |            (5).__buf_pos   (5).__buf_pos + (5).__len
-        //                              |               |               |               |               |               |            (6).__buf_pos   (6).__buf_pos + (1).__len
+        //                                              +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        //                                              |                                                                         |
+        //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
-        //                              V               V               V               V               V               V               V               V
-        // Temporary buffer: [..........................................................................................................................)
+        //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
+        // Temporary buffer: [..............................................................................................................................)
         //
-        //                               (2).__pos       (2).__pos + (2).__len
-        //                                  |               |                           (5).__pos       (5).__pos + (5).__len
+        //                               (2).__pos       (2).__pos + _len               (5).__pos       (5).__pos + (5).__len
+        //                                  |               |                              |               |
         //                                  V               V                              V               V
-        // Result buffer:    [.......................)................................................X
+        // Result buffer:    [.......................)................................................X.............................
         //                                           ^                                                ^
         //                                           |                                                |
-        //                                         __n_out                                          __n_out + 1
-        // where                  __n_out = __copied_from1(11) + __copied_from2(12)
-        // where                                                               __n_out + 1 = __copied_from1(21) + __copied_from2(22)
+        // Positions in result buffer:             __n_out                                          __n_out + 1
 
         const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -3921,13 +3887,6 @@ struct _ScanPred
         // Last part condition
         if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
             return true;
-
-        // Copy the rest of parts where no copied data from the first range or from the second range
-        if (__n_out <= __data_part.__pos + __data_part.__len &&
-            (__copied_data_counts.__copied_from1 == 0 || __copied_data_counts.__copied_from2 == 0))
-        {
-            return true;
-        }
 
         return false;
     }
@@ -4014,10 +3973,9 @@ struct _ParallelSetOpStrictScanPred
                         (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{};
-                _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2> __new_copied_data_counts{};
-
+                
                 typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data,
-                                                     __new_offsets_to_processing_data, __new_copied_data_counts};
+                                                     __new_offsets_to_processing_data};
 
                 return _SetRange{_ds};
             }
@@ -4042,7 +4000,7 @@ struct _ParallelSetOpStrictScanPred
 
         auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__mask_buf_pos);
 
-        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached, __copied_from_1, __copied_from_2] =
+        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_union_op(__b, __e, __bb, __ee, __buffer_b, __mask_b, __comp, __proj1, __proj2);
 
         if constexpr (__Bounded)
@@ -4064,11 +4022,8 @@ struct _ParallelSetOpStrictScanPred
             _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                 __b - __first1, __bb - __first2};
 
-            _SourceCopiedDataCounts<_DifferenceType1, _DifferenceType2> __new_copied_data_counts{__copied_from_1,
-                                                                                                 __copied_from_2};
-
             typename _SetRange::_DataStorage _ds{__new_processing_data, __new_mask_data,
-                                                 __new_offsets_to_processing_data, __new_copied_data_counts};
+                                                 __new_offsets_to_processing_data};
 
             return _SetRange{_ds};
         }
