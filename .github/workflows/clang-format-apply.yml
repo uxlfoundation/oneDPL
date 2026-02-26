@@ -3,13 +3,6 @@ name: Apply clang-format
 on:
   issue_comment:
     types: [created]
-  # TODO: Remove workflow_dispatch before merging to main
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to apply clang-format to'
-        required: true
-        type: number
 
 permissions:
   contents: write
@@ -17,14 +10,11 @@ permissions:
 
 jobs:
   apply-clang-format:
-    # Only run on PR comments containing /clang-format, or manual dispatch
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format'))
+    # Only run on PR comments containing /clang-format
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format')
     runs-on: ubuntu-latest
     steps:
       - name: React with eyes to acknowledge
-        if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
         with:
           script: |
@@ -40,26 +30,20 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.eventName === 'workflow_dispatch'
-              ? ${{ github.event.inputs.pr_number || 0 }}
-              : context.issue.number;
-
             const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: prNumber
+              pull_number: context.issue.number
             });
 
-            // Permission checks only for comment trigger
-            if (context.eventName === 'issue_comment') {
-              const association = context.payload.comment.author_association;
-              const isPrAuthor = context.payload.comment.user.login === pr.data.user.login;
-              const isCollaborator = ['OWNER', 'MEMBER'].includes(association);
+            // Only collaborators and the PR author can trigger this
+            const association = context.payload.comment.author_association;
+            const isPrAuthor = context.payload.comment.user.login === pr.data.user.login;
+            const isCollaborator = ['OWNER', 'MEMBER'].includes(association);
 
-              if (!isPrAuthor && !isCollaborator) {
-                core.setFailed('Only repository members or the PR author can trigger /clang-format');
-                return;
-              }
+            if (!isPrAuthor && !isCollaborator) {
+              core.setFailed('Only repository members or the PR author can trigger /clang-format');
+              return;
             }
 
             // Cannot push to fork branches
@@ -102,7 +86,7 @@ jobs:
           fi
 
       - name: Add result reaction
-        if: always() && github.event_name == 'issue_comment'
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
