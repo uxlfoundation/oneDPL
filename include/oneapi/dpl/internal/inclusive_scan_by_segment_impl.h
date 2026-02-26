@@ -30,7 +30,7 @@
 #include "../pstl/utils.h"
 
 #if _ONEDPL_BACKEND_SYCL
-#    include "../pstl/hetero/algorithm_impl_hetero.h"
+#    include "../pstl/hetero/numeric_impl_hetero.h"
 #endif
 
 #include "../pstl/functional_impl.h" // for oneapi::dpl::identity
@@ -127,8 +127,7 @@ inclusive_scan_by_segment(Policy&& policy, InputIter1 first1, InputIter1 last1, 
 {
     using T = typename std::iterator_traits<InputIter1>::value_type;
 
-    return inclusive_scan_by_segment(std::forward<Policy>(policy), first1, last1, first2, result,
-                                     std::equal_to<T>());
+    return inclusive_scan_by_segment(std::forward<Policy>(policy), first1, last1, first2, result, std::equal_to<T>());
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator,

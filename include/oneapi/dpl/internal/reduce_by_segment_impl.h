@@ -57,7 +57,7 @@
 #include "../pstl/utils_ranges.h"
 #include "../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 #include "../pstl/ranges_defs.h"
-#include "../pstl/hetero/algorithm_impl_hetero.h"
+#include "../pstl/hetero/numeric_impl_hetero.h"
 #include "../pstl/hetero/dpcpp/sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 #endif
 
@@ -156,10 +156,10 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     CountType N = scanned_tail_flags[n - 1] + 1;
 
     // scatter the keys and accumulated values
-    oneapi::dpl::for_each(
-        std::forward<Policy>(policy), make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
-        make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
-        internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
+    oneapi::dpl::for_each(std::forward<Policy>(policy),
+                          make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
+                          make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
+                          internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
 
     // for example: result1 = {1, 2, 3, 4, 1, 3, 1, 3, 0}
     // for example: result2 = {1, 2, 3, 4, 2, 6, 2, 6, 0}
@@ -228,8 +228,7 @@ reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 fir
 {
     using T = typename std::iterator_traits<InputIt1>::value_type;
 
-    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2,
-                             std::equal_to<T>());
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, std::equal_to<T>());
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
