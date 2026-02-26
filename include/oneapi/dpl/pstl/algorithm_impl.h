@@ -3414,7 +3414,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    _DifferenceType1 __n1 = __last1 - __first1; 
+    _DifferenceType1 __n1 = __last1 - __first1;
     _DifferenceType2 __n2 = __last2 - __first2;
 
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
