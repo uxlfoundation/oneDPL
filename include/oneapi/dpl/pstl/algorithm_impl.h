@@ -3556,22 +3556,8 @@ struct __mask_buffers<true>
     using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
 
     __mask_buffers(std::size_t __mask_buf_size)
-        : __mask_buf_size(__mask_buf_size),
-          __buf_mask_rng(__mask_buf_size), __buf_mask_rng_res(__mask_buf_size)
+        : __buf_mask_rng_res(__mask_buf_size)
     {
-    }
-
-    std::size_t
-    size() const
-    {
-        return __mask_buf_size;
-    }
-
-    // Get pointer to the windowed mask buffer with offset
-    _mask_ptr_t
-    get_buf_mask_rng_data(std::size_t __offset = 0) const
-    {
-        return __buf_mask_rng.get() + __offset;
     }
 
     // Get pointer to the result mask buffer
@@ -3581,10 +3567,7 @@ struct __mask_buffers<true>
         return __buf_mask_rng_res.get() + __offset;
     }
 
-    const std::size_t __mask_buf_size = {};
-
     using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-    _MaskBuffer __buf_mask_rng;     // Temporary (windowed) buffer for the input range1 + range2 item usage mask
     _MaskBuffer __buf_mask_rng_res; // Temporary buffer for the input range1 + range2 item usage mask
 };
 
@@ -3596,13 +3579,6 @@ struct __mask_buffers<false>
 
     __mask_buffers(std::size_t)
     {
-    }
-
-    // Get pointer to the windowed mask buffer with offset
-    _mask_ptr_t
-    get_buf_mask_rng_data(std::size_t = 0) const
-    {
-        return nullptr;
     }
 
     // Get pointer to the result mask buffer
@@ -3709,7 +3685,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
     {
         // No calculation of reached positions in the first and in the second input ranges needed
         // due we have enough output buffer size to place all data from input ranges
-        __reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
+        //__reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
+        __reached_pos_evaluated_due_output_size = false;
     }
 
     void
