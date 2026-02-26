@@ -45,7 +45,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <utility>
-#include <algorithm>
+#include <iterator> // std::distance
 
 #include "../pstl/iterator_impl.h"
 #include "function.h"
@@ -78,7 +78,7 @@ class Reduce4;
 
 template <class _Tag, typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-::std::pair<OutputIterator1, OutputIterator2>
+std::pair<OutputIterator1, OutputIterator2>
 reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                        OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred,
                        BinaryOperator binary_op)
@@ -95,20 +95,20 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     //          keys_result   = { 1, 2, 3, 4, 1, 3, 1, 3, 0 } -- result1
     //          values_result = { 1, 2, 3, 4, 2, 6, 2, 6, 0 } -- result2
 
-    const auto n = ::std::distance(first1, last1);
+    const auto n = std::distance(first1, last1);
 
     if (n <= 0)
-        return ::std::make_pair(result1, result2);
+        return std::make_pair(result1, result2);
     else if (n == 1)
     {
         *result1 = *first1;
         *result2 = *first2;
-        return ::std::make_pair(result1 + 1, result2 + 1);
+        return std::make_pair(result1 + 1, result2 + 1);
     }
 
-    using FlagType = uint64_t;
+    using FlagType = std::uint64_t;
     using ValueType = typename std::iterator_traits<InputIterator2>::value_type;
-    using CountType = uint64_t;
+    using CountType = std::uint64_t;
 
     // buffer that is used to store a flag indicating if the associated key is not equal to
     // the next key, and thus its associated sum should be part of the final result
@@ -120,8 +120,8 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     mask[n] = 1;
 
     // Identify where the first key in a sequence of equivalent keys is located
-    transform(policy, first1, last1 - 1, first1 + 1, _mask.get() + 1,
-              oneapi::dpl::__internal::__not_pred<BinaryPred>(binary_pred));
+    oneapi::dpl::transform(policy, first1, last1 - 1, first1 + 1, _mask.get() + 1,
+                           oneapi::dpl::__internal::__not_pred<BinaryPred>(binary_pred));
 
     // for example: _mask = { 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1}
 
@@ -135,15 +135,16 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     oneapi::dpl::__par_backend::__buffer<FlagType> _scanned_tail_flags(n);
 
     // Compute the sum of the segments. scanned_tail_flags values are not used.
-    inclusive_scan(policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
-                   make_zip_iterator(_scanned_values.get(), _scanned_tail_flags.get()),
-                   oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, BinaryOperator>{binary_op});
+    oneapi::dpl::inclusive_scan(
+        policy, make_zip_iterator(first2, _mask.get()), make_zip_iterator(first2, _mask.get()) + n,
+        make_zip_iterator(_scanned_values.get(), _scanned_tail_flags.get()),
+        oneapi::dpl::__internal::__segmented_scan_fun<ValueType, FlagType, BinaryOperator>{binary_op});
 
     // for example: _scanned_values     = { 1, 2, 3, 4, 1, 2, 3, 6, 1, 2, 3, 6, 0 }
 
     // Compute the indices each segment sum should be written
     oneapi::dpl::exclusive_scan(policy, _mask.get() + 1, _mask.get() + n + 1, _scanned_tail_flags.get(), CountType(0),
-                                ::std::plus<CountType>());
+                                std::plus<CountType>());
 
     // for example: _scanned_tail_flags = { 0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8 }
 
@@ -154,15 +155,15 @@ reduce_by_segment_impl(_Tag, Policy&& policy, InputIterator1 first1, InputIterat
     CountType N = scanned_tail_flags[n - 1] + 1;
 
     // scatter the keys and accumulated values
-    oneapi::dpl::for_each(::std::forward<Policy>(policy),
-                          make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
-                          make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
-                          internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
+    oneapi::dpl::for_each(
+        std::forward<Policy>(policy), make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1),
+        make_zip_iterator(first1, scanned_tail_flags, mask, scanned_values, mask + 1) + n,
+        internal::scatter_and_accumulate_fun<OutputIterator1, OutputIterator2>(result1, result2));
 
     // for example: result1 = {1, 2, 3, 4, 1, 3, 1, 3, 0}
     // for example: result2 = {1, 2, 3, 4, 2, 6, 2, 6, 0}
 
-    return ::std::make_pair(result1 + N, result2 + N);
+    return std::make_pair(result1 + N, result2 + N);
 }
 
 #if _ONEDPL_BACKEND_SYCL
@@ -197,63 +198,63 @@ reduce_by_segment_impl(__internal::__hetero_tag<_BackendTag> __tag, Policy&& pol
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIterator1, OutputIterator2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
 reduce_by_segment(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
                   OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(policy, first1, first2, result1, result2);
 
-    return internal::reduce_by_segment_impl(__dispatch_tag, ::std::forward<Policy>(policy), first1, last1, first2,
+    return internal::reduce_by_segment_impl(__dispatch_tag, std::forward<Policy>(policy), first1, last1, first2,
                                             result1, result2, binary_pred, binary_op);
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2,
           typename BinaryPred>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIt1, OutputIt2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2, BinaryPred binary_pred)
 {
     using T = typename std::iterator_traits<InputIt2>::value_type;
 
-    return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
-                             ::std::plus<T>());
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
+                             std::plus<T>());
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIt1, OutputIt2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
 reduce_by_segment(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1,
                   OutputIt2 result2)
 {
     using T = typename std::iterator_traits<InputIt1>::value_type;
 
-    return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2,
-                             ::std::equal_to<T>());
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2,
+                             std::equal_to<T>());
 }
 
 template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator1,
           typename OutputIterator2, typename BinaryPred, typename BinaryOperator>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIterator1, OutputIterator2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIterator1, OutputIterator2>>
 reduce_by_key(Policy&& policy, InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
               OutputIterator1 result1, OutputIterator2 result2, BinaryPred binary_pred, BinaryOperator binary_op)
 {
-    return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred,
                              binary_op);
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2,
           typename BinaryPred>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIt1, OutputIt2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
 reduce_by_key(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1, OutputIt2 result2,
               BinaryPred binary_pred)
 {
-    return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred);
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2, binary_pred);
 }
 
 template <typename Policy, typename InputIt1, typename InputIt2, typename OutputIt1, typename OutputIt2>
-oneapi::dpl::__internal::__enable_if_execution_policy<Policy, ::std::pair<OutputIt1, OutputIt2>>
+oneapi::dpl::__internal::__enable_if_execution_policy<Policy, std::pair<OutputIt1, OutputIt2>>
 reduce_by_key(Policy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt1 result1, OutputIt2 result2)
 {
-    return reduce_by_segment(::std::forward<Policy>(policy), first1, last1, first2, result1, result2);
+    return reduce_by_segment(std::forward<Policy>(policy), first1, last1, first2, result1, result2);
 }
 } // end namespace dpl
 } // end namespace oneapi
