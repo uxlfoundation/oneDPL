@@ -3576,9 +3576,9 @@ struct __mask_buffers<true>
 
     // Get pointer to the result mask buffer
     _mask_ptr_t
-    get_buf_mask_rng_res_data() const
+    get_buf_mask_rng_res_data(std::size_t __offset = 0) const
     {
-        return __buf_mask_rng_res.get();
+        return __buf_mask_rng_res.get() + __offset;
     }
 
     const std::size_t __mask_buf_size = {};
@@ -3607,7 +3607,7 @@ struct __mask_buffers<false>
 
     // Get pointer to the result mask buffer
     _mask_ptr_t
-    get_buf_mask_rng_res_data() const
+    get_buf_mask_rng_res_data(std::size_t = 0) const
     {
         return nullptr;
     }
@@ -3621,20 +3621,36 @@ struct _SourceFinalPosEvaluatorData
     _DifferenceTypeOut __reached_pos_out = {}; // Reached position in the output range
 };
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-          typename _DifferenceTypeOut, class _SizeFunction, bool __Bounded>
+template <class _IsVector, class _ExecutionPolicy,
+          class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator,
+          typename _Compare, typename _Proj1, typename _Proj2,
+          typename _SetUnionOp, class _SizeFunction, class _MaskSizeFunction,
+          bool __Bounded>
 struct _SourceFinalPosEvaluator;
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-          typename _DifferenceTypeOut, class _SizeFunction>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                                _SizeFunction, false>
+template <class _IsVector, class _ExecutionPolicy,
+          class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator,
+          typename _Compare, typename _Proj1, typename _Proj2,
+          typename _SetUnionOp, class _SizeFunction, class _MaskSizeFunction>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
+                                _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator,
+                                _Compare, _Proj1, _Proj2,
+                                _SetUnionOp, _SizeFunction, _MaskSizeFunction,
+                                /*__Bounded*/ false>
 {
-    _SourceFinalPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _DifferenceType1 __n1, _DifferenceType2 __n2,
-                             _DifferenceTypeOut /*__n_out*/, _SizeFunction)
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceTypeOut = typename std::iterator_traits<_OutputIterator>::difference_type;
+
+    _SourceFinalPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&,
+                             _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // bounds for data1
+                             _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, // bounds for data2
+                             _OutputIterator __result1, _OutputIterator __result2,            // bounds for results
+                             _Compare, _Proj1, _Proj2,
+                             _SetUnionOp, _SizeFunction, _MaskSizeFunction)
     {
-        __res_data.__reached_pos1 = __n1;
-        __res_data.__reached_pos2 = __n2;
+        __res_data.__reached_pos1 = __last1 - __first1;
+        __res_data.__reached_pos2 = __last2 - __first2;
     }
 
     template <typename _DifferenceType>
@@ -3645,9 +3661,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     }
 
     // Get evaluated reached positions for the source ranges and output range
-    template <bool __Bounded>
     std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
-    __get_reached_positions(const __mask_buffers<__Bounded>&) const
+    __get_reached_positions()
     {
         return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
     }
@@ -3658,36 +3673,60 @@ protected:
 };
 
 #define EVAL_REACHED_POS_IN_PARALLEL 1
-#define EVAL_REACHED_POS_FROM_START  2
 
-template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-          typename _DifferenceTypeOut, class _SizeFunction>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOut,
-                                _SizeFunction, true>
+template <class _IsVector, class _ExecutionPolicy,
+          class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator,
+          typename _Compare, typename _Proj1, typename _Proj2,
+          typename _SetUnionOp, class _SizeFunction, class _MaskSizeFunction>
+struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
+                                _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator,
+                                _Compare, _Proj1, _Proj2,
+                                _SetUnionOp, _SizeFunction, _MaskSizeFunction,
+                                /*__Bounded*/ true>
 {
+    static constexpr bool __Bounded = true;
+
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _DifferenceTypeOut = typename std::iterator_traits<_OutputIterator>::difference_type;
+
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-    _SourceFinalPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec, _DifferenceType1 __n1,
-                             _DifferenceType2 __n2, _DifferenceTypeOut __n_out, _SizeFunction __size_func)
-        : __tag(__tag), __exec(__exec), __res_data{__n1, __n2, 0}, __n_out(__n_out)
+    _SourceFinalPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec,
+                             _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, // bounds for data1
+                             _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2, // bounds for data2
+                             _OutputIterator __result1, _OutputIterator __result2,            // bounds for results
+                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
+                             _SetUnionOp __set_union_op, _SizeFunction __size_func, _MaskSizeFunction __mask_size_func)
+        : __tag(__tag), __exec(__exec),
+          __first1(__first1), __last1(__last1),
+          __first2(__first2), __last2(__last2),
+          __result1(__result1), __result2(__result2),
+          __comp(__comp), __proj1(__proj1), __proj2(__proj2),
+          __set_union_op(__set_union_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
+          __n_out(__result2 - __result1),
+          __res_data{__last1 - __first1, __last2 - __first2, 0}
     {
-        if (__size_func(__n1, __n2) <= __n_out)
-        {
-            // No calculation of reached positions in the first and in the second input ranges neeeded due we have enough output buffer size to place all data from input ranges
-            __reached_pos_evaluated_due_output_size = true;
-        }
+        // No calculation of reached positions in the first and in the second input ranges needed
+        // due we have enough output buffer size to place all data from input ranges
+        __reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
     }
 
     void
-    __on_output_pos_reached(const _DataPart<_DifferenceType>& __data_part_arg,
+    __on_output_pos_reached(std::size_t __offset_from_n_out,
+                            const _DataPart<_DifferenceType>& __data_part_arg,
                             const _MaskPart<_DifferenceType>& __mask_part_arg,
                             const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_arg)
     {
-        __data_part = __data_part_arg;
-        __mask_part = __mask_part_arg;
-        __source_data_offsets = __source_data_offsets_arg;
+        assert(__offset_from_n_out < 2);
+
+        OutputPosRangeInfo& ri = __output_pos_range_info[__offset_from_n_out];
+        ri.__data_part = __data_part_arg;
+        ri.__mask_part = __mask_part_arg;
+        ri.__source_data_offsets_part = __source_data_offsets_arg;
+        ri.__output_pos_reached = true;
+
         __reached_pos_evaluated = false;
-        __output_pos_reached = true;
     }
 
     void
@@ -3698,16 +3737,19 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
     }
 
     // Get evaluated reached positions for the source ranges and output range
-    template <bool __Bounded>
     std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
-    __get_reached_positions(const __mask_buffers<__Bounded>& __mask_bufs)
+    __get_reached_positions()
     {
         if (!__reached_pos_evaluated_due_output_size)
         {
-            if (!__reached_pos_evaluated && __output_pos_reached)
+            if (!__reached_pos_evaluated)
             {
-                std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_positions(__mask_bufs);
-                __reached_pos_evaluated = true;
+                const OutputPosRangeInfo& ri = __output_pos_range_info[0];
+                if (ri.__output_pos_reached)
+                {
+                    std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_positions();
+                    __reached_pos_evaluated = true;
+                }
             }
         }
         else
@@ -3720,6 +3762,51 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _
 
 protected:
 
+    struct _NoopConstruct
+    {
+        template <typename _ForwardIterator>
+        std::nullptr_t
+        operator()(_ForwardIterator, _ForwardIterator, std::nullptr_t)
+        {
+            return nullptr;
+        }
+    };
+
+    // NOOP iterator
+    struct _NullIterator
+    {
+        using iterator_category = std::output_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = void;
+        using pointer = void;
+        using reference = void;
+
+        _NullIterator&
+        operator*() noexcept
+        {
+            return *this;
+        }
+
+        _NullIterator&
+        operator++() noexcept
+        {
+            return *this;
+        }
+
+        _NullIterator&
+        operator++(int) noexcept
+        {
+            return *this;
+        }
+
+        template <typename T>
+        _NullIterator&
+        operator=(const T&) noexcept
+        {
+            return *this;
+        }
+    };
+
     template <bool __Bounded, typename _DifferenceTypeArg>
     _DifferenceTypeArg
     __eval_reached_pos(typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin,
@@ -3727,11 +3814,6 @@ protected:
                        oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state,
                        _DifferenceTypeOut __pos_no, _DifferenceTypeArg __reached_pos) const
     {
-#if EVAL_REACHED_POS_FROM_START
-        __pos_no = 0;
-        __reached_pos = 0;
-#endif
-
         assert(__dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData1 ||
                __dest_data_mask_state == oneapi::dpl::__utils::__parallel_set_op_mask::eData2);
 
@@ -3754,34 +3836,83 @@ protected:
             if (__test_mask(oneapi::dpl::__utils::__parallel_set_op_mask::eDataOut, __state))
                 break;
 
-#if !EVAL_REACHED_POS_FROM_START
              __reached_pos += __test_mask(__dest_data_mask_state, __state) ? 1 : 0;
-#else
-            if (__test_mask(__dest_data_mask_state, __state))
-                ++__reached_pos;
-#endif
         }
 
         return __reached_pos;
     }
 
-    template <bool __Bounded>
     std::pair<_DifferenceType1, _DifferenceType2>
-    __eval_reached_positions(const __mask_buffers<__Bounded>& __mask_bufs) const
+    __eval_reached_positions() const
     {
+        //                                                             We should write masks from these parts: (1) - (5)
+        //                                                                                    |
+        //                                                                                    V
+        //                                              +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        //                                              |                                                                         |
+        //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
+        //                              |               |               |               |               |               |               |               |
+        //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
+        // Temporary buffer: [..............................................................................................................................)
+        //
+        //                               (2).__pos       (2).__pos + _len               (5).__pos       (5).__pos + (5).__len
+        //                                  |               |                              |               |
+        //                                  V               V                              V               V
+        // Result buffer:    [.......................)................................................X.............................
+        //                                           ^                                                ^
+        //                                           |                                                |
+        // Positions in result buffer:             __n_out                                          __n_out + 1
+
+        ////////////////////////////////////////////////////////////
+        // Create & fill buffer with mask
+
+        const OutputPosRangeInfo& __ri_n = __output_pos_range_info[0];
+        const OutputPosRangeInfo& __ri_n1 = __output_pos_range_info[1];
+
+        assert(__ri_n.__output_pos_reached);
+
+        _DifferenceType1 __offset1 = __ri_n.__source_data_offsets_part.__start_offset1;
+        assert(__last1 - __first1 >= __offset1);
+        _DifferenceType1 __size1 = __last1 - __first1 - __offset1;
+        if (__ri_n1.__output_pos_reached)
+        {
+            // not more than two lengths
+            __size1 = std::min(__size1, __ri_n.__data_part.__len + __ri_n1.__data_part.__len);
+        }
+
+        _DifferenceType2 __offset2 = __ri_n.__source_data_offsets_part.__start_offset2;
+        assert(__last2 - __first2 >= __offset2);
+        _DifferenceType2 __size2 = __last2 - __first2 - __offset2;
+        if (__ri_n1.__output_pos_reached)
+        {
+            // not more than two lengths
+            __size2 = std::min(__size2, __ri_n.__data_part.__len + __ri_n1.__data_part.__len);
+        }
+
+        const auto __mask_buf_size = __mask_size_func(__size1, __size2);
+        __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size);
+
+        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin = __mask_bufs.get_buf_mask_rng_res_data();
+        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end = __mask_buffer_begin + __mask_buf_size;
+
+        // __set_difference_construct
+        __set_union_op(__first1 + __offset1, __first1 + __offset1 + __size1, // bounds for data1
+                       __first2 + __offset2, __first2 + __offset2 + __size2, // bounds for data2
+                       _NullIterator{},                                      // NOOP results
+                       __mask_buffer_begin,                                  // source data usage masks
+                       __comp, __proj1, __proj2);
+
+        ////////////////////////////////////////////////////////////
+        // Process data based on buffer with mask
+
         _DifferenceType1 __res_reachedPos1 = {};
         _DifferenceType2 __res_reachedPos2 = {};
 
-        // Calculate analyzing area in the result mask buffer
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin  = __mask_bufs.get_buf_mask_rng_res_data() + __mask_part.__pos;
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end = __mask_bufs.get_buf_mask_rng_res_data() + __real_filled_mask_len;
-
-#if EVAL_REACHED_POS_FROM_START
-        __mask_buffer_begin = __mask_bufs.get_buf_mask_rng_res_data();
+#if EVAL_REACHED_POS_IN_PARALLEL
+        using __backend_tag = typename decltype(__tag)::__backend_tag;
 #endif
 
-        using __backend_tag = typename decltype(__tag)::__backend_tag;
-
+        // Calculate analyzing area in the result mask buffer
 #if EVAL_REACHED_POS_IN_PARALLEL
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
@@ -3790,8 +3921,8 @@ protected:
             {
                 __res_reachedPos1 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_end,
                                                                   oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                                                                  __data_part.__pos,
-                                                                  __source_data_offsets.__start_offset1);
+                                                                  __ri_n.__data_part.__pos,
+                                                                  __ri_n.__source_data_offsets_part.__start_offset1);
             }
 #if EVAL_REACHED_POS_IN_PARALLEL
             ,
@@ -3800,8 +3931,8 @@ protected:
             {
                 __res_reachedPos2 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_end,
                                                                   oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                                                                  __data_part.__pos,
-                                                                  __source_data_offsets.__start_offset2);
+                                                                  __ri_n.__data_part.__pos,
+                                                                  __ri_n.__source_data_offsets_part.__start_offset2);
             }
 #if EVAL_REACHED_POS_IN_PARALLEL
         );
@@ -3833,15 +3964,38 @@ protected:
     __parallel_tag<_IsVector> __tag;
     _ExecutionPolicy& __exec;
 
+    // --- Source data ---
+
+    _RandomAccessIterator1 __first1, __last1;       // bounds for data1
+    _RandomAccessIterator2 __first2, __last2;       // bounds for data2
+    _OutputIterator        __result1, __result2;    // bounds for results
+    _Compare               __comp;
+    _Proj1                 __proj1;
+    _Proj2                 __proj2;
+    _SetUnionOp            __set_union_op;
+    _SizeFunction          __size_func;
+    _MaskSizeFunction      __mask_size_func;
+
+    // --- Internal data ---
+
+    const _DifferenceTypeOut __n_out = {}; // Size of output range
+
     bool __reached_pos_evaluated = false;
     bool __reached_pos_evaluated_due_output_size = false; // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
-    bool __output_pos_reached = false;
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
-    _DifferenceTypeOut __n_out = {}; // Size of output range
 
-    _DataPart<_DifferenceType> __data_part;
-    _MaskPart<_DifferenceType> __mask_part;
-    _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets;
+    struct OutputPosRangeInfo
+    {
+        _DataPart<_DifferenceType>                                       __data_part;
+        _MaskPart<_DifferenceType>                                       __mask_part;
+        _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
+        bool                                                             __output_pos_reached = false;
+    };
+
+    // Information about two data parts which can generate output data when output position will be reached:
+    // - element 0: the part which contains putput position (__n)
+    // - element 1: the part which contains putput position (__n + 1)
+    OutputPosRangeInfo __output_pos_range_info[2];
 
     _DifferenceType __real_filled_mask_len = {};
 };
@@ -3854,7 +4008,8 @@ struct _ScanPred
     _ExecutionPolicy&          __exec;
     ProcessingDataPointer      __buf_pos_begin, __buf_pos_end;                  // Temporary data buffer (windowed)
     _OutputIterator            __result_buf_pos_begin, __result_buf_pos_end;    // Result data buffer
-    __mask_buffers<__Bounded>& __mask_bufs;                                     // Mask buffers: temporary (windowed) buffer and result buffer
+    // KSATODO remove later
+    __mask_buffers<false/*__Bounded*/>& __mask_bufs;                            // Mask buffers: temporary (windowed) buffer and result buffer
     _SourceFinalPosEvaluator&  __source_final_pos_evaluator;                    // Evaluator of the final position in the source ranges
 
     template <typename _DifferenceType>
@@ -3872,45 +4027,20 @@ struct _ScanPred
         }
         else
         {
-            const _MaskPart<_DifferenceType>& __mask_part = __s.get_mask_part();
-
+            // Copy source data (bounded)
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
+            if (__remaining_data_size > 0)
+                __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
 
-            bool __output_pos_reached_on_this_part = false;
-            const bool __write_mask_needed = __need_write_mask(__data_part, __output_pos_reached_on_this_part);
+            const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
-            if (__remaining_data_size > 0 && __write_mask_needed)
-            {
-                __par_backend::__parallel_invoke(
-                    __backend_tag{}, __exec,
-                    [&]() {
-                        // Copy source data (bounded)
-                        __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
-                    },
-                    [&]() {
-                        // Copy mask data
-                        __copy_mask_to_result_buf(__mask_part);
-                    });
-            }
-            else
-            {
-                if (__remaining_data_size > 0)
-                {
-                    // Copy source data (bounded)
-                    __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
-                }
+            // Save subrange info if we reached final position at this subrange
+            if (__is_output_pos_reached_at_part(__n_out, __data_part))
+                __source_final_pos_evaluator.__on_output_pos_reached(0, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
 
-                if (__write_mask_needed)
-                {
-                    // Copy mask data
-                    __copy_mask_to_result_buf(__mask_part);
-                }
-            }
-
-            if (__output_pos_reached_on_this_part)
-            {
-                __source_final_pos_evaluator.__on_output_pos_reached(__data_part, __mask_part, __s.get_source_data_offsets_part());
-            }
+            // Save subrange info if we reached next after final position at this subrange
+            if (__is_output_pos_reached_at_part(__n_out + 1, __data_part))
+                __source_final_pos_evaluator.__on_output_pos_reached(1, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
         }
     }
 
@@ -3964,34 +4094,9 @@ struct _ScanPred
     }
 
     template <typename _DifferenceType>
-    void
-    __copy_mask_to_result_buf(const _MaskPart<_DifferenceType>& __mask_part) const
+    static bool
+    __is_output_pos_reached_at_part(_DifferenceType __n, const _DataPart<_DifferenceType>& __data_part_arg)
     {
-#if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "ST.4:\n"
-                  << "\t__brick_move_destroy - mask";
-#endif
-
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buf_pos_begin = __mask_bufs.get_buf_mask_rng_data();
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_res_buf_pos_begin = __mask_bufs.get_buf_mask_rng_res_data();
-
-        // Processed data
-        __brick_move_destroy<decltype(__tag)>{}(__mask_buf_pos_begin + __mask_part.__buf_pos,
-                                                __mask_buf_pos_begin + __mask_part.__buf_pos + __mask_part.__len,
-                                                __mask_res_buf_pos_begin + __mask_part.__pos, _IsVector{});
-    }
-
-    template <typename _DifferenceType>
-    bool
-    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
-    {
-        __output_pos_reached_on_this_part = false;
-
-        //                                                             We should write masks from these parts: (1) - (5)
-        //                                                                                    |
-        //                                                                                    V
-        //                                              +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        //                                              |                                                                         |
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
         //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
@@ -4003,7 +4108,17 @@ struct _ScanPred
         // Result buffer:    [.......................)................................................X.............................
         //                                           ^                                                ^
         //                                           |                                                |
-        // Positions in result buffer:             __n_out                                          __n_out + 1
+        // Positions in result buffer:             __n                                              __n + 1
+
+        return __data_part_arg.__pos <= __n && __n <= __data_part_arg.__pos + __data_part_arg.__len;
+    }
+
+    template <typename _DifferenceType>
+    bool
+    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
+    {
+        __output_pos_reached_on_this_part = false;
+
 
         const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -4058,8 +4173,7 @@ struct _ParallelSetOpStrictScanPred
     _Proj1 __proj1;
     _Proj2 __proj2;
 
-    _T* __buf_raw_data_begin;
-    __mask_buffers<__Bounded>& __mask_bufs;
+    _T* __buf_raw_data_begin = nullptr;
 
     using _DifferenceType1      = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2      = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
@@ -4144,13 +4258,11 @@ struct _ParallelSetOpStrictScanPred
 
         const _DifferenceType __mask_buf_pos = __mask_size_func(__b - __first1, __bb - __first2);
 
-        auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__mask_buf_pos);
-
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached, __mask_size] =
             __set_union_op(__b, __e,   // set1 : begin, end
                            __bb, __ee, // set2 : begin, end
                            __buffer_b, // output : begin
-                           __mask_b,   // mask : begin
+                           nullptr ,   // mask : begin
                            __comp, __proj1, __proj2);
 
         // Prepare processed data info
@@ -4181,6 +4293,7 @@ struct _ParallelSetOpStrictScanPred
         }
         else
         {
+            // KSATODO remove later this part _MaskPart and all usages
             // Prepare processed mask info
             _MaskPart<_DifferenceType> __new_mask_data{
                 0,                                  // Offset in output range w/o limitation to output data size
@@ -4251,7 +4364,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
-    __mask_buffers<__Bounded>   __mask_bufs(__mask_buf_size);                                   // Temporary (windowed) buffer + result buffer for mask preparation
+    // KSATODO remove __mask_bufs later
+    __mask_buffers<false /*__Bounded*/> __mask_bufs(__mask_buf_size);                           // Temporary (windowed) buffer + result buffer for mask preparation
     using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
 
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
@@ -4268,9 +4382,15 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
         _SetRangeCombiner __combine_pred;
 
-        _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput,
-                                 _SizeFunction, __Bounded>
-            __source_final_pos_evaluator(__tag, __exec, __n1, __n2, __n_out, __size_func);
+        _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
+                                 _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
+                                 _MaskSizeFunction, __Bounded>
+            __source_final_pos_evaluator(__tag, __exec,
+                                         __first1, __last1,
+                                         __first2, __last2,
+                                         __result1, __result2,
+                                         __comp, __proj1, __proj2,
+                                         __set_union_op, __size_func, __mask_size_func);
 
         // Scan predicate
         _ScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator, decltype(__source_final_pos_evaluator)>
@@ -4296,8 +4416,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                           __comp,
                           __proj1,
                           __proj2,
-                          __buf_raw_data_begin,
-                          __mask_bufs};
+                          __buf_raw_data_begin};
 
         auto __apex_pred = [&__scan_pred](const _SetRange& __total) {
             //final scan
@@ -4324,7 +4443,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             /* ST.3 */ __apex_pred);   // _Ap __apex       step 3 : __apex((2))
 
         // Get evaluated reached positions for the source ranges and output range
-        const auto [__res_reachedPos1, __res_reachedPos2, __res_reachedPosOut] = __source_final_pos_evaluator.__get_reached_positions(__mask_bufs);
+        const auto [__res_reachedPos1, __res_reachedPos2, __res_reachedPosOut] = __source_final_pos_evaluator.__get_reached_positions();
 
 #if DUMP_PARALLEL_SET_OP_WORK
         if constexpr (__Bounded)
