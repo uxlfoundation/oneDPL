@@ -11,9 +11,12 @@ permissions:
 
 jobs:
   apply-clang-format:
-    # Only run on PR comments containing /clang-format
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format')
+    # Only run on PR comments that are exactly /clang-format
+    if: github.event.issue.pull_request && github.event.comment.body == '/clang-format'
     runs-on: ubuntu-latest
+    concurrency:
+      group: clang-format-pr-${{ github.event.issue.number }}
+      cancel-in-progress: true
     steps:
       - name: Get PR details and check permissions
         id: pr
@@ -58,7 +61,7 @@ jobs:
             });
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.head_sha }}
+          ref: ${{ steps.pr.outputs.head_ref }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
