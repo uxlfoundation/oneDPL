@@ -80,7 +80,7 @@ struct __chunk_metrics
 {
     std::size_t __n_chunks;
     std::size_t __chunk_size;
-    std::size_t __first_chunk_size;
+    std::size_t __n_larger_chunks; // number of first chunks that are bigger by 1 element
 };
 
 template <class _RandomAccessIterator, class _Size = std::size_t>
@@ -93,8 +93,8 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     {
         _Size __n_chunks = 1;
         _Size __chunk_size = __n;
-        _Size __first_chunk_size = __n;
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+        _Size __n_larger_chunks = 0;
+        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
 
     // Aim for 3 tasks per thread for better load balancing
@@ -102,16 +102,12 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     _Size __target_task_count = __num_threads * __target_tasks_per_thread;
     _Size __chunk_size = __n / __target_task_count;
 
-    // TODO: reconsider __chunk_metrics structure.
-    // __first_chunk_size gets all the leftover items,
-    // which leads to load imbalance with a large number of small chunks.
-
     // Enough work - create the target number of tasks per thread
     if (__chunk_size >= __min_chunk_size)
     {
         _Size __n_chunks = __target_task_count;
-        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+        _Size __n_larger_chunks = __n - (__chunk_size * __n_chunks);
+        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
     // Enough work to occupy each thread with at least one task -
     // make sure the number of tasks is multiple of the number of threads
@@ -120,8 +116,8 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
         __chunk_size = __n / __n_chunks;
-        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+        _Size __n_larger_chunks = __n - (__chunk_size * __n_chunks);
+        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
     // Not enough work even for one task per thread
     else
@@ -129,8 +125,8 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         __chunk_size = __min_chunk_size;
         _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk_size);
         __chunk_size = __n / __n_chunks;
-        _Size __first_chunk_size = __n - (__chunk_size * (__n_chunks - 1));
-        return __chunk_metrics{__n_chunks, __chunk_size, __first_chunk_size};
+        _Size __n_larger_chunks = __n - (__chunk_size * __n_chunks);
+        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
 }
 
@@ -138,10 +134,10 @@ template <typename _Iterator, typename _Index, typename _Func>
 void
 __process_chunk(const __chunk_metrics& __metrics, _Iterator __base, _Index __chunk_index, _Func __f)
 {
-    auto __this_chunk_size = __chunk_index == 0 ? __metrics.__first_chunk_size : __metrics.__chunk_size;
-    auto __index = __chunk_index == 0 ? 0
-                                      : (__chunk_index * __metrics.__chunk_size) +
-                                            (__metrics.__first_chunk_size - __metrics.__chunk_size);
+    bool __is_larger_chunk = __chunk_index < __metrics.__n_larger_chunks;
+    auto __this_chunk_size = __metrics.__chunk_size + __is_larger_chunk;
+    auto __n_previous_larger_chunks = __is_larger_chunk ? __chunk_index : __metrics.__n_larger_chunks;
+    auto __index = __chunk_index * __metrics.__chunk_size + __n_previous_larger_chunks;
     auto __first = __base + __index;
     auto __last = __first + __this_chunk_size;
     __f(__first, __last);
