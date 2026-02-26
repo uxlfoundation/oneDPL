@@ -3546,49 +3546,6 @@ dump_buffer(OStream& os, Iterator first, Iterator last)
 }
 #endif
 
-template <bool __Bounded>
-struct __mask_buffers;
-
-template <>
-struct __mask_buffers<true>
-{
-    using _mask_ptr_t = oneapi::dpl::__utils::__parallel_set_op_mask*;
-    using _difference_t = std::iterator_traits<_mask_ptr_t>::difference_type;
-
-    __mask_buffers(std::size_t __mask_buf_size)
-        : __buf_mask_rng_res(__mask_buf_size)
-    {
-    }
-
-    // Get pointer to the result mask buffer
-    _mask_ptr_t
-    get_buf_mask_rng_res_data(std::size_t __offset = 0) const
-    {
-        return __buf_mask_rng_res.get() + __offset;
-    }
-
-    using _MaskBuffer = __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-    _MaskBuffer __buf_mask_rng_res; // Temporary buffer for the input range1 + range2 item usage mask
-};
-
-template <>
-struct __mask_buffers<false>
-{
-    using _mask_ptr_t = std::nullptr_t;
-    using _difference_t = std::ptrdiff_t;
-
-    __mask_buffers(std::size_t)
-    {
-    }
-
-    // Get pointer to the result mask buffer
-    _mask_ptr_t
-    get_buf_mask_rng_res_data(std::size_t = 0) const
-    {
-        return nullptr;
-    }
-};
-
 template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
 struct _SourceFinalPosEvaluatorData
 {
@@ -3751,8 +3708,8 @@ protected:
 
     template <bool __Bounded, typename _DifferenceTypeArg>
     _DifferenceTypeArg
-    __eval_reached_pos(typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin,
-                       typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end,
+    __eval_reached_pos(oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_begin,
+                       oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_end,
                        oneapi::dpl::__utils::__parallel_set_op_mask __dest_data_mask_state,
                        _DifferenceTypeOut __pos_no, _DifferenceTypeArg __reached_pos) const
     {
@@ -3832,10 +3789,10 @@ protected:
         }
 
         const auto __mask_buf_size = __mask_size_func(__size1, __size2);
-        __mask_buffers<__Bounded> __mask_bufs(__mask_buf_size);
+        __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(__mask_buf_size);
 
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin = __mask_bufs.get_buf_mask_rng_res_data();
-        typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_end = __mask_buffer_begin + __mask_buf_size;
+        oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_begin = __mask_bufs.get();
+        oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_end = __mask_bufs.get() + __mask_buf_size;
 
         // __set_difference_construct
         __set_union_op(__first1 + __offset1, __first1 + __offset1 + __size1, // bounds for data1
@@ -4305,7 +4262,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 
     __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
 
-    using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
+    using __mask_difference_type_t = std::iterator_traits<oneapi::dpl::__utils::__parallel_set_op_mask*>::difference_type;
+
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, // bounds for data1
