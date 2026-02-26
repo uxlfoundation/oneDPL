@@ -26,12 +26,18 @@
 #if !_ONEDPL_NUMERIC_FORWARD_DECLARED
 // If not declared, pull in forward declarations
 #    include "oneapi/dpl/pstl/glue_numeric_defs.h"
+#    include "oneapi/dpl/internal/by_segment_extension_defs.h"
+#    include "oneapi/dpl/pstl/histogram_extension_defs.h"
 #    define _ONEDPL_NUMERIC_FORWARD_DECLARED 1
 #endif // !_ONEDPL_NUMERIC_FORWARD_DECLARED
 
 #if _ONEDPL_EXECUTION_POLICIES_DEFINED
 // If <execution> has already been included, pull in implementations
 #    include "oneapi/dpl/pstl/glue_numeric_impl.h"
+#    include "oneapi/dpl/pstl/histogram_impl.h"
+#    include "oneapi/dpl/internal/exclusive_scan_by_segment_impl.h"
+#    include "oneapi/dpl/internal/inclusive_scan_by_segment_impl.h"
+#    include "oneapi/dpl/internal/reduce_by_segment_impl.h"
 #endif // _ONEDPL_EXECUTION_POLICIES_DEFINED
 
 namespace oneapi
