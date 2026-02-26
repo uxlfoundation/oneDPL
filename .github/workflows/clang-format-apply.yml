@@ -1,0 +1,101 @@
+name: Apply clang-format
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply-clang-format:
+    # Only run on PR comments containing /clang-format
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format')
+    runs-on: ubuntu-latest
+    steps:
+      - name: React with eyes to acknowledge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
+
+      - name: Get PR details and check permissions
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            // Only collaborators and the PR author can trigger this
+            const association = context.payload.comment.author_association;
+            const isPrAuthor = context.payload.comment.user.login === pr.data.user.login;
+            const isCollaborator = ['OWNER', 'MEMBER'].includes(association);
+
+            if (!isPrAuthor && !isCollaborator) {
+              core.setFailed('Only repository members or the PR author can trigger /clang-format');
+              return;
+            }
+
+            // Cannot push to fork branches
+            if (pr.data.head.repo.full_name !== '${{ github.repository }}') {
+              core.setFailed('Cannot apply clang-format to PRs from forks. Please apply changes locally.');
+              return;
+            }
+
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+            core.setOutput('base_sha', pr.data.base.sha);
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Get clang-format
+        run: sudo apt-get install -yqq clang-format
+
+      - name: Apply clang-format to changed lines
+        run: .github/scripts/clang-format-diff.sh ${{ steps.pr.outputs.head_sha }} ${{ steps.pr.outputs.base_sha }}
+
+      - name: Check for changes and commit
+        id: result
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "Apply clang-format to PR diff"
+            git push
+          fi
+
+      - name: Add result reaction
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const hasChanges = '${{ steps.result.outputs.has_changes }}';
+            const success = '${{ job.status }}' === 'success';
+
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: success ? (hasChanges === 'true' ? 'rocket' : '+1') : 'confused'
+            });
