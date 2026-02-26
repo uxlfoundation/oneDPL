@@ -47,10 +47,12 @@
 #include <utility>
 #include <iterator> // std::distance
 
-#include "../pstl/iterator_impl.h"
-#include "../pstl/glue_algorithm_defs.h"
-#include "function.h"
 #include "by_segment_extension_defs.h"
+#include "../pstl/glue_numeric_defs.h"
+#include "../pstl/glue_algorithm_defs.h"
+
+#include "../pstl/iterator_impl.h"
+#include "function.h"
 #include "../pstl/utils.h"
 
 #if _ONEDPL_BACKEND_SYCL
