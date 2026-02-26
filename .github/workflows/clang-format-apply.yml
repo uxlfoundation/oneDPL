@@ -3,10 +3,7 @@ name: Apply clang-format
 on:
   issue_comment:
     types: [created]
-  # TODO: Remove push trigger and workflow_dispatch before merging to main
-  push:
-    branches:
-      - dev/dhoeflin/clang_format_command
+  # TODO: Remove workflow_dispatch before merging to main
   workflow_dispatch:
     inputs:
       pr_number:
@@ -20,10 +17,9 @@ permissions:
 
 jobs:
   apply-clang-format:
-    # Only run on PR comments containing /clang-format, manual dispatch, or push (for testing)
+    # Only run on PR comments containing /clang-format, or manual dispatch
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
       (github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format'))
     runs-on: ubuntu-latest
     steps:
@@ -44,13 +40,9 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // For push trigger, hardcode PR number for testing
-            // TODO: Remove push case before merging to main
-            const prNumber = context.eventName === 'issue_comment'
-              ? context.issue.number
-              : (context.eventName === 'workflow_dispatch'
-                ? ${{ github.event.inputs.pr_number || 0 }}
-                : 2592);
+            const prNumber = context.eventName === 'workflow_dispatch'
+              ? ${{ github.event.inputs.pr_number || 0 }}
+              : context.issue.number;
 
             const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
