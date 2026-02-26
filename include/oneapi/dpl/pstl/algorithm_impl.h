@@ -3973,8 +3973,6 @@ struct _ScanPred
     _ExecutionPolicy&          __exec;
     ProcessingDataPointer      __buf_pos_begin, __buf_pos_end;                  // Temporary data buffer (windowed)
     _OutputIterator            __result_buf_pos_begin, __result_buf_pos_end;    // Result data buffer
-    // KSATODO remove later
-    __mask_buffers<false/*__Bounded*/>& __mask_bufs;                            // Mask buffers: temporary (windowed) buffer and result buffer
     _SourceFinalPosEvaluator&  __source_final_pos_evaluator;                    // Evaluator of the final position in the source ranges
 
     template <typename _DifferenceType>
@@ -4363,7 +4361,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                         __exec,
                         __buf_raw_data_begin, __buf_raw_data_end,   // Temporary data buffer (windowed) begin/end
                         __result1, __result2,                       // Result data buffer begin/end
-                        __mask_bufs,                                // Mask buffers
                         __source_final_pos_evaluator};
 
         _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
