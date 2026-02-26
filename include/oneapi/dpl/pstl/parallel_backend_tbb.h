@@ -92,7 +92,7 @@ class __parallel_for_body
 
 // Matches the default grainsize value of tbb::blocked_range according to the specification
 constexpr std::size_t __default_chunk_size = 1;
-// A stub for oneTBB backend.
+// Stub for oneTBB backend. TODO: investigate if other values provide better performance.
 constexpr std::size_t __any_workload_chunk_size = __default_chunk_size;
 
 //! Evaluation of brick f[i,j) for each subrange [i,j) of [first,last)

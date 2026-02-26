@@ -53,8 +53,8 @@ using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
 
-// Chunk size targeted for for_each and transform algorithms due to their varying functor complexity
-// Smaller chunk is beneficial for heavy functors
+// Use smaller chunks size with for_each and transform
+// for better scaling with small number of items and heavy functors.
 constexpr std::size_t __any_workload_chunk_size = 256;
 
 // Convenience function to determine when we should run serial.
@@ -80,7 +80,8 @@ struct __chunk_metrics
 {
     std::size_t __n_chunks;
     std::size_t __chunk_size;
-    std::size_t __n_larger_chunks; // number of first chunks that are bigger by 1 element
+    // early chunks to get the leftover elements; these chunks will have size __chunk_size + 1
+    std::size_t __n_larger_chunks;
 };
 
 template <class _RandomAccessIterator, class _Size = std::size_t>
@@ -88,6 +89,10 @@ auto
 __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
                     const int __num_threads, std::size_t __min_chunk_size) -> __chunk_metrics
 {
+    // This algorithm creates a number of chunks that is a multiple of the thread count
+    // for optimal load balancing. Leftover elements are evenly distributed across
+    // earlier chunks to improve processor prefetch utilization.
+
     _Size __n = __last - __first;
     if (__n <= __min_chunk_size)
     {
@@ -111,7 +116,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     }
     // Enough work to occupy each thread with at least one task -
     // make sure the number of tasks is multiple of the number of threads
-    else if (__chunk_size * __target_tasks_per_thread >= __min_chunk_size)
+    else if (__n >= __num_threads * __min_chunk_size)
     {
         _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
@@ -119,7 +124,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         _Size __n_larger_chunks = __n - (__chunk_size * __n_chunks);
         return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
-    // Not enough work even for one task per thread
+    // Not enough work even for one task per thread - create a number of chunks with the minimum size
     else
     {
         __chunk_size = __min_chunk_size;

@@ -84,6 +84,7 @@ __cancel_execution(oneapi::dpl::__internal::__serial_backend_tag)
 {
 }
 
+// Stubs for serial backend
 constexpr std::size_t __default_chunk_size = 1;
 constexpr std::size_t __any_workload_chunk_size = __default_chunk_size;
 
