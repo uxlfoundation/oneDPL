@@ -11,14 +11,20 @@ permissions:
 
 jobs:
   apply-clang-format:
-    # Only run on PR comments that are exactly /clang-format
-    if: github.event.issue.pull_request && github.event.comment.body == '/clang-format'
+    # Only run on PR comments that are exactly /clang-format from authorized users
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/clang-format' &&
+      (
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) ||
+        github.event.comment.user.login == github.event.issue.user.login
+      )
     runs-on: ubuntu-latest
     concurrency:
       group: clang-format-pr-${{ github.event.issue.number }}
       cancel-in-progress: true
     steps:
-      - name: Get PR details and check permissions
+      - name: Get PR details
         id: pr
         uses: actions/github-script@v7
         with:
@@ -28,16 +34,6 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number
             });
-
-            // Only collaborators and the PR author can trigger this
-            const association = context.payload.comment.author_association;
-            const isPrAuthor = context.payload.comment.user.login === pr.data.user.login;
-            const isCollaborator = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association);
-
-            if (!isPrAuthor && !isCollaborator) {
-              core.setFailed('Only repository members or the PR author can trigger /clang-format');
-              return;
-            }
 
             // Cannot push to fork branches
             if (pr.data.head.repo.full_name !== '${{ github.repository }}') {
