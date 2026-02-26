@@ -15,17 +15,6 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/clang-format')
     runs-on: ubuntu-latest
     steps:
-      - name: React with eyes to acknowledge
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'eyes'
-            });
-
       - name: Get PR details and check permissions
         id: pr
         uses: actions/github-script@v7
@@ -57,6 +46,16 @@ jobs:
             core.setOutput('head_sha', pr.data.head.sha);
             core.setOutput('base_sha', pr.data.base.sha);
 
+      - name: React with eyes to acknowledge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
