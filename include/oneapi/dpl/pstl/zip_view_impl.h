@@ -89,18 +89,9 @@ __apply_to_tuples_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence
     (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
 }
 
-struct __gen_lambda
-{
-    template <class... _Ts>
-    decltype(auto)
-    operator()(_Ts&&...) const
-    {
-    }
-};
-
-template <typename _F, typename _Tuple, typename _ReturnAdapter = __gen_lambda>
+template <typename _F, typename _Tuple, typename _ReturnAdapter>
 decltype(auto)
-__apply_to_tuple(_F __f, _Tuple& __t, _ReturnAdapter __tr = {})
+__apply_to_tuple(_F __f, _Tuple& __t, _ReturnAdapter __tr)
 {
     return __apply_to_tuple_impl(__tr, __f, __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
 }
@@ -201,7 +192,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr iterator&
         operator++()
         {
-            __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return ++__it; }, __current);
+			auto __gen_lambda = [](auto&&...) {};
+            __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return ++__it; }, __current, __gen_lambda);
             return *this;
         }
 
@@ -224,7 +216,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator--()
             requires __internal::__all_bidirectional<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([](auto& __it) { return --__it; }, __current);
+			auto __gen_lambda = [](auto&&...) {};
+            __internal::__apply_to_tuple([](auto& __it) { return --__it; }, __current, __gen_lambda);
             return *this;
         }
 
@@ -241,7 +234,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator+=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it += __n; }, __current);
+			auto __gen_lambda = [](auto&&...) {};
+            __internal::__apply_to_tuple([__n](auto& __it) { return __it += __n; }, __current, __gen_lambda);
             return *this;
         }
 
@@ -249,7 +243,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it -= __n; }, __current);
+			auto __gen_lambda = [](auto&&...) {};
+            __internal::__apply_to_tuple([__n](auto& __it) { return __it -= __n; }, __current, __gen_lambda);
             return *this;
         }
 
