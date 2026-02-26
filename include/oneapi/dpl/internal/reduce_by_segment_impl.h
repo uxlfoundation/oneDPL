@@ -48,8 +48,9 @@
 #include <iterator> // std::distance
 
 #include "by_segment_extension_defs.h"
-#include "../pstl/glue_numeric_defs.h"
-#include "../pstl/glue_algorithm_defs.h"
+
+#include "../pstl/glue_numeric_impl.h"
+#include "../pstl/glue_algorithm_impl.h" // TODO: replace the use of for_each & transform with __pattern_walk3
 
 #include "../pstl/iterator_impl.h"
 #include "function.h"

@@ -20,10 +20,9 @@
 #define _ONEDPL_INCLUSIVE_SCAN_BY_SEGMENT_IMPL_H
 
 #include "by_segment_extension_defs.h"
-#include "../pstl/glue_numeric_defs.h"
-#include "../pstl/glue_algorithm_defs.h"
 
 #include "../pstl/glue_numeric_impl.h"
+#include "../pstl/glue_algorithm_impl.h" // TODO: replace the use of transform with __pattern_walk3
 
 #include "../pstl/parallel_backend.h"
 #include "function.h"
