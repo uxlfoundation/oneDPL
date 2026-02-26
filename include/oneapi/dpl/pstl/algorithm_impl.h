@@ -3772,41 +3772,6 @@ protected:
         }
     };
 
-    // NOOP iterator
-    struct _NullIterator
-    {
-        using iterator_category = std::output_iterator_tag;
-        using difference_type = std::ptrdiff_t;
-        using value_type = void;
-        using pointer = void;
-        using reference = void;
-
-        _NullIterator&
-        operator*() noexcept
-        {
-            return *this;
-        }
-
-        _NullIterator&
-        operator++() noexcept
-        {
-            return *this;
-        }
-
-        _NullIterator&
-        operator++(int) noexcept
-        {
-            return *this;
-        }
-
-        template <typename T>
-        _NullIterator&
-        operator=(const T&) noexcept
-        {
-            return *this;
-        }
-    };
-
     template <bool __Bounded, typename _DifferenceTypeArg>
     _DifferenceTypeArg
     __eval_reached_pos(typename __mask_buffers<__Bounded>::_mask_ptr_t __mask_buffer_begin,
