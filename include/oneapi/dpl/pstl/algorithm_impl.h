@@ -4327,17 +4327,15 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 #endif
 
     __par_backend::__buffer<_T> __buf(__buf_size);                                              // Temporary (windowed) buffer for result preparation
-    // KSATODO remove __mask_bufs later
-    __mask_buffers<false /*__Bounded*/> __mask_bufs(__mask_buf_size);                           // Temporary (windowed) buffer + result buffer for mask preparation
-    using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
 
+    using __mask_difference_type_t = typename __mask_buffers<__Bounded>::_difference_t;
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
     return __internal::__except_handler([__tag, &__exec, __n1, __n2, __n_out, __first1, __last1, // bounds for data1
                                          __first2, __last2,                                      // bounds for data2
                                          __result1, __result2,                                   // bounds for results
                                          __comp, __proj1, __proj2, __size_func, __mask_size_func, __set_union_op,
-                                         &__buf, &__mask_bufs, __buf_size]()
+                                         &__buf, __buf_size]()
     {
         // Buffer raw data begin/end pointers
         const auto __buf_raw_data_begin = __buf.get();
