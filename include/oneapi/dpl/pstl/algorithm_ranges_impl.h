@@ -875,8 +875,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
         __comp, __proj1, __proj2,
         [](auto&&... __args)
         {
-            return oneapi::dpl::__utils::__set_union_construct(
-                std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+            return oneapi::dpl::__utils::__set_union_construct<__BrickCopyConstruct<_IsVector>>(
+                std::forward<decltype(__args)>(__args)...);
         })
         .template __get_reached_in1_in2_out<__set_union_return_t<_R1, _R2, _OutRange>>();
 }
@@ -1022,9 +1022,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](auto&&... __args)
                 {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        std::forward<decltype(__args)>(__args)...,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{});
+                    return oneapi::dpl::__utils::__set_intersection_construct<
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                        std::forward<decltype(__args)>(__args)...);
                 })
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
@@ -1050,9 +1050,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                     return __n + __m;
                 },
                 [](auto&&... __args) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        std::forward<decltype(__args)>(__args)...,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{});
+                    return oneapi::dpl::__utils::__set_intersection_construct<
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                        std::forward<decltype(__args)>(__args)...);
                 })
                 .template __get_reached_in1_in2_out<__set_intersection_return_t<_R1, _R2, _OutRange>>();
         });
@@ -1223,8 +1223,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
             [](auto&&... __args)
             {
-                return oneapi::dpl::__utils::__set_difference_construct(
-                    std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+                return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
+                    std::forward<decltype(__args)>(__args)...);
             })
             .template __get_reached_in1_out<__set_difference_return_t<_R1, _OutRange>>();
     }
@@ -1360,8 +1360,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
         __result1, __result2,
         __comp, __proj1, __proj2,
         [](auto&&... __args) {
-            return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+            return oneapi::dpl::__utils::__set_symmetric_difference_construct<__BrickCopyConstruct<_IsVector>>(
+                std::forward<decltype(__args)>(__args)...);
         })
         .template __get_reached_in1_in2_out<__set_symmetric_difference_return_t<_R1, _R2, _OutRange>>();
 }

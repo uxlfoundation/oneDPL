@@ -330,18 +330,21 @@ struct _UninitializedCopyItem<_InputIterator, _NullIterator>
 };
 
 
+template <typename _CopyConstructRange>
 struct _CopyConstructRangeOpWrapper
 {
-    template <typename _CopyConstructRange, typename _InputIterator>
+    _CopyConstructRange _cc_range;
+
+    template <typename _InputIterator>
     _NullIterator
-    operator()(_CopyConstructRange, _InputIterator, _InputIterator, _NullIterator) const
+    operator()(_InputIterator, _InputIterator, _NullIterator)
     {
         return _NullIterator{};
     }
 
-    template <typename _CopyConstructRange, typename _InputIterator, typename _OutputIterator>
+    template <typename _InputIterator, typename _OutputIterator>
     _OutputIterator
-    operator()(_CopyConstructRange _cc_range, _InputIterator __first, _InputIterator __last, _OutputIterator __result) const
+    operator()(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
     {
         return _cc_range(__first, __last, __result);
     }
@@ -350,19 +353,21 @@ struct _CopyConstructRangeOpWrapper
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator, typename _MaskCount = std::size_t>
 using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator, _MaskCount>;
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+template <typename _CopyConstructRange,
+          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2,
-          typename _MaskIterator, typename _CopyConstructRange>
+          typename _MaskIterator>
 _union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    // bounds for data1
                       _ForwardIterator2 __first2, _ForwardIterator2 __last2,    // bounds for data2
                       _OutputIterator __result,
                       _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                      _MaskIterator __mask,                                     // source data usage masks
-                      _CopyConstructRange __cc_range)
+                      _MaskIterator __mask)                                     // source data usage masks
 {
     _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
     _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
+
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
 
     using _MaskCount = decltype(std::get<4>(std::declval<_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>>()));
     _MaskCount __masks_count = {};
@@ -373,7 +378,7 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
         {
             __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
             __masks_count += __last1 - __first1;
-            __result = _CopyConstructRangeOpWrapper{}(__cc_range, __first1, __last1, __result);
+            __result = __cc_range(__first1, __last1, __result);
 
             return {__last1, __first2, __result, __mask, __masks_count};
         }
@@ -405,40 +410,45 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1,    
 
     __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
     __masks_count += __last2 - __first2;
-    __result = _CopyConstructRangeOpWrapper{}(__cc_range, __first2, __last2, __result);
+    __result = __cc_range(__first2, __last2, __result);
 
     return {__first1, __last2, __result, __mask, __masks_count};
 }
 
+template <typename _CopyFunc>
 struct CopyOpWrapper
 {
-    template <typename _CopyFunc, typename _InputIterator>
+    _CopyFunc _copy;
+
+    template <typename _InputIterator>
     void
-    operator()(_CopyFunc, _InputIterator, _NullIterator) const
+    operator()(_InputIterator, _NullIterator) const
     {
     }
 
-    template <typename _CopyFunc, typename _InputIterator, typename _OutputIterator>
+    template <typename _InputIterator, typename _OutputIterator>
     void
-    operator()(_CopyFunc _copy, _InputIterator __it_in, _OutputIterator __it_out) const
+    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
     {
         _copy(*__it_in, *__it_out);
     }
 };
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+template <typename _CopyFunc,
+          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2,
-          typename _MaskIterator, typename _CopyFunc>
+          typename _MaskIterator>
 _union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                              _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                              _OutputIterator __result,                              // results
                              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                             _MaskIterator __mask,                                  // source data usage masks
-                             _CopyFunc _copy)
+                             _MaskIterator __mask)                                  // source data usage masks
 {
     using _MaskCount = decltype(std::get<4>(std::declval<_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>>()));
     _MaskCount __masks_count = {};
+
+    CopyOpWrapper<_CopyFunc> __copy;
 
     while (__first1 != __last1 && __first2 != __last2)
     {
@@ -456,7 +466,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
         else
         {
-            CopyOpWrapper{}(_copy, __first1, __result);
+            __copy(__first1, __result);
             ++__first1;
             ++__first2;
             ++__result;
@@ -474,18 +484,20 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
     return {__last1, __last2, __result, __mask, __masks_count};
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+template <typename _CopyConstructRange,
+          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2,
-          typename _MaskIterator, typename _CopyConstructRange>
+          typename _MaskIterator>
 _union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                            _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                            _OutputIterator __result,                              // results
                            _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                           _MaskIterator __mask,                                  // source data usage masks
-                           _CopyConstructRange __cc_range)
+                           _MaskIterator __mask)                                  // source data usage masks
 {
     _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
+
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
 
     using _MaskCount = decltype(std::get<4>(std::declval<_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>>()));
     _MaskCount __masks_count = {};
@@ -496,7 +508,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         {
             __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
             __masks_count += __last1 - __first1;
-            __result = _CopyConstructRangeOpWrapper{}(__cc_range, __first1, __last1, __result);
+            __result = __cc_range(__first1, __last1, __result);
 
             return {__last1, __first2, __result, __mask, __masks_count};
         }
@@ -529,20 +541,22 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     return {__first1, __first2, __result, __mask, __masks_count};
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+template <typename _CopyConstructRange,
+          typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator,
           typename _Compare, typename _Proj1, typename _Proj2,
-          typename _MaskIterator,
-          typename _CopyConstructRange>
+          typename _MaskIterator>
 _union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, // bounds for data1
                                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, // bounds for data2
                                      _OutputIterator __result,                              // results
                                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2,
-                                     _MaskIterator __mask,                                  // source data usage masks
-                                     _CopyConstructRange __cc_range)
+                                     _MaskIterator __mask)                                  // source data usage masks
 {
     _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
     _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
+
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
 
     using _MaskCount = decltype(std::get<4>(std::declval<_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>>()));
     _MaskCount __masks_count = {};
@@ -553,7 +567,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         {
             __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
             __masks_count += __last1 - __first1;
-            __result = _CopyConstructRangeOpWrapper{}(__cc_range, __first1, __last1, __result);
+            __result = __cc_range(__first1, __last1, __result);
 
             return {__last1, __first2, __result, __mask, __masks_count};
         }
@@ -589,7 +603,7 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 
     __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
     __masks_count += __last2 - __first2;
-    __result = _CopyConstructRangeOpWrapper{}(__cc_range, __first2, __last2, __result);
+    __result = __cc_range(__first2, __last2, __result);
 
     return {__first1, __last2, __result, __mask, __masks_count};
 }

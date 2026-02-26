@@ -4612,8 +4612,8 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
         __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
         [](auto&&... __args)
         {
-            return oneapi::dpl::__utils::__set_union_construct(
-                std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+            return oneapi::dpl::__utils::__set_union_construct<__BrickCopyConstruct<_IsVector>>(
+                std::forward<decltype(__args)>(__args)...);
         })
         .__get_reached_out();
 }
@@ -4708,9 +4708,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](auto&&... __args)
                 {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        std::forward<decltype(__args)>(__args)...,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{});
+                    return oneapi::dpl::__utils::__set_intersection_construct<
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                        std::forward<decltype(__args)>(__args)...);
                 })
                 .__get_reached_out();
         });
@@ -4737,9 +4737,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 },
                 [](auto&&... __args)
                 {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        std::forward<decltype(__args)>(__args)...,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{});
+                    return oneapi::dpl::__utils::__set_intersection_construct<
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>>(
+                        std::forward<decltype(__args)>(__args)...);
                 })
                 .__get_reached_out();
         });
@@ -4835,8 +4835,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
             [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
             [](auto&&... __args)
             {
-                return oneapi::dpl::__utils::__set_difference_construct(
-                    std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+                return oneapi::dpl::__utils::__set_difference_construct<__BrickCopyConstruct<_IsVector>>(
+                    std::forward<decltype(__args)>(__args)...);
             })
             .__get_reached_out();
     }
@@ -4908,8 +4908,8 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
             __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
             [](auto&&... __args)
             {
-                return oneapi::dpl::__utils::__set_symmetric_difference_construct(
-                    std::forward<decltype(__args)>(__args)..., __BrickCopyConstruct<_IsVector>());
+                return oneapi::dpl::__utils::__set_symmetric_difference_construct<
+                    __BrickCopyConstruct<_IsVector>>(std::forward<decltype(__args)>(__args)...);
             })
             .__get_reached_out();
     });

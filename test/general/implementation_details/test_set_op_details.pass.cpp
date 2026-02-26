@@ -55,6 +55,8 @@ constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__ut
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
 
+using BrickCopy = oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>;
+
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
 void
 test_set_union_construct()
@@ -73,13 +75,12 @@ test_set_union_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -97,13 +98,12 @@ test_set_union_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -128,13 +128,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -152,13 +151,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -176,13 +174,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -200,13 +197,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -224,13 +220,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -248,13 +243,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -272,13 +266,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -296,13 +289,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -320,13 +312,12 @@ test_set_union_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -353,13 +344,12 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_construct");
@@ -381,13 +371,12 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -412,13 +401,12 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -436,13 +424,12 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -460,13 +447,12 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -484,13 +470,12 @@ test_set_intersection_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            CopyValueOp{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -515,13 +500,12 @@ test_set_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -539,13 +523,12 @@ test_set_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -570,13 +553,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -594,13 +576,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -618,13 +599,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -642,13 +622,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -666,13 +645,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -690,13 +668,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -714,13 +691,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -738,13 +714,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -762,13 +737,12 @@ test_set_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -793,13 +767,12 @@ test_set_symmetric_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -817,13 +790,12 @@ test_set_symmetric_difference_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -848,13 +820,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -872,13 +843,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -896,13 +866,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -920,13 +889,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -944,13 +912,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -968,13 +935,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -992,13 +958,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
@@ -1016,13 +981,12 @@ test_set_symmetric_difference_construct_edge_cases()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct(
+        auto [it1, it2, out, mask_e, mask_count] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
             std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
-            mask_b,
-            oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>{});
+            mask_b);
 
         EXPECT_EQ(mask_e - mask_b, mask_count, "Wrong mask size state");
         EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
