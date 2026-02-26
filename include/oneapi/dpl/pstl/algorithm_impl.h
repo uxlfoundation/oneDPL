@@ -3652,7 +3652,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
                             const _MaskPart<_DifferenceType>& __mask_part_arg,
                             const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_arg)
     {
-        assert(__offset_from_n_out < 2);
+        assert(__offset_from_n_out < 3);
 
         OutputPosRangeInfo& ri = __output_pos_range_info[__offset_from_n_out];
         ri.__data_part = __data_part_arg;
@@ -3767,6 +3767,7 @@ protected:
 
         const OutputPosRangeInfo& __ri_n = __output_pos_range_info[0];
         const OutputPosRangeInfo& __ri_n1 = __output_pos_range_info[1];
+        const OutputPosRangeInfo& __ri_n2 = __output_pos_range_info[2];
 
         assert(__ri_n.__output_pos_reached);
 
@@ -3892,9 +3893,10 @@ protected:
     };
 
     // Information about two data parts which can generate output data when output position will be reached:
-    // - element 0: the part which contains putput position (__n)
-    // - element 1: the part which contains putput position (__n + 1)
-    OutputPosRangeInfo __output_pos_range_info[2];
+    // - element 0: the part which contains oputput position (__n)
+    // - element 1: the part which contains oputput position (__n + 1)
+    // - element 2: the part which contains oputput position (__n + 2)
+    OutputPosRangeInfo __output_pos_range_info[3];
 
     _DifferenceType __real_filled_mask_len = {};
 };
@@ -3938,6 +3940,9 @@ struct _ScanPred
             // Save subrange info if we reached next after final position at this subrange
             if (__is_output_pos_reached_at_part(__n_out + 1, __data_part))
                 __source_final_pos_evaluator.__on_output_pos_reached(1, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
+
+            if (__is_output_pos_reached_at_part(__n_out + 2, __data_part))
+                __source_final_pos_evaluator.__on_output_pos_reached(2, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
         }
     }
 
