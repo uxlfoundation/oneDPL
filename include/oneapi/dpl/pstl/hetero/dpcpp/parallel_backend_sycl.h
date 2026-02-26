@@ -63,7 +63,7 @@ namespace oneapi
 {
 namespace dpl
 {
-namespace __par_backend_hetero  
+namespace __par_backend_hetero
 {
 
 //-----------------------------------------------------------------------------
