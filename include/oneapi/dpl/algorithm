@@ -29,8 +29,8 @@
 #    include "oneapi/dpl/internal/binary_search_extension_defs.h"
 
 // Declarations of oneDPL numeric algorithms
-#    include "oneapi/dpl/pstl/histogram_extension_defs.h"
 #    include "oneapi/dpl/internal/by_segment_extension_defs.h"
+#    include "oneapi/dpl/pstl/histogram_extension_defs.h"
 #    define _ONEDPL_ALGORITHM_FORWARD_DECLARED 1
 #endif // !_ONEDPL_ALGORITHM_FORWARD_DECLARED
 
@@ -41,10 +41,10 @@
 #    include "oneapi/dpl/internal/binary_search_impl.h"
 
 // Implementations of oneDPL numeric algorithms
-#    include "oneapi/dpl/pstl/histogram_impl.h"
 #    include "oneapi/dpl/internal/exclusive_scan_by_segment_impl.h"
 #    include "oneapi/dpl/internal/inclusive_scan_by_segment_impl.h"
 #    include "oneapi/dpl/internal/reduce_by_segment_impl.h"
+#    include "oneapi/dpl/pstl/histogram_impl.h"
 #endif // _ONEDPL_EXECUTION_POLICIES_DEFINED
 
 // Due to mutual names injection (from oneapi::dpl:: to std:: and vice versa)
