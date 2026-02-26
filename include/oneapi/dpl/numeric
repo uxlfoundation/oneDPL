@@ -35,9 +35,9 @@
 // If <execution> has already been included, pull in implementations
 #    include "oneapi/dpl/pstl/glue_numeric_impl.h"
 #    include "oneapi/dpl/pstl/histogram_impl.h"
+#    include "oneapi/dpl/internal/reduce_by_segment_impl.h"
 #    include "oneapi/dpl/internal/exclusive_scan_by_segment_impl.h"
 #    include "oneapi/dpl/internal/inclusive_scan_by_segment_impl.h"
-#    include "oneapi/dpl/internal/reduce_by_segment_impl.h"
 #endif // _ONEDPL_EXECUTION_POLICIES_DEFINED
 
 namespace oneapi
