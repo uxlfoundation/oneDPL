@@ -27,11 +27,6 @@
 #include "../pstl/parallel_backend.h"
 #include "function.h"
 #include "../pstl/utils.h"
-
-#if _ONEDPL_BACKEND_SYCL
-#    include "../pstl/hetero/numeric_impl_hetero.h"
-#endif
-
 #include "../pstl/functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi

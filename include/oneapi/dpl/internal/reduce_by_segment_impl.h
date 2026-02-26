@@ -56,14 +56,6 @@
 #include "function.h"
 #include "../pstl/utils.h"
 
-#if _ONEDPL_BACKEND_SYCL
-#include "../pstl/utils_ranges.h"
-#include "../pstl/hetero/dpcpp/utils_ranges_sycl.h"
-#include "../pstl/ranges_defs.h"
-#include "../pstl/hetero/numeric_impl_hetero.h"
-#include "../pstl/hetero/dpcpp/sycl_traits.h" //SYCL traits specialization for some oneDPL types.
-#endif
-
 namespace oneapi
 {
 namespace dpl
