@@ -50,7 +50,6 @@ jobs:
         run: sudo apt-get install -yqq clang-format
       - name: Applying clang-format for changed files
         run: .github/scripts/clang-format-diff.sh ${{ github.event.pull_request.head.sha }} ${{ github.event.pull_request.base.sha }}
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
       - name: Creating diff
         run: git diff > clang-format.diff
       - name: Checking if diff is empty

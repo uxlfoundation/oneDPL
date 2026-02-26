@@ -40,7 +40,7 @@ jobs:
             // Only collaborators and the PR author can trigger this
             const association = context.payload.comment.author_association;
             const isPrAuthor = context.payload.comment.user.login === pr.data.user.login;
-            const isCollaborator = ['OWNER', 'MEMBER'].includes(association);
+            const isCollaborator = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association);
 
             if (!isPrAuthor && !isCollaborator) {
               core.setFailed('Only repository members or the PR author can trigger /clang-format');
@@ -81,7 +81,7 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -A
+            git add -u
             git commit -m "Apply clang-format to PR diff"
             git push
           fi
