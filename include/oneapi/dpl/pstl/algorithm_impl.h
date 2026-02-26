@@ -4146,17 +4146,12 @@ struct _ParallelSetOpStrictScanPred
 
         auto __mask_b = __mask_bufs.get_buf_mask_rng_data(__mask_buf_pos);
 
-        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
+        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached, __mask_size] =
             __set_union_op(__b, __e,   // set1 : begin, end
                            __bb, __ee, // set2 : begin, end
                            __buffer_b, // output : begin
                            __mask_b,   // mask : begin
                            __comp, __proj1, __proj2);
-
-        if constexpr (__Bounded)
-        {
-            assert(__mask_reached - __mask_b <= __mask_size_func(__e - __b, __ee - __bb));
-        }
 
         // Prepare processed data info
         const _DataPart<_DifferenceType> __new_processing_data{
@@ -4189,7 +4184,7 @@ struct _ParallelSetOpStrictScanPred
             // Prepare processed mask info
             _MaskPart<_DifferenceType> __new_mask_data{
                 0,                                  // Offset in output range w/o limitation to output data size
-                __mask_reached - __mask_b,          // The length of data pack: the same for windowed and result buffers
+                __mask_size,                        // The length of data pack: the same for windowed and result buffers        //__mask_reached - __mask_b,
                 __mask_buf_pos };                   // Offset in temporary buffer w/o limitation to output data size
 
             _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
