@@ -495,7 +495,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
-            auto __tr = [](auto&&... __args) { return iterator<true>(__iterators_type(__args...)); };
+            auto __tr = [](auto&&... __args) { return iterator<true>(__iterators_type(std::forward<decltype(__args)>(__args)...)); };
             return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
         }
     }
