@@ -19,7 +19,7 @@
 
 #include "support/utils.h"
 
-#include _PSTL_TEST_HEADER(algorithm)
+#include _PSTL_TEST_HEADER(numeric)
 #include _PSTL_TEST_HEADER(iterator)
 #include _PSTL_TEST_HEADER(functional)
 
