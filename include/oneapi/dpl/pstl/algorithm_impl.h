@@ -3822,12 +3822,12 @@ protected:
         _RandomAccessIterator2 __last2_tmp  = __first2_tmp + __size2;
         oneapi::dpl::__utils::_NullIterator __result1_tmp_noop;
 
-        auto [__first1_tmp_reached, __first2_tmp_reached, __result1_tmp_noop_reached, __mask_buffer_reached,
-              __mask_count] = __set_union_op(__first1_tmp, __last1_tmp,
-                                             __first2_tmp, __last2_tmp,
-                                             __result1_tmp_noop,
-                                             __comp, __proj1, __proj2,
-                                             __mask_buffer_begin);
+        auto [__first1_tmp_reached, __first2_tmp_reached, __result1_tmp_noop_reached, __mask_buffer_reached] =
+            __set_union_op(__first1_tmp, __last1_tmp,
+                           __first2_tmp, __last2_tmp,
+                           __result1_tmp_noop,
+                           __comp, __proj1, __proj2,
+                           __mask_buffer_begin);
 
         ////////////////////////////////////////////////////////////
         // Process data based on buffer with mask
@@ -4176,7 +4176,7 @@ struct _ParallelSetOpStrictScanPred
 
         const _DifferenceType __mask_buf_pos = __mask_size_func(__b - __first1, __bb - __first2);
 
-        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached, __mask_size] =
+        auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_union_op(__b, __e,                    // set1 : begin, end
                            __bb, __ee,                  // set2 : begin, end
                            __buffer_b,                  // output : begin
