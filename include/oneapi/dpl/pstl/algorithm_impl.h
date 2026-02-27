@@ -3384,9 +3384,6 @@ struct _DataPart
 #endif
 };
 
-template <typename _DifferenceType>
-using _MaskPart = _DataPart<_DifferenceType>;
-
 template <typename _DifferenceType1, typename _DifferenceType2>
 struct _SourceProcessingDataOffsets
 {
@@ -3461,14 +3458,13 @@ template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, 
 struct _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
-    static constexpr std::size_t _MaskDataIndex = 1;
-    static constexpr std::size_t _SourceDataOffsetsIndex = 2;
+    static constexpr std::size_t _SourceDataOffsetsIndex = 1;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
     using _DataStorage =
         std::conditional_t<!__Bounded, _DataPart<_DifferenceType>,
-                           std::tuple<_DataPart<_DifferenceType>, _MaskPart<_DifferenceType>,
+                           std::tuple<_DataPart<_DifferenceType>,
                                       _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>>>;
 
     _DataStorage __data;
@@ -3480,13 +3476,6 @@ struct _SetRangeImpl
             return __data;
         else
             return std::get<_DataIndex>(__data);
-    }
-
-    const _MaskPart<_DifferenceType>&
-    get_mask_part() const
-    {
-        static_assert(__Bounded, "Mask data part is available only for bounded set operations");
-        return std::get<_MaskDataIndex>(__data);
     }
 
     const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>&
@@ -3509,7 +3498,6 @@ struct _SetRangeImpl
         {
             typename _SetRangeImpl::_DataStorage __ds{
                 __new_data_part,
-                _MaskPart                   <_DifferenceType                   >::combine_with(__a.get_mask_part(),                __b.get_mask_part()               ),
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(__a.get_source_data_offsets_part(), __b.get_source_data_offsets_part())};
             return _SetRangeImpl{__ds};
         }
@@ -3684,20 +3672,18 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
     void
     __on_output_pos_reached(std::size_t __offset_from_n_out,
                             const _DataPart<_DifferenceType>& __data_part,
-                            const _MaskPart<_DifferenceType>& __mask_part,
                             const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
     {
         assert(__offset_from_n_out < 2);
 
-        __output_pos_range_info_opt[__offset_from_n_out] = OutputPosRangeInfo{__data_part, __mask_part, __source_data_offsets};
+        __output_pos_range_info_opt[__offset_from_n_out] = OutputPosRangeInfo{__data_part, __source_data_offsets};
         __reached_pos_evaluated = false;
     }
 
     void
-    __on_apex(const _DataPart<_DifferenceType>& __data_part_arg, const _MaskPart<_DifferenceType>& __mask_part_arg)
+    __on_apex(const _DataPart<_DifferenceType>& __data_part)
     {
-        __res_data.__reached_pos_out = std::min(__data_part_arg.__pos + __data_part_arg.__len, __n_out);
-        __real_filled_mask_len = std::max(__real_filled_mask_len, __mask_part_arg.__pos + __mask_part_arg.__len);
+        __res_data.__reached_pos_out = std::min(__data_part.__pos + __data_part.__len, __n_out);
     }
 
     // Get evaluated reached positions for the source ranges and output range
@@ -3933,7 +3919,6 @@ protected:
     struct OutputPosRangeInfo
     {
         _DataPart<_DifferenceType>                                       __data_part;
-        _MaskPart<_DifferenceType>                                       __mask_part;
         _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
     };
 
@@ -3941,8 +3926,6 @@ protected:
     // - element 0: the part which contains oputput position (__n)
     // - element 1: the part which contains oputput position (__n + 1)
     std::optional<OutputPosRangeInfo> __output_pos_range_info_opt[2];
-
-    _DifferenceType __real_filled_mask_len = {};
 };
 
 template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer, typename _SetRange, typename _OutputIterator,
@@ -3979,11 +3962,11 @@ struct _ScanPred
 
             // Save subrange info if we reached final position at this subrange
             if (__is_output_pos_reached_at_part(__n_out, __data_part))
-                __source_final_pos_evaluator.__on_output_pos_reached(0, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
+                __source_final_pos_evaluator.__on_output_pos_reached(0, __data_part, __s.get_source_data_offsets_part());
 
             // Save subrange info if we reached next after final position at this subrange
             if (__is_output_pos_reached_at_part(__n_out + 1, __data_part))
-                __source_final_pos_evaluator.__on_output_pos_reached(1, __data_part, __s.get_mask_part(), __s.get_source_data_offsets_part());
+                __source_final_pos_evaluator.__on_output_pos_reached(1, __data_part, __s.get_source_data_offsets_part());
         }
     }
 
@@ -4162,16 +4145,10 @@ struct _ParallelSetOpStrictScanPred
             }
             else
             {
-                _MaskPart<_DifferenceType> __new_mask_data{
-                    0,                                                      // Offset in output range w/o limitation to output data size
-                    0,                                                      // The length of data pack: the same for windowed and result buffers
-                    __mask_size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
-
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{};
                 
                 typename _SetRange::_DataStorage _ds{
                     __new_processing_data,              // Describes data
-                    __new_mask_data,                    // Describes mask
                     __new_offsets_to_processing_data};  // Describes offsets to processing data
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -4236,13 +4213,6 @@ struct _ParallelSetOpStrictScanPred
         }
         else
         {
-            // KSATODO remove later this part _MaskPart and all usages
-            // Prepare processed mask info
-            _MaskPart<_DifferenceType> __new_mask_data{
-                0,                                  // Offset in output range w/o limitation to output data size
-                __mask_size,                        // The length of data pack: the same for windowed and result buffers        //__mask_reached - __mask_b,
-                __mask_buf_pos };                   // Offset in temporary buffer w/o limitation to output data size
-
             typename _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::template _SourceProcessingDataOffset<_DifferenceType1> __data1;
             __data1.__start_offset = __b - __first1;        // Absolute offset to processing data in the first data set
             __data1.__data_len = __it1_reached - __b;       // The length of the first input range processed part
@@ -4257,7 +4227,6 @@ struct _ParallelSetOpStrictScanPred
 
             typename _SetRange::_DataStorage _ds{
                 __new_processing_data,              // Describes data
-                __new_mask_data,                    // Describes mask
                 __new_offsets_to_processing_data};  // Describes offsets to processing data
 
 #if DUMP_PARALLEL_SET_OP_WORK
@@ -4371,10 +4340,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
             //final scan
             __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
 
-            if constexpr (!__Bounded)
-                __scan_pred.__source_final_pos_evaluator.__on_apex(__total.get_data_part());
-            else
-                __scan_pred.__source_final_pos_evaluator.__on_apex(__total.get_data_part(), __total.get_mask_part());
+        __scan_pred.__source_final_pos_evaluator.__on_apex(__total.get_data_part());
 
 #if DUMP_PARALLEL_SET_OP_WORK
             std::cout << "ST.3:\n"
