@@ -856,7 +856,6 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _Tp = std::ranges::range_value_t<_OutRange>;
 
     auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
     auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
@@ -967,7 +966,6 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _Tp = std::ranges::range_value_t<_OutRange>;
 
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
@@ -1314,7 +1312,6 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
 {
     using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-    using _Tp = std::ranges::range_value_t<_OutRange>;
 
     auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
     auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
