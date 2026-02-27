@@ -3722,21 +3722,15 @@ protected:
         const auto __mask_buf_size = __mask_size_func(__size1, __size2);
         __par_backend::__buffer<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(__mask_buf_size);
 
-        oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_begin = __mask_bufs.get();
-        oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_end = __mask_bufs.get() + __mask_buf_size;
-
         _RandomAccessIterator1 __first1_tmp = __first1 + __offset1;
         _RandomAccessIterator2 __first2_tmp = __first2 + __offset2;
-        _RandomAccessIterator1 __last1_tmp  = __first1_tmp + __size1;
-        _RandomAccessIterator2 __last2_tmp  = __first2_tmp + __size2;
+        _RandomAccessIterator1 __last1_tmp = __first1_tmp + __size1;
+        _RandomAccessIterator2 __last2_tmp = __first2_tmp + __size2;
         oneapi::dpl::__utils::_NullIterator __result1_tmp_noop;
 
         auto [__first1_tmp_reached, __first2_tmp_reached, __result1_tmp_noop_reached, __mask_buffer_reached] =
-            __set_union_op(__first1_tmp, __last1_tmp,
-                           __first2_tmp, __last2_tmp,
-                           __result1_tmp_noop,
-                           __comp, __proj1, __proj2,
-                           __mask_buffer_begin);
+            __set_union_op(__first1_tmp, __last1_tmp, __first2_tmp, __last2_tmp, __result1_tmp_noop, __comp, __proj1,
+                           __proj2, __mask_bufs.get());
 
         ////////////////////////////////////////////////////////////
         // Process data based on buffer with mask
@@ -3752,22 +3746,16 @@ protected:
         // Calculate analyzing area in the result mask buffer
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
-            [&]()
-            {
-                __res_reachedPos1 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_reached,
-                                                                  oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                                                                  __ri_n0.__data_part.__pos,
-                                                                  __ri_n0.__source_data_offsets_part.__data1.__start_offset);
-            }
-            ,
-            [&]()
-            {
-                __res_reachedPos2 = __eval_reached_pos<__Bounded>(__mask_buffer_begin, __mask_buffer_reached,
-                                                                  oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                                                                  __ri_n0.__data_part.__pos,
-                                                                  __ri_n0.__source_data_offsets_part.__data2.__start_offset);
-            }
-        );
+            [&]() {
+                __res_reachedPos1 = __eval_reached_pos<__Bounded>(
+                    __mask_bufs.get(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data1.__start_offset);
+            },
+            [&]() {
+                __res_reachedPos2 = __eval_reached_pos<__Bounded>(
+                    __mask_bufs.get(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data2.__start_offset);
+            });
 
         return {__res_reachedPos1, __res_reachedPos2};
     }
