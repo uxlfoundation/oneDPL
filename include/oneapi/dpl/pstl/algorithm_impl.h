@@ -4102,8 +4102,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     const _DifferenceType __n_out = __result2 - __result1;
 
     const auto __buf_size = __size_func(__n1, __n2);
-    const auto __mask_buf_size = __mask_size_func(__n1, __n2);
-
     __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
 
     using __mask_difference_type_t = typename std::iterator_traits<oneapi::dpl::__utils::__parallel_set_op_mask*>::difference_type;
