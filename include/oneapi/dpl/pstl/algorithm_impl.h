@@ -3665,8 +3665,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy,
     {
         // No calculation of reached positions in the first and in the second input ranges needed
         // due we have enough output buffer size to place all data from input ranges
-        //__reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
-        __reached_pos_evaluated_due_output_size = false;
+        __reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
     }
 
     void
