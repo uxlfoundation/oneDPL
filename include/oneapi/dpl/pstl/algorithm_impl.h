@@ -3628,7 +3628,7 @@ protected:
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
-#define EVAL_REACHED_POS_IN_PARALLEL 0
+#define EVAL_REACHED_POS_IN_PARALLEL 1
 
 template <class _IsVector, class _ExecutionPolicy,
           class _RandomAccessIterator1, class _RandomAccessIterator2, class _OutputIterator,
