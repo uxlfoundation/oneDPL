@@ -3826,8 +3826,6 @@ struct _ScanPred
     void
     operator()(_DifferenceType, _DifferenceType, const _SetRange& __s) const
     {
-        using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
         const _DataPart<_DifferenceType>& __data_part = __s.get_data_part();
 
         if constexpr (!__Bounded)
@@ -4389,7 +4387,6 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
-    using _Tp = typename std::iterator_traits<_OutputIterator>::value_type;
     return __parallel_set_union_op</*__Bounded*/ false>(
                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
                __result + __n1 + __n2, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{},
@@ -4655,7 +4652,6 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
-    using _Tp = typename std::iterator_traits<_RandomAccessIterator3>::value_type;
     return __internal::__except_handler([&]() {
         return __internal::__parallel_set_union_op</*__Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
