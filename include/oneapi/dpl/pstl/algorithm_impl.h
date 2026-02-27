@@ -4038,8 +4038,6 @@ struct _ParallelSetOpStrictScanPred
 
         auto __buffer_b = __buf_raw_data_begin + __buf_pos;
 
-        const _DifferenceType __mask_buf_pos = __mask_size_func(__b - __first1, __bb - __first2);
-
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_union_op(__b, __e,                    // set1 : begin, end
                            __bb, __ee,                  // set2 : begin, end
