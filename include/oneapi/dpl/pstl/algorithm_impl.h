@@ -3666,7 +3666,7 @@ protected:
     }
 
     template <bool _IsFirstRange, typename _RandomAccessIterator,
-              typename _DifferenceType = std::iterator_traits<_RandomAccessIterator>::difference_type>
+              typename _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     std::pair<_DifferenceType, _DifferenceType>
     __eval_offset_and_size(_RandomAccessIterator __first, _RandomAccessIterator __last) const
     {
@@ -4120,7 +4120,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
     __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
 
-    using __mask_difference_type_t = std::iterator_traits<oneapi::dpl::__utils::__parallel_set_op_mask*>::difference_type;
+    using __mask_difference_type_t = typename std::iterator_traits<oneapi::dpl::__utils::__parallel_set_op_mask*>::difference_type;
 
     using _SetRange = _SetRangeImpl<__Bounded, _DifferenceType1, _DifferenceType2, _DifferenceTypeOutput, __mask_difference_type_t>;
 
