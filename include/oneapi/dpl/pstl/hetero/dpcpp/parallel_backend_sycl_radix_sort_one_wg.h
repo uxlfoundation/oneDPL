@@ -143,12 +143,10 @@ struct __subgroup_radix_sort
         return std::uint32_t(__wg_size) * std::uint32_t(__bin_count) + 1;
     }
 
-    template <typename _T, typename _Size>
+    template <typename _T>
     auto
-    __check_slm_size(const sycl::queue& __q, _Size __n, std::uint16_t __wg_size)
+    __check_slm_size(const sycl::queue& __q, std::uint16_t __n, std::uint16_t __wg_size)
     {
-        assert(__n <= 1 << 16); //the kernel is designed for data size <= 64K
-
         const std::uint32_t __counter_buf_sz = __get_counter_buf_size(__wg_size);
         const std::uint32_t __req_slm_size_counters = __counter_buf_sz * sizeof(std::uint32_t);
 
