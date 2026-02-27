@@ -1,0 +1,100 @@
+name: Apply clang-format
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  apply-clang-format:
+    # Only run on PR comments that are exactly /clang-format from authorized users
+    if: >-
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/clang-format' &&
+      (
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) ||
+        github.event.comment.user.login == github.event.issue.user.login
+      )
+    runs-on: ubuntu-latest
+    concurrency:
+      group: clang-format-pr-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            // Cannot push to fork branches
+            if (pr.data.head.repo.full_name !== '${{ github.repository }}') {
+              core.setFailed('Cannot apply clang-format to PRs from forks. Please apply changes locally.');
+              return;
+            }
+
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+            core.setOutput('base_sha', pr.data.base.sha);
+
+      - name: React with eyes to acknowledge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Get clang-format
+        run: sudo apt-get install -yqq clang-format
+
+      - name: Apply clang-format to changed lines
+        run: .github/scripts/clang-format-diff.sh ${{ steps.pr.outputs.head_sha }} ${{ steps.pr.outputs.base_sha }}
+
+      - name: Check for changes and commit
+        id: result
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -u
+            git commit -m "Apply clang-format to PR diff"
+            git push
+          fi
+
+      - name: Add result reaction
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const hasChanges = '${{ steps.result.outputs.has_changes }}';
+            const success = '${{ job.status }}' === 'success';
+
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: success ? (hasChanges === 'true' ? 'rocket' : '+1') : 'confused'
+            });
