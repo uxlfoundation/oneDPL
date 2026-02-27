@@ -3676,45 +3676,52 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__n1 == 0 || __n2 == 0)
         return __result;
 
-    // testing  whether the sequences are intersected
-    _RandomAccessIterator1 __left_bound_seq_1 = std::lower_bound(__first1, __last1, *__first2, __comp);
-    //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
-    if (__left_bound_seq_1 == __last1)
-        return __result;
-
-    // testing  whether the sequences are intersected
-    _RandomAccessIterator2 __left_bound_seq_2 = std::lower_bound(__first2, __last2, *__first1, __comp);
-    //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
-    if (__left_bound_seq_2 == __last2)
-        return __result;
-
-    // Two trimming strategies are available (mutually exclusive):
-    // Strategy A: Trim range1 (elements < *__first2), keep range2 full
-    // Strategy B: Trim range2 (elements < *__first1), keep range1 full
-    // Choose the strategy that trims more elements (eliminates more non-overlapping work).
-
-    const _DifferenceType1 __trimmed_from_range1 = __left_bound_seq_1 - __first1;
-    const _DifferenceType2 __trimmed_from_range2 = __left_bound_seq_2 - __first2;
-
+    // Trim non-overlapping portions from both ends.
     _RandomAccessIterator1 __begin1 = __first1;
+    _RandomAccessIterator1 __end1 = __last1;
     _RandomAccessIterator2 __begin2 = __first2;
+    _RandomAccessIterator2 __end2 = __last2;
 
-    if (__trimmed_from_range1 >= __trimmed_from_range2)
+    // Trim the beginning of whichever range starts earlier
+    if (__comp(*__first2, *__first1))
     {
-        __begin1 = __left_bound_seq_1;
-        __n1 = __last1 - __begin1;
+        // range 2 starts before range 1; trim beginning of range 2 to *__first1
+        __begin2 = std::lower_bound(__first2, __last2, *__first1, __comp);
+        if (__begin2 == __last2)
+            return __result;
     }
-    else
+    else if (__comp(*__first1, *__first2))
     {
-        __begin2 = __left_bound_seq_2;
-        __n2 = __last2 - __begin2;
+        // range 1 starts before range 2; trim beginning of range 1 to *__first2
+        __begin1 = std::lower_bound(__first1, __last1, *__first2, __comp);
+        if (__begin1 == __last1)
+            return __result;
     }
+
+    // Trim the end of whichever range ends later
+    if (__comp(*(__end1 - 1), *(__end2 - 1)))
+    {
+        // range 1 ends before range 2; trim end of range 2 to *(__end1 - 1)
+        __end2 = std::upper_bound(__begin2, __end2, *(__end1 - 1), __comp);
+    }
+    else if (__comp(*(__end2 - 1), *(__end1 - 1)))
+    {
+        // range 2 ends before range 1; trim end of range 1 to *(__end2 - 1)
+        __end1 = std::upper_bound(__begin1, __end1, *(__end2 - 1), __comp);
+    }
+
+    // End trimming may have eliminated all overlap
+    if (__begin1 == __end1 || __begin2 == __end2)
+        return __result;
+
+    __n1 = __end1 - __begin1;
+    __n2 = __end2 - __begin2;
 
     const _DifferenceType __total_work = __n1 + __n2;
     if (__total_work > __set_algo_cut_off)
     {
         return __internal::__parallel_set_op(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __last1, __begin2, __last2, __result,
+            __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __end1, __begin2, __end2, __result,
             [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
             [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
                _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result, _Compare __comp,
@@ -3728,7 +3735,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     // Work too small for parallelization - use serial algorithm
-    return std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
+    return std::set_intersection(__begin1, __end1, __begin2, __end2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
