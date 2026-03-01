@@ -90,17 +90,13 @@ class __parallel_for_body
     _RealBody _M_body;
 };
 
-// Matches the default grainsize value of tbb::blocked_range according to the specification
-constexpr std::size_t __default_chunk_size = 1;
-// Stub for oneTBB backend. TODO: investigate if other values provide better performance.
-constexpr std::size_t __any_workload_chunk_size = __default_chunk_size;
-
 //! Evaluation of brick f[i,j) for each subrange [i,j) of [first,last)
 // wrapper over tbb::parallel_for
 template <class _ExecutionPolicy, class _Index, class _Fp>
 void
 __parallel_for(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
-               std::size_t __grainsize = __default_chunk_size)
+               std::size_t __grainsize = 1 /*matches the default grainsize value of tbb::blocked_range according to
+               the specification*/)
 {
     tbb::this_task_arena::isolate([=]() {
         tbb::parallel_for(tbb::blocked_range<_Index>(__first, __last, __grainsize),

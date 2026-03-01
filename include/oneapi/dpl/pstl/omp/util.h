@@ -53,10 +53,6 @@ using __buffer = oneapi::dpl::__utils::__buffer_impl<_Tp, std::allocator>;
 // Preliminary size of each chunk: requires further discussion
 constexpr std::size_t __default_chunk_size = 2048;
 
-// Use smaller chunks size with for_each and transform
-// for better scaling with small number of items and heavy functors.
-constexpr std::size_t __any_workload_chunk_size = 256;
-
 // Convenience function to determine when we should run serial.
 template <typename _Iterator, std::enable_if_t<!std::is_integral_v<_Iterator>, bool> = true>
 constexpr auto
