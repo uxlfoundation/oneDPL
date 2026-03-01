@@ -82,8 +82,8 @@ struct __chunk_metrics
 
 template <class _RandomAccessIterator, class _Size = std::size_t>
 auto
-__chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
-                    const int __num_threads, std::size_t __min_chunk_size) -> __chunk_metrics
+__chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last, const int __num_threads,
+                    std::size_t __min_chunk_size) -> __chunk_metrics
 {
     // This algorithm creates a number of chunks that is a multiple of the thread count
     // for optimal load balancing. Leftover elements are evenly distributed across
