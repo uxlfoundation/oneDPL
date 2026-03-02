@@ -3928,10 +3928,6 @@ struct _ScanPred
         if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
             return true;
 
-#if EVAL_REACHED_POS_FROM_START
-        return true;
-#endif
-
         return false;
     }
 
