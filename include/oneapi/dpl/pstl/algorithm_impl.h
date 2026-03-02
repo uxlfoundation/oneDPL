@@ -3344,16 +3344,20 @@ struct _DataPart
     }
 
     static _DataPart
-    combine_with(const _DataPart& __a, const _DataPart& __b)
+    combine_with(const _DataPart& __a, const _DataPart& __b, bool& __a_is_left)
     {
         if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
+        {
+            __a_is_left = true;
             return {__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
+        }
 
+        __a_is_left = false;
         return {__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
     }
 
     bool
-    is_output_pos_reached(_DifferenceType __n) const
+    is_output_size_reached(_DifferenceType __output_size) const
     {
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
@@ -3368,27 +3372,30 @@ struct _DataPart
         //                                           |                                                |
         // Positions in result buffer:             __n                                              __n + 1
 
+        assert(__output_size > 0);
+        const _DifferenceType __n = __output_size - 1;
+
         return __pos <= __n && __n < __pos + __len;
     }
 };
 
 template <typename _DifferenceType>
-using _SourceProcessingDataOffset = _DataPart<_DifferenceType>;
+struct _SourceProcessingDataOffset
+{
+    _DifferenceType __offset = {};
+    _DifferenceType __length = {};
+};
 
 template <typename _DifferenceType1, typename _DifferenceType2>
 struct _SourceProcessingDataOffsets
 {
-    _SourceProcessingDataOffset<_DifferenceType1> __data1 = {};
-    _SourceProcessingDataOffset<_DifferenceType2> __data2 = {};
+    _SourceProcessingDataOffset<_DifferenceType1> __data1;
+    _SourceProcessingDataOffset<_DifferenceType2> __data2;
 
     static _SourceProcessingDataOffsets
-    combine_with(const _SourceProcessingDataOffsets& __a, const _SourceProcessingDataOffsets& __b)
+    combine_with(const _SourceProcessingDataOffsets& __a, const _SourceProcessingDataOffsets& __b, bool __a_is_left)
     {
-        auto __data1 = _SourceProcessingDataOffset<_DifferenceType1>::combine_with(__a.__data1, __b.__data1);
-        auto __data2 = _SourceProcessingDataOffset<_DifferenceType2>::combine_with(__a.__data2, __b.__data2);
-
-        _SourceProcessingDataOffsets __res{__data1, __data2};
-        return __res;
+        return !__a_is_left ? __a : __b;
     }
 };
 
@@ -3427,7 +3434,8 @@ struct _SetRangeImpl
     static _SetRangeImpl
     combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
-        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
+        bool __a_is_left = false;
+        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part(), __a_is_left);
 
         if constexpr (!__Bounded)
         {
@@ -3436,8 +3444,9 @@ struct _SetRangeImpl
         else
         {
             typename _SetRangeImpl::_DataStorage __ds{
-                __new_data_part, _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(
-                                     __a.get_source_data_offsets_part(), __b.get_source_data_offsets_part())};
+                __new_data_part,
+                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>::combine_with(
+                    __a.get_source_data_offsets_part(), __b.get_source_data_offsets_part(), __a_is_left)};
             return _SetRangeImpl{__ds};
         }
     }
@@ -3546,13 +3555,13 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     }
 
     void
-    __on_output_pos_reached(
+    __on_output_size_reached(
         std::size_t __offset_from_n_out, const _DataPart<_DifferenceType>& __data_part,
         const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
     {
         assert(__offset_from_n_out < 2);
 
-        __output_pos_range_info_opt[__offset_from_n_out] = OutputPosRangeInfo{__data_part, __source_data_offsets};
+        __output_size_reached_info_opt[__offset_from_n_out] = OutputSizeReachedInfo{__data_part, __source_data_offsets};
         __reached_pos_evaluated = false;
     }
 
@@ -3572,7 +3581,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
             {
                 // We may not reach output size limmit - in this case reached positions in input ranges are equal to their sizes,
                 // and reached position in output range is equal to the current state of __res_data.__reached_pos_out
-                if (__output_pos_range_info_opt[0].has_value())
+                if (__output_size_reached_info_opt[0].has_value())
                 {
                     std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_input_positions();
                     __reached_pos_evaluated = true;
@@ -3649,29 +3658,29 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     __eval_offset_and_size(_RandomAccessIterator __first, _RandomAccessIterator __last) const
     {
         _DifferenceType __offset = 0;
-        _DifferenceType __size = __last - __first;
+        _DifferenceType __length = __last - __first;
 
-        assert(__output_pos_range_info_opt[0].has_value());
+        assert(__output_size_reached_info_opt[0].has_value());
 
-        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(__output_pos_range_info_opt[0].value().__source_data_offsets_part);
-        __offset = __offset_part_n0.__pos;
-        __size = __offset_part_n0.__len;
-        assert(__offset + __size <= __last - __first);
+        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(__output_size_reached_info_opt[0].value().__source_data_offsets_part);
+        __offset = __offset_part_n0.__offset;
+        __length = __offset_part_n0.__length;
+        assert(__offset + __length <= __last - __first);
 
-        if (__output_pos_range_info_opt[1].has_value())
+        if (__output_size_reached_info_opt[1].has_value())
         {
-            const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(__output_pos_range_info_opt[1].value().__source_data_offsets_part);
-            _DifferenceType __offset_n1 = __offset_part_n1.__pos;
-            _DifferenceType __size_n1 = __offset_part_n1.__len;
+            const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(__output_size_reached_info_opt[1].value().__source_data_offsets_part);
+            _DifferenceType __offset_n1 = __offset_part_n1.__offset;
+            _DifferenceType __length_n1 = __offset_part_n1.__length;
 
-            if (__offset_n1 + __size_n1 > __offset + __size)
+            if (__offset_n1 + __length_n1 > __offset + __length)
             {
                 // Process till the end of the second data part
-                __size = __offset_n1 + __size_n1 - __offset;
+                __length = __offset_n1 + __length_n1 - __offset;
             }
         }
 
-        return {__offset, __size};
+        return {__offset, __length};
     }
 
     std::pair<_DifferenceType1, _DifferenceType2>
@@ -3706,8 +3715,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         _DifferenceType1 __res_reachedPos1 = {};
         _DifferenceType2 __res_reachedPos2 = {};
 
-        assert(__output_pos_range_info_opt[0].has_value());
-        const OutputPosRangeInfo& __ri_n0 = __output_pos_range_info_opt[0].value();
+        assert(__output_size_reached_info_opt[0].has_value());
+        const OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
 
         using __backend_tag = typename decltype(__tag)::__backend_tag;
 
@@ -3717,12 +3726,12 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
             [&]() {
                 __res_reachedPos1 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data1.__pos);
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data1.__offset);
             },
             [&]() {
                 __res_reachedPos2 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data2.__pos);
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data2.__offset);
             });
 
         return {__res_reachedPos1, __res_reachedPos2};
@@ -3768,16 +3777,16 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     bool __reached_pos_evaluated_due_output_size = false;
     _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 
-    struct OutputPosRangeInfo
+    struct OutputSizeReachedInfo
     {
         _DataPart<_DifferenceType> __data_part;
         _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
     };
 
-    // Information about two data parts which can generate output data when output position will be reached:
-    // - element 0: the part which contains oputput position (__n)
-    // - element 1: the part which contains oputput position (__n + 1)
-    std::optional<OutputPosRangeInfo> __output_pos_range_info_opt[2];
+    // Information about two data parts which can generate output data when output size will be reached:
+    // - element 0: the part which reached output size (__n)
+    // - element 1: the part which reached output size (__n + 1)
+    std::optional<OutputSizeReachedInfo> __output_size_reached_info_opt[2];
 };
 
 template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
@@ -3813,9 +3822,9 @@ struct _ScanPred
             // Save subrange info if we reached final/after final positions at this subrange
             for (_DifferenceType __n_offset : {0, 1})
             {
-                if (__data_part.is_output_pos_reached(__n_out + __n_offset))
-                    __source_final_pos_evaluator.__on_output_pos_reached(__n_offset, __data_part,
-                                                                         __s.get_source_data_offsets_part());
+                if (__data_part.is_output_size_reached(__n_out + __n_offset))
+                    __source_final_pos_evaluator.__on_output_size_reached(__n_offset, __data_part,
+                                                                          __s.get_source_data_offsets_part());
             }
         }
     }
@@ -3923,10 +3932,12 @@ struct _ParallelSetOpStrictScanPred
                 __bb = __first2 + __internal::__pstl_lower_bound(__first2, _DifferenceType2{0}, __last2 - __first2, __b,
                                                                  __comp, __proj2, __proj1);
 
+            const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
+
             _DataPart<_DifferenceType> __new_processing_data{
                 0,                                                 // Offset in output range w/o limitation to output data size
                 0,                                                 // The length of data pack: the same for windowed and result buffers
-                __size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
+                __buf_pos};                                        // Offset in temporary buffer w/o limitation to output data size
 
             if constexpr (!__Bounded)
             {
@@ -3934,15 +3945,8 @@ struct _ParallelSetOpStrictScanPred
             }
             else
             {
-                _SourceProcessingDataOffset<_DifferenceType1> __data1{
-                    0,                                                  // Offset in output range w/o limitation to output data size
-                    0,                                                  // The length of data pack: the same for windowed and result buffers
-                    __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
-
-                _SourceProcessingDataOffset<_DifferenceType2> __data2{
-                    0,                                                  // Offset in output range w/o limitation to output data size
-                    0,                                                  // The length of data pack: the same for windowed and result buffers
-                    __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
+                _SourceProcessingDataOffset<_DifferenceType1> __data1{__b - __first1, 0};
+                _SourceProcessingDataOffset<_DifferenceType2> __data2{__bb - __first2, 0};
 
                 _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
                                                                                                                   __data2};
@@ -3989,15 +3993,8 @@ struct _ParallelSetOpStrictScanPred
         }
         else
         {
-            _SourceProcessingDataOffset<_DifferenceType1> __data1{
-                0,                                                  // Offset in output range w/o limitation to output data size
-                __it1_reached - __b,                                // The length of data pack: the same for windowed and result buffers
-                __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
-
-            _SourceProcessingDataOffset<_DifferenceType2> __data2{
-                0,                                                  // Offset in output range w/o limitation to output data size
-                __it2_reached - __bb,                               // The length of data pack: the same for windowed and result buffers
-                __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
+            _SourceProcessingDataOffset<_DifferenceType1> __data1{__b - __first1, __it1_reached - __b};
+            _SourceProcessingDataOffset<_DifferenceType2> __data2{__bb - __first2, __it2_reached - __bb};
 
             _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
                                                                                                               __data2};
