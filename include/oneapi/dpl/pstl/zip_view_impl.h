@@ -481,12 +481,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     end() const
         requires(std::ranges::range<const _Views> && ...)
     {
-        if constexpr (!__internal::__zip_is_common<_Views...>)
+        if constexpr (!__internal::__zip_is_common<const _Views...>)
         {
             auto __tr = [](auto&&... __args) { return sentinel<true>(std::forward<decltype(__args)>(__args)...); };
             return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
         }
-        else if constexpr ((std::ranges::random_access_range<_Views> && ...))
+        else if constexpr ((std::ranges::random_access_range<const _Views> && ...))
         {
             auto __it = begin();
             __it += size();
