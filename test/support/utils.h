@@ -195,7 +195,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& bCommaNeeded)
     if (bCommaNeeded)
         os << ",";
 
-    os << static_cast<int>(value);
+    os << static_cast<std::uint32_t>(value);
 
     bCommaNeeded = true;
 }
