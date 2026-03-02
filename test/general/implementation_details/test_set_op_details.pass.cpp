@@ -40,44 +40,31 @@ evalMaskSize(const Container1& cont1, const Container2& cont2)
     return cont1.size() + cont2.size();
 }
 
-struct CopyValueOp
+struct UnitializedCopyValueOp
 {
     template <typename _SourceT, typename _TargetT>
     void
     operator()(_SourceT&& __source, _TargetT& __target) const
     {
-        __target = std::forward<_SourceT>(__source);
+        new (std::addressof(__target)) _TargetT(std::forward<_SourceT>(__source));
     }
 };
 
 // For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
 using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
 
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
-
-using BrickCopy = oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>;
-
 // Container with unitialized memory, used for testing set operations construction algorithms with output range without enough capacity
 template <typename T>
 class UninitializedMemoryContainer
 {
-    std::size_t _capacity_initial = {};
     std::size_t _capacity = {};
     std::allocator<T> _allocator;
     T* _ptr = nullptr;
 
   public:
-    explicit UninitializedMemoryContainer(std::size_t __n)
-        : _capacity_initial(__n), _capacity(__n), _ptr(_allocator.allocate(__n))
-    {
-    }
+    explicit UninitializedMemoryContainer(std::size_t __n) : _capacity(__n), _ptr(_allocator.allocate(__n)) {}
 
-    ~UninitializedMemoryContainer() { _allocator.deallocate(_ptr, _capacity_initial); }
+    ~UninitializedMemoryContainer() { _allocator.deallocate(_ptr, _capacity); }
 
     // Non-copyable
     UninitializedMemoryContainer(const UninitializedMemoryContainer&) = delete;
@@ -103,6 +90,18 @@ class UninitializedMemoryContainer
         std::destroy(_ptr, __end);
     }
 };
+
+// For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
+using UnitializedMaskContainer = UninitializedMemoryContainer<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
+
+using BrickCopy = oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>;
 
 // The rules for testing set_union described at https://eel.is/c++draft/set.union
 void
@@ -402,7 +401,7 @@ test_set_intersection_construct()
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -425,12 +424,13 @@ test_set_intersection_construct()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
         const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O,        D1,        D1};
         const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
+
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
 
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -456,12 +456,13 @@ test_set_intersection_construct_edge_cases()
         const Container cont2       = { };
         const MaskContainer maskExp = { };
         const Container contOutExp  = { };
+
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
 
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -480,12 +481,13 @@ test_set_intersection_construct_edge_cases()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer maskExp = {       D2,        D2,        D2};
         const Container contOutExp  = {                               };
+
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
 
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -504,12 +506,13 @@ test_set_intersection_construct_edge_cases()
         const Container cont2       = {                               };
         const MaskContainer maskExp = {       D1,        D1,        D1};
         const Container contOutExp  = {                               };
+
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
 
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
@@ -528,12 +531,13 @@ test_set_intersection_construct_edge_cases()
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
         const MaskContainer maskExp = {       D2,      D12O,        D2};
         const Container contOutExp  = {           {2, 0, 1}           };
+
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
 
         MaskContainer mask(evalMaskSize(cont1, cont2));
         auto mask_b = mask.data();
 
-        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<CopyValueOp>(
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UnitializedCopyValueOp>(
             cont1.begin(), cont1.end(),
             cont2.begin(), cont2.end(),
             contOut.begin(),
