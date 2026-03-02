@@ -22,7 +22,7 @@
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #include <ranges>
 //support zip_view (like in C++23) for C++20
-#    include "zip_view_impl.h"
+#include "zip_view_impl.h"
 #endif
 
 #include "utils_ranges.h"
