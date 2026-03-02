@@ -23,7 +23,6 @@
 #    include <cassert>
 #    include <functional>
 #    include <type_traits>
-#    include <utility>
 
 #    include "execution_impl.h"
 #    include "algorithm_impl.h"
