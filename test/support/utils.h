@@ -187,7 +187,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
     if (commaNeeded)
         os << ",";
 
-    os << value;
+    os << std::boolalpha << value << std::noboolalpha;
 
     commaNeeded = true;
 }
