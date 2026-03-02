@@ -220,6 +220,7 @@ struct __serial_move_merge
 
 enum class __parallel_set_op_mask : std::uint8_t
 {
+    eNone = 0x00,    // initial state
     eData1 = 0x01,   // mask for first input data item usage
     eData2 = 0x02,   // mask for second input data item usage
     eDataOut = 0x04, // mask for output data item usage
