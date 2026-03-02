@@ -3435,7 +3435,8 @@ struct _SetRangeImpl
     combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
         bool __a_is_left = false;
-        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part(), __a_is_left);
+        auto __new_data_part =
+            _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part(), __a_is_left);
 
         if constexpr (!__Bounded)
         {
@@ -3644,7 +3645,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
 
     template <bool _IsFirstRange, typename _DifferenceType1, typename _DifferenceType2>
     const _SourceProcessingDataOffset<std::conditional_t<_IsFirstRange, _DifferenceType1, _DifferenceType2>>&
-    __get_source_data_offset_part(const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
+    __get_source_data_offset_part(
+        const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
     {
         if constexpr (_IsFirstRange)
             return __source_data_offsets_part.__data1;
@@ -3662,14 +3664,16 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
 
         assert(__output_size_reached_info_opt[0].has_value());
 
-        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(__output_size_reached_info_opt[0].value().__source_data_offsets_part);
+        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(
+            __output_size_reached_info_opt[0].value().__source_data_offsets_part);
         __offset = __offset_part_n0.__offset;
         __length = __offset_part_n0.__length;
         assert(__offset + __length <= __last - __first);
 
         if (__output_size_reached_info_opt[1].has_value())
         {
-            const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(__output_size_reached_info_opt[1].value().__source_data_offsets_part);
+            const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(
+                __output_size_reached_info_opt[1].value().__source_data_offsets_part);
             _DifferenceType __offset_n1 = __offset_part_n1.__offset;
             _DifferenceType __length_n1 = __offset_part_n1.__length;
 
@@ -3934,7 +3938,7 @@ struct _ParallelSetOpStrictScanPred
 
             const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
 
-            _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos}; 
+            _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos};
 
             if constexpr (!__Bounded)
             {
