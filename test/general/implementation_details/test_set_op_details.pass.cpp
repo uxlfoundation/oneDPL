@@ -91,9 +91,6 @@ class UninitializedMemoryContainer
     }
 };
 
-// For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
-using UnitializedMaskContainer = UninitializedMemoryContainer<oneapi::dpl::__utils::__parallel_set_op_mask>;
-
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
