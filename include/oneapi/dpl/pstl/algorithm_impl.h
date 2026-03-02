@@ -3934,10 +3934,7 @@ struct _ParallelSetOpStrictScanPred
 
             const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
 
-            _DataPart<_DifferenceType> __new_processing_data{
-                0,                                                 // Offset in output range w/o limitation to output data size
-                0,                                                 // The length of data pack: the same for windowed and result buffers
-                __buf_pos};                                        // Offset in temporary buffer w/o limitation to output data size
+            _DataPart<_DifferenceType> __new_processing_data{0, 0, __buf_pos}; 
 
             if constexpr (!__Bounded)
             {
@@ -3948,12 +3945,10 @@ struct _ParallelSetOpStrictScanPred
                 _SourceProcessingDataOffset<_DifferenceType1> __data1{__b - __first1, 0};
                 _SourceProcessingDataOffset<_DifferenceType2> __data2{__bb - __first2, 0};
 
-                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
-                                                                                                                  __data2};
+                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
+                    __data1, __data2};
 
-                typename _SetRange::_DataStorage _ds{
-                    __new_processing_data,             // Describes data
-                    __new_offsets_to_processing_data}; // Describes offsets to processing data
+                typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
 
                 return _SetRange{_ds};
             }
@@ -3975,17 +3970,10 @@ struct _ParallelSetOpStrictScanPred
         auto __buffer_b = __buf_raw_data_begin + __buf_pos;
 
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
-            __set_union_op(__b, __e,   // set1 : begin, end
-                           __bb, __ee, // set2 : begin, end
-                           __buffer_b, // output : begin
-                           __comp, __proj1, __proj2,
-                           nullptr); // mask : begin
+            __set_union_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
 
         // Prepare processed data info
-        const _DataPart<_DifferenceType> __new_processing_data{
-            0,                             // Offset in output range w/o limitation to output data size
-            __output_reached - __buffer_b, // The length of data pack: the same for windowed and result buffers
-            __buf_pos};                    // Offset in temporary buffer w/o limitation to output data size
+        const _DataPart<_DifferenceType> __new_processing_data{0, __output_reached - __buffer_b, __buf_pos};
 
         if constexpr (!__Bounded)
         {
@@ -3999,9 +3987,7 @@ struct _ParallelSetOpStrictScanPred
             _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
                                                                                                               __data2};
 
-            typename _SetRange::_DataStorage _ds{
-                __new_processing_data,             // Describes data
-                __new_offsets_to_processing_data}; // Describes offsets to processing data
+            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
 
             return _SetRange{_ds};
         }
