@@ -3351,51 +3351,33 @@ struct _DataPart
 
         return {__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
     }
+
+    bool
+    is_output_pos_reached(_DifferenceType __n) const
+    {
+        //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
+        //                              |               |               |               |               |               |               |               |
+        //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
+        // Temporary buffer: [..............................................................................................................................)
+        //
+        //                               (2).__pos       (2).__pos + _len               (5).__pos       (5).__pos + (5).__len
+        //                                  |               |                              |               |
+        //                                  V               V                              V               V
+        // Result buffer:    [.......................)................................................X.............................
+        //                                           ^                                                ^
+        //                                           |                                                |
+        // Positions in result buffer:             __n                                              __n + 1
+
+        return __pos <= __n && __n < __pos + __len;
+    }
 };
+
+template <typename _DifferenceType>
+using _SourceProcessingDataOffset = _DataPart<_DifferenceType>;
 
 template <typename _DifferenceType1, typename _DifferenceType2>
 struct _SourceProcessingDataOffsets
 {
-    template <typename _DifferenceType>
-    struct _SourceProcessingDataOffset
-    {
-        _DifferenceType __start_offset = {}; // Absolute offset to processing data in the first data set
-        _DifferenceType __data_len = {};     // The length of the first input range processed part
-
-        _DifferenceType
-        __get_end_offset() const
-        {
-            return __start_offset + __data_len;
-        }
-
-        bool
-        operator==(const _SourceProcessingDataOffset& __other) const
-        {
-            return __start_offset == __other.__start_offset && __data_len == __other.__data_len;
-        }
-
-        static _SourceProcessingDataOffset
-        combine_with(const _SourceProcessingDataOffset& __a, const _SourceProcessingDataOffset& __b)
-        {
-            if (__a == __b)
-                return __a;
-
-            if (__a.__start_offset < __b.__start_offset && __b.__data_len > 0)
-                return __b;
-            return __a;
-        }
-    };
-
-    //                                             __start_offset1                 __start_offset2
-    //                                                   |                               |
-    //                                                   |                               |
-    // First input range:                 [..............V...............................|.........)
-    // Second input range:                [..............................................V...............................)
-    //                                                          [.........................)
-    // Temporary windowed result buffer:  TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-    //                                                          ^                         ^
-    //                                                          +<-(__buf_pos)            +<-(__buf_pos + __len)
-
     _SourceProcessingDataOffset<_DifferenceType1> __data1 = {};
     _SourceProcessingDataOffset<_DifferenceType2> __data2 = {};
 
@@ -3651,6 +3633,16 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         return __reached_pos;
     }
 
+    template <bool _IsFirstRange, typename _DifferenceType1, typename _DifferenceType2>
+    const _SourceProcessingDataOffset<std::conditional_t<_IsFirstRange, _DifferenceType1, _DifferenceType2>>&
+    __get_source_data_offset_part(const _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
+    {
+        if constexpr (_IsFirstRange)
+            return __source_data_offsets_part.__data1;
+        else
+            return __source_data_offsets_part.__data2;
+    }
+
     template <bool _IsFirstRange, typename _RandomAccessIterator,
               typename _DifferenceType = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
     std::pair<_DifferenceType, _DifferenceType>
@@ -3660,39 +3652,22 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         _DifferenceType __size = __last - __first;
 
         assert(__output_pos_range_info_opt[0].has_value());
-        const auto& __source_data_offsets_part_n0 = __output_pos_range_info_opt[0].value().__source_data_offsets_part;
-        if constexpr (_IsFirstRange)
-        {
-            __offset = __source_data_offsets_part_n0.__data1.__start_offset;
-            __size = __source_data_offsets_part_n0.__data1.__data_len;
-            assert(__offset + __size <= __last - __first);
-        }
-        else
-        {
-            __offset = __source_data_offsets_part_n0.__data2.__start_offset;
-            __size = __source_data_offsets_part_n0.__data2.__data_len;
-            assert(__offset + __size <= __last - __first);
-        }
+
+        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(__output_pos_range_info_opt[0].value().__source_data_offsets_part);
+        __offset = __offset_part_n0.__pos;
+        __size = __offset_part_n0.__len;
+        assert(__offset + __size <= __last - __first);
 
         if (__output_pos_range_info_opt[1].has_value())
         {
-            const auto& __source_data_offsets_part_n1 =
-                __output_pos_range_info_opt[1].value().__source_data_offsets_part;
-            if constexpr (_IsFirstRange)
+            const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(__output_pos_range_info_opt[1].value().__source_data_offsets_part);
+            _DifferenceType __offset_n1 = __offset_part_n1.__pos;
+            _DifferenceType __size_n1 = __offset_part_n1.__len;
+
+            if (__offset_n1 + __size_n1 > __offset + __size)
             {
-                if (__source_data_offsets_part_n0.__data1.__get_end_offset() <
-                    __source_data_offsets_part_n1.__data1.__get_end_offset())
-                {
-                    __size = __source_data_offsets_part_n1.__data1.__get_end_offset() - __offset;
-                }
-            }
-            else
-            {
-                if (__source_data_offsets_part_n0.__data2.__get_end_offset() <
-                    __source_data_offsets_part_n1.__data2.__get_end_offset())
-                {
-                    __size = __source_data_offsets_part_n1.__data2.__get_end_offset() - __offset;
-                }
+                // Process till the end of the second data part
+                __size = __offset_n1 + __size_n1 - __offset;
             }
         }
 
@@ -3742,12 +3717,12 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
             [&]() {
                 __res_reachedPos1 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data1.__start_offset);
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data1.__pos);
             },
             [&]() {
                 __res_reachedPos2 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data2.__start_offset);
+                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__data2.__pos);
             });
 
         return {__res_reachedPos1, __res_reachedPos2};
@@ -3835,15 +3810,13 @@ struct _ScanPred
 
             const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
-            // Save subrange info if we reached final position at this subrange
-            if (__is_output_pos_reached_at_part(__n_out, __data_part))
-                __source_final_pos_evaluator.__on_output_pos_reached(0, __data_part,
-                                                                     __s.get_source_data_offsets_part());
-
-            // Save subrange info if we reached next after final position at this subrange
-            if (__is_output_pos_reached_at_part(__n_out + 1, __data_part))
-                __source_final_pos_evaluator.__on_output_pos_reached(1, __data_part,
-                                                                     __s.get_source_data_offsets_part());
+            // Save subrange info if we reached final/after final positions at this subrange
+            for (_DifferenceType __n_offset : {0, 1})
+            {
+                if (__data_part.is_output_pos_reached(__n_out + __n_offset))
+                    __source_final_pos_evaluator.__on_output_pos_reached(__n_offset, __data_part,
+                                                                         __s.get_source_data_offsets_part());
+            }
         }
     }
 
@@ -3887,26 +3860,6 @@ struct _ScanPred
 
         // Copy results data into results range to have final output
         __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
-    }
-
-    template <typename _DifferenceType>
-    static bool
-    __is_output_pos_reached_at_part(_DifferenceType __n, const _DataPart<_DifferenceType>& __data_part_arg)
-    {
-        //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
-        //                              |               |               |               |               |               |               |               |
-        //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
-        // Temporary buffer: [..............................................................................................................................)
-        //
-        //                               (2).__pos       (2).__pos + _len               (5).__pos       (5).__pos + (5).__len
-        //                                  |               |                              |               |
-        //                                  V               V                              V               V
-        // Result buffer:    [.......................)................................................X.............................
-        //                                           ^                                                ^
-        //                                           |                                                |
-        // Positions in result buffer:             __n                                              __n + 1
-
-        return __data_part_arg.__pos <= __n && __n < __data_part_arg.__pos + __data_part_arg.__len;
     }
 
     // Move it1 forward by n, but not beyond it2
@@ -3971,10 +3924,9 @@ struct _ParallelSetOpStrictScanPred
                                                                  __comp, __proj2, __proj1);
 
             _DataPart<_DifferenceType> __new_processing_data{
-                0, // Offset in output range w/o limitation to output data size
-                0, // The length of data pack: the same for windowed and result buffers
-                __size_func((__b - __first1),
-                            (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
+                0,                                                 // Offset in output range w/o limitation to output data size
+                0,                                                 // The length of data pack: the same for windowed and result buffers
+                __size_func((__b - __first1), (__bb - __first2))}; // Offset in temporary buffer w/o limitation to output data size
 
             if constexpr (!__Bounded)
             {
@@ -3982,7 +3934,18 @@ struct _ParallelSetOpStrictScanPred
             }
             else
             {
-                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{};
+                _SourceProcessingDataOffset<_DifferenceType1> __data1{
+                    0,                                                  // Offset in output range w/o limitation to output data size
+                    0,                                                  // The length of data pack: the same for windowed and result buffers
+                    __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
+
+                _SourceProcessingDataOffset<_DifferenceType2> __data2{
+                    0,                                                  // Offset in output range w/o limitation to output data size
+                    0,                                                  // The length of data pack: the same for windowed and result buffers
+                    __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
+
+                _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
+                                                                                                                  __data2};
 
                 typename _SetRange::_DataStorage _ds{
                     __new_processing_data,             // Describes data
@@ -4026,17 +3989,15 @@ struct _ParallelSetOpStrictScanPred
         }
         else
         {
-            typename _SourceProcessingDataOffsets<
-                _DifferenceType1, _DifferenceType2>::template _SourceProcessingDataOffset<_DifferenceType1>
-                __data1;
-            __data1.__start_offset = __b - __first1;  // Absolute offset to processing data in the first data set
-            __data1.__data_len = __it1_reached - __b; // The length of the first input range processed part
+            _SourceProcessingDataOffset<_DifferenceType1> __data1{
+                0,                                                  // Offset in output range w/o limitation to output data size
+                __it1_reached - __b,                                // The length of data pack: the same for windowed and result buffers
+                __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
 
-            typename _SourceProcessingDataOffsets<
-                _DifferenceType1, _DifferenceType2>::template _SourceProcessingDataOffset<_DifferenceType2>
-                __data2;
-            __data2.__start_offset = __bb - __first2;  // Absolute offset to processing data in the second data set
-            __data2.__data_len = __it2_reached - __bb; // The length of the first input range processed part
+            _SourceProcessingDataOffset<_DifferenceType2> __data2{
+                0,                                                  // Offset in output range w/o limitation to output data size
+                __it2_reached - __bb,                               // The length of data pack: the same for windowed and result buffers
+                __mask_size_func(__b - __first1, __bb - __first2)}; // Offset in temporary buffer w/o limitation to output data size
 
             _SourceProcessingDataOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__data1,
                                                                                                               __data2};

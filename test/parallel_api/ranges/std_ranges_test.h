@@ -715,6 +715,11 @@ private:
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val<1>(expected_res, src_view1.begin()) != ret_in_val<1>(res, tr_in(A).begin()))
+            {
+                expected_res = checker(src_view1, src_view2, expected_view, args...);
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                       (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
