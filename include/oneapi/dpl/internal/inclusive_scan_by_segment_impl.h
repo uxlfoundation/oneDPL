@@ -28,6 +28,7 @@
 #include "function.h"
 #include "../pstl/utils.h"
 #include "../pstl/functional_impl.h" // for oneapi::dpl::identity
+#include "../pstl/iterator_impl.h"   // make_zip_iterator
 
 namespace oneapi
 {
