@@ -76,6 +76,11 @@ cpp17_output_iterator(It) -> cpp17_output_iterator<It>;
    static_assert(std::output_iterator<cpp17_output_iterator<int*>, int>);
 #endif
 
+//An alias to backward compatibility 
+template <class It>
+using output_iterator = cpp17_output_iterator<It>;
+
+
 // This iterator meets C++20's Cpp17InputIterator requirements, as described
 // in Table 89 ([input.iterators]).
 template <class It, class ItTraits = It>
@@ -125,6 +130,10 @@ cpp17_input_iterator(It) -> cpp17_input_iterator<It>;
 #if TEST_STD_VER > 17
    static_assert(std::input_iterator<cpp17_input_iterator<int*>>);
 #endif
+
+//An alias to backward compatibility 
+template <class It>
+using input_iterator = cpp17_input_iterator<It>;
 
 template <class It>
 class forward_iterator
