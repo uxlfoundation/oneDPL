@@ -3902,7 +3902,7 @@ struct _ScanPred
         //                                           |                                                |
         // Positions in result buffer:             __n                                              __n + 1
 
-        return __data_part_arg.__pos <= __n && __n <= __data_part_arg.__pos + __data_part_arg.__len;
+        return __data_part_arg.__pos <= __n && __n < __data_part_arg.__pos + __data_part_arg.__len;
     }
 
     template <typename _DifferenceType>
