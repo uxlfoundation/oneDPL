@@ -3881,7 +3881,6 @@ struct _ScanPred
     {
         // Evaluate output range boundaries for current data chunk
         const auto __result_from = __advance_clamped(__result_buf_pos_begin, __data_part.__pos, __result_buf_pos_end);
-        const auto __result_to = __advance_clamped(__result_buf_pos_begin, __data_part.__pos + __data_part.__len, __result_buf_pos_end);
 
         assert(__result_remaining <= __data_part.__len);
 
