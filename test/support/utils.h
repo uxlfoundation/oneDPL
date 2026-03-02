@@ -187,7 +187,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
     if (commaNeeded)
         os << ",";
 
-    os << value;
+    os << std::boolalpha << value << std::noboolalpha;
 
     commaNeeded = true;
 }
@@ -199,7 +199,7 @@ log_value_to_stream(TStream& os, const TValue& value, bool& commaNeeded)
     if (commaNeeded)
         os << ",";
 
-    os << static_cast<int>(value);
+    os << static_cast<std::uint32_t>(value);
 
     commaNeeded = true;
 }
@@ -1507,10 +1507,15 @@ struct SetDataItem
 struct SetDataItemProj
 {
     template <typename T>
-    auto
-    operator()(const SetDataItem<T>& item) const -> decltype(item.value)
+    decltype (auto)
+    operator()(const SetDataItem<T>& item) const
     {
-        return item.value;
+        // Parentheses are required for correct decltype(auto) deduction:
+        // - without them: decltype(item.value) => T (copy, declared member type)
+        // - with them:    decltype((item.value)) => const T& (lvalue expression)
+        // This ensures the projection returns a reference, not a copy,
+        // to test that algorithms work correctly with reference-returning projections.
+        return (item.value);
     }
 };
 
