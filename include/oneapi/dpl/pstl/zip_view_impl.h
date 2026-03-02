@@ -375,7 +375,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         template <std::size_t... _In>
         constexpr bool
-        __compare_equal(iterator __y, std::index_sequence<_In...>) const
+        __compare_equal(const iterator& __y, std::index_sequence<_In...>) const
         {
             return ((std::get<_In>(__current) == std::get<_In>(__y.__current)) || ...);
         }
