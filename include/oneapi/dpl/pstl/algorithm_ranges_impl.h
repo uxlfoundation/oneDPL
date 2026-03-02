@@ -854,9 +854,6 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec,
                     _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _RandomAccessIterator1 = std::ranges::iterator_t<_R1>;
-    using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
-
     auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__get_range_bounds_n(__r1);
     auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__get_range_bounds_n(__r2);
     auto [__result1, __result2] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
