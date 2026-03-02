@@ -379,7 +379,7 @@ test_set_union_construct_edge_cases()
     }
 }
 
-// The rules for testing set_union described at https://eel.is/c++draft/set.intersection
+// The rules for testing set_intersection described at https://eel.is/c++draft/set.intersection
 void
 test_set_intersection_construct()
 {
