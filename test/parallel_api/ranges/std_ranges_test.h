@@ -536,8 +536,7 @@ private:
         {
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
-            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
             {
                 using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
                                         tr_in(std::declval<rvalue_container_t&&>()), args...));
@@ -613,7 +612,6 @@ private:
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
-                        && !std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
                         && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
             {
                 using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
