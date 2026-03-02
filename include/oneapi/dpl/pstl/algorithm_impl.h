@@ -3098,10 +3098,14 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
 
                 if (__i > 0)
                 {
-                    //calc merge path intersection:
-                    const _Index3 __d_size =
-                        std::abs(std::max<_Index2>(0, __i - __n_2) - (std::min<_Index1>(__i, __n_1) - 1)) + 1;
+                    using _IndexCommon = std::common_type_t<_Index1, _Index2>;
+                    using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
 
+                    const _IndexCommon __arg_abs = std::abs(std::max<_IndexCommonSigned>(0, __i - __n_2) -
+                                                            (std::min<_IndexCommonSigned>(__i, __n_1) - 1));
+
+                    //calc merge path intersection:
+                    const _Index3 __d_size = __arg_abs + 1;
                     auto __get_row = [__i, __n_1](auto __d) { return std::min<_Index1>(__i, __n_1) - __d - 1; };
                     auto __get_column = [__i, __n_1](auto __d) {
                         return std::max<_Index1>(0, __i - __n_1 - 1) + __d + (__i / (__n_1 + 1) > 0 ? 1 : 0);
