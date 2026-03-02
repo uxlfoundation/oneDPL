@@ -282,7 +282,7 @@ struct _NullIterator
         return *this;
     }
 
-    _NullIterator&
+    _NullIterator
     operator++(int) noexcept
     {
         return *this;
