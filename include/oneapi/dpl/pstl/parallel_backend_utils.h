@@ -224,10 +224,10 @@ enum class __parallel_set_op_mask : std::uint8_t
     eData2 = 0x02,   // mask for second input data item usage
     eDataOut = 0x04, // mask for output data item usage
 
-    eBoth = eData1 | eData2,       // mask for both input data items usage
-    eData1Out = eData1 | eDataOut, // mask for copy data item from the first data set into output
-    eData2Out = eData2 | eDataOut, // mask for copy data item from the second data set into output
-    eBothOut = eBoth | eDataOut    // mask for copy data item from the first and the second data set into output
+    eBoth = 0x03,     // eData1 | eData2: mask for both input data items usage
+    eData1Out = 0x05, // eData1 | eDataOut: mask for copy data item from the first data set into output
+    eData2Out = 0x06, // eData2 | eDataOut: mask for copy data item from the second data set into output
+    eBothOut = 0x07   // eBoth  | eDataOut: mask for copy data item from the first and the second data set into output
 };
 
 inline std::nullptr_t
