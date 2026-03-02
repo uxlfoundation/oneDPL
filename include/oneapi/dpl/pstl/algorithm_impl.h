@@ -1383,15 +1383,18 @@ __pattern_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     return __internal::__brick_copy_if(__first, __last, __result, __pred, _IsVector{});
 }
 
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _DifferenceType,
-          class _RandomAccessIterator2, class _UnaryPredicate>
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _UnaryPredicate>
 std::pair<_RandomAccessIterator1, _RandomAccessIterator2>
 __pattern_bounded_copy_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first,
-                          _DifferenceType __n, _RandomAccessIterator2 __result, _DifferenceType __n_out,
+                          typename std::iterator_traits<_RandomAccessIterator1>::difference_type __n,
+                          _RandomAccessIterator2 __result,
+                          typename std::iterator_traits<_RandomAccessIterator2>::difference_type __n_out,
                           _UnaryPredicate __pred)
 {
-    return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __result, __n_out,
-                                     __internal::__pred_at_index{__pred});
+    using _DifferenceType = std::common_type_t<decltype(__n), decltype(__n_out)>;
+    return __parallel_selective_copy(__tag, std::forward<_ExecutionPolicy>(__exec), __first, _DifferenceType(__n),
+                                     __result, _DifferenceType(__n_out), __internal::__pred_at_index{__pred});
 }
 
 //------------------------------------------------------------------------
