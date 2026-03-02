@@ -28,7 +28,7 @@
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
-#include "utils_ranges.h" // KSATODO does this include really needed?
+#include "utils_ranges.h"    // KSATODO does this include really needed?
 
 namespace oneapi
 {
@@ -237,8 +237,7 @@ __set_iterator_mask(std::nullptr_t, __parallel_set_op_mask) noexcept
     return nullptr;
 }
 
-inline
-__parallel_set_op_mask*
+inline __parallel_set_op_mask*
 __set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state) noexcept
 {
     *__mask = __state;
@@ -328,7 +327,6 @@ struct _UninitializedCopyItem<_InputIterator, _NullIterator>
     {
     }
 };
-
 
 template <typename _CopyConstructRange>
 struct _CopyConstructRangeOpWrapper
@@ -659,11 +657,10 @@ struct __set_operations_result
     __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
     operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
                          typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
-                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type> __offsets) const
+                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type>
+                  __offsets) const
     {
-        return {__in1 + std::get<0>(__offsets),
-                __in2 + std::get<1>(__offsets),
-                __it_out + std::get<2>(__offsets)};
+        return {__in1 + std::get<0>(__offsets), __in2 + std::get<1>(__offsets), __it_out + std::get<2>(__offsets)};
     }
 };
 
