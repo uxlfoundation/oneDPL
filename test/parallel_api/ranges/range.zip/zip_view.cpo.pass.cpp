@@ -35,12 +35,8 @@
 namespace dpl = oneapi::dpl;
 namespace dpl_exp = oneapi::dpl::experimental;
 
-#if 1
 template <typename... Types>
 using tuple_type = oneapi::dpl::__internal::tuple<Types...>;
-#else
-using tuple_type = std::tuple<Types...>;
-#endif
 
 static_assert(std::is_invocable_v<decltype((dpl_exp::views::zip))>);
 static_assert(!std::is_invocable_v<decltype((dpl_exp::views::zip)), int>);
