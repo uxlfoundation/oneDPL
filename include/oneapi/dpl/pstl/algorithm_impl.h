@@ -1531,24 +1531,19 @@ __remove_elements(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
         _DifferenceType __m{};
         // 2. Elements that doesn't satisfy pred are moved to result
         __par_backend::__parallel_strict_scan(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
-            __n,                                                 // _Index __n
-            _DifferenceType(0),                                  // _Tp __initial
-            [__mask](_DifferenceType __i, _DifferenceType __len) // _Rp __reduce
-            {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), __n, _DifferenceType(0),
+            [__mask](_DifferenceType __i, _DifferenceType __len) {
                 return __internal::__brick_count(
                     __mask + __i, __mask + __i + __len, [](bool __val) { return __val; }, _IsVector{});
             },
-            ::std::plus<_DifferenceType>(),                                            // _Cp __combine
-            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) // _Sp __scan
-            {
+            ::std::plus<_DifferenceType>(),
+            [=](_DifferenceType __i, _DifferenceType __len, _DifferenceType __initial) {
                 __internal::__brick_copy_by_mask</*bounded*/ false>(
                     __first + __i, __len, __result + __initial, __len, __mask + __i,
                     [](_RandomAccessIterator __x, _Tp* __z) { ::new (std::addressof(*__z)) _Tp(std::move(*__x)); },
                     _IsVector{});
             },
-            [&__m](_DifferenceType __total) // _Ap __apex
-            { __m = __total; });
+            [&__m](_DifferenceType __total) { __m = __total; });
 
         // 3. Elements from result are moved to [first, last)
         __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
@@ -1928,26 +1923,20 @@ __pattern_rotate(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAc
             _Tp* __result = __buf.get();
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle,
                                           [__first, __result](_RandomAccessIterator __b, _RandomAccessIterator __e) {
-                                              __internal::__brick_uninitialized_move(__b, __e, // bounds for data1
-                                                                                     __result +
-                                                                                         (__b - __first), // results
-                                                                                     _IsVector{});
+                                              __internal::__brick_uninitialized_move(
+                                                  __b, __e, __result + (__b - __first), _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __middle, __last,
                                           [__first, __middle](_RandomAccessIterator __b, _RandomAccessIterator __e) {
                                               __internal::__brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e,                   // bounds for data1
-                                                  __first + (__b - __middle), // results
-                                                  _IsVector{});
+                                                  __b, __e, __first + (__b - __middle), _IsVector{});
                                           });
 
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __result,
                                           __result + __m, [__n, __m, __first, __result](_Tp* __b, _Tp* __e) {
                                               __brick_move_destroy<__parallel_tag<_IsVector>>{}(
-                                                  __b, __e,                                   // bounds for data1
-                                                  __first + ((__n - __m) + (__b - __result)), // results
-                                                  _IsVector{});
+                                                  __b, __e, __first + ((__n - __m) + (__b - __result)), _IsVector{});
                                           });
 
             return __first + (__last - __middle);
@@ -4351,7 +4340,7 @@ __brick_set_union(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Forwar
 }
 
 template <typename _IsVector>
-struct __BrickCopyConstruct // passed into __set_union_construct as _CopyConstructRange __cc_range
+struct __BrickCopyConstruct
 {
     template <typename _ForwardIterator, typename _OutputIterator>
     _OutputIterator
@@ -5246,9 +5235,7 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             __par_backend::__parallel_for(__backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __n, __size,
                                           [__first, __n](_DiffType __i, _DiffType __j) {
                                               __brick_move<__parallel_tag<_IsVector>>{}(
-                                                  __first + __i, __first + __j, // bounds for data1
-                                                  __first + __i - __n,          // results
-                                                  _IsVector{});
+                                                  __first + __i, __first + __j, __first + __i - __n, _IsVector{});
                                           });
         }
         else //2. n < size/2; there is not enough memory to parallel copying; doing parallel copying by n elements
@@ -5257,12 +5244,11 @@ __pattern_shift_left(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
             for (auto __k = __n; __k < __size; __k += __n)
             {
                 auto __end = ::std::min(__k + __n, __size);
-                __par_backend::__parallel_for(
-                    __backend_tag{}, __exec, __k, __end, [__first, __n](_DiffType __i, _DiffType __j) {
-                        __brick_move<__parallel_tag<_IsVector>>{}(__first + __i, __first + __j, // bounds for data1
-                                                                  __first + __i - __n,          // results
-                                                                  _IsVector{});
-                    });
+                __par_backend::__parallel_for(__backend_tag{}, __exec, __k, __end,
+                                              [__first, __n](_DiffType __i, _DiffType __j) {
+                                                  __brick_move<__parallel_tag<_IsVector>>{}(
+                                                      __first + __i, __first + __j, __first + __i - __n, _IsVector{});
+                                              });
             }
         }
 
