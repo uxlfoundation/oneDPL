@@ -3905,32 +3905,6 @@ struct _ScanPred
         return __data_part_arg.__pos <= __n && __n < __data_part_arg.__pos + __data_part_arg.__len;
     }
 
-    template <typename _DifferenceType>
-    bool
-    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
-    {
-        __output_pos_reached_on_this_part = false;
-
-        const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
-
-        // First parts condition
-        if (__data_part.__pos <= __n_out && __n_out <= __data_part.__pos + __data_part.__len)
-        {
-            __output_pos_reached_on_this_part = true;
-            return true;
-        }
-
-        // Middle parts condition
-        if (__n_out < __data_part.__pos && __data_part.__pos + __data_part.__len <= __n_out + 1)
-            return true;
-
-        // Last part condition
-        if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
-            return true;
-
-        return false;
-    }
-
     // Move it1 forward by n, but not beyond it2
     template <typename _RandomAccessIterator,
               typename Size = typename std::iterator_traits<_RandomAccessIterator>::difference_type>
