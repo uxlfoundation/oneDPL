@@ -835,27 +835,25 @@ __get_subscription_view(_View&& __view)
 
 // Returns begin and end of the range
 template <typename _Range>
-    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>>
+    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>> &&
+             std::ranges::sized_range<std::remove_cvref_t<_Range>>
 auto
 __get_range_bounds(_Range&& __rng)
 {
     const auto __size = oneapi::dpl::__ranges::__size(__rng);
-
     auto __begin = oneapi::dpl::__ranges::__begin(__rng);
-
     return std::make_tuple(__begin, __begin + __size);
 }
 
 // Returns begin, end and size of the range
 template <typename _Range>
-    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>>
+    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>> &&
+             std::ranges::sized_range<std::remove_cvref_t<_Range>>
 auto
 __get_range_bounds_n(_Range&& __rng)
 {
     const auto __size = oneapi::dpl::__ranges::__size(__rng);
-
     auto __begin = oneapi::dpl::__ranges::__begin(__rng);
-
     return std::make_tuple(__begin, __begin + __size, __size);
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
