@@ -434,7 +434,7 @@ struct __parallel_transform_reduce_impl
 template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
           typename _InitType, typename... _Ranges>
 __future<sycl::event, __result_and_scratch_storage<_Tp>>
-__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
+__parallel_transform_reduce_async(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                             _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
@@ -518,6 +518,16 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _Exec
         std::forward<_Ranges>(__rngs)...);
 }
 
+template <typename _Tp, typename _Commutative, typename _ExecutionPolicy, typename _ReduceOp, typename _TransformOp,
+          typename _InitType, typename... _Ranges>
+_Tp
+__parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag __tag, _ExecutionPolicy&& __exec,
+                            _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
+{
+    return __parallel_transform_reduce_async<_Tp, _Commutative>(__tag, std::forward<_ExecutionPolicy>(__exec),
+                                                                __reduce_op, __transform_op, __init,
+                                                                std::forward<_Ranges>(__rngs)...).get();
+}
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
