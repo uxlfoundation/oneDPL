@@ -15,7 +15,7 @@
 #include <ranges>
 #include <type_traits>
 
-#include "test_iterators.h"
+#include "test_iterators_cpp17.h"
 
 #if TEST_STD_VER < 20
 #  error "test/support/test_range.h" can only be included in builds supporting ranges
