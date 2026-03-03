@@ -3559,7 +3559,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
           __set_union_op(__set_union_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
           __n_out(__result2 - __result1), __res_data{__last1 - __first1, __last2 - __first2, 0}
     {
-        if (__size_func(__n1, __n2) <= __n_out)
+        if (__size_func(__last1 - __first1, __last2 - __first2) <= __n_out)
         {
 #if !ALWAYS_RECALCULATE_REACHED_POSITIONS
             // No calculation of reached positions in the first and in the second input ranges needed due we have enough output buffer size to place all data from input ranges
