@@ -777,6 +777,8 @@ __set_union_return_t<_R1, _R2, _OutRange>
 __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
                    _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    using DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__r_out)>;
+
     auto [__it1,       __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     auto [__it2,       __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__r_out);
@@ -804,13 +806,13 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out,
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
-    const auto __remaining_capacity1 = __out_end - __out_it;
-    const auto __copy_n1 = __end1 - __it1;
-    const auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
+    const DifferenceType __remaining_capacity1 = __out_end - __out_it;
+    const DifferenceType __copy_n1 = __end1 - __it1;
+    auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
 
-    const auto __remaining_capacity2 = __out_end - __copy1.out;
-    const auto __copy_n2 = __end2 - __it2;
-    const auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
+    const DifferenceType __remaining_capacity2 = __out_end - __copy1.out;
+    const DifferenceType __copy_n2 = __end2 - __it2;
+    auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
 
     return {__copy1.in, __copy2.in, __copy2.out};
 }
@@ -1079,6 +1081,8 @@ template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typena
 __set_difference_return_t<_R1, _OutRange>
 __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    using DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__out_r)>;
+
     auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
@@ -1109,8 +1113,8 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
     }
 
     // 2. Copying the rest of the first sequence
-    auto __remaining_capacity = __out_end - __out_it;
-    auto __copy_n = __end1 - __it1;
+    const DifferenceType __remaining_capacity = __out_end - __out_it;
+    const DifferenceType __copy_n = __end1 - __it1;
     auto __copy = std::ranges::copy(__it1, __it1 + std::min(__copy_n, __remaining_capacity), __out_it);
 
     return {__copy.in, __copy.out};
@@ -1251,6 +1255,8 @@ __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
                                   _Proj2 __proj2)
 {
+    using DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__out_r)>;
+
     auto [__it1, __end1] = oneapi::dpl::__ranges::__get_range_bounds(__r1);
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
@@ -1288,12 +1294,12 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
-    auto __remaining_capacity1 = __out_end - __out_it;
-    auto __copy_n1 = __end1 - __it1;
+    const DifferenceType __remaining_capacity1 = __out_end - __out_it;
+    const DifferenceType __copy_n1 = __end1 - __it1;
     auto __copy1 = std::ranges::copy(__it1, __it1 + std::min(__copy_n1, __remaining_capacity1), __out_it);
 
-    auto __remaining_capacity2 = __out_end - __copy1.out;
-    auto __copy_n2 = __end2 - __it2;
+    const DifferenceType __remaining_capacity2 = __out_end - __copy1.out;
+    const DifferenceType __copy_n2 = __end2 - __it2;
     auto __copy2 = std::ranges::copy(__it2, __it2 + std::min(__copy_n2, __remaining_capacity2), __copy1.out);
 
     return {__copy1.in, __copy2.in, __copy2.out};
