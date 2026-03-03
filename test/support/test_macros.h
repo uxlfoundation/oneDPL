@@ -416,10 +416,4 @@ inline void DoNotOptimize(Tp const& value) {
 # define TEST_CONSTEXPR_CXX17
 #endif
 
-#if TEST_STD_VER >= 20
-# define TEST_CONSTEXPR_CXX20 constexpr
-#else
-# define TEST_CONSTEXPR_CXX20
-#endif
-
 #endif // _SUPPORT_TEST_MACROS_H
