@@ -217,11 +217,20 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
     }
 
     // Remainder - at most one partial block per subgroup
-    for (std::size_t __curr_idx = __full_end + __sg_local_id; __curr_idx < __sg_chunk_end; __curr_idx += __sg_size)
+    if (__full_end < __sg_chunk_end)
     {
-        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
-        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-        ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
+        const std::size_t __base_idx = __full_end + __sg_local_id;
+        _ONEDPL_PRAGMA_UNROLL
+        for (std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
+        {
+            std::size_t __curr_idx = __base_idx + __unroll * __sg_size;
+            if (__curr_idx < __sg_chunk_end)
+            {
+                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
+                std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+                ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
+            }
+        }
     }
 }
 
