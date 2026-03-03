@@ -3597,8 +3597,15 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
                 // and reached position in output range is equal to the current state of __res_data.__reached_pos_out
                 if (__output_size_reached_info_opt[0].has_value())
                 {
+#if ALWAYS_RECALCULATE_REACHED_POSITIONS
+                    auto __res_data_tmp = __res_data;
+#endif
                     std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_input_positions();
                     __reached_pos_evaluated = true;
+
+#if ALWAYS_RECALCULATE_REACHED_POSITIONS
+                    __res_data = __res_data_tmp;
+#endif
                 }
             }
         }
@@ -3839,7 +3846,11 @@ struct _ScanPred
             if (__remaining_data_size < __data_part.__len)
                 __brick_destroy(__buf_pos_start_of_not_copied, __buf_pos_end, _IsVector{});
 
-            const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
+            _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
+
+#if ALWAYS_RECALCULATE_REACHED_POSITIONS
+            __n_out = std::min(__n_out, _DifferenceType{1000});
+#endif
 
             // Save subrange info if we reached final/after final positions at this subrange
             for (_DifferenceType __n_offset : {0, 1})
