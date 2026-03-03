@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- sycl_radix_sort_utils.h ------------------------------------------===//
+//===---------------------------------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -18,6 +18,7 @@
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "oneapi/dpl/pstl/onedpl_config.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
+#include "../../../pstl/utils.h"
 
 // To enable the SYCL radix sort KT we need support for forward progress and root group oneAPI extensions along with an intel/llvm
 // compiler after 2025.1.0 where all required functionality is implemented. Open-source compiler builds prior to this functionality becoming
@@ -72,6 +73,18 @@ __check_sycl_sort_params()
 {
     static_assert(__radix_bits == 8);
     static_assert(__workgroup_size == 1024 || __workgroup_size == 512);
+}
+
+template <typename _T>
+constexpr void
+__sycl_radix_sort_unsupported_msg()
+{
+    static_assert(oneapi::dpl::__internal::__always_false_v<_T>,
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
+                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
+                  "oneAPI DPC++/C++ Compiler, "
+                  "a minimum version of 2025.1.0 is also required.");
 }
 
 //-----------------------------------------------------------------------------
@@ -159,6 +172,46 @@ __order_preserving_cast_scalar(_Float __src)
         __mask = __sign_bit_is_zero ? 0x7FFFFFFFFFFFFFFFu : std::uint64_t(0);
     }
     return __uint64_src ^ __mask;
+}
+
+//-----------------------------------------------------------------------------
+// Sort identity values - used to pad incomplete blocks during sorting
+//-----------------------------------------------------------------------------
+template <typename _T, bool __is_ascending, std::enable_if_t<std::is_integral_v<_T>, int> = 0>
+constexpr _T
+__sort_identity()
+{
+    if constexpr (__is_ascending)
+        return std::numeric_limits<_T>::max();
+    else
+        return std::numeric_limits<_T>::lowest();
+}
+
+// std::numeric_limits<_T>::max and std::numeric_limits<_T>::lowest cannot be used as an identity for
+// performing radix sort of floating point numbers.
+// They do not set the smallest exponent bit (i.e. the max is 7F7FFFFF for 32bit float),
+// thus such an identity is not guaranteed to be put at the end of the sorted sequence after each radix sort stage,
+// e.g. 00FF0000 numbers will be pushed out by 7F7FFFFF identities when sorting 16-23 bits.
+template <typename _T, bool __is_ascending,
+          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint32_t), int> = 0>
+constexpr _T
+__sort_identity()
+{
+    if constexpr (__is_ascending)
+        return sycl::bit_cast<_T>(0x7FFF'FFFFu);
+    else
+        return sycl::bit_cast<_T>(0xFFFF'FFFFu);
+}
+
+template <typename _T, bool __is_ascending,
+          std::enable_if_t<std::is_floating_point_v<_T> && sizeof(_T) == sizeof(std::uint64_t), int> = 0>
+constexpr _T
+__sort_identity()
+{
+    if constexpr (__is_ascending)
+        return sycl::bit_cast<_T>(0x7FFF'FFFF'FFFF'FFFFu);
+    else
+        return sycl::bit_cast<_T>(0xFFFF'FFFF'FFFF'FFFFu);
 }
 
 template <std::uint16_t _N, typename _KeyT>

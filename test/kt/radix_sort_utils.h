@@ -73,7 +73,7 @@ calculate_slm_size(KernelParam param)
         reorder_size += sizeof(ValueT) * param.data_per_workitem * param.workgroup_size;
 
     const std::uint32_t slm_size =
-        std::max(work_item_all_hists_size, reorder_size) + group_hist_size + 2 * global_hist_size;
+        std::max(work_item_all_hists_size, reorder_size) + group_hist_size + global_hist_size;
 
     return slm_size;
 #endif
