@@ -1068,20 +1068,6 @@ struct ResolveTestDataModeForHeteroPolicy
     static constexpr TestDataMode res_mode = mode;
 };
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
-{
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
-};
-
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
-{
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
-};
-
 template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test_range_algo
@@ -1157,6 +1143,7 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
+                // KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
                 constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
 
                 test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);

@@ -20,6 +20,20 @@
 #if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
+// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
+};
+
+// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
+};
+
 template<>
 inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_union)>>(int in1_size)
 {

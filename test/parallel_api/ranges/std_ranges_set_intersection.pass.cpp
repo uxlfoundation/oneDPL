@@ -16,6 +16,22 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING && !_PSTL_LIBCPP_RANGE_SET_BROKEN
+namespace test_std_ranges
+{
+// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
+};
+
+// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
+{
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
+};
+} // namespace test_std_ranges
 
 void
 test_mixed_types_host()
