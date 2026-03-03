@@ -3346,17 +3346,17 @@ struct _DataPart
         return __len == 0;
     }
 
-    static _DataPart
-    combine_with(const _DataPart& __a, const _DataPart& __b, bool& __a_is_left)
+    static bool
+    is_left(const _DataPart& __a, const _DataPart& __b)
     {
-        if (__b.__buf_pos > __a.__buf_pos || ((__b.__buf_pos == __a.__buf_pos) && !__b.empty()))
-        {
-            __a_is_left = true;
-            return {__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos};
-        }
+        return __b.__buf_pos > __a.__buf_pos || (__b.__buf_pos == __a.__buf_pos && !__b.empty());
+    }
 
-        __a_is_left = false;
-        return {__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
+    static _DataPart
+    combine_with(const _DataPart& __a, const _DataPart& __b)
+    {
+        return is_left(__a, __b) ? _DataPart{__a.__pos + __a.__len + __b.__pos, __b.__len, __b.__buf_pos}
+                                 : _DataPart{__b.__pos + __b.__len + __a.__pos, __a.__len, __a.__buf_pos};
     }
 
     bool
@@ -3394,12 +3394,6 @@ struct _SourceDataProcessingOffsets
 {
     _SrcDataProcessingOffset<_DifferenceType1> __in1;
     _SrcDataProcessingOffset<_DifferenceType2> __in2;
-
-    static _SourceDataProcessingOffsets
-    combine_with(const _SourceDataProcessingOffsets& __a, const _SourceDataProcessingOffsets& __b, bool __a_is_left)
-    {
-        return !__a_is_left ? __a : __b;
-    }
 };
 
 // Describes a data window in the temporary buffer and corresponding positions in the output range
@@ -3437,9 +3431,7 @@ struct _SetRangeImpl
     static _SetRangeImpl
     combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
-        bool __a_is_left = false;
-        auto __new_data_part =
-            _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part(), __a_is_left);
+        auto __new_data_part = _DataPart<_DifferenceType>::combine_with(__a.get_data_part(), __b.get_data_part());
 
         if constexpr (!__Bounded)
         {
@@ -3448,9 +3440,9 @@ struct _SetRangeImpl
         else
         {
             typename _SetRangeImpl::_DataStorage __ds{
-                __new_data_part,
-                _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2>::combine_with(
-                    __a.get_source_data_offsets_part(), __b.get_source_data_offsets_part(), __a_is_left)};
+                __new_data_part, _DataPart<_DifferenceType>::is_left(__a.get_data_part(), __b.get_data_part())
+                                     ? __b.get_source_data_offsets_part()
+                                     : __a.get_source_data_offsets_part()};
             return _SetRangeImpl{__ds};
         }
     }
