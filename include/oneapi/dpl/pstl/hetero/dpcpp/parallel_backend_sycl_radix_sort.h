@@ -217,18 +217,11 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
     }
 
     // Remainder - at most one partial block per subgroup
+    for (std::size_t __curr_idx = __full_end + __sg_local_id; __curr_idx < __sg_chunk_end; __curr_idx += __sg_size)
     {
-        const std::size_t __base_idx = __full_end + __sg_local_id;
-        for (std::size_t __unroll = 0; __unroll < __unroll_elements; ++__unroll)
-        {
-            std::size_t __curr_idx = __base_idx + __unroll * __sg_size;
-            if (__curr_idx < __sg_chunk_end)
-            {
-                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
-                std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
-                ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
-            }
-        }
+        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__curr_idx]));
+        std::uint32_t __bucket = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
+        ++__slm_buckets[__views.__get_bucket_idx(__bucket, __self_lidx)];
     }
 }
 
@@ -247,7 +240,9 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
     // radix states used for an array storing bucket state counters
     constexpr ::std::uint32_t __radix_states = 1 << __radix_bits;
-    static constexpr std::uint32_t __packing_ratio = sizeof(_CountT) / sizeof(unsigned char);
+    // multiple uint8_t (1 byte) counters are packed in the footprint of 1 _CountT, we reuse SLM in different phases to
+    // allow more parallel work to start with, still avoiding overflow as we accumulate bins from more elements together
+    static constexpr std::uint32_t __packing_ratio = sizeof(_CountT);
     static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
 
     // iteration space info
@@ -280,7 +275,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 auto __sub_group = __self_item.get_sub_group();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
-                const std::uint32_t __num_subgroups = __wg_size / __sg_size;
+                const std::uint32_t __num_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__wg_size, __sg_size);
                 // Compute subgroup base from work item ID to handle variable subgroup sizes
                 const ::std::size_t __sg_base = (__self_lidx - __sg_local_id);
 
