@@ -300,24 +300,13 @@ struct _NullIterator
 template <typename _InputIterator, typename _OutputIterator>
 struct _UninitializedCopyItem
 {
-    using _InRefType = typename std::iterator_traits<_InputIterator>::reference;
     using _OutValueType = typename std::iterator_traits<_OutputIterator>::value_type;
-    using _OutRefType = typename std::iterator_traits<_OutputIterator>::reference;
 
     void
     operator()(_InputIterator __it_in, _OutputIterator __it_out) const
     {
-        if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
-        {
-            // The memory is raw and uninitialized, but __trivial_uninitialized_copy guarantees that assignment into this storage is safe,
-            // so we can assign a value here without invoking placement new
-            *__it_out = _OutValueType(*__it_in);
-        }
-        else
-        {
-            // We should use placement new here because this method really works with raw uninitialized memory
-            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
-        }
+        // We should use placement new here because this method really works with raw uninitialized memory
+        new (std::addressof(*__it_out)) _OutValueType(*__it_in);
     }
 };
 
