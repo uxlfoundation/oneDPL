@@ -3820,9 +3820,14 @@ struct _ScanPred
         else
         {
             // Copy source data (bounded)
+            ProcessingDataPointer __buf_pos_start_of_not_copied = __buf_pos_begin;
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
             if (__remaining_data_size > 0)
-                __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+                __buf_pos_start_of_not_copied = __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+
+            // Destroy not copied data
+            if (__remaining_data_size < __data_part.__len)
+                __brick_destroy(__buf_pos_start_of_not_copied, __buf_pos_end, _IsVector{});
 
             const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -3860,7 +3865,7 @@ struct _ScanPred
     }
 
     template <typename _DifferenceType>
-    void
+    ProcessingDataPointer
     __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
                                       _DifferenceType __result_remaining) const
     {
@@ -3876,6 +3881,8 @@ struct _ScanPred
 
         // Copy results data into results range to have final output
         __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
+
+        return __buf_pos_to;
     }
 
     // Move it1 forward by n, but not beyond it2
