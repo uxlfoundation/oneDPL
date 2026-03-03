@@ -309,7 +309,8 @@ struct _UninitializedCopyItem
     {
         if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_copy<_OutValueType, _OutRefType, _InRefType>)
         {
-            // The memory is raw and uninitialized, but since the type is trivially copyable, we can just assign to it without invoking constructor
+            // The memory is raw and uninitialized, but __trivial_uninitialized_copy guarantees that assignment into this storage is safe,
+            // so we can assign a value here without invoking placement new
             *__it_out = _OutValueType(*__it_in);
         }
         else
