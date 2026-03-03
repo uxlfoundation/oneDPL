@@ -4315,59 +4315,6 @@ __pattern_set_union(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forwa
                                          typename _Tag::__is_vector{});
 }
 
-// for bounded implementation of std::ranges::set_union
-struct __set_union_offsets
-{
-    template <class _IsVector, class _ExecutionPolicy, typename _DifferenceType1, typename _DifferenceType2,
-              typename _DifferenceTypeOut, class _SizeFunction>
-    std::pair<_DifferenceType1, _DifferenceType2>
-    operator()(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _DifferenceType1 __n1, _DifferenceType2 __n2,
-               _DifferenceTypeOut __n_out, _SizeFunction __size_func, _DifferenceTypeOut __reachedOutPos,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_begin,
-               oneapi::dpl::__utils::__parallel_set_op_mask* __mask_end) const
-    {
-        using _Sizes = std::pair<_DifferenceType1, _DifferenceType2>;
-
-        // No output size limits - return the end of the first and second input buffers
-        if (__n_out >= __size_func(__n1, __n2))
-            return {__n1, __n2};
-
-        // Calculate reached positions in the first and second input buffers using the __mask buffer
-        using __parallel_set_op_mask_underlying_t =
-            std::underlying_type_t<oneapi::dpl::__utils::__parallel_set_op_mask>;
-
-        auto transform_pred = [](oneapi::dpl::__utils::__parallel_set_op_mask __state1,
-                                 oneapi::dpl::__utils::__parallel_set_op_mask __state2) -> _Sizes {
-            assert(__state1 == __state2);
-            return _Sizes{
-                (__parallel_set_op_mask_underlying_t)__state1 &
-                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData1
-                    ? 1
-                    : 0,
-                (__parallel_set_op_mask_underlying_t)__state1 &
-                        (__parallel_set_op_mask_underlying_t)oneapi::dpl::__utils::__parallel_set_op_mask::eData2
-                    ? 1
-                    : 0};
-        };
-
-        auto reduce_pred = [](_Sizes __a, _Sizes __b) -> _Sizes {
-            return {__a.first + __b.first, __a.second + __b.second};
-        };
-
-        //assert(__reachedOutPos <= __mask_end - __mask_begin);
-
-        // transform_reduce
-        const _Sizes __res = __pattern_transform_reduce(
-            __parallel_tag<_IsVector>{}, std::forward<_ExecutionPolicy>(__exec),
-            __mask_begin, __mask_begin + __reachedOutPos,
-            __mask_begin, // <<< Dummy argument just for compatibility with binary transform_reduce
-            _Sizes{0, 0}, reduce_pred, transform_pred);
-
-        return {__res.first, __res.second};
-    }
-};
-
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _Compare>
 _OutputIterator
