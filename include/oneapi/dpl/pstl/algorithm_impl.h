@@ -3955,9 +3955,14 @@ struct _ScanPred
         else
         {
             // Copy source data (bounded)
+            ProcessingDataPointer __buf_pos_start_of_not_copied = __buf_pos_begin;
             const auto __remaining_data_size = __eval_remaining_data_size(__data_part);
             if (__remaining_data_size > 0)
-                __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+                __buf_pos_start_of_not_copied = __copy_data_to_result_buf_bounded(__data_part, __remaining_data_size);
+
+            // Destroy not copied data
+            if (__remaining_data_size < __data_part.__len)
+                __brick_destroy(__buf_pos_start_of_not_copied, __buf_pos_end, _IsVector{});
 
             const _DifferenceType __n_out = __result_buf_pos_end - __result_buf_pos_begin;
 
@@ -3999,13 +4004,10 @@ struct _ScanPred
     }
 
     template <typename _DifferenceType>
-    void
-    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part, _DifferenceType __result_remaining) const
+    ProcessingDataPointer
+    __copy_data_to_result_buf_bounded(const _DataPart<_DifferenceType>& __data_part,
+                                      _DifferenceType __result_remaining) const
     {
-#if DUMP_PARALLEL_SET_OP_WORK
-        std::cout << "ST.4:\n"
-                  << "\t__brick_move_destroy - data";
-#endif
         // Evaluate output range boundaries for current data chunk
         const auto __result_from = __advance_clamped(__result_buf_pos_begin, __data_part.__pos, __result_buf_pos_end);
         const auto __result_to = __advance_clamped(__result_buf_pos_begin, __data_part.__pos + __data_part.__len, __result_buf_pos_end);
@@ -4014,61 +4016,12 @@ struct _ScanPred
 
         // Evaluate pointers to current data chunk in temporary buffer
         const auto __buf_pos_from = __advance_clamped(__buf_pos_begin, __data_part.__buf_pos, __buf_pos_end);
-        const auto __buf_pos_to   = __advance_clamped(__buf_pos_begin, __data_part.__buf_pos + __result_remaining, __buf_pos_end);
+        const auto __buf_pos_to = __advance_clamped(__buf_pos_begin, __data_part.__buf_pos + __result_remaining, __buf_pos_end);
 
         // Copy results data into results range to have final output
         __brick_move_destroy<decltype(__tag)>{}(__buf_pos_from, __buf_pos_to, __result_from, _IsVector{});
-    }
 
-    template <typename _DifferenceType>
-    static bool
-    __is_output_pos_reached_at_part(_DifferenceType __n, const _DataPart<_DifferenceType>& __data_part_arg)
-    {
-        //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
-        //                              |               |               |               |               |               |               |               |
-        //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
-        // Temporary buffer: [..............................................................................................................................)
-        //                   
-        //                               (2).__pos       (2).__pos + _len               (5).__pos       (5).__pos + (5).__len
-        //                                  |               |                              |               |
-        //                                  V               V                              V               V
-        // Result buffer:    [.......................)................................................X.............................
-        //                                           ^                                                ^
-        //                                           |                                                |
-        // Positions in result buffer:             __n                                              __n + 1
-
-        return __data_part_arg.__pos <= __n && __n <= __data_part_arg.__pos + __data_part_arg.__len;
-    }
-
-    template <typename _DifferenceType>
-    bool
-    __need_write_mask(const _DataPart<_DifferenceType>& __data_part, bool& __output_pos_reached_on_this_part) const
-    {
-        __output_pos_reached_on_this_part = false;
-
-
-        const auto __n_out = __result_buf_pos_end - __result_buf_pos_begin;
-
-        // First parts condition
-        if (__data_part.__pos <= __n_out && __n_out <= __data_part.__pos + __data_part.__len)
-        {
-            __output_pos_reached_on_this_part = true;
-            return true;
-        }
-
-        // Middle parts condition
-        if (__n_out < __data_part.__pos && __data_part.__pos + __data_part.__len <= __n_out + 1)
-            return true;
-
-        // Last part condition
-        if (__data_part.__pos <= __n_out + 1 && __n_out + 1 <= __data_part.__pos + __data_part.__len)
-            return true;
-
-#if EVAL_REACHED_POS_FROM_START
-        return true;
-#endif
-
-        return false;
+        return __buf_pos_to;
     }
 
     // Move it1 forward by n, but not beyond it2
