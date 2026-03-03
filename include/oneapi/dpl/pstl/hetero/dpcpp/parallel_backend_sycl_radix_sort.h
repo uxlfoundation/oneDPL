@@ -167,14 +167,14 @@ struct __index_views
 
     // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
-    __get_bucket_idx(std::uint32_t __radix_id, std::uint32_t __wg_id)
+    __get_bucket_idx(std::uint32_t __radix_id, std::uint32_t __wg_id) const
     {
         return __wg_id * __radix_states + __radix_id;
     }
 
     // Index for packed uint32 counters (4 uint8s packed): [wg_id][radix_id_lane]
     std::uint32_t
-    __get_bucket32_idx(std::uint32_t __radix_id_lane, std::uint32_t __wg_id)
+    __get_bucket32_idx(std::uint32_t __radix_id_lane, std::uint32_t __wg_id) const
     {
         return __wg_id * (__radix_states / __packing_ratio) + __radix_id_lane;
     }
@@ -182,7 +182,7 @@ struct __index_views
     // Index for reduction phase: [radix_id][partial_sum_id]
     // Stride per radix state = __wg_size / __num_groups
     std::uint32_t
-    __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id)
+    __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id) const
     {
         return __radix_id * (__workgroup_size / __num_groups) + __wg_id;
     }
