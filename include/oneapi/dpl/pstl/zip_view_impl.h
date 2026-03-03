@@ -541,8 +541,7 @@ struct zip_fn
 {
     template <class... _Ranges>
     constexpr auto
-    operator()(_Ranges&&... __rs) const noexcept(noexcept(
-        oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(std::forward<_Ranges>(__rs)...)))
+    operator()(_Ranges&&... __rs) const
         -> decltype(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(
             std::forward<_Ranges>(__rs)...))
     {
@@ -550,7 +549,7 @@ struct zip_fn
     }
 
     constexpr auto
-    operator()() const noexcept
+    operator()() const
     {
         return std::ranges::empty_view<oneapi::dpl::__internal::tuple<>>{};
     }
