@@ -11,8 +11,6 @@
 # See https://llvm.org/LICENSE.txt for license information.
 #
 ##===----------------------------------------------------------------------===##
-enable_testing()
-
 add_subdirectory(kt)
 
 # rng_tests
