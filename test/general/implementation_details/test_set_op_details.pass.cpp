@@ -24,6 +24,8 @@
 
 #include <vector>
 #include <functional>
+#include <ranges>
+#include <iterator>
 #include <algorithm> // for std::count_if
 
 template <typename Container1, typename Container2>
