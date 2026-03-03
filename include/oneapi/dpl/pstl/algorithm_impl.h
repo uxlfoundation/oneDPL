@@ -3583,7 +3583,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         {
             if (!__reached_pos_evaluated)
             {
-                // We may not reach output size limmit - in this case reached positions in input ranges are equal to their sizes,
+                // We may not reach output size limit - in this case reached positions in input ranges are equal to their sizes,
                 // and reached position in output range is equal to the current state of __res_data.__reached_pos_out
                 if (__output_size_reached_info_opt[0].has_value())
                 {
