@@ -48,15 +48,20 @@ template <typename>
 constexpr bool supress_dangling_iterators_check = false;
 
 #if PSTL_USE_DEBUG
-inline constexpr int big_size = (1<<22) + 37; //4M
+
+inline constexpr int big_size = (1 << 22) + 37;    //4M
+inline constexpr int medium_size = (1 << 15) + 10; //32K
+
 #else
+
 // The largest specializations of algorithms with device policies handle 16M+ elements.
-inline constexpr int big_size = (1<<24) + 10; //16M
-#endif
+inline constexpr int big_size = (1 << 24) + 10; //16M
 
 // ~100K is sufficient for parallel policies.
 // It also usually results in using multiple-work-group specializations for device policies.
-inline constexpr int medium_size = (1<<17) + 10; //128K
+inline constexpr int medium_size = (1 << 17) + 10; //128K
+
+#endif
 
 // It is a sufficient size for sequential policies.
 // It also usually results in using single-work-group specializations for device policies.
