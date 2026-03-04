@@ -606,6 +606,11 @@ struct tuple<>
     {
         return *this;
     }
+	const tuple&
+    operator=(const std::tuple<>&) const
+    {
+        return *this;
+    }
     friend constexpr bool
     operator==(const tuple&, const tuple&)
     {
