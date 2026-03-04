@@ -299,6 +299,6 @@ __make_simd_pack()
     }
 }
 
-} // namespace oneapi::dpl::experimental::kt::gpu::esimd::__impl
+} // namespace oneapi::dpl::experimental::kt::gpu::__impl
 
 #endif // _ONEDPL_KT_ESIMD_RADIX_SORT_UTILS_H

@@ -132,7 +132,7 @@ struct __global_histogram<__sycl_tag, __is_ascending, __radix_bits, __hist_work_
                         __order_preserving_cast_scalar<__is_ascending>(__keys[__i]), __stage * __radix_bits);
                     _GlobOffsetT __bin = __stage * __bin_count + __bucket;
                     using _SLMAtomicRef =
-                        sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                        sycl::atomic_ref<_GlobOffsetT, sycl::memory_order::relaxed, sycl::memory_scope::work_group,
                                          sycl::access::address_space::local_space>;
                     _SLMAtomicRef __slm_ref(__slm[__bin * __num_histograms + __slm_hist_lane_offset]);
                     __slm_ref.fetch_add(1);
