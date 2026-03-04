@@ -521,7 +521,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         __dpl_sycl::__group_barrier(__self_item);
 
         // 2. Reorder to contiguous blocks in registers
-        _ValT __regs[__data_per_step];
+        oneapi::dpl::__internal::__lazy_ctor_storage<_ValT> __regs[__data_per_step];
         std::uint32_t __bins[__data_per_step];
         _OffsetT __ranks[__data_per_step];
 
@@ -533,7 +533,6 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         __dpl_sycl::__group_barrier(__self_item);
 
         // 3. Process elements in registers and ballot-based scan
-        // Stability fix: Process elements in subgroup stripes (0...31, then 32...63)
         const std::size_t __sg_step_base = __sg_id * (__sg_size * __data_per_step);
 
         for (std::uint32_t __i = 0; __i < __data_per_step; ++__i)
@@ -542,8 +541,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
             bool __is_valid_item = (__idx < __step_valid_count);
             if (__is_valid_item)
             {
-                __regs[__i] = __slm_vals[__idx];
-                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __regs[__i]));
+                __regs[__i].__setup(__slm_vals[__idx]);
+                auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __regs[__i].__v));
                 __bins[__i] = __get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset);
             }
             else
@@ -571,7 +570,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
                 }
             }
 
-            // Sync before reading from SLM - ensures rank visibility across threads in the subgroup
+            // Sync before reading from SLM
             __dpl_sycl::__group_barrier(__self_item);
             _OffsetT __pre_rank = (__bin < __radix_states) ? __slm_counts[__sg_id * __radix_states + __bin] : 0;
             
@@ -643,7 +642,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
                 _OffsetT __slm_idx = __step_bin_offset_SLM[__bin] + 
                                      __slm_counts[__sg_id * __radix_states + __bin] + 
                                      __ranks[__i];
-                __slm_vals[__slm_idx] = __regs[__i];
+                __slm_vals[__slm_idx] = __regs[__i].__v;
+                __regs[__i].__destroy();
             }
         }
 
