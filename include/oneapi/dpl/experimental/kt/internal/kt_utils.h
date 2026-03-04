@@ -12,6 +12,7 @@
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/utils.h"
+#include "kt_defs.h"
 
 #include <cstdint>
 #include <algorithm>
@@ -27,8 +28,11 @@ std::uint32_t
 __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uint32_t __work_group_size,
                              std::uint32_t __tile_count, std::uint32_t __slm_size_bytes)
 {
+    // Exceptions for excessive SLM usage will be thrown by SYCL.
+    __slm_size_bytes = std::min<std::uint32_t>(__slm_size_bytes, 1 << 17);
+
     std::uint32_t __max_num_cooperative_groups = 1;
-#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP)
+#if _ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT
     std::uint32_t __max_work_group_kernel_query =
         __kernel.template ext_oneapi_get_info<syclex::info::kernel_queue_specific::max_num_work_groups>(
             __q, __work_group_size, __slm_size_bytes);
@@ -62,8 +66,7 @@ __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uin
     __max_num_cooperative_groups = std::min({__max_work_group_kernel_query, __tile_count, __concurrent_groups_est});
 #else
     static_assert(oneapi::dpl::__internal::__always_false_v<_Kernel>,
-                  "SYCL_EXT_ONEAPI_FORWARD_PROGRESS and SYCL_EXT_ONEAPI_ROOT_GROUP must be defined to call "
-                  "__get_max_num_cooperative_groups");
+                  "_ONEDPL_KT_COOPERATIVE_KERNELS_PRESENT must be defined to call __get_num_cooperative_groups");
 #endif
     return __max_num_cooperative_groups;
 }

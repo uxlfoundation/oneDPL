@@ -14,19 +14,13 @@
 #include <cstdint>
 #include <type_traits>
 #include <bit>
+#include <cassert>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "oneapi/dpl/pstl/onedpl_config.h"
 #include "../../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
 #include "../../../pstl/utils.h"
-
-// To enable the SYCL radix sort KT we need support for forward progress and root group oneAPI extensions along with an intel/llvm
-// compiler after 2025.1.0 where all required functionality is implemented. Open-source compiler builds prior to this functionality becoming
-// sufficient (September 2024) do not have a reliable detection method but are unlikely to be used.
-#if defined(SYCL_EXT_ONEAPI_FORWARD_PROGRESS) && defined(SYCL_EXT_ONEAPI_ROOT_GROUP) &&                                \
-    (!defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250100)
-#    define _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT 1
-#endif
+#include "kt_defs.h"
 
 namespace oneapi::dpl::experimental::kt::gpu::__impl
 {
@@ -68,11 +62,12 @@ struct __radix_sort_histogram_params<__sycl_tag>
 // Parameter validation
 //-----------------------------------------------------------------------------
 template <std::uint8_t __radix_bits, std::uint16_t __data_per_workitem, std::uint16_t __workgroup_size>
-constexpr void
-__check_sycl_sort_params()
+inline void
+__check_sycl_sort_params([[maybe_unused]] std::size_t __n)
 {
     static_assert(__radix_bits == 8);
     static_assert(__workgroup_size == 1024 || __workgroup_size == 512);
+    assert((__n < (1 << 30)) && "Inputs >= 2^30 are currently unsupported in the SYCL sort KT");
 }
 
 template <typename _T>
@@ -80,11 +75,10 @@ constexpr void
 __sycl_radix_sort_unsupported_msg()
 {
     static_assert(oneapi::dpl::__internal::__always_false_v<_T>,
-                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_FORWARD_PROGRESS and "
-                  "SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
+                  "oneDPL's SYCL radix sort kernel templates require SYCL_EXT_ONEAPI_SUB_GROUP_MASK, "
+                  "SYCL_EXT_ONEAPI_FORWARD_PROGRESS, and SYCL_EXT_ONEAPI_ROOT_GROUP extension support. "
                   "Please use a oneAPI compiler version that supports these extensions. If using the Intel "
-                  "oneAPI DPC++/C++ Compiler, "
-                  "a minimum version of 2025.1.0 is also required.");
+                  "oneAPI DPC++/C++ Compiler, a minimum version of 2025.1.0 is also required.");
 }
 
 //-----------------------------------------------------------------------------

@@ -14,6 +14,7 @@
 #include <type_traits>
 
 #include "../../pstl/hetero/dpcpp/utils_ranges_sycl.h"
+#include "internal/kt_defs.h"
 #include "internal/radix_sort_utils.h"
 #include "internal/radix_sort_dispatchers.h"
 
@@ -25,9 +26,10 @@ std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Key
 radix_sort(sycl::queue __q, _KeysRng&& __keys_rng, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
+    auto __n = __keys_rng.size();
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
-    if (__keys_rng.size() < 2)
+    if (__n < 2)
         return {};
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng>(__keys_rng))};
@@ -43,9 +45,10 @@ std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Keys
 radix_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
+    auto __n = __keys_last - __keys_first;
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
-    if (__keys_last - __keys_first < 2)
+    if (__n < 2)
         return {};
 
     auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
@@ -64,9 +67,10 @@ std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Key
 radix_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
+    auto __n = __keys_rng.size();
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
-    if (__keys_rng.size() < 2)
+    if (__n < 2)
         return {};
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng>(__keys_rng)),
@@ -85,16 +89,17 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __k
                   _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
+    auto __n = __keys_last - __keys_first;
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
 
-    if (__keys_last - __keys_first < 2)
+    if (__n < 2)
         return {};
 
     auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
 
     auto __vals_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
-    auto __vals_rng = __vals_keep(__vals_first, __vals_first + (__keys_last - __keys_first)).all_view();
+    auto __vals_rng = __vals_keep(__vals_first, __vals_first + __n).all_view();
     auto __pack = __impl::__rng_pack{std::move(__keys_rng), std::move(__vals_rng)};
     return __impl::__radix_sort<__is_ascending, __radix_bits, /*__in_place=*/true>(
         oneapi::dpl::experimental::kt::gpu::__impl::__sycl_tag{}, __q, __pack, __pack, __param);
@@ -109,8 +114,9 @@ std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_Key
 radix_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_rng_out, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
-    if (__keys_rng.size() == 0)
+    auto __n = __keys_rng.size();
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
+    if (__n == 0)
         return {};
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng1>(__keys_rng))};
@@ -131,9 +137,9 @@ radix_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_l
            _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
-
     auto __n = __keys_last - __keys_first;
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
+
     if (__n == 0)
         return {};
 
@@ -158,8 +164,9 @@ radix_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rn
                   _ValsRng2&& __vals_out_rng, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
-    if (__keys_rng.size() == 0)
+    auto __n = __keys_rng.size();
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
+    if (__n == 0)
         return {};
 
     auto __pack = __impl::__rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng1>(__keys_rng)),
@@ -181,9 +188,9 @@ radix_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 _
                   _KeysIterator2 __keys_out_first, _ValsIterator2 __vals_out_first, _KernelParam __param = {})
 {
 #if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>();
-
     auto __n = __keys_last - __keys_first;
+    __impl::__check_sycl_sort_params<__radix_bits, _KernelParam::data_per_workitem, _KernelParam::workgroup_size>(__n);
+
     if (__n == 0)
         return {};
 
