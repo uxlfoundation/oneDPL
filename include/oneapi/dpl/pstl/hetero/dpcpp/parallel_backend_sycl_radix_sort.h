@@ -474,8 +474,8 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 // Template helper function to reorder elements from input to output.
 // Called with a single runtime branch to select the input/output ranges.
 //-----------------------------------------------------------------------
-template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange, typename _OutputRange,
-          typename _OffsetRange, typename _OffsetT, typename _ValT, typename _Proj>
+template <std::uint32_t __radix_bits, bool __is_ascending, std::uint32_t __data_per_step,typename _InputRange,
+          typename _OutputRange, typename _OffsetRange, typename _OffsetT, typename _ValT, typename _Proj>
 void
 __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng,
                           _OffsetT* __slm_counts, _ValT* __slm_vals, _OffsetT* __slm_global_offsets,
@@ -485,7 +485,6 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
                           std::uint32_t __sg_local_id, std::uint32_t __sg_size, std::uint32_t __num_subgroups)
 {
     constexpr std::uint32_t __radix_states = 1 << __radix_bits;
-    constexpr std::uint32_t __data_per_step = 8;
     const std::size_t __wg_size = __self_item.get_local_range(0);
     const std::uint32_t __wg_local_id = __self_item.get_local_linear_id();
 
@@ -707,7 +706,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         oneapi::dpl::__ranges::__require_access(__hdl, __offset_rng);
         oneapi::dpl::__ranges::__require_access(__hdl, __rng1, __rng2);
 
-        constexpr std::uint32_t __data_per_step = 8;
+        constexpr std::uint32_t __data_per_step = 16;
         auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states + __radix_states, __hdl);
         auto __slm_global_offsets = __dpl_sycl::__local_accessor<_OffsetT>(__radix_states, __hdl);
         using _ValT = std::decay_t<decltype(__rng1[0])>;
@@ -736,12 +735,12 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const std::uint32_t __num_subgroups = __wg_size / __sg_size;
 
                 if (__input_is_first)
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, __data_per_step>(
                         __rng1, __rng2, __offset_rng, &__slm_counts[0], &__slm_vals[0], &__slm_global_offsets[0],
                         __self_item, __sub_group, __proj, __radix_offset, __segments, __segment_idx,
                         __seg_start, __seg_end, __sg_id, __sg_local_id, __sg_size, __num_subgroups);
                 else
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, __data_per_step>(
                         __rng2, __rng1, __offset_rng, &__slm_counts[0], &__slm_vals[0], &__slm_global_offsets[0],
                         __self_item, __sub_group, __proj, __radix_offset, __segments, __segment_idx,
                         __seg_start, __seg_end, __sg_id, __sg_local_id, __sg_size, __num_subgroups);
