@@ -859,6 +859,7 @@ struct __scan
     _GlobalAssigner __gl_assigner;
     _DataAccessor __data_acc;
 
+    // A workaround implementation of inclusive scan-over-group
     template <typename _AccLocal>
     _Tp
     __log_scan_over_group(std::size_t __wgroup_size, sycl::nd_item<1> __item, std::size_t __local_id,
@@ -983,13 +984,14 @@ struct __scan
             }
             else
                 __local_acc[__local_id] = _Tp{__known_identity<_BinaryOperation, _Tp>};
-#if 0
-            _Tp __value = __local_acc[__local_id];
-            __local_acc[__local_id] =
-                __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __value, __bin_op, __adder);
-#else
+
+            // TODO: investigate why the code below sometimes produces incorrect results for copy_if etc.,
+            //       and then decide whether to switch it back on or to keep __log_scan_over_group.
+            // _Tp __value = __local_acc[__local_id];
+            // __local_acc[__local_id] =
+            //    __dpl_sycl::__inclusive_scan_over_group(__item.get_group(), __value, __bin_op, __adder);
             __local_acc[__local_id] = __log_scan_over_group(__wgroup_size, __item, __local_id, __local_acc, __adder);
-#endif
+
             __dpl_sycl::__group_barrier(__item);
             __adder = __local_acc[__wgroup_size - 1];
 
