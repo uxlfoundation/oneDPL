@@ -4324,8 +4324,11 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                     _OutputIterator __result, _Compare __comp)
 {
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
 
     // use serial algorithm
     if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
