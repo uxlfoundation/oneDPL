@@ -3390,7 +3390,7 @@ struct _SrcDataProcessingOffset
 };
 
 template <typename _DifferenceType1, typename _DifferenceType2>
-struct _SourceDataProcessingOffsets
+struct _SrcDataProcessingOffsets
 {
     _SrcDataProcessingOffset<_DifferenceType1> __in1;
     _SrcDataProcessingOffset<_DifferenceType2> __in2;
@@ -3408,7 +3408,7 @@ struct _SetRangeImpl
 
     using _DataStorage = std::conditional_t<
         !__Bounded, _DataPart<_DifferenceType>,
-        std::tuple<_DataPart<_DifferenceType>, _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2>>>;
+        std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>>>;
 
     _DataStorage __data;
 
@@ -3421,7 +3421,7 @@ struct _SetRangeImpl
             return std::get<_DataIndex>(__data);
     }
 
-    const _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
+    const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
     get_source_data_offsets_part() const
     {
         static_assert(__Bounded, "Source data offsets part is available only for bounded set operations");
@@ -3554,7 +3554,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     void
     __on_output_size_reached(
         std::size_t __offset_from_n_out, const _DataPart<_DifferenceType>& __data_part,
-        const _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
+        const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
     {
         assert(__offset_from_n_out < 2);
 
@@ -3642,7 +3642,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     template <bool _IsFirstRange, typename _DifferenceType1, typename _DifferenceType2>
     const _SrcDataProcessingOffset<std::conditional_t<_IsFirstRange, _DifferenceType1, _DifferenceType2>>&
     __get_source_data_offset_part(
-        const _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
+        const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
     {
         if constexpr (_IsFirstRange)
             return __source_data_offsets_part.__in1;
@@ -3776,7 +3776,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     struct OutputSizeReachedInfo
     {
         _DataPart<_DifferenceType> __data_part;
-        _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
+        _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
     };
 
     // Information about two data parts which can generate output data when output size will be reached:
@@ -3954,7 +3954,7 @@ struct _ParallelSetOpStrictReducePred
                 _SrcDataProcessingOffset<_DifferenceType1> __in1_data{__b - __first1, 0};
                 _SrcDataProcessingOffset<_DifferenceType2> __in2_data{__bb - __first2, 0};
 
-                _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
+                _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                     __in1_data, __in2_data};
                 typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
 
@@ -3989,11 +3989,8 @@ struct _ParallelSetOpStrictReducePred
         }
         else
         {
-            _SrcDataProcessingOffset<_DifferenceType1> __in1{__b - __first1, __it1_reached - __b};
-            _SrcDataProcessingOffset<_DifferenceType2> __in2{__bb - __first2, __it2_reached - __bb};
-
-            _SourceDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{__in1,
-                                                                                                              __in2};
+            _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
+                {__b - __first1, __it1_reached - __b}, {__bb - __first2, __it2_reached - __bb}};
 
             typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
 
