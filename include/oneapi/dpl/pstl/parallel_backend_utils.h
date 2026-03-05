@@ -304,17 +304,11 @@ struct _UninitializedCopyItem
     void
     operator()(_InputIterator __it_in, _OutputIterator __it_out) const
     {
-        // We should use placement new here because this method really works with raw uninitialized memory
-        new (std::addressof(*__it_out)) _OutValueType(*__it_in);
-    }
-};
-
-template <typename _InputIterator>
-struct _UninitializedCopyItem<_InputIterator, _NullIterator>
-{
-    void
-    operator()(_InputIterator, _NullIterator) const
-    {
+        if constexpr (!std::is_same_v<_OutputIterator, _NullIterator>)
+        {
+            // We should use placement new here because this method really works with raw uninitialized memory
+            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
+        }
     }
 };
 
