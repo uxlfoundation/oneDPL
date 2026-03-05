@@ -475,12 +475,13 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 // Template helper function to reorder elements from input to output.
 // Called with a single runtime branch to select the input/output ranges.
 //-----------------------------------------------------------------------
-template <std::uint32_t __radix_bits, bool __is_ascending, typename _OffsetT, typename _InputRange,
-          typename _OutputRange, typename _OffsetRange, typename _Proj>
+template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange, typename _OutputRange,
+          typename _OffsetRange, typename _LocalOffsetT, typename _Proj>
 void
 __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng,
-                          std::uint16_t* __slm_counts, sycl::nd_item<1> __self_item, sycl::sub_group __sub_group,
-                          _Proj __proj, std::uint32_t __radix_offset, std::size_t __segments, std::size_t __segment_idx,
+                          std::uint16_t* __slm_counts, _LocalOffsetT* __slm_global_offsets,
+                          sycl::nd_item<1> __self_item, sycl::sub_group __sub_group, _Proj __proj,
+                          std::uint32_t __radix_offset, std::size_t __segments, std::size_t __segment_idx,
                           std::size_t __wi_start, std::size_t __wi_end, std::uint32_t __sg_id,
                           std::uint32_t __sg_local_id, std::uint32_t __sg_size, std::uint32_t __num_subgroups)
 {
@@ -542,19 +543,27 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         }
     }
 
+    // Load global offsets into SLM before barrier, folding in scanned bin totals
+    // Single lane does a serial pass: stores offset_rng[segment] + prefix_sum(bin_totals) per bin
+    if (__sg_id == 0 && __sg_local_id == 0)
+    {
+        const std::size_t __scan_size = __segments + 1;
+        _LocalOffsetT __scanned_bin = 0;
+        for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
+        {
+            __slm_global_offsets[__b] = __offset_rng[__segment_idx + __b * __scan_size] + __scanned_bin;
+            if (__b < __radix_states - 1)
+                __scanned_bin += __offset_rng[(__b + 1) * __scan_size - 1];
+        }
+    }
+
     __dpl_sycl::__group_barrier(__self_item);
 
-    // Phase 3: Compute final offsets = global_base + sg_prefix + wi_prefix
-    _OffsetT __offsets[__radix_states];
-    const std::size_t __scan_size = __segments + 1;
-    _OffsetT __scanned_bin = 0;
-    __offsets[0] = __offset_rng[__segment_idx] + __slm_counts[__sg_id * __radix_states] + __wi_prefix[0];
-
-    for (std::uint32_t __b = 1; __b < __radix_states; ++__b)
+    // Phase 3: Compute final offsets = global_base (with scanned bin) + sg_prefix + wi_prefix
+    _LocalOffsetT __offsets[__radix_states];
+    for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
     {
-        __scanned_bin += __offset_rng[__b * __scan_size - 1];
-        __offsets[__b] = __scanned_bin + __offset_rng[__segment_idx + __scan_size * __b] +
-                         __slm_counts[__sg_id * __radix_states + __b] + __wi_prefix[__b];
+        __offsets[__b] = __slm_global_offsets[__b] + __slm_counts[__sg_id * __radix_states + __b] + __wi_prefix[__b];
     }
 
     // Phase 4: Scatter pass - re-read and write to output
@@ -605,6 +614,10 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
         // Single region reused: first stores subgroup totals, then overwritten with prefix sums
         auto __slm_counts = __dpl_sycl::__local_accessor<std::uint16_t>(__max_num_subgroups * __radix_states, __hdl);
 
+        std::size_t __slm_global_offsets_size =
+            __radix_states * sizeof(std::uint32_t) * (__n < std::numeric_limits<std::uint32_t>::max() ? 1 : 2);
+        auto __slm_global_offsets_raw = __dpl_sycl::__local_accessor<std::uint8_t>(__slm_global_offsets_size, __hdl);
+
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 const std::size_t __segment_idx = __self_item.get_group(0);
@@ -645,30 +658,36 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 if (__n < std::numeric_limits<std::uint32_t>::max())
                 {
                     using _LocalOffsetT = std::uint32_t;
+                    _LocalOffsetT* __slm_global_offsets =
+                        reinterpret_cast<_LocalOffsetT*>(&__slm_global_offsets_raw[0]);
+
                     if (__input_is_first)
-                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
-                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                            __sg_size, __num_subgroups);
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __slm_global_offsets, __self_item,
+                            __sub_group, __proj, __radix_offset, __segments, __segment_idx, __wi_start, __wi_end,
+                            __sg_id, __sg_local_id, __sg_size, __num_subgroups);
                     else
-                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
-                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                            __sg_size, __num_subgroups);
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __slm_global_offsets, __self_item,
+                            __sub_group, __proj, __radix_offset, __segments, __segment_idx, __wi_start, __wi_end,
+                            __sg_id, __sg_local_id, __sg_size, __num_subgroups);
                 }
                 else
                 {
                     using _LocalOffsetT = std::uint64_t;
+                    _LocalOffsetT* __slm_global_offsets =
+                        reinterpret_cast<_LocalOffsetT*>(&__slm_global_offsets_raw[0]);
+
                     if (__input_is_first)
-                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
-                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                            __sg_size, __num_subgroups);
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __slm_global_offsets, __self_item,
+                            __sub_group, __proj, __radix_offset, __segments, __segment_idx, __wi_start, __wi_end,
+                            __sg_id, __sg_local_id, __sg_size, __num_subgroups);
                     else
-                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
-                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                            __sg_size, __num_subgroups);
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __slm_global_offsets, __self_item,
+                            __sub_group, __proj, __radix_offset, __segments, __segment_idx, __wi_start, __wi_end,
+                            __sg_id, __sg_local_id, __sg_size, __num_subgroups);
                 }
             });
     });
