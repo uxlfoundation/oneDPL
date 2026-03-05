@@ -582,7 +582,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
     // iteration space info
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
     const std::size_t __elem_per_segment = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __segments);
-    const std::size_t __max_num_subgroups = __wg_size / __min_sg_size;
+    const std::size_t __max_num_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__wg_size, __min_sg_size);
 
     const std::size_t __no_op_flag_idx = __offset_buf.size() - 1;
 
@@ -622,7 +622,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                 const std::uint32_t __sg_id = __sub_group.get_group_linear_id();
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
-                const std::uint32_t __num_subgroups = __wg_size / __sg_size;
+                const std::uint32_t __num_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__wg_size, __sg_size);
 
                 // Compute this subgroup's contiguous chunk of the segment
                 const std::size_t __elems_per_sg =
