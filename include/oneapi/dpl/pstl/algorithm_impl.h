@@ -3700,7 +3700,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
 
         auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
             __set_union_op(
-                __first1 + __offset1, __first1 + __offset1 + __size1, // Forst input range bounds
+                __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                 __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
                 oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
                 __comp, __proj1, __proj2, __mask_bufs.data());
