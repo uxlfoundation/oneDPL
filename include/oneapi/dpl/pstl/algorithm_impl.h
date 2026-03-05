@@ -3888,7 +3888,7 @@ struct _ParallelSetOpScanPred
 template <bool __Bounded, typename _Tag, typename _ExecutionPolicy, typename _SetRange, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _OutputIterator, typename _SizeFunction, typename _MaskSizeFunction,
           typename _SetUnionOp, typename _Compare, typename _Proj1, typename _Proj2, typename _T>
-struct _ParallelSetOpStrictScanPred
+struct _ParallelSetOpStrictReducePred
 {
     _Tag __tag;
     _ExecutionPolicy& __exec;
@@ -4045,9 +4045,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
             __scan_pred{__tag,     __exec,    __buf_raw_data_begin,        __buf_raw_data_end,
                         __result1, __result2, __source_final_pos_evaluator};
 
-        _ParallelSetOpStrictScanPred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
-                                     _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
-                                     _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
+        _ParallelSetOpStrictReducePred<__Bounded, __parallel_tag<_IsVector>, _ExecutionPolicy, _SetRange,
+                                       _RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator, _SizeFunction,
+                                       _MaskSizeFunction, _SetUnionOp, _Compare, _Proj1, _Proj2, _T>
             __reduce_pred{__tag,
                           __exec,
                           __first1,
