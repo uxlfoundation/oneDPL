@@ -281,7 +281,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const std::size_t __seg_start = __elem_per_segment * __wgroup_idx;
 
                 // Subgroup info for SG-strided memory access pattern
-                auto __sub_group = __self_item.get_sub_group();
+                __dpl_sycl::__sub_group __sub_group = __self_item.get_sub_group();
                 const std::uint32_t __sg_size = __sub_group.get_local_range()[0];
                 const std::uint32_t __sg_local_id = __sub_group.get_local_linear_id();
                 const std::uint32_t __num_subgroups = oneapi::dpl::__internal::__dpl_ceiling_div(__wg_size, __sg_size);
