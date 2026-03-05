@@ -3402,7 +3402,7 @@ template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, 
 struct _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
-    static constexpr std::size_t _SourceDataOffsetsIndex = 1;
+    static constexpr std::size_t _SrcOffsetsIndex = 1;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
@@ -3422,10 +3422,10 @@ struct _SetRangeImpl
     }
 
     const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>&
-    get_source_data_offsets_part() const
+    get_src_offsets_part() const
     {
         static_assert(__Bounded, "Source data offsets part is available only for bounded set operations");
-        return std::get<_SourceDataOffsetsIndex>(__data);
+        return std::get<_SrcOffsetsIndex>(__data);
     }
 
     static _SetRangeImpl
@@ -3441,8 +3441,8 @@ struct _SetRangeImpl
         {
             typename _SetRangeImpl::_DataStorage __ds{
                 __new_data_part, _DataPart<_DifferenceType>::is_left(__a.get_data_part(), __b.get_data_part())
-                                     ? __b.get_source_data_offsets_part()
-                                     : __a.get_source_data_offsets_part()};
+                                     ? __b.get_src_offsets_part()
+                                     : __a.get_src_offsets_part()};
             return _SetRangeImpl{__ds};
         }
     }
@@ -3825,7 +3825,7 @@ struct _ParallelSetOpScanPred
             {
                 if (__data_part.is_output_size_reached(__n_out + __n_offset))
                     __source_final_pos_evaluator.__on_output_size_reached(__n_offset, __data_part,
-                                                                          __s.get_source_data_offsets_part());
+                                                                          __s.get_src_offsets_part());
             }
         }
     }
