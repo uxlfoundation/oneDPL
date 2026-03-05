@@ -3468,7 +3468,7 @@ using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
 template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SourceFinalPosEvaluatorData
+struct _SetOpReachedPosEvaluatorData
 {
     _DifferenceType1 __reached_pos1 = {};      // Reached position in the first input range
     _DifferenceType2 __reached_pos2 = {};      // Reached position in the second input range
@@ -3478,12 +3478,12 @@ struct _SourceFinalPosEvaluatorData
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
           class _SizeFunction, class _MaskSizeFunction, bool __Bounded>
-struct _SourceFinalPosEvaluator;
+struct _SetOpReachedPosEvaluator;
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
           class _SizeFunction, class _MaskSizeFunction>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
+struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
                                 _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
                                 _MaskSizeFunction,
                                 /*__Bounded*/ false>
@@ -3492,7 +3492,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceTypeOut = typename std::iterator_traits<_OutputIterator>::difference_type;
 
-    _SourceFinalPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _RandomAccessIterator1 __first1,
+    _SetOpReachedPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _RandomAccessIterator1 __first1,
                              _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                              _RandomAccessIterator2 __last2, _OutputIterator __result1, _OutputIterator __result2,
                              _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction, _MaskSizeFunction)
@@ -3516,13 +3516,13 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     }
 
   protected:
-    _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
+    _SetOpReachedPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 };
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
           class _SizeFunction, class _MaskSizeFunction>
-struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
+struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
                                 _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
                                 _MaskSizeFunction,
                                 /*__Bounded*/ true>
@@ -3535,11 +3535,12 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
-    _SourceFinalPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec, _RandomAccessIterator1 __first1,
-                             _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                             _RandomAccessIterator2 __last2, _OutputIterator __result1, _OutputIterator __result2,
-                             _Compare __comp, _Proj1 __proj1, _Proj2 __proj2, _SetUnionOp __set_union_op,
-                             _SizeFunction __size_func, _MaskSizeFunction __mask_size_func)
+    _SetOpReachedPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec,
+                              _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
+                              _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                              _OutputIterator __result1, _OutputIterator __result2, _Compare __comp, _Proj1 __proj1,
+                              _Proj2 __proj2, _SetUnionOp __set_union_op, _SizeFunction __size_func,
+                              _MaskSizeFunction __mask_size_func)
         : __tag(__tag), __exec(__exec), __first1(__first1), __last1(__last1), __first2(__first2), __last2(__last2),
           __result1(__result1), __result2(__result2), __comp(__comp), __proj1(__proj1), __proj2(__proj2),
           __set_union_op(__set_union_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
@@ -3770,7 +3771,7 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
     bool __reached_pos_evaluated = false;
     // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
     bool __reached_pos_evaluated_due_output_size = false;
-    _SourceFinalPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
+    _SetOpReachedPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
 
     struct OutputSizeReachedInfo
     {
@@ -3785,14 +3786,14 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
 };
 
 template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
-          typename _SetRange, typename _OutputIterator, typename _SourceFinalPosEvaluator>
+          typename _SetRange, typename _OutputIterator, typename _SetOpReachedPosEvaluator>
 struct _ScanPred
 {
     __parallel_tag<_IsVector> __tag;
     _ExecutionPolicy& __exec;
     ProcessingDataPointer __buf_pos_begin, __buf_pos_end;         // Temporary data buffer (windowed)
     _OutputIterator __result_buf_pos_begin, __result_buf_pos_end; // Result data buffer
-    _SourceFinalPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
+    _SetOpReachedPosEvaluator& __source_final_pos_evaluator; // Evaluator of the final position in the source ranges
 
     template <typename _DifferenceType>
     void
@@ -4032,7 +4033,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         _SetRangeCombiner __combine_pred;
 
-        _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
+        _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
                                  _MaskSizeFunction, __Bounded>
             __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2, __result1, __result2,
