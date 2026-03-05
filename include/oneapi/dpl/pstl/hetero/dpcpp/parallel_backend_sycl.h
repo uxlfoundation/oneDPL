@@ -317,8 +317,7 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
                     }
                 });
         });
-        // 2. Scan for the entire group of values scanned from each workgroup.
-        // The kernel runs on a single workgroup, and is skipped if __n_groups == 1.
+        // 2. Scan the partial sums from each workgroup (runs on a single workgroup, and is skipped if __n_groups == 1)
         if (__n_groups > 1)
         {
             auto __iters_per_single_wg = oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __wgroup_size);
