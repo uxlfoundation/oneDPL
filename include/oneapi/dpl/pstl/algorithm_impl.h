@@ -3787,7 +3787,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
 
 template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
           typename _SetRange, typename _OutputIterator, typename _SetOpReachedPosEvaluator>
-struct _ScanPred
+struct _ParallelSetOpScanPred
 {
     __parallel_tag<_IsVector> __tag;
     _ExecutionPolicy& __exec;
@@ -4040,8 +4040,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                          __comp, __proj1, __proj2, __set_union_op, __size_func, __mask_size_func);
 
         // Scan predicate
-        _ScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
-                  decltype(__source_final_pos_evaluator)>
+        _ParallelSetOpScanPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
+                               decltype(__source_final_pos_evaluator)>
             __scan_pred{__tag,     __exec,    __buf_raw_data_begin,        __buf_raw_data_end,
                         __result1, __result2, __source_final_pos_evaluator};
 
