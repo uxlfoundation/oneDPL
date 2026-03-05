@@ -641,7 +641,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     (__sg_local_id == __sg_size - 1) ? __sg_end : (__wi_start + __items_per_wi);
 
                 // Single branch to select input/output ranges, then reorder without per-element branching
-                if (__n < std::numerical_limits<std::uint32_t>::max())
+                if (__n < std::numeric_limits<std::uint32_t>::max())
                 {
                     using _LocalOffsetT = std::uint32_t;
                     if (__input_is_first)
