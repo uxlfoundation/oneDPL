@@ -241,9 +241,9 @@ __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radi
 template <typename _KernelName, std::uint32_t __radix_bits, bool __is_ascending, std::uint32_t __unroll_elements = 8,
           typename _ValRange1, typename _ValRange2, typename _CountBuf, typename _Proj>
 sycl::event
-__radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size,
-                          std::uint32_t __radix_offset, bool __input_is_first, _ValRange1&& __val_rng1,
-                          _ValRange2&& __val_rng2, _CountBuf& __count_buf, sycl::event __dependency_event, _Proj __proj)
+__radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t __wg_size, std::uint32_t __radix_offset,
+                          bool __input_is_first, _ValRange1&& __val_rng1, _ValRange2&& __val_rng2,
+                          _CountBuf& __count_buf, sycl::event __dependency_event, _Proj __proj)
 {
     using _CountT = typename _CountBuf::value_type;
 
