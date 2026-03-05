@@ -4392,8 +4392,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    const _DifferenceType1 __n1 = __last1 - __first1;
+    const _DifferenceType2 __n2 = __last2 - __first2;
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -4411,7 +4411,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__left_bound_seq_2 == __last2)
         return __result;
 
-    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
+    const _DifferenceType __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
@@ -4430,7 +4430,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         });
     }
 
-    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
+    const _DifferenceType __m2 = __last2 - __left_bound_seq_2 + __n1;
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
