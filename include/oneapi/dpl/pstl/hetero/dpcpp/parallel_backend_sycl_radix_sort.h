@@ -501,7 +501,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
         {
             __wi_prefix[__b] = __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b],
-                                                                       __dpl_sycl::__plus<_OffsetT>());
+                                                                       __dpl_sycl::__plus<std::uint8_t>());
             if (__is_last_in_sg)
                 __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
         }
@@ -513,7 +513,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
     // Reuses the same SLM region: reads totals, computes prefix, writes back in-place
     for (std::uint32_t __radix_state = __sg_id; __radix_state < __radix_states; __radix_state += __num_subgroups)
     {
-        _OffsetT __running_sum = 0;
+        std::uint16_t __running_sum = 0;
 
         // Process counts in chunks of subgroup size
         for (std::uint32_t __base = 0; __base < __num_subgroups; __base += __sg_size)
@@ -521,21 +521,21 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
             const std::uint32_t __sg_idx = __base + __sg_local_id;
 
             // Load count (0 if out of bounds)
-            _OffsetT __val = (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
+            std::uint16_t __val = (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
 
             // Exclusive scan within chunk
-            _OffsetT __local_prefix =
-                __dpl_sycl::__exclusive_scan_over_group(__sub_group, __val, __dpl_sycl::__plus<_OffsetT>());
-
+            std::uint16_t __local_prefix =
+                __dpl_sycl::__exclusive_scan_over_group(__sub_group, __val, __dpl_sycl::__plus<std::uint16_t>());
+            
             // Add running sum from previous chunks
-            _OffsetT __prefix = __running_sum + __local_prefix;
+            std::uint16_t __prefix = __running_sum + __local_prefix;
 
             // Write prefix back to same location (safe: all reads complete before any writes)
             if (__sg_idx < __num_subgroups)
                 __slm_counts[__sg_idx * __radix_states + __radix_state] = __prefix;
 
             // Update running sum: broadcast the last element's total
-            _OffsetT __chunk_total = __local_prefix + __val;
+            std::uint16_t __chunk_total = __local_prefix + __val;
             __running_sum += __dpl_sycl::__group_broadcast(__sub_group, __chunk_total, __sg_size - 1);
         }
     }
