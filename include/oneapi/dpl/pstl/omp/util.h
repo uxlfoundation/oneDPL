@@ -90,54 +90,49 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     // earlier chunks to improve processor prefetch utilization.
 
     _Size __n = __last - __first;
+    _Size __n_chunks = 1;
+    _Size __chunk_size = __n;
+    _Size __n_larger_chunks = 0;
+
     if (__n <= __min_chunk_size)
     {
-        _Size __n_chunks = 1;
-        _Size __chunk_size = __n;
-        _Size __n_larger_chunks = 0;
         return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
     }
 
     // Aim for 3 chunks per thread for better load balancing
-    constexpr _Size __target_chunks_per_thread = 3;
-    _Size __n_chunks_candidate = __num_threads * __target_chunks_per_thread;
-    _Size __chunk_size_candidate = __n / __n_chunks_candidate;
+    constexpr _Size __nominal_chunks_per_thread = 3;
+    _Size __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
+    _Size __nominal_chunk_size = __n / __nominal_n_chunks;
 
     // Large inputs. Limit chunk size to aid early-exit algorithms which cannot exit mid-way through a chunk.
     constexpr _Size __max_chunk_size = 32768;
-    if (__chunk_size_candidate >= __max_chunk_size)
+    if (__nominal_chunk_size >= __max_chunk_size)
     {
-        _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_chunk_size);
+        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_chunk_size);
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
-        _Size __chunk_size = __n / __n_chunks;
-        _Size __n_larger_chunks = __n % __n_chunks;
-        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
+        __chunk_size = __n / __n_chunks;
     }
     // Enough input for all threads with the target per-thread chunk count.
-    else if (__chunk_size_candidate >= __min_chunk_size)
+    else if (__nominal_chunk_size >= __min_chunk_size)
     {
-        _Size __n_chunks = __n_chunks_candidate;
-        _Size __chunk_size = __chunk_size_candidate;
-        _Size __n_larger_chunks = __n % __n_chunks;
-        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
+        __n_chunks = __nominal_n_chunks;
+        __chunk_size = __nominal_chunk_size;
     }
     // Enough input for all threads but not enough for the target per-thread chunk count.
     else if (__n >= __num_threads * __min_chunk_size)
     {
-        _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
+        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
-        _Size __chunk_size = __n / __n_chunks;
-        _Size __n_larger_chunks = __n % __n_chunks;
-        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
+        __chunk_size = __n / __n_chunks;
     }
     // Not enough input even for one chunk per thread.
     else
     {
-        _Size __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
-        _Size __chunk_size = __n / __n_chunks;
-        _Size __n_larger_chunks = __n % __n_chunks;
-        return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
+        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
+        __chunk_size = __n / __n_chunks;
     }
+    __n_larger_chunks = __n % __n_chunks;
+    return __chunk_metrics{__n_chunks, __chunk_size, __n_larger_chunks};
 }
 
 template <typename _Iterator, typename _Index, typename _Func>
