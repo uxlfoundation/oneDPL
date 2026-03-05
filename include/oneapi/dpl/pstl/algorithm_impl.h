@@ -3697,21 +3697,16 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
             __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
 
-        _RandomAccessIterator1 __first1_tmp = __first1 + __offset1;
-        _RandomAccessIterator2 __first2_tmp = __first2 + __offset2;
-        _RandomAccessIterator1 __last1_tmp = __first1_tmp + __size1;
-        _RandomAccessIterator2 __last2_tmp = __first2_tmp + __size2;
-
-        auto [__first1_tmp_reached, __first2_tmp_reached, __result1_tmp_noop_reached, __mask_buffer_reached] =
-            __set_union_op(__first1_tmp, __last1_tmp, __first2_tmp, __last2_tmp,
-                           oneapi::dpl::__utils::_SetOpDiscardIterator{}, __comp, __proj1, __proj2, __mask_bufs.data());
+        auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
+            __set_union_op(
+                __first1 + __offset1, __first1 + __offset1 + __size1, // Forst input range bounds
+                __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
+                oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
+                __comp, __proj1, __proj2, __mask_bufs.data());
         assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
         ////////////////////////////////////////////////////////////
         // Process data based on buffer with mask
-
-        _DifferenceType1 __res_reachedPos1 = {};
-        _DifferenceType2 __res_reachedPos2 = {};
 
         assert(__output_size_reached_info_opt[0].has_value());
         const OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
@@ -3719,6 +3714,8 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         using __backend_tag = typename decltype(__tag)::__backend_tag;
 
         // Calculate analyzing area in the result mask buffer
+        _DifferenceType1 __res_reachedPos1 = {};
+        _DifferenceType2 __res_reachedPos2 = {};
         __par_backend::__parallel_invoke(
             __backend_tag{}, __exec,
             [&]() {
