@@ -4033,12 +4033,13 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceTypeOutput = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOutput>;
     using _T = typename std::iterator_traits<_OutputIterator>::value_type;
 
     const _DifferenceType1 __n1 = __last1 - __first1;
     const _DifferenceType2 __n2 = __last2 - __first2;
 
-    const auto __buf_size = __size_func(__n1, __n2);
+    const _DifferenceType __buf_size = __size_func(__n1, __n2);
     __par_backend::__buffer<_T> __buf(__buf_size); // Temporary (windowed) buffer for result preparation
 
     using __mask_difference_type_t =
@@ -4051,8 +4052,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                                          __result2, __comp, __proj1, __proj2, __size_func, __mask_size_func,
                                          __set_union_op, &__buf, __buf_size]() {
         // Buffer raw data begin/end pointers
-        const auto __buf_raw_data_begin = __buf.get();
-        const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
+        _T* __buf_raw_data_begin = __buf.get();
+        _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
