@@ -3448,7 +3448,7 @@ struct _SetRangeImpl
     }
 };
 
-struct _SetRangeCombiner
+struct _ParallelSetOpCombinePred
 {
     template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeMask,
               typename _DifferenceTypeOut>
@@ -4031,8 +4031,6 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         const auto __buf_raw_data_begin = __buf.get();
         const auto __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
-        _SetRangeCombiner __combine_pred;
-
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
                                  _MaskSizeFunction, __Bounded>
@@ -4061,6 +4059,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                           __proj1,
                           __proj2,
                           __buf_raw_data_begin};
+
+        _ParallelSetOpCombinePred __combine_pred;
 
         auto __apex_pred = [&__scan_pred](const _SetRange& __total) {
             //final scan
