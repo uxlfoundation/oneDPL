@@ -475,10 +475,10 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 // Called with a single runtime branch to select the input/output ranges.
 //-----------------------------------------------------------------------
 template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange, typename _OutputRange,
-          typename _OffsetRange, typename _OffsetT, typename _Proj>
+          typename _OffsetRange, typename _Proj>
 void
 __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng,
-                          _OffsetT* __slm_counts, sycl::nd_item<1> __self_item, sycl::sub_group __sub_group,
+                          std::uint16_t* __slm_counts, sycl::nd_item<1> __self_item, sycl::sub_group __sub_group,
                           _Proj __proj, std::uint32_t __radix_offset, std::size_t __segments, std::size_t __segment_idx,
                           std::size_t __wi_start, std::size_t __wi_end, std::uint32_t __sg_id,
                           std::uint32_t __sg_local_id, std::uint32_t __sg_size, std::uint32_t __num_subgroups)
@@ -601,7 +601,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
         // Minimal SLM: only for subgroup coordination (no value buffering)
         // Single region reused: first stores subgroup totals, then overwritten with prefix sums
-        auto __slm_counts = __dpl_sycl::__local_accessor<_OffsetT>(__max_num_subgroups * __radix_states, __hdl);
+        auto __slm_counts = __dpl_sycl::__local_accessor<std::uint16_t>(__max_num_subgroups * __radix_states, __hdl);
 
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
