@@ -3830,6 +3830,12 @@ struct _ParallelSetOpScanPred
         }
     }
 
+    void
+    __on_apex(const _SetRange& __total)
+    {
+        __source_final_pos_evaluator.__on_apex(__total.get_data_part());
+    }
+
   protected:
     template <typename _DifferenceType>
     void
@@ -3996,6 +4002,23 @@ struct _ParallelSetOpStrictReducePred
     }
 };
 
+template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
+          typename _SetRange, typename _OutputIterator, typename _DifferenceType, typename _SetOpReachedPosEvaluator>
+struct _ParallelSetOpApexPred
+{
+    _ParallelSetOpScanPred<__Bounded, _IsVector, _ExecutionPolicy, ProcessingDataPointer, _SetRange, _OutputIterator,
+                           _SetOpReachedPosEvaluator>& __scan_pred;
+
+    void
+    operator()(const _SetRange& __total) const
+    {
+        //final scan
+        __scan_pred(/* 0 */ _DifferenceType{}, /* 0 */ _DifferenceType{}, __total);
+
+        __scan_pred.__on_apex(__total);
+    }
+};
+
 template <bool __Bounded, class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1,
           class _RandomAccessIterator2, class _OutputIterator, class _Compare, class _Proj1, class _Proj2,
           class _SizeFunction, class _MaskSizeFunction, class _SetUnionOp>
@@ -4062,12 +4085,9 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
 
         _ParallelSetOpCombinePred __combine_pred;
 
-        auto __apex_pred = [&__scan_pred](const _SetRange& __total) {
-            //final scan
-            __scan_pred(/* 0 */ _DifferenceType1{}, /* 0 */ _DifferenceType1{}, __total);
-
-            __scan_pred.__source_final_pos_evaluator.__on_apex(__total.get_data_part());
-        };
+        _ParallelSetOpApexPred<__Bounded, _IsVector, _ExecutionPolicy, _T*, _SetRange, _OutputIterator,
+                               _DifferenceType1, decltype(__source_final_pos_evaluator)>
+            __apex_pred{__scan_pred};
 
         __par_backend::__parallel_strict_scan(__backend_tag{}, __exec, __n1, _SetRange(), __reduce_pred, __combine_pred,
                                               __scan_pred, __apex_pred);
