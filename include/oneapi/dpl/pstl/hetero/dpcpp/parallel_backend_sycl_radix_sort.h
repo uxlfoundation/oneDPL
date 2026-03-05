@@ -474,8 +474,8 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 // Template helper function to reorder elements from input to output.
 // Called with a single runtime branch to select the input/output ranges.
 //-----------------------------------------------------------------------
-template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange, typename _OutputRange,
-          typename _OffsetRange, typename _Proj>
+template <std::uint32_t __radix_bits, bool __is_ascending, typename _OffsetT, typename _InputRange,
+          typename _OutputRange, typename _OffsetRange, typename _Proj>
 void
 __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetRange& __offset_rng,
                           std::uint16_t* __slm_counts, sycl::nd_item<1> __self_item, sycl::sub_group __sub_group,
@@ -641,12 +641,12 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
 
                 // Single branch to select input/output ranges, then reorder without per-element branching
                 if (__input_is_first)
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, _OffsetT>(
                         __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
                         __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
                         __sg_size, __num_subgroups);
                 else
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending>(
+                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, _OffsetT>(
                         __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
                         __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
                         __sg_size, __num_subgroups);
