@@ -3642,12 +3642,12 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     template <bool _IsFirstRange, typename _DifferenceType1, typename _DifferenceType2>
     const _SrcDataProcessingOffset<std::conditional_t<_IsFirstRange, _DifferenceType1, _DifferenceType2>>&
     __get_source_data_offset_part(
-        const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets_part) const
+        const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __src_offsets_part) const
     {
         if constexpr (_IsFirstRange)
-            return __source_data_offsets_part.__in1;
+            return __src_offsets_part.__in1;
         else
-            return __source_data_offsets_part.__in2;
+            return __src_offsets_part.__in2;
     }
 
     template <bool _IsFirstRange, typename _RandomAccessIterator,
@@ -3660,8 +3660,8 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
 
         assert(__output_size_reached_info_opt[0].has_value());
 
-        const auto& __offset_part_n0 = __get_source_data_offset_part<_IsFirstRange>(
-            __output_size_reached_info_opt[0].value().__source_data_offsets_part);
+        const auto& __offset_part_n0 =
+            __get_source_data_offset_part<_IsFirstRange>(__output_size_reached_info_opt[0].value().__src_offsets_part);
         __offset = __offset_part_n0.__offset;
         __length = __offset_part_n0.__length;
         assert(__offset + __length <= __last - __first);
@@ -3669,7 +3669,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
         if (__output_size_reached_info_opt[1].has_value())
         {
             const auto& __offset_part_n1 = __get_source_data_offset_part<_IsFirstRange>(
-                __output_size_reached_info_opt[1].value().__source_data_offsets_part);
+                __output_size_reached_info_opt[1].value().__src_offsets_part);
             _DifferenceType __offset_n1 = __offset_part_n1.__offset;
             _DifferenceType __length_n1 = __offset_part_n1.__length;
 
@@ -3722,12 +3722,12 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
             [&]() {
                 __res_reachedPos1 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__in1.__offset);
+                    __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
             },
             [&]() {
                 __res_reachedPos2 = __eval_reached_pos<__Bounded>(
                     __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                    __ri_n0.__data_part.__pos, __ri_n0.__source_data_offsets_part.__in2.__offset);
+                    __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
             });
 
         return {__res_reachedPos1, __res_reachedPos2};
@@ -3776,7 +3776,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     struct OutputSizeReachedInfo
     {
         _DataPart<_DifferenceType> __data_part;
-        _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __source_data_offsets_part;
+        _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __src_offsets_part;
     };
 
     // Information about two data parts which can generate output data when output size will be reached:
