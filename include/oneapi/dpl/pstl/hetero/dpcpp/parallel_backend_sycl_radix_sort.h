@@ -488,7 +488,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
     std::uint16_t __wi_prefix[__radix_states];
     {
         // Phase 1: Count pass - each work-item counts its contiguous elements
-        std::uint8_t __local_counts[__radix_states] = {0};
+        std::uint16_t __local_counts[__radix_states] = {0};
         for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
         {
             auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
@@ -501,7 +501,7 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
         {
             __wi_prefix[__b] = __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b],
-                                                                       __dpl_sycl::__plus<std::uint8_t>());
+                                                                       __dpl_sycl::__plus<std::uint16_t>());
             if (__is_last_in_sg)
                 __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
         }
