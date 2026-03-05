@@ -305,13 +305,13 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         friend constexpr difference_type
         operator-(const iterator& __x, const sentinel<_OtherConst>& __y)
         {
-            auto calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
+            auto __calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
                 return std::ranges::min(
                     {difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__get_end()))...}, std::less{},
                     [](auto __a) { return iterator::__abs(__a); });
             };
 
-            return calc_val(std::make_index_sequence<sizeof...(_Views)>());
+            return __calc_val(std::make_index_sequence<sizeof...(_Views)>());
         }
 
         template <bool _OtherConst>
