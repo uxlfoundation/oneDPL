@@ -3975,7 +3975,7 @@ struct _ParallelSetOpStrictReducePred
 
         const _DifferenceType __buf_pos = __size_func(__b - __first1, __bb - __first2);
 
-        auto __buffer_b = __buf_raw_data_begin + __buf_pos;
+        _T* __buffer_b = __buf_raw_data_begin + __buf_pos;
 
         auto [__it1_reached, __it2_reached, __output_reached, __mask_reached] =
             __set_union_op(__b, __e, __bb, __ee, __buffer_b, __comp, __proj1, __proj2, nullptr);
