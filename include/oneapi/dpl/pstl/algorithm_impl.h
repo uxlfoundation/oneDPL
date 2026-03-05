@@ -3701,11 +3701,10 @@ struct _SourceFinalPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterat
         _RandomAccessIterator2 __first2_tmp = __first2 + __offset2;
         _RandomAccessIterator1 __last1_tmp = __first1_tmp + __size1;
         _RandomAccessIterator2 __last2_tmp = __first2_tmp + __size2;
-        oneapi::dpl::__utils::_NullIterator __result1_tmp_noop;
 
         auto [__first1_tmp_reached, __first2_tmp_reached, __result1_tmp_noop_reached, __mask_buffer_reached] =
-            __set_union_op(__first1_tmp, __last1_tmp, __first2_tmp, __last2_tmp, __result1_tmp_noop, __comp, __proj1,
-                           __proj2, __mask_bufs.data());
+            __set_union_op(__first1_tmp, __last1_tmp, __first2_tmp, __last2_tmp,
+                           oneapi::dpl::__utils::_SetOpDiscardIterator{}, __comp, __proj1, __proj2, __mask_bufs.data());
         assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
         ////////////////////////////////////////////////////////////

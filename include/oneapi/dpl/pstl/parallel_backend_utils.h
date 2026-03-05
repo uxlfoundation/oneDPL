@@ -261,8 +261,7 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
     return __mask + __count;
 }
 
-// NOOP iterator
-struct _NullIterator
+struct _SetOpDiscardIterator
 {
     using iterator_category = std::output_iterator_tag;
     using difference_type = std::ptrdiff_t;
@@ -270,31 +269,32 @@ struct _NullIterator
     using pointer = void;
     using reference = void;
 
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator*() noexcept
     {
         return *this;
     }
 
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator++() noexcept
     {
         return *this;
     }
 
-    _NullIterator
+    _SetOpDiscardIterator
     operator++(int) noexcept
     {
         return *this;
     }
 
     template <typename T>
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator=(const T&) noexcept
     {
         return *this;
     }
 };
+static_assert(std::output_iterator<_SetOpDiscardIterator, int>);
 
 template <typename _InputIterator, typename _OutputIterator>
 struct _UninitializedCopyItem
@@ -304,7 +304,7 @@ struct _UninitializedCopyItem
     void
     operator()(_InputIterator __it_in, _OutputIterator __it_out) const
     {
-        if constexpr (!std::is_same_v<_OutputIterator, _NullIterator>)
+        if constexpr (!std::is_same_v<_OutputIterator, _SetOpDiscardIterator>)
         {
             // We should use placement new here because this method really works with raw uninitialized memory
             new (std::addressof(*__it_out)) _OutValueType(*__it_in);
@@ -318,10 +318,10 @@ struct _CopyConstructRangeOpWrapper
     _CopyConstructRange _cc_range;
 
     template <typename _InputIterator>
-    _NullIterator
-    operator()(_InputIterator, _InputIterator, _NullIterator)
+    _SetOpDiscardIterator
+    operator()(_InputIterator, _InputIterator, _SetOpDiscardIterator)
     {
-        return _NullIterator{};
+        return _SetOpDiscardIterator{};
     }
 
     template <typename _InputIterator, typename _OutputIterator>
@@ -392,7 +392,7 @@ struct CopyOpWrapper
 
     template <typename _InputIterator>
     void
-    operator()(_InputIterator, _NullIterator) const
+    operator()(_InputIterator, _SetOpDiscardIterator) const
     {
     }
 
