@@ -272,7 +272,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
         // ensure the input data and the space for counters are accessible
         oneapi::dpl::__ranges::__require_access(__hdl, __val_rng1, __val_rng2, __count_rng);
         // an accessor per work-group with value counters from each work-item
-        __dpl_sycl::__local_accessor<_CountT> __count_lacc(__radix_states * __wg_size / __packing_ratio, __hdl);
+        __dpl_sycl::__local_accessor<_CountT> __count_lacc(
+            oneapi::dpl::__internal::__dpl_ceiling_div(__radix_states * __wg_size, __packing_ratio), __hdl);
         __hdl.parallel_for<_KernelName>(
             sycl::nd_range<1>(__segments * __wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                 // item info
