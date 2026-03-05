@@ -521,12 +521,13 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
             const std::uint32_t __sg_idx = __base + __sg_local_id;
 
             // Load count (0 if out of bounds)
-            std::uint16_t __val = (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
+            std::uint16_t __val =
+                (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
 
             // Exclusive scan within chunk
             std::uint16_t __local_prefix =
                 __dpl_sycl::__exclusive_scan_over_group(__sub_group, __val, __dpl_sycl::__plus<std::uint16_t>());
-            
+
             // Add running sum from previous chunks
             std::uint16_t __prefix = __running_sum + __local_prefix;
 
@@ -589,7 +590,7 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
     const std::size_t __no_op_flag_idx = __offset_buf.size() - 1;
 
     auto __offset_rng =
-        oneapi::dpl::__ranges::all_view<std::uint32_t, __par_backend_hetero::access_mode::read>(__offset_buf);
+        oneapi::dpl::__ranges::all_view<_OffsetT, __par_backend_hetero::access_mode::read>(__offset_buf);
 
     // submit to reorder values
     sycl::event __reorder_event = __q.submit([&](sycl::handler& __hdl) {
@@ -640,16 +641,34 @@ __radix_sort_reorder_submit(sycl::queue& __q, std::size_t __segments, std::size_
                     (__sg_local_id == __sg_size - 1) ? __sg_end : (__wi_start + __items_per_wi);
 
                 // Single branch to select input/output ranges, then reorder without per-element branching
-                if (__input_is_first)
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, _OffsetT>(
-                        __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                        __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                        __sg_size, __num_subgroups);
+                if (__n < std::numerical_limits<std::uint32_t>::max())
+                {
+                    using _LocalOffsetT = std::uint32_t;
+                    if (__input_is_first)
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
+                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
+                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
+                            __sg_size, __num_subgroups);
+                    else
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
+                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
+                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
+                            __sg_size, __num_subgroups);
+                }
                 else
-                    __radix_sort_reorder_impl<__radix_bits, __is_ascending, _OffsetT>(
-                        __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
-                        __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
-                        __sg_size, __num_subgroups);
+                {
+                    using _LocalOffsetT = std::uint64_t;
+                    if (__input_is_first)
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
+                            __rng1, __rng2, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
+                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
+                            __sg_size, __num_subgroups);
+                    else
+                        __radix_sort_reorder_impl<__radix_bits, __is_ascending, _LocalOffsetT>(
+                            __rng2, __rng1, __offset_rng, &__slm_counts[0], __self_item, __sub_group, __proj,
+                            __radix_offset, __segments, __segment_idx, __wi_start, __wi_end, __sg_id, __sg_local_id,
+                            __sg_size, __num_subgroups);
+                }
             });
     });
 
@@ -708,7 +727,7 @@ struct __parallel_multi_group_radix_sort
         const std::uint32_t __radix_states = 1 << __radix_bits;
         const std::size_t __n = __in_rng.size();
 
-        using _CounterType = std::uint32_t;
+        using _CounterType = std::uint64_t;
         std::size_t __wg_size_count = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
             __q, sizeof(_CounterType) * __radix_states, std::size_t(128));
         // work-group size must be a power of 2 because of the tree reduction
