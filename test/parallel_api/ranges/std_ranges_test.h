@@ -327,6 +327,7 @@ private:
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
@@ -339,6 +340,7 @@ private:
                                 "res_ret_t is expected to be or consist of std::ranges::dangling");
                 }
             }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
         }
     }
 
@@ -412,6 +414,7 @@ private:
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
@@ -426,6 +429,7 @@ private:
                                 "res_ret_t is expected to be or consist of std::ranges::dangling");
                 }
             }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
         }
     }
 
@@ -534,6 +538,7 @@ private:
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
@@ -547,6 +552,7 @@ private:
                                 "res_ret_t is expected to be or consist of std::ranges::dangling");
                 }
             }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
         }
     }
 
@@ -609,6 +615,7 @@ private:
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
         {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
             // Check dangling iterators in return types for call with r-value ranges; 
             // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
             if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
@@ -624,6 +631,7 @@ private:
                                 "res_ret_t is expected to be or consist of std::ranges::dangling");
                 }
             }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
         }
     }
 

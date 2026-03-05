@@ -37,6 +37,8 @@
 namespace dpl_ranges = oneapi::dpl::experimental::ranges;
 
 int main() {
+	
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT	
   {
     dpl_ranges::zip_view v{
         std::array{1, 2},
@@ -46,6 +48,8 @@ int main() {
     assert(std::ranges::size(v) == 1);
     assert(*v.begin() == std::make_tuple(1, 4, 7));
   }
+#endif
+
   {
     using namespace std::string_literals;
     std::vector v{1, 2, 3, 4};
