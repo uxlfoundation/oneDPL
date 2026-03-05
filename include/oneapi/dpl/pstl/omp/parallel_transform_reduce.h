@@ -39,18 +39,16 @@ _Value
 __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryOp __unary_op, _Value __init,
                         _Combiner __combiner, _Reduction __reduction)
 {
-    const std::size_t __num_threads = omp_get_num_threads();
-    const std::size_t __size = __last - __first;
-
-    // Initial partition of the iteration space into chunks. If the range is too small,
-    // this will result in a nonsense policy, so we check on the size as well below.
-    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first + __num_threads, __last, __num_threads,
-                                                                    __default_chunk_size);
-
-    if (__size <= __num_threads || __policy.__n_chunks < 2)
+    if (__should_run_serial(__first, __last, __default_chunk_size))
     {
         return __reduction(__first, __last, std::move(__init));
     }
+
+    const std::size_t __num_threads = omp_get_num_threads();
+
+    // Initial partition of the iteration space into chunks.
+    auto __policy = oneapi::dpl::__omp_backend::__chunk_partitioner(__first + __num_threads, __last, __num_threads,
+                                                                    __default_chunk_size);
 
     // Here, we cannot use OpenMP UDR because we must store the init value in
     // the combiner and it will be used several times. Although there should be

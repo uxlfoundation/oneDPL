@@ -104,7 +104,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     _Size __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
     _Size __nominal_chunk_size = __n / __nominal_n_chunks;
 
-    // Large inputs. Limit chunk size to aid early-exit algorithms which cannot exit mid-way through a chunk.
+    // Large input. Limit chunk size to aid early-exit algorithms which cannot exit mid-way through a chunk.
     constexpr _Size __max_chunk_size = 32768;
     if (__nominal_chunk_size >= __max_chunk_size)
     {
@@ -112,13 +112,13 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
         __n_chunks = (__n_chunks / __num_threads) * __num_threads;
         __chunk_size = __n / __n_chunks;
     }
-    // Enough input for all threads with the target per-thread chunk count.
+    // Enough input for all threads with the nominal per-thread chunk count.
     else if (__nominal_chunk_size >= __min_chunk_size)
     {
         __n_chunks = __nominal_n_chunks;
         __chunk_size = __nominal_chunk_size;
     }
-    // Enough input for all threads but not enough for the target per-thread chunk count.
+    // Enough input for all threads but not enough for the nominal per-thread chunk count.
     else if (__n >= __num_threads * __min_chunk_size)
     {
         __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __min_chunk_size);
