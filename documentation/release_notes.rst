@@ -15,9 +15,16 @@ Fixed Issues
 ------------
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
   instead of the corresponding libc++ versions.
+- Fixed ``ranges::unique_copy`` to allow output ranges of any size.
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on Intel's GPU devices.
 
 New in 2022.11.0
-=======================
+================
 
 New Features
 ------------
