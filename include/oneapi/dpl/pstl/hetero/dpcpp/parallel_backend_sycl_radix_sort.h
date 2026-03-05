@@ -485,24 +485,26 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
 {
     constexpr std::uint32_t __radix_states = 1 << __radix_bits;
 
-    // Phase 1: Count pass - each work-item counts its contiguous elements
-    _OffsetT __local_counts[__radix_states] = {0};
-    for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
+    std::uint16_t __wi_prefix[__radix_states];
     {
-        auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
-        ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
-    }
+        // Phase 1: Count pass - each work-item counts its contiguous elements
+        std::uint8_t __local_counts[__radix_states] = {0};
+        for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
+        {
+            auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
+            ++__local_counts[__get_bucket<(1 << __radix_bits) - 1>(__val, __radix_offset)];
+        }
 
-    // Subgroup scan to get work-item prefix within subgroup
-    // Last work-item writes totals directly to SLM (avoids broadcast)
-    _OffsetT __wi_prefix[__radix_states];
-    const bool __is_last_in_sg = (__sg_local_id == __sg_size - 1);
-    for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
-    {
-        __wi_prefix[__b] =
-            __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b], __dpl_sycl::__plus<_OffsetT>());
-        if (__is_last_in_sg)
-            __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
+        // Subgroup scan to get work-item prefix within subgroup
+        // Last work-item writes totals directly to SLM (avoids broadcast)
+        const bool __is_last_in_sg = (__sg_local_id == __sg_size - 1);
+        for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
+        {
+            __wi_prefix[__b] = __dpl_sycl::__exclusive_scan_over_group(__sub_group, __local_counts[__b],
+                                                                       __dpl_sycl::__plus<_OffsetT>());
+            if (__is_last_in_sg)
+                __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
+        }
     }
 
     __dpl_sycl::__group_barrier(__self_item);
@@ -742,6 +744,9 @@ struct __parallel_multi_group_radix_sort
 
         const std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size_count * __keys_per_wi_count);
+
+        assert(__wg_size_count * __keys_per_wi_count < std::numeric_limits<std::uint16_t>::max() &&
+               "Segment size too large for reorder implementation");
 
         // Additional __radix_states elements are used for getting local offsets from count values + no_op flag;
         // 'No operation' flag specifies whether to skip re-order phase if the all keys are the same (lie in one bin)
