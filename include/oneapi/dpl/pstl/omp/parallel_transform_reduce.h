@@ -39,7 +39,7 @@ _Value
 __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __last, _UnaryOp __unary_op, _Value __init,
                         _Combiner __combiner, _Reduction __reduction)
 {
-    const int __num_threads = omp_get_num_threads();
+    const std::size_t __num_threads = omp_get_num_threads();
     const std::size_t __size = __last - __first;
 
     if (__size <= __num_threads || __size <= __default_chunk_size)
@@ -57,7 +57,7 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
     __accums.reserve(__num_threads);
 
     // initialize accumulators for all threads
-    for (int __i = 0; __i < __num_threads; ++__i)
+    for (std::size_t __i = 0; __i < __num_threads; ++__i)
     {
         __accums.emplace_back(__unary_op(__first + __i));
     }

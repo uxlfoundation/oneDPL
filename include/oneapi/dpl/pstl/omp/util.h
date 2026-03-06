@@ -16,10 +16,10 @@
 #ifndef _ONEDPL_INTERNAL_OMP_UTIL_H
 #define _ONEDPL_INTERNAL_OMP_UTIL_H
 
-#include <iterator>    //std::iterator_traits, std::distance
-#include <cstddef>     //std::size_t
-#include <memory>      //std::allocator
-#include <type_traits> // std::decay, is_integral_v, enable_if_t
+#include <iterator>    // std::iterator_traits, std::distance
+#include <cstddef>     // std::size_t
+#include <memory>      // std::allocator
+#include <type_traits> // std::decay, is_integral_v, enable_if_t, common_type_t
 #include <utility>     // std::forward
 #include <omp.h>
 
@@ -80,19 +80,21 @@ struct __chunk_metrics
     std::size_t __n_larger_chunks;
 };
 
-template <class _RandomAccessIterator, class _Size = std::size_t>
+template <class _RandomAccessIterator>
 auto
-__chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last, const int __num_threads,
+__chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last, const std::size_t __num_threads,
                     const std::size_t __min_chunk_size) -> __chunk_metrics
 {
     // For sufficiently large inputs, this algorithm creates a number of chunks that is
     // a multiple of the thread count for optimal load balancing.
     // Leftover elements are evenly distributed across earlier chunks to improve processor prefetch utilization.
 
+    using _Size = std::common_type_t<decltype(__last - __first), std::size_t>;
     const _Size __n = __last - __first;
-    _Size __n_chunks = 1;
-    _Size __chunk_size = __n;
-    _Size __n_larger_chunks = 0;
+
+    std::size_t __n_chunks = 1;
+    std::size_t __chunk_size = __n;
+    std::size_t __n_larger_chunks = 0;
 
     if (__n <= __min_chunk_size)
     {
@@ -100,12 +102,12 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     }
 
     // Aim for 3 chunks per thread for better load balancing
-    constexpr _Size __nominal_chunks_per_thread = 3;
-    _Size __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
-    _Size __nominal_chunk_size = __n / __nominal_n_chunks;
+    constexpr std::size_t __nominal_chunks_per_thread = 3;
+    std::size_t __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
+    std::size_t __nominal_chunk_size = __n / __nominal_n_chunks;
 
     // Large input. Limit chunk size to aid early-exit algorithms which cannot exit mid-way through a chunk.
-    constexpr _Size __max_chunk_size = 32768;
+    constexpr std::size_t __max_chunk_size = 32768;
     if (__nominal_chunk_size >= __max_chunk_size)
     {
         __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __max_chunk_size);
