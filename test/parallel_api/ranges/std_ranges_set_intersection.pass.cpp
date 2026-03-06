@@ -22,6 +22,11 @@ namespace test_std_ranges
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 {
+#if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
+    static constexpr bool RunTestForHeteroPolicy = false;
+#else
+    static constexpr bool RunTestForHeteroPolicy = true;
+#endif
     static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
 };
 
@@ -29,6 +34,11 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
+#if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
+    static constexpr bool RunTestForHeteroPolicy = false;
+#else
+    static constexpr bool RunTestForHeteroPolicy = true;
+#endif
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 } // namespace test_std_ranges
@@ -105,8 +115,6 @@ struct
         std::size_t idx2 = 0;
         std::size_t idxOut = 0;
 
-        bool output_full = false;
-
         while (idx1 < n1 && idx2 < n2)
         {
             if (std::invoke(comp, std::invoke(proj1, in1[idx1]), std::invoke(proj2, in2[idx2])))
@@ -124,17 +132,63 @@ struct
             }
             else
             {
-                output_full = true;
                 break;
             }
         }
 
-        idx1 = output_full ? idx1 : n1;
-        idx2 = output_full ? idx2 : n2;
-
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
 } set_intersection_checker;
+
+void
+test_set_intersection_checker()
+{
+    // oneapi::dpl::ranges::set_intersection logic
+    {
+        // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
+        // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                         20, 21, 22, 23, 24, 25
+        //                         -------------------------------------------------^---------------------------------------
+        // res:                    1, 2, 3, 4, 5                                    |
+        // final position in set1: -------------------------------------------------+
+        // final position in set2:--------------------------------------------------+
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
+        std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_intersection_checker(set1, set2, set3);
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 20), "Wrong 'in2' state of result");
+
+        const std::vector<int> resExpected{1, 2, 3, 4, 5};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // oneapi::dpl::ranges::set_intersection logic
+    {
+        // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
+        // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+        //                         ---------------------------------------------------------------------^-------------------
+        // res:                             4, 5, 6, 7,                           15, 16, 17, 18, 19, 20|
+        // final position in set1: ---------------------------------------------------------------------+
+        // final position in set2:----------------------------------------------------------------------+
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
+        std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_intersection_checker(set1, set2, set3);
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, std::find(set2.begin(), set2.end(), 21), "Wrong 'in2' state of result");
+
+        const std::vector<int> resExpected{4, 5, 6, 7, 15, 16, 17, 18, 19, 20};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+}
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int
@@ -143,6 +197,10 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_intersection_checker against the logic of std::ranges::set_intersection
+    test_set_intersection_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 

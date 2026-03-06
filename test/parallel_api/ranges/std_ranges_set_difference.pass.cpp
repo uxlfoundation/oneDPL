@@ -22,6 +22,7 @@ namespace test_std_ranges
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 {
+    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
 };
 
@@ -29,6 +30,7 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
+    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 
@@ -144,6 +146,71 @@ struct
         return {in1 + idx1, out + idxOut};
     }
 } set_difference_checker;
+
+void
+test_set_difference_checker()
+{
+    // oneapi::dpl::ranges::set_difference logic
+    {
+        // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
+        // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,                 20, 21, 22, 23, 24, 25
+        //                         -------------------------------------------------^---------------------------------------
+        // res:                                                                     |
+        // final position in set1: -------------------------------------------------+
+        // final position in set2:--------------------------------------------------+  // Absent in results for now
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
+        std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_difference_checker(set1, set2, set3);
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
+        EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
+    }
+
+    // oneapi::dpl::ranges::set_difference logic
+    {
+        // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
+        // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                          20, 21, 22, 23, 24, 25
+        //                         --------------------------------------------------^---------------------------------------
+        // res:                                               10, 11, 12, 13, 14, 15 |
+        // final position in set1: --------------------------------------------------+
+        // final position in set2:---------------------------------------------------+  // Absent in results for now
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
+        std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_difference_checker(set1, set2, set3);
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
+
+        const std::vector<int> resExpected{10, 11, 12, 13, 14, 15};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // oneapi::dpl::ranges::set_difference logic
+    {
+        // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
+        // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+        //                         ---------------------------------------------------------------------^-------------------
+        // res:                    1, 2, 3,             8, 9, 10                                        |
+        // final position in set1: ---------------------------------------------------------------------+
+        // final position in set2:----------------------------------------------------------------------+  // Absent in results for now
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
+        std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_difference_checker(set1, set2, set3);
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
+
+        const std::vector<int> resExpected{1, 2, 3, 8, 9, 10};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+}
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int
@@ -152,6 +219,10 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_difference_checker against the logic of std::ranges::set_difference
+    test_set_difference_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 

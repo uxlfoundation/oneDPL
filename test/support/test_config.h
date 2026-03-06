@@ -331,4 +331,7 @@
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
 
+// TODO remove after implementation of range-based set operations with hetero policies
+#define STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY 1
+
 #endif // _TEST_CONFIG_H

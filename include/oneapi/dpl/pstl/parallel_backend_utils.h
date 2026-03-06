@@ -261,8 +261,7 @@ __set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __s
     return __mask + __count;
 }
 
-// NOOP iterator
-struct _NullIterator
+struct _SetOpDiscardIterator
 {
     using iterator_category = std::output_iterator_tag;
     using difference_type = std::ptrdiff_t;
@@ -270,26 +269,26 @@ struct _NullIterator
     using pointer = void;
     using reference = void;
 
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator*() noexcept
     {
         return *this;
     }
 
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator++() noexcept
     {
         return *this;
     }
 
-    _NullIterator
+    _SetOpDiscardIterator
     operator++(int) noexcept
     {
         return *this;
     }
 
     template <typename T>
-    _NullIterator&
+    _SetOpDiscardIterator&
     operator=(const T&) noexcept
     {
         return *this;
@@ -304,17 +303,11 @@ struct _UninitializedCopyItem
     void
     operator()(_InputIterator __it_in, _OutputIterator __it_out) const
     {
-        // We should use placement new here because this method really works with raw uninitialized memory
-        new (std::addressof(*__it_out)) _OutValueType(*__it_in);
-    }
-};
-
-template <typename _InputIterator>
-struct _UninitializedCopyItem<_InputIterator, _NullIterator>
-{
-    void
-    operator()(_InputIterator, _NullIterator) const
-    {
+        if constexpr (!std::is_same_v<_OutputIterator, _SetOpDiscardIterator>)
+        {
+            // We should use placement new here because this method really works with raw uninitialized memory
+            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
+        }
     }
 };
 
@@ -324,10 +317,10 @@ struct _CopyConstructRangeOpWrapper
     _CopyConstructRange _cc_range;
 
     template <typename _InputIterator>
-    _NullIterator
-    operator()(_InputIterator, _InputIterator, _NullIterator)
+    _SetOpDiscardIterator
+    operator()(_InputIterator, _InputIterator, _SetOpDiscardIterator)
     {
-        return _NullIterator{};
+        return _SetOpDiscardIterator{};
     }
 
     template <typename _InputIterator, typename _OutputIterator>
@@ -398,7 +391,7 @@ struct CopyOpWrapper
 
     template <typename _InputIterator>
     void
-    operator()(_InputIterator, _NullIterator) const
+    operator()(_InputIterator, _SetOpDiscardIterator) const
     {
     }
 
@@ -441,11 +434,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
     }
 
-    // This needed to save in mask that we processed all data till the end
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
-
-    return {__last1, __last2, __result, __mask};
+    return {__first1, __first2, __result, __mask};
 }
 
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
