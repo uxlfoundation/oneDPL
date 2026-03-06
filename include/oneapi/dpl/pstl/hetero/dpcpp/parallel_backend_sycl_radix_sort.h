@@ -157,13 +157,13 @@ class __radix_sort_copy_back_kernel;
 template <std::uint32_t __packing_ratio, std::uint32_t __radix_states>
 struct __index_views
 {
-    // Number of radix state groups for the accumulation/reduction phase.
-    // Must be >= __packing_ratio to ensure partial sums fit in the SLM layout.
+    //Number of elements of larger CounterT which each thread is responsible for resetting
     static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
-    static constexpr std::uint32_t __num_groups =
+    // Number of elements from the previous layout of work-items that each work item is summing in the initial reduction
+    static constexpr std::uint32_t __reduction_factor =
         (__packing_ratio > __counter_lanes) ? __packing_ratio : __counter_lanes;
     // Number of radix states handled by each group
-    static constexpr std::uint32_t __radix_states_per_group = __radix_states / __num_groups;
+    static constexpr std::uint32_t __radix_states_per_group = __radix_states / __reduction_factor;
 
     // Index for uint8 bucket counters: [wg_id][radix_id]
     std::uint32_t
@@ -180,11 +180,11 @@ struct __index_views
     }
 
     // Index for reduction phase: [radix_id][partial_sum_id]
-    // Stride per radix state = __wg_size / __num_groups
+    // Stride per radix state = __wg_size / __reduction_factor
     std::uint32_t
     __get_count_idx(std::uint32_t __workgroup_size, std::uint32_t __radix_id, std::uint32_t __wg_id) const
     {
-        return __radix_id * (__workgroup_size / __num_groups) + __wg_id;
+        return __radix_id * (__workgroup_size / __reduction_factor) + __wg_id;
     }
 };
 
@@ -318,6 +318,16 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 const std::size_t __full_rounds = __sg_chunk_size / (__sg_size * __unroll_elements);
                 const std::size_t __full_end = __sg_chunk_start + __full_rounds * __sg_size * __unroll_elements;
 
+                // 1. COUNTING PHASE: SLM accessed as uint8_t array (__slm_buckets)
+                //    Each Work-Item (WI) has a contiguous block of 16 uint8_t counters.
+                // 
+                //    SLM Address:    0                   16                  32                  N bytes
+                //    uint8_t View:   | r0 r1 ... r14 r15 | r0 r1 ... r14 r15 | ...               |
+                //    Owned by WI:    +-------WI 0--------+-------WI 1--------+ ... +---Last WI---+
+                //                               |
+                //                               | (Group barrier)
+                //                               v
+
                 // Single branch to select input range, then count without per-element branching
                 if (__input_is_first)
                     __radix_sort_count_impl<__radix_bits, __is_ascending>(
@@ -330,19 +340,30 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // Accumulation and reduction phase.
-                // __num_groups work-item groups each handle __radix_states_per_group radix states.
-                // Each WI reads __num_groups columns (covering all __wg_size WI counters).
-                constexpr std::uint32_t __num_groups = decltype(__views)::__num_groups;
-                const std::uint32_t __wis_per_radix_group = __wg_size / __num_groups;
+                // 2. ACCUMULATION PHASE: Read uint8_t columns into _CountT Registers (__count_arr)
+                //    WIs are grouped to prevent uint8_t overflow. Example: __reduction_factor = 4.
+                //    WI 0 handles Radix 0-3 for WIs 0,1,2,3 (a column across WIs).
+                //
+                //    uint8_t reads:  WI 0's r0-r3 \ 
+                //                    WI 1's r0-r3  |--> Summed into WI 0's registers:
+                //                    WI 2's r0-r3  |    __count_arr[4] = {sum_r0, sum_r1, sum_r2, sum_r3}
+                //                    WI 3's r0-r3 /     (These are 32-bit sums, safely preventing overflow)
+                //                               |
+                //                               | (Group barrier)
+                //                               v
+
+                // Each work item sums __reduction_factor elements, and handles __radix_states_per_group radix states.
+                // This enables full thread utilization in the first stage of reduction
+                constexpr std::uint32_t __reduction_factor = decltype(__views)::__reduction_factor;
+                const std::uint32_t __wis_per_radix_group = __wg_size / __reduction_factor;
                 const std::uint32_t __radix_group = __self_lidx / __wis_per_radix_group;
                 const std::uint32_t __radix_base = __radix_group * __radix_states_per_group;
                 const std::uint32_t __wi_in_group = __self_lidx % __wis_per_radix_group;
-                const std::uint32_t __col_base = __wi_in_group * __num_groups;
+                const std::uint32_t __col_base = __wi_in_group * __reduction_factor;
 
-                // Accumulate __radix_states_per_group radix states from __num_groups columns
+                // Accumulate __radix_states_per_group radix states from __reduction_factor columns
                 _ONEDPL_PRAGMA_UNROLL
-                for (std::uint32_t __c = 0; __c < __num_groups; ++__c)
+                for (std::uint32_t __c = 0; __c < __reduction_factor; ++__c)
                 {
                     _ONEDPL_PRAGMA_UNROLL
                     for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
@@ -353,7 +374,15 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 }
                 __dpl_sycl::__group_barrier(__self_item);
 
-                // All WIs write their partial sums to SLM
+                // 3. REDUCTION PHASE: Write to SLM accessed as _CountT array (__slm_counts)
+                //    The same N bytes of SLM are now viewed as (N / __packing_ratio) _CountT elements.
+                //    Memory is reorganized by Radix state for a standard tree reduction.
+                //
+                //    SLM Address:    0 bytes             256 bytes           512 bytes          4096 bytes
+                //    _CountT View:   | Sums for Radix 0  | Sums for Radix 1  | ...              |
+                //    Written by:     +- 64 WI partials --+- 64 WI partials --+ ...              |
+                //
+                //    (Tree reduction then processes these 64 partial sums down to 1 total per Radix)
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
                 {
