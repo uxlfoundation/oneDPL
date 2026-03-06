@@ -823,8 +823,11 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
+    using _DifferenceType1 = std::iter_difference_t<_RandomAccessIterator1>;
+    using _DifferenceType2 = std::iter_difference_t<_RandomAccessIterator2>;
+
+    _DifferenceType1 __n1 = std::ranges::size(__r1);
+    _DifferenceType2 __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
@@ -1148,8 +1151,11 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     using _RandomAccessIterator2 = std::ranges::iterator_t<_R2>;
     using _Tp = std::ranges::range_value_t<_OutRange>;
 
-    const auto __n1 = std::ranges::size(__r1);
-    const auto __n2 = std::ranges::size(__r2);
+    using _DifferenceType1 = std::iter_difference_t<_RandomAccessIterator1>;
+    using _DifferenceType2 = std::iter_difference_t<_RandomAccessIterator2>;
+
+    _DifferenceType1 __n1 = std::ranges::size(__r1);
+    _DifferenceType2 __n2 = std::ranges::size(__r2);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
