@@ -383,7 +383,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 //    Written by:     +--- WI partials ---+--- WI partials ---+ ...              |
                 //
                 //    (Tree reduction then processes these partial sums down to 1 total per Radix State)
-                //    Active threads: +-------------------+-------------------+ ...              |
+                //    Active sums:    +-------------------+-------------------+ ...              |
                 //                    +----------         +----------         + ...              |
                 //                    +-----              +-----              + ...              |
                 //                    +---                +---                + ...              |
