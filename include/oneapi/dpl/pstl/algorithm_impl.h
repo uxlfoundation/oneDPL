@@ -3306,10 +3306,10 @@ inline constexpr auto __set_algo_cut_off = 1000;
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
 _OutputIterator
-__parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
-                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
-                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
-                  _Proj2 __proj2)
+__parallel_set_op_impl(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                       _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                       _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3400,6 +3400,38 @@ __parallel_set_op(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomA
             });
         return __result + __m;
     });
+}
+
+// Thin wrapper over __parallel_set_op_impl that always partitions the larger range.
+// When range2 is larger, it swaps ranges and wraps __set_op / __size_func / projections
+// so that the leaf operation still sees the caller's original range order. This is
+// important to satisfy semantic requirements to use elements from the first sequence in
+// the output when elements are equivalent.
+template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
+          class _OutputIterator, class _SizeFunction, class _SetOP, class _Compare, class _Proj1, class _Proj2>
+_OutputIterator
+__parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                  _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                  _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
+                  _Proj2 __proj2)
+{
+    const auto __n1 = __last1 - __first1;
+    const auto __n2 = __last2 - __first2;
+
+    if (__n1 >= __n2)
+    {
+        return __parallel_set_op_impl(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
+                                      __last2, __result, __size_func, __set_op, __comp, __proj1, __proj2);
+    }
+    // Partition the larger range2, wrapping callbacks to preserve
+    // the caller's original range order for the leaf operation.
+    return __parallel_set_op_impl(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first2, __last2, __first1, __last1, __result,
+        [&__size_func](auto __n, auto __m) { return __size_func(__m, __n); },
+        [&__set_op](auto __f2, auto __l2, auto __f1, auto __l1, auto* __res, auto __comp, auto __p2, auto __p1) {
+            return __set_op(__f1, __l1, __f2, __l2, __res, __comp, __p1, __p2);
+        },
+        __comp, __proj2, __proj1);
 }
 
 //a shared parallel pattern for '__pattern_set_union' and '__pattern_set_symmetric_difference'
@@ -3640,68 +3672,73 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
+    _DifferenceType1 __n1 = __last1 - __first1;
+    _DifferenceType2 __n2 = __last2 - __first2;
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
         return __result;
 
-    // testing  whether the sequences are intersected
-    _RandomAccessIterator1 __left_bound_seq_1 = std::lower_bound(__first1, __last1, *__first2, __comp);
-    //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
-    if (__left_bound_seq_1 == __last1)
-        return __result;
+    // Trim non-overlapping portions from both ends.
+    _RandomAccessIterator1 __begin1 = __first1;
+    _RandomAccessIterator1 __end1 = __last1;
+    _RandomAccessIterator2 __begin2 = __first2;
+    _RandomAccessIterator2 __end2 = __last2;
 
-    // testing  whether the sequences are intersected
-    _RandomAccessIterator2 __left_bound_seq_2 = std::lower_bound(__first2, __last2, *__first1, __comp);
-    //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
-    if (__left_bound_seq_2 == __last2)
-        return __result;
-
-    const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (__m1 > __set_algo_cut_off)
+    // Trim the beginning of whichever range starts earlier
+    if (__comp(*__first2, *__first1))
     {
-        //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
-        return __internal::__except_handler([&]() {
-            return __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __left_bound_seq_1, __last1, __first2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-                   oneapi::dpl::identity) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                        oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
-        });
-    }
-
-    const auto __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (__m2 > __set_algo_cut_off)
-    {
-        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        return __internal::__except_handler([&]() {
-            __result = __internal::__parallel_set_op(
-                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result,
-                [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
-                [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                   _RandomAccessIterator2 __last2, _T* __result, _Compare __comp, oneapi::dpl::identity,
-                   oneapi::dpl::identity) {
-                    return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
-                        oneapi::dpl::identity{}, oneapi::dpl::identity{});
-                },
-                __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+        // range 2 starts before range 1; trim beginning of range 2 to *__first1
+        __begin2 = std::lower_bound(__first2, __last2, *__first1, __comp);
+        if (__begin2 == __last2)
             return __result;
-        });
+    }
+    else if (__comp(*__first1, *__first2))
+    {
+        // range 1 starts before range 2; trim beginning of range 1 to *__first2
+        __begin1 = std::lower_bound(__first1, __last1, *__first2, __comp);
+        if (__begin1 == __last1)
+            return __result;
     }
 
-    // [left_bound_seq_1; last1) and [left_bound_seq_2; last2) - use serial algorithm
-    return std::set_intersection(__left_bound_seq_1, __last1, __left_bound_seq_2, __last2, __result, __comp);
+    // Trim the end of whichever range ends later
+    if (__comp(*(__end1 - 1), *(__end2 - 1)))
+    {
+        // range 1 ends before range 2; trim end of range 2 to *(__end1 - 1)
+        __end2 = std::upper_bound(__begin2, __end2, *(__end1 - 1), __comp);
+    }
+    else if (__comp(*(__end2 - 1), *(__end1 - 1)))
+    {
+        // range 2 ends before range 1; trim end of range 1 to *(__end2 - 1)
+        __end1 = std::upper_bound(__begin1, __end1, *(__end2 - 1), __comp);
+    }
+
+    // End trimming may have eliminated all overlap
+    if (__begin1 == __end1 || __begin2 == __end2)
+        return __result;
+
+    __n1 = __end1 - __begin1;
+    __n2 = __end2 - __begin2;
+
+    const _DifferenceType __total_work = __n1 + __n2;
+    if (__total_work > __set_algo_cut_off)
+    {
+        return __internal::__parallel_set_op(
+            __tag, std::forward<_ExecutionPolicy>(__exec), __begin1, __end1, __begin2, __end2, __result,
+            [](_DifferenceType __n, _DifferenceType __m) { return std::min(__n, __m); },
+            [](_RandomAccessIterator1 __lmda_first1, _RandomAccessIterator1 __lmda_last1,
+               _RandomAccessIterator2 __lmda_first2, _RandomAccessIterator2 __lmda_last2, _T* __result, _Compare __comp,
+               oneapi::dpl::identity, oneapi::dpl::identity) {
+                return oneapi::dpl::__utils::__set_intersection_construct(
+                    __lmda_first1, __lmda_last1, __lmda_first2, __lmda_last2, __result,
+                    oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp,
+                    oneapi::dpl::identity{}, oneapi::dpl::identity{});
+            },
+            __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
+    }
+
+    // Work too small for parallelization - use serial algorithm
+    return std::set_intersection(__begin1, __end1, __begin2, __end2, __result, __comp);
 }
 
 //------------------------------------------------------------------------
