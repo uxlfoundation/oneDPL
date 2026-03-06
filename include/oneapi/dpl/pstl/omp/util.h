@@ -110,7 +110,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     constexpr std::size_t __preferred_max_chunk_size = 32768;
     if (__nominal_chunk_size >= __preferred_max_chunk_size)
     {
-        __n_chunks =     // compute the number of chunks per thread, multiply by the number of threads
+        __n_chunks = // compute the number of chunks per thread, multiply by the number of threads
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __preferred_max_chunk_size * __num_threads) * __num_threads;
         __chunk_size = __n / __n_chunks;
     }
