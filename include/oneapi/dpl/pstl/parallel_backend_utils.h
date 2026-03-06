@@ -294,7 +294,6 @@ struct _SetOpDiscardIterator
         return *this;
     }
 };
-static_assert(std::output_iterator<_SetOpDiscardIterator, int>);
 
 template <typename _InputIterator, typename _OutputIterator>
 struct _UninitializedCopyItem
