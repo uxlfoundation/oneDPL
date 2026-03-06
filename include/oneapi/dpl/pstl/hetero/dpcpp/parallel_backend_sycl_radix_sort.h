@@ -378,11 +378,17 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 //    The same N bytes of SLM are now viewed as (N / __packing_ratio) _CountT elements.
                 //    Memory is reorganized by Radix state for a standard tree reduction.
                 //
-                //    SLM Address:    0 bytes             256 bytes           512 bytes          4096 bytes
+                //    SLM Address:    0 bytes                                                    N bytes
                 //    _CountT View:   | Sums for Radix 0  | Sums for Radix 1  | ...              |
-                //    Written by:     +- 64 WI partials --+- 64 WI partials --+ ...              |
+                //    Written by:     +--- WI partials ---+--- WI partials ---+ ...              |
                 //
-                //    (Tree reduction then processes these 64 partial sums down to 1 total per Radix)
+                //    (Tree reduction then processes these partial sums down to 1 total per Radix State)
+                //    Active threads: +-------------------+-------------------+ ...              |
+                //                    +----------         +----------         + ...              |
+                //                    +-----              +-----              + ...              |
+                //                    +---                +---                + ...              |
+                //                    +--                 +--                 + ...              |
+                //                    +-                  +-                  + ...              |
                 _ONEDPL_PRAGMA_UNROLL
                 for (std::uint32_t __r = 0; __r < __radix_states_per_group; ++__r)
                 {
