@@ -320,7 +320,7 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
 
                 // 1. COUNTING PHASE: SLM accessed as uint8_t array (__slm_buckets)
                 //    Each Work-Item (WI) has a contiguous block of 16 uint8_t counters.
-                // 
+                //
                 //    SLM Address:    0                   16                  32                  N bytes
                 //    uint8_t View:   | r0 r1 ... r14 r15 | r0 r1 ... r14 r15 | ...               |
                 //    Owned by WI:    +-------WI 0--------+-------WI 1--------+ ... +---Last WI---+
@@ -344,10 +344,10 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 //    WIs are grouped to prevent uint8_t overflow. Example: __reduction_factor = 4.
                 //    WI 0 handles Radix 0-3 for WIs 0,1,2,3 (a column across WIs).
                 //
-                //    uint8_t reads:  WI 0's r0-r3 \ 
-                //                    WI 1's r0-r3  |--> Summed into WI 0's registers:
-                //                    WI 2's r0-r3  |    __count_arr[4] = {sum_r0, sum_r1, sum_r2, sum_r3}
-                //                    WI 3's r0-r3 /     (These are 32-bit sums, safely preventing overflow)
+                //    uint8_t reads:  WI 0's r0-r3  \     Summed into WI 0's registers:
+                //                    WI 1's r0-r3  |-->  __count_arr[4] = {sum_r0, sum_r1, sum_r2, sum_r3}
+                //                    WI 2's r0-r3  |     (These are 32-bit sums, safely preventing overflow)
+                //                    WI 3's r0-r3  /
                 //                               |
                 //                               | (Group barrier)
                 //                               v
