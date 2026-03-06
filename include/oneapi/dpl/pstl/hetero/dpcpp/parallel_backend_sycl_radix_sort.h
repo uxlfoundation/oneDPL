@@ -251,8 +251,8 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
     constexpr std::uint32_t __radix_states = 1 << __radix_bits;
     // multiple uint8_t (1 byte) counters are packed in the footprint of 1 _CountT, we reuse SLM in different phases to
     // allow more parallel work to start with, still avoiding overflow as we accumulate bins from more elements together
-    static constexpr std::uint32_t __packing_ratio = sizeof(_CountT);
-    static constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
+    constexpr std::uint32_t __packing_ratio = sizeof(_CountT);
+    constexpr std::uint32_t __counter_lanes = __radix_states / __packing_ratio;
 
     // iteration space info
     const std::size_t __n = oneapi::dpl::__ranges::__size(__val_rng1);
