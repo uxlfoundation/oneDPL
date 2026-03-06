@@ -135,6 +135,56 @@ struct
         return {in1 + idx1, in2 + idx2, out + idxOut};
     }
 } set_intersection_checker;
+
+void
+test_set_intersection_checker()
+{
+    // oneapi::dpl::ranges::set_intersection logic
+    {
+        // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
+        // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                         20, 21, 22, 23, 24, 25
+        //                         -------------------------------------------------^---------------------------------------^
+        // res:                    1, 2, 3, 4, 5                                    |                                       |
+        // final position in set1: -------------------------------------------------+                                       |
+        // final position in set2:------------------------------------------------------------------------------------------+
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
+        std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_intersection_checker(set1, set2, set3);
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+
+        const std::vector<int> resExpected{1, 2, 3, 4, 5};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+
+    // oneapi::dpl::ranges::set_intersection logic
+    {
+        // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
+        // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+        //                         ---------------------------------------------------------------------^-------------------^
+        // res:                             4, 5, 6, 7,                           15, 16, 17, 18, 19, 20|                   |
+        // final position in set1: ---------------------------------------------------------------------+                   |
+        // final position in set2:------------------------------------------------------------------------------------------+
+
+        std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
+        std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
+        std::vector<int> set3(set1.size() + set2.size());
+        auto res = set_intersection_checker(set1, set2, set3);
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.end(), "Wrong 'in2' state of result");
+
+        const std::vector<int> resExpected{4, 5, 6, 7, 15, 16, 17, 18, 19, 20};
+
+        EXPECT_EQ(res.out, set3.begin() + resExpected.size(), "Wrong 'out' state of result");
+
+        EXPECT_EQ_N(resExpected.begin(), set3.begin(), resExpected.size(), "Wrong output data state");
+    }
+}
 #endif // _ENABLE_STD_RANGES_TESTING
 
 int
@@ -143,6 +193,10 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    // Check the correctness of the set_intersection_checker against the logic of std::ranges::set_intersection
+    test_set_intersection_checker();
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
