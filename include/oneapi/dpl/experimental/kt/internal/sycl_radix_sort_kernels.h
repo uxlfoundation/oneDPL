@@ -407,21 +407,22 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
             __item_bin_count = __intra_bin_scan_across_sub_groups<__bin_process_width>(
                 __sub_group_id, __sub_group_local_id, __item_grf_hist_summary, __slm_subgroup_hists);
 
-            // 1.2. Vector scan of different bins inside one histogram: ONLY the final one per summary sub-group
-            __inter_bin_scan_work_group_totals<__bin_process_width>(__sub_group, __sub_group_id, __sub_group_local_id,
-                                                                    __item_grf_hist_summary_arr, __slm_group_hist);
-
-            // 1.3. Copy the histogram at the region designated for synchronization between work-groups and set work-group
-            // zeros incoming values from the global histogram kernel.
+            // 1.2. Copy the histogram at the region designated for synchronization between work-groups and set work-group
+            // incoming values from the global histogram kernel.
             __output_work_group_chained_scan_partials<__bin_process_width>(__tile_id, __sub_group_id,
                                                                            __sub_group_local_id, __item_bin_count,
                                                                            __p_this_group_hist, __slm_global_incoming);
+
+            // 1.3. Partial scan across bins: Each participating sub-group independently scans its own
+            // segment of __bin_process_width bins. These partial results are finalized in step 1.4.
+            __inter_bin_scan_bin_width_totals<__bin_process_width>(__sub_group, __sub_group_id, __sub_group_local_id,
+                                                                   __item_grf_hist_summary_arr, __slm_group_hist);
         }
         __dpl_sycl::__group_barrier(__idx);
 
-        // 1.4 One work-item finalizes scan performed at stage 1.2
-        // by propagating prefixes accumulated after scanning individual "__bin_process_width" pieces and converting
-        // them scan from being inclusive to exclusive.
+        // 1.4. Finalize the partial scans from step 1.3 by connecting the independent sub-group segments
+        // together, propagating prefixes across the "__bin_process_width"-sized segments and converting
+        // from inclusive to exclusive scan.
         if (__sub_group_id == 0)
         {
             __sub_group_cross_segment_exclusive_scan<__bin_process_width, __bin_summary_sub_group_size>(
@@ -460,10 +461,9 @@ struct __radix_sort_onesweep_kernel<__sycl_tag, __is_ascending, __radix_bits, __
 
     template <std::uint32_t __bin_process_width>
     inline void
-    __inter_bin_scan_work_group_totals(sycl::sub_group __sub_group, std::uint32_t __sub_group_id,
-                                       std::uint32_t __sub_group_local_id,
-                                       _LocOffsetT (&__item_grf_hist_summary_arr)[1],
-                                       _LocOffsetT* __slm_group_hist) const
+    __inter_bin_scan_bin_width_totals(sycl::sub_group __sub_group, std::uint32_t __sub_group_id,
+                                      std::uint32_t __sub_group_local_id, _LocOffsetT (&__item_grf_hist_summary_arr)[1],
+                                      _LocOffsetT* __slm_group_hist) const
     {
         __sub_group_scan<__sub_group_size, 1>(__sub_group, __item_grf_hist_summary_arr, std::plus<>{},
                                               __bin_process_width);
