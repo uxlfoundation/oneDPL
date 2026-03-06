@@ -1,15 +1,9 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (C) Intel Corporation
+// Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-// This file incorporates work covered by the following copyright and permission
-// notice:
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,17 +15,17 @@
 struct
 {
     template <std::ranges::random_access_range InRange, std::ranges::random_access_range OutRange,
-              typename Comp, typename Proj = std::identity>
-    auto operator()(InRange&& r_in, OutRange&& r_out, Comp comp, Proj proj = {})
+              typename V, typename Proj = std::identity>
+    auto operator()(InRange&& r_in, OutRange&& r_out, const V& value, Proj proj = {})
     {
-        using ret_type = std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<InRange>,
+        using ret_type = std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<InRange>,
                                                          std::ranges::borrowed_iterator_t<OutRange>>;
         auto in = std::ranges::begin(r_in);
         auto out = std::ranges::begin(r_out);
         std::size_t i = 0, j = 0;
         for(; i < std::ranges::size(r_in); ++i)
         {
-             if (i == 0 || !bool(std::invoke(comp, std::invoke(proj, in[i - 1]), std::invoke(proj, in[i]))))
+             if (!std::ranges::equal_to{}(std::invoke(proj, in[i]), value))
              {
                  if (j < std::ranges::size(r_out))
                      out[j++] = in[i];
@@ -60,10 +54,10 @@ struct
             {0,  0, {},                 0,  0}, // Empty ranges
             {10, 0, {},                 0,  0}, // Empty output range
             {1,  1, {0},                1,  1}, // One element ranges
-            {10, 1, {0},                2,  1}, // One element output range
-            {10, 5, {0, 1, 2, 8, 1},    9,  5}, // Output range is not big enough
-            {10, 6, {0, 1, 2, 8, 1, 8}, 10, 6}, // Output range is just enough
-            {10, 7, {0, 1, 2, 8, 1, 8}, 10, 6}, // Output range is bigger
+            {10, 1, {0},                1,  1}, // One element output range
+            {10, 5, {0, 0, 2, 2, 8},    9,  5}, // Output range is not big enough
+            {10, 6, {0, 0, 2, 2, 8, 8}, 10, 6}, // Output range is just enough
+            {10, 7, {0, 0, 2, 2, 8, 8}, 10, 6}, // Output range is bigger than needed
         };
 
         auto& self = *this;
@@ -72,7 +66,7 @@ struct
             std::span<int> in_span(input, test_case.in_size);
             std::span<int> out_span(output + shift, test_case.out_size);
 
-            auto result = self(in_span, out_span, std::equal_to<int>{});
+            auto result = self(in_span, out_span, 1);
 
             // Verify the returned iterators point to the correct end positions
             EXPECT_EQ(in_span.begin() + test_case.expected_in_end, result.in, "Checker problem: wrong input stop");
@@ -94,45 +88,33 @@ struct
         }
 #endif // TEST_CPP20_SPAN_PRESENT
     }
-} unique_copy_checker;
+} remove_copy_checker;
 #endif // _ENABLE_STD_RANGES_TESTING
 
-int
+std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-#if TEST_DPCPP_BACKEND_PRESENT
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out;
-#else
-    constexpr TestDataMode test_mode = TestDataMode::data_in_out_lim;
-#endif
-
-    // input generator with a fair chance of repeating the previous value
-    auto repeat_sometimes = [](auto i) {
-        static decltype(i) last = 0;
-        if (i==0)
-            last = 0; // reset
-        else if (i%7 > 0 && (last + i - 1)%3 == 0)
-            last = i;
-        return last;
+    auto almost_always_two = [](auto i) {
+        if (i%7 > 0 && (i - 1)%3 == 0)
+            return i;
+        return 2;
     };
-    using repeating_gen = decltype(repeat_sometimes);
-    
-    auto equal_tens = [](auto i, auto j) { return i/10 == j/10; };
+    using many_twos = decltype(almost_always_two);
 
-    unique_copy_checker.test_self();
+    remove_copy_checker.test_self();
 
-    test_range_algo<0, int, test_mode>{163}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<1, int, test_mode, repeating_gen>{837}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens);
-    test_range_algo<2, int, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::not_equal_to{}, proj);
-    test_range_algo<3, int, test_mode, repeating_gen>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, proj);
-    test_range_algo<4, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, equal_tens, &P2::x);
-    test_range_algo<5, P2, test_mode>{}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{}, &P2::proj);
-    test_range_algo<6, int, test_mode, repeating_gen>{big_sz}(dpl_ranges::unique_copy, unique_copy_checker, std::ranges::equal_to{});
-#endif //_ENABLE_STD_RANGES_TESTING
+    test_range_algo<0, int, data_in_out_lim>{179}(dpl_ranges::remove_copy, remove_copy_checker, 0);
+    test_range_algo<1, int, data_in_out_lim, many_twos>{1127}(dpl_ranges::remove_copy, remove_copy_checker, 2);
+    test_range_algo<2, int, data_in_out_lim>{}(dpl_ranges::remove_copy, remove_copy_checker, 1, proj);
+    test_range_algo<3, P2, data_in_out_lim, many_twos>{}(dpl_ranges::remove_copy, remove_copy_checker, 2, &P2::x);
+    test_range_algo<4, P2, data_in_out_lim>{}(dpl_ranges::remove_copy, remove_copy_checker, 0, &P2::proj);
+    test_range_algo<5, int, data_in_out_lim>{big_sz}(dpl_ranges::remove_copy, remove_copy_checker, 1);
+    test_range_algo<6, int, data_in_out_lim, many_twos>{big_sz}(dpl_ranges::remove_copy, remove_copy_checker, 2);
+#endif // _ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);
 }
