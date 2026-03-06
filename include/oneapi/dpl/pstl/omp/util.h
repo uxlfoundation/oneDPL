@@ -85,9 +85,9 @@ auto
 __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last, const int __num_threads,
                     const std::size_t __min_chunk_size) -> __chunk_metrics
 {
-    // This algorithm creates a number of chunks that is a multiple of the thread count
-    // for optimal load balancing. Leftover elements are evenly distributed across
-    // earlier chunks to improve processor prefetch utilization.
+    // For sufficiently large inputs, this algorithm creates a number of chunks that is
+    // a multiple of the thread count for optimal load balancing.
+    // Leftover elements are evenly distributed across earlier chunks to improve processor prefetch utilization.
 
     const _Size __n = __last - __first;
     _Size __n_chunks = 1;
