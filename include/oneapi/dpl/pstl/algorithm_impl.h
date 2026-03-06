@@ -3519,9 +3519,8 @@ struct _SetOpReachedPosEvaluator
     }
 
     void
-    __on_output_size_reached(
-        std::size_t __offset_from_n_out, const _DataPart<_DifferenceType>& __data_part,
-        const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
+    __on_output_size_reached(std::size_t __offset_from_n_out, const _DataPart<_DifferenceType>& __data_part,
+                             const _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>& __source_data_offsets)
     {
         assert(__offset_from_n_out < 2);
 
@@ -3548,7 +3547,8 @@ struct _SetOpReachedPosEvaluator
         {
             const _DataPart<_DifferenceType>& __apex_total_data_part = __apex_total.get_data_part();
 
-            const std::pair<_DifferenceType1, _DifferenceType2> __input_reached_positions = __eval_reached_input_positions();
+            const std::pair<_DifferenceType1, _DifferenceType2> __input_reached_positions =
+                __eval_reached_input_positions();
 
             __res_data_opt.emplace(__input_reached_positions.first, __input_reached_positions.second,
                                    std::min(__apex_total_data_part.__pos + __apex_total_data_part.__len, __n_out));
@@ -3976,8 +3976,7 @@ struct _ParallelSetOpStrictReducePred
             const bool __something_reached = __it1_reached != __b || __it2_reached != __bb;
 
             _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2> __new_processed_data_amount{
-                __something_reached ? __it1_reached - __first1 : 0,
-                __it2_reached - __first2};
+                __something_reached ? __it1_reached - __first1 : 0, __it2_reached - __first2};
 
             typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data,
                                                  __new_processed_data_amount};
