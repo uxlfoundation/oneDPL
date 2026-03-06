@@ -21,6 +21,7 @@
 
 #include "memory_fwd.h"
 #include "unseq_backend_simd.h"
+#include "algorithm_fwd.h"
 
 namespace oneapi
 {
@@ -209,6 +210,21 @@ struct __op_uninitialized_value_construct<_ExecutionPolicy>
         ::new (::std::addressof(__target)) _TargetValueType();
     }
 };
+
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_uninitialized_walk1(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
+                              _Function __f)
+{
+    oneapi::dpl::__internal::__pattern_walk1(tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
+_ForwardIterator
+__pattern_uninitialized_walk1_n(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Function __f)
+{
+    return __pattern_walk1_n(tag, std::forward<_ExecutionPolicy>(__exec), __first, __n, __f);
+}
 
 } // namespace __internal
 } // namespace dpl
