@@ -3396,6 +3396,19 @@ struct _SrcDataProcessingOffsets
     _SrcDataProcessingOffset<_DifferenceType2> __in2;
 };
 
+template <typename _DifferenceType1, typename _DifferenceType2>
+struct _SrcProcessedDataAmount
+{
+    _DifferenceType1 __length1 = {}; // Amount of processed data in the first input range
+    _DifferenceType2 __length2 = {}; // Amount of processed data in the second input range
+
+    static _SrcProcessedDataAmount
+    combine_with(const _SrcProcessedDataAmount& __a, const _SrcProcessedDataAmount& __b)
+    {
+        return _SrcProcessedDataAmount{std::max(__a.__length1, __b.__length1), std::max(__a.__length2, __b.__length2)};
+    }
+};
+
 // Describes a data window in the temporary buffer and corresponding positions in the output range
 template <bool __Bounded, typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut,
           typename _DifferenceTypeMask>
@@ -3403,12 +3416,14 @@ struct _SetRangeImpl
 {
     static constexpr std::size_t _DataIndex = 0;
     static constexpr std::size_t _SrcOffsetsIndex = 1;
+    static constexpr std::size_t _SrcProcessedDataIndex = 2;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
     using _DataStorage = std::conditional_t<
         !__Bounded, _DataPart<_DifferenceType>,
-        std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>>>;
+        std::tuple<_DataPart<_DifferenceType>, _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2>,
+                   _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>>>;
 
     _DataStorage __data;
 
@@ -3428,6 +3443,13 @@ struct _SetRangeImpl
         return std::get<_SrcOffsetsIndex>(__data);
     }
 
+    const _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>&
+    get_src_processed_data_amount_part() const
+    {
+        static_assert(__Bounded, "Source data processed amount part is available only for bounded set operations");
+        return std::get<_SrcProcessedDataIndex>(__data);
+    }
+
     static _SetRangeImpl
     combine_with(const _SetRangeImpl& __a, const _SetRangeImpl& __b)
     {
@@ -3440,9 +3462,12 @@ struct _SetRangeImpl
         else
         {
             typename _SetRangeImpl::_DataStorage __ds{
-                __new_data_part, _DataPart<_DifferenceType>::is_left(__a.get_data_part(), __b.get_data_part())
-                                     ? __b.get_src_offsets_part()
-                                     : __a.get_src_offsets_part()};
+                __new_data_part,
+                _DataPart<_DifferenceType>::is_left(__a.get_data_part(), __b.get_data_part())
+                    ? __b.get_src_offsets_part()
+                    : __a.get_src_offsets_part(),
+                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>::combine_with(
+                    __a.get_src_processed_data_amount_part(), __b.get_src_processed_data_amount_part())};
             return _SetRangeImpl{__ds};
         }
     }
@@ -3467,73 +3492,18 @@ template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _Out
 using __parallel_set_op_return_t =
     oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>;
 
-template <typename _DifferenceType1, typename _DifferenceType2, typename _DifferenceTypeOut>
-struct _SetOpReachedPosEvaluatorData
-{
-    _DifferenceType1 __reached_pos1 = {};      // Reached position in the first input range
-    _DifferenceType2 __reached_pos2 = {};      // Reached position in the second input range
-    _DifferenceTypeOut __reached_pos_out = {}; // Reached position in the output range
-};
-
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
           class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
-          class _SizeFunction, class _MaskSizeFunction, bool __Bounded>
-struct _SetOpReachedPosEvaluator;
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
-          class _SizeFunction, class _MaskSizeFunction>
-struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
-                                _MaskSizeFunction,
-                                /*__Bounded*/ false>
+          class _SizeFunction, class _MaskSizeFunction, typename _SetRange, bool __Bounded>
+struct _SetOpReachedPosEvaluator
 {
-    using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
-    using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
-    using _DifferenceTypeOut = typename std::iterator_traits<_OutputIterator>::difference_type;
-
-    _SetOpReachedPosEvaluator(__parallel_tag<_IsVector>, _ExecutionPolicy&, _RandomAccessIterator1 __first1,
-                             _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
-                             _RandomAccessIterator2 __last2, _OutputIterator __result1, _OutputIterator __result2,
-                             _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction, _MaskSizeFunction)
-    {
-        __res_data.__reached_pos1 = __last1 - __first1;
-        __res_data.__reached_pos2 = __last2 - __first2;
-    }
-
-    template <typename _DifferenceType>
-    void
-    __on_apex(const _DataPart<_DifferenceType>& __data_part)
-    {
-        __res_data.__reached_pos_out = __data_part.__pos + __data_part.__len;
-    }
-
-    // Get evaluated reached positions for the source ranges and output range
-    std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
-    __get_reached_positions() const
-    {
-        return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
-    }
-
-  protected:
-    _SetOpReachedPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
-};
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
-          class _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _SetUnionOp,
-          class _SizeFunction, class _MaskSizeFunction>
-struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
-                                _MaskSizeFunction,
-                                /*__Bounded*/ true>
-{
-    static constexpr bool __Bounded = true;
-
     using _DifferenceType1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceTypeOut = typename std::iterator_traits<_OutputIterator>::difference_type;
 
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
+
+    using _SetOpReachedPosEvaluatorData = std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>;
 
     _SetOpReachedPosEvaluator(__parallel_tag<_IsVector> __tag, _ExecutionPolicy& __exec,
                               _RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1,
@@ -3544,11 +3514,8 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
         : __tag(__tag), __exec(__exec), __first1(__first1), __last1(__last1), __first2(__first2), __last2(__last2),
           __result1(__result1), __result2(__result2), __comp(__comp), __proj1(__proj1), __proj2(__proj2),
           __set_union_op(__set_union_op), __size_func(__size_func), __mask_size_func(__mask_size_func),
-          __n_out(__result2 - __result1), __res_data{__last1 - __first1, __last2 - __first2, 0}
+          __n_out(__result2 - __result1)
     {
-        // No calculation of reached positions in the first and in the second input ranges needed
-        // due we have enough output buffer size to place all data from input ranges
-        __reached_pos_evaluated_due_output_size = __size_func(__last1 - __first1, __last2 - __first2) <= __n_out;
     }
 
     void
@@ -3559,38 +3526,35 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
         assert(__offset_from_n_out < 2);
 
         __output_size_reached_info_opt[__offset_from_n_out] = OutputSizeReachedInfo{__data_part, __source_data_offsets};
-        __reached_pos_evaluated = false;
+
+        // Reset reached positions in the output and input ranges due to they will be evaluated based on the information about output size reached point
+        __res_data_opt.reset();
     }
 
     void
-    __on_apex(const _DataPart<_DifferenceType>& __data_part)
+    __on_apex(const _SetRange& __total)
     {
-        __res_data.__reached_pos_out = std::min(__data_part.__pos + __data_part.__len, __n_out);
+        __apex_total = __total;
+
+        // Reset reached positions in the output and input ranges due to they will be evaluated based on the information about output size reached point
+        __res_data_opt.reset();
     }
 
     // Get evaluated reached positions for the source ranges and output range
-    std::tuple<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut>
+    _SetOpReachedPosEvaluatorData
     __get_reached_positions()
     {
-        if (!__reached_pos_evaluated_due_output_size)
+        if (!__res_data_opt.has_value())
         {
-            if (!__reached_pos_evaluated)
-            {
-                // We may not reach output size limit - in this case reached positions in input ranges are equal to their sizes,
-                // and reached position in output range is equal to the current state of __res_data.__reached_pos_out
-                if (__output_size_reached_info_opt[0].has_value())
-                {
-                    std::tie(__res_data.__reached_pos1, __res_data.__reached_pos2) = __eval_reached_input_positions();
-                    __reached_pos_evaluated = true;
-                }
-            }
-        }
-        else
-        {
-            __reached_pos_evaluated = true;
+            const _DataPart<_DifferenceType>& __apex_total_data_part = __apex_total.get_data_part();
+
+            const std::pair<_DifferenceType1, _DifferenceType2> __input_reached_positions = __eval_reached_input_positions();
+
+            __res_data_opt.emplace(__input_reached_positions.first, __input_reached_positions.second,
+                                   std::min(__apex_total_data_part.__pos + __apex_total_data_part.__len, __n_out));
         }
 
-        return {__res_data.__reached_pos1, __res_data.__reached_pos2, __res_data.__reached_pos_out};
+        return __res_data_opt.value();
     }
 
   protected:
@@ -3604,7 +3568,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
         }
     };
 
-    template <bool __Bounded, typename _DifferenceTypeArg>
+    template <typename _DifferenceTypeArg>
     _DifferenceTypeArg
     __eval_reached_pos(oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_begin,
                        oneapi::dpl::__utils::__parallel_set_op_mask* __mask_buffer_end,
@@ -3686,51 +3650,67 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     std::pair<_DifferenceType1, _DifferenceType2>
     __eval_reached_input_positions() const
     {
-        ////////////////////////////////////////////////////////////
-        // Create & fill buffer with mask
+        if constexpr (!__Bounded)
+        {
+            // In not bounded set operation we don't have real output size reached point,
+            // so just return the amounts of processed data in input ranges which are equal to input ranges sizes
+            return {__last1 - __first1, __last2 - __first2};
+        }
+        else
+        {
+            // In bounded set operation when we don't reached output size limit, we can process all data in input ranges,
+            // so return the amounts of processed data in input ranges which are equal to input ranges sizes
+            if (!__output_size_reached_info_opt[0].has_value())
+            {
+                const _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2>& __src_processed =
+                    __apex_total.get_src_processed_data_amount_part();
+                return {__src_processed.__length1, __src_processed.__length2};
+            }
 
-        const auto [__offset1, __size1] = __eval_offset_and_size<true>(__first1, __last1);
-        const auto [__offset2, __size2] = __eval_offset_and_size<false>(__first2, __last2);
+            // Create & fill buffer with mask
+            const auto [__offset1, __size1] = __eval_offset_and_size<true>(__first1, __last1);
+            const auto [__offset2, __size2] = __eval_offset_and_size<false>(__first2, __last2);
 
-        const auto __mask_buf_size = __mask_size_func(__size1, __size2);
+            const auto __mask_buf_size = __mask_size_func(__size1, __size2);
 
-        // We need to have initialized memory under mask buffer
-        std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
-            __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
+            // We need to have initialized memory under mask buffer
+            std::vector<oneapi::dpl::__utils::__parallel_set_op_mask> __mask_bufs(
+                __mask_buf_size, oneapi::dpl::__utils::__parallel_set_op_mask::eNone);
 
-        auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
-            __set_union_op(
-                __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
-                __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
-                oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
-                __comp, __proj1, __proj2, __mask_bufs.data());
-        assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
+            auto [__first1_tmp_reached, __first2_tmp_reached, __output_discard_it_reached, __mask_buffer_reached] =
+                __set_union_op(
+                    __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
+                    __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
+                    oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
+                    __comp, __proj1, __proj2, __mask_bufs.data());
+            assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
-        ////////////////////////////////////////////////////////////
-        // Process data based on buffer with mask
+            ////////////////////////////////////////////////////////////
+            // Process data based on buffer with mask
 
-        assert(__output_size_reached_info_opt[0].has_value());
-        const OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
+            assert(__output_size_reached_info_opt[0].has_value());
+            const OutputSizeReachedInfo& __ri_n0 = __output_size_reached_info_opt[0].value();
 
-        using __backend_tag = typename decltype(__tag)::__backend_tag;
+            using __backend_tag = typename decltype(__tag)::__backend_tag;
 
-        // Calculate analyzing area in the result mask buffer
-        _DifferenceType1 __res_reachedPos1 = {};
-        _DifferenceType2 __res_reachedPos2 = {};
-        __par_backend::__parallel_invoke(
-            __backend_tag{}, __exec,
-            [&]() {
-                __res_reachedPos1 = __eval_reached_pos<__Bounded>(
-                    __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
-                    __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
-            },
-            [&]() {
-                __res_reachedPos2 = __eval_reached_pos<__Bounded>(
-                    __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
-                    __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
-            });
+            // Calculate reached positions based on mask buffer
+            _DifferenceType1 __res_reachedPos1 = {};
+            _DifferenceType2 __res_reachedPos2 = {};
+            __par_backend::__parallel_invoke(
+                __backend_tag{}, __exec,
+                [&]() {
+                    __res_reachedPos1 = __eval_reached_pos(
+                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData1,
+                        __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in1.__offset);
+                },
+                [&]() {
+                    __res_reachedPos2 = __eval_reached_pos(
+                        __mask_bufs.data(), __mask_buffer_reached, oneapi::dpl::__utils::__parallel_set_op_mask::eData2,
+                        __ri_n0.__data_part.__pos, __ri_n0.__src_offsets_part.__in2.__offset);
+                });
 
-        return {__res_reachedPos1, __res_reachedPos2};
+            return {__res_reachedPos1, __res_reachedPos2};
+        }
     }
 
     bool
@@ -3768,10 +3748,7 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
 
     const _DifferenceTypeOut __n_out = {}; // Size of output range
 
-    bool __reached_pos_evaluated = false;
-    // We apriori know that all data from input ranges will be placed in output range due to its size, so we can skip reached position evaluation
-    bool __reached_pos_evaluated_due_output_size = false;
-    _SetOpReachedPosEvaluatorData<_DifferenceType1, _DifferenceType2, _DifferenceTypeOut> __res_data;
+    _SetRange __apex_total;
 
     struct OutputSizeReachedInfo
     {
@@ -3783,6 +3760,9 @@ struct _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessItera
     // - element 0: the part which reached output size (__n)
     // - element 1: the part which reached output size (__n + 1)
     std::optional<OutputSizeReachedInfo> __output_size_reached_info_opt[2];
+
+    // Reached positions in the input and output ranges
+    std::optional<_SetOpReachedPosEvaluatorData> __res_data_opt;
 };
 
 template <bool __Bounded, class _IsVector, typename _ExecutionPolicy, typename ProcessingDataPointer,
@@ -3833,7 +3813,7 @@ struct _ParallelSetOpScanPred
     void
     __on_apex(const _SetRange& __total)
     {
-        __source_final_pos_evaluator.__on_apex(__total.get_data_part());
+        __source_final_pos_evaluator.__on_apex(__total);
     }
 
   protected:
@@ -3921,7 +3901,7 @@ struct _ParallelSetOpStrictReducePred
     {
         //[__b; __e) - a subrange of the first sequence, to reduce
         _RandomAccessIterator1 __b = __first1 + __i;
-        _RandomAccessIterator1 __e = __first1 + (__i + __len);
+        _RandomAccessIterator1 __e = __first1 + __i + __len;
 
         //try searching for the first element which not equal to *__b
         if (__b != __first1)
@@ -3951,12 +3931,13 @@ struct _ParallelSetOpStrictReducePred
             }
             else
             {
-                _SrcDataProcessingOffset<_DifferenceType1> __in1_data{__b - __first1, 0};
-                _SrcDataProcessingOffset<_DifferenceType2> __in2_data{__bb - __first2, 0};
-
                 _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
-                    __in1_data, __in2_data};
-                typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
+                    {__b - __first1, 0}, {__bb - __first2, 0}};
+
+                _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2> __new_processed_data_amount{0, 0};
+
+                typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data,
+                                                     __new_processed_data_amount};
 
                 return _SetRange{_ds};
             }
@@ -3992,7 +3973,14 @@ struct _ParallelSetOpStrictReducePred
             _SrcDataProcessingOffsets<_DifferenceType1, _DifferenceType2> __new_offsets_to_processing_data{
                 {__b - __first1, __it1_reached - __b}, {__bb - __first2, __it2_reached - __bb}};
 
-            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data};
+            const bool __something_reached = __it1_reached != __b || __it2_reached != __bb;
+
+            _SrcProcessedDataAmount<_DifferenceType1, _DifferenceType2> __new_processed_data_amount{
+                __something_reached ? __it1_reached - __first1 : 0,
+                __it2_reached - __first2};
+
+            typename _SetRange::_DataStorage _ds{__new_processing_data, __new_offsets_to_processing_data,
+                                                 __new_processed_data_amount};
 
             return _SetRange{_ds};
         }
@@ -4053,8 +4041,8 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
         _T* __buf_raw_data_end = __buf_raw_data_begin + __buf_size;
 
         _SetOpReachedPosEvaluator<_IsVector, _ExecutionPolicy, _RandomAccessIterator1, _RandomAccessIterator2,
-                                 _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
-                                 _MaskSizeFunction, __Bounded>
+                                  _OutputIterator, _Compare, _Proj1, _Proj2, _SetUnionOp, _SizeFunction,
+                                  _MaskSizeFunction, _SetRange, __Bounded>
             __source_final_pos_evaluator(__tag, __exec, __first1, __last1, __first2, __last2, __result1, __result2,
                                          __comp, __proj1, __proj2, __set_union_op, __size_func, __mask_size_func);
 

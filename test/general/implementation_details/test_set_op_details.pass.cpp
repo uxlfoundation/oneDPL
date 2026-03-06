@@ -93,7 +93,7 @@ class UninitializedMemoryContainer
     }
 };
 
-constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+[[maybe_unused]] constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
 constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
@@ -392,7 +392,7 @@ test_set_intersection_construct()
     {
         const Container cont1       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
         const Container cont2       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
-        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O,        D1,        D1};
+        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O                      };
         const Container contOutExp  = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}                      };
 
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
@@ -421,7 +421,7 @@ test_set_intersection_construct()
     {
         const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
-        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O,        D1,        D1};
+        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O                      };
         const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
 
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
@@ -478,7 +478,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {                               };
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer maskExp = {       D2,        D2,        D2};
+        const MaskContainer maskExp = {                               };
         const Container contOutExp  = {                               };
 
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
@@ -503,7 +503,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
         const Container cont2       = {                               };
-        const MaskContainer maskExp = {       D1,        D1,        D1};
+        const MaskContainer maskExp = {                               };
         const Container contOutExp  = {                               };
 
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
@@ -528,7 +528,7 @@ test_set_intersection_construct_edge_cases()
     {
         const Container cont1       = {           {2, 0, 1}           };
         const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
-        const MaskContainer maskExp = {       D2,      D12O,        D2};
+        const MaskContainer maskExp = {       D2,      D12O           };
         const Container contOutExp  = {           {2, 0, 1}           };
 
         UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));

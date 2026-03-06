@@ -904,8 +904,6 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
     auto [__it2, __end2] = oneapi::dpl::__ranges::__get_range_bounds(__r2);
     auto [__out_it, __out_end] = oneapi::dpl::__ranges::__get_range_bounds(__out_r);
 
-    bool __output_full = false;
-
     while (__it1 != __end1 && __it2 != __end2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__it1), std::invoke(__proj2, *__it2)))
@@ -925,13 +923,9 @@ __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __c
         }
         else
         {
-            __output_full = true;
             break;
         }
     }
-
-    __it1 = __output_full ? __it1 : __end1;
-    __it2 = __output_full ? __it2 : __end2;
 
     return {__it1, __it2, __out_it};
 }
@@ -986,7 +980,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__last1, __last2, __result1};
+        return {__first1, __first2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_1 =
@@ -994,7 +988,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first2, __comp, __proj1, __proj2);
     //{1} < {2}: seq 2 is wholly greater than seq 1, so, the intersection is empty
     if (__left_bound_seq_1 == __last1)
-        return {__last1, __last2, __result1};
+        return {__last1, __first2, __result1};
 
     // testing  whether the sequences are intersected
     auto __left_bound_seq_2 =
@@ -1002,7 +996,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                                                                __first1, __comp, __proj2, __proj1);
     //{2} < {1}: seq 1 is wholly greater than seq 2, so, the intersection is empty
     if (__left_bound_seq_2 == __last2)
-        return {__last1, __last2, __result1};
+        return {__first1, __last2, __result1};
 
     const auto __m1 = __last1 - __left_bound_seq_1 + __n2;
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))

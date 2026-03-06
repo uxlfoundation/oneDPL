@@ -434,11 +434,7 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         }
     }
 
-    // This needed to save in mask that we processed all data till the end
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1, __last1 - __first1);
-    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2, __last2 - __first2);
-
-    return {__last1, __last2, __result, __mask};
+    return {__first1, __first2, __result, __mask};
 }
 
 template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,

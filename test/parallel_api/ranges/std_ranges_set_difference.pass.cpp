@@ -22,6 +22,7 @@ namespace test_std_ranges
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 {
+    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
 };
 
@@ -29,6 +30,7 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
+    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 
@@ -152,10 +154,10 @@ test_set_difference_checker()
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
         // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,                 20, 21, 22, 23, 24, 25
-        //                         -------------------------------------------------^---------------------------------------^
-        // res:                                                                     |                                       |
-        // final position in set1: -------------------------------------------------+                                       |
-        // final position in set2:------------------------------------------------------------------------------------------+  // Absent in results for now
+        //                         -------------------------------------------------^---------------------------------------
+        // res:                                                                     |
+        // final position in set1: -------------------------------------------------+
+        // final position in set2:--------------------------------------------------+  // Absent in results for now
 
         std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25};
@@ -169,10 +171,10 @@ test_set_difference_checker()
     {
         // set1:                   1, 2, 3, 4, 5,             10, 11, 12, 13, 14, 15
         // set2:                   1, 2, 3, 4, 5, 6, 7, 8, 9,                                          20, 21, 22, 23, 24, 25
-        //                         ------------------------------------------------- ^---------------------------------------^
-        // res:                                               10, 11, 12, 13, 14, 15 |                                       |
-        // final position in set1: --------------------------------------------------+                                       |
-        // final position in set2:-------------------------------------------------------------------------------------------+  // Absent in results for now
+        //                         --------------------------------------------------^---------------------------------------
+        // res:                                               10, 11, 12, 13, 14, 15 |
+        // final position in set1: --------------------------------------------------+
+        // final position in set2:---------------------------------------------------+  // Absent in results for now
 
         std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
@@ -191,10 +193,10 @@ test_set_difference_checker()
     {
         // set1:                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,                 15, 16, 17, 18, 19, 20
         // set2:                            4, 5, 6, 7,           11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
-        //                         ---------------------------------------------------------------------^-------------------^
-        // res:                    1, 2, 3,             8, 9, 10                                        |                   |
-        // final position in set1: ---------------------------------------------------------------------+                   |
-        // final position in set2:------------------------------------------------------------------------------------------+  // Absent in results for now
+        //                         ---------------------------------------------------------------------^-------------------
+        // res:                    1, 2, 3,             8, 9, 10                                        |
+        // final position in set1: ---------------------------------------------------------------------+
+        // final position in set2:----------------------------------------------------------------------+  // Absent in results for now
 
         std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
         std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};

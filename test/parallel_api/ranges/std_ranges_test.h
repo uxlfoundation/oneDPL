@@ -1006,6 +1006,7 @@ struct span_view_fo
 template <TestDataMode mode>
 struct ResolveTestDataModeForHeteroPolicy
 {
+    static constexpr bool RunTestForHeteroPolicy = true;
     static constexpr TestDataMode res_mode = mode;
 };
 
@@ -1084,15 +1085,18 @@ struct test_range_algo
             if constexpr(!std::disjunction_v<std::is_member_pointer<decltype(args)>...>)
 #endif
             {
-                // KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-                constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
+                if constexpr (ResolveTestDataModeForHeteroPolicy<mode>::RunTestForHeteroPolicy)
+                {
+                    // KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+                    constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
 
-                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
-                test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
+                    test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
+                    test<T, usm_subrange<T>, resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 30), algo, checker, std::identity{}, std::identity{}, args...);
 #if TEST_CPP20_SPAN_PRESENT
-                test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
-                test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
+                    test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 20), algo, checker, span_view,       subrange_view,   args...);
+                    test<T, usm_span<T>,     resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 40), algo, checker, std::identity{}, std::identity{}, args...);
 #endif
+                }
             }
         }
     }
