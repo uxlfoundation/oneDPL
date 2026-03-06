@@ -1,7 +1,7 @@
 // -*- C++ -*-
 //===-- sycl_radix_sort_kernels.h ----------------------------------------===//
 //
-// Copyright (C) Intel Corporation
+// Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //

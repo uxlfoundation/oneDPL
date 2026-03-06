@@ -1,7 +1,7 @@
 // -*- C++ -*-
 //===-- radix_sort_submitters.h --------------------------------===//
 //
-// Copyright (C) Intel Corporation
+// Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
