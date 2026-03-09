@@ -3101,20 +3101,10 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                 if (__i > 0)
                 {
                     //calc merge path intersection:
-                    //      The number of valid cells on diagonal __i of the merge matrix.
-                    //      A cell (r, c) is valid iff 0 <= r < __n_1 and 0 <= c < __n_2,
-                    //      where r = min(__i, __n_1) - d - 1,  c = max(0, __i - __n_1) + d.
-                    //      The range of d is [0, __d_size), so __d_size = min(__i, __n_1) - max(0, __i - __n_2).
-                    //      This value is always positive for 0 < __i < __n_1 + __n_2:
-                    //        - if __i <= __n_2: max(0, __i - __n_2) = 0, so __d_size = min(__i, __n_1) >= 1.
-                    //        - if __i >  __n_2: __d_size = min(__i, __n_1) - (__i - __n_2)
-                    //            = __n_2 (when __i <= __n_1), or __n_1 + __n_2 - __i > 0 (when __i > __n_1, since __i < __n_out <= __n_1 + __n_2).
-                    //      Therefore std::abs is not needed here.
-                    const _IndexCommonSigned __d_size =
-                        std::min(static_cast<_IndexCommonSigned>(__i), static_cast<_IndexCommonSigned>(__n_1)) -
-                        std::max(_IndexCommonSigned{0},
-                                 static_cast<_IndexCommonSigned>(__i) - static_cast<_IndexCommonSigned>(__n_2));
-                    assert(__d_size >= 0);
+                    const _IndexCommon __d_size =
+                        static_cast<_IndexCommon>(std::abs(
+                            std::max(_IndexCommonSigned{0}, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_2}) -
+                            (std::min(_IndexCommonSigned{__i}, _IndexCommonSigned{__n_1}) - 1))) + 1;
 
                     auto __get_row = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
                         return std::min(static_cast<_IndexCommonSigned>(__i), static_cast<_IndexCommonSigned>(__n_1)) - __d - 1;
