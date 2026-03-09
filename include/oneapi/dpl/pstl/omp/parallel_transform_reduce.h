@@ -42,7 +42,7 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
     const std::size_t __num_threads = omp_get_num_threads();
     const std::size_t __size = __last - __first;
 
-    if (__size <= __num_threads || __should_run_serial(__first, __last, __default_chunk_size))
+    if (__size <= __num_threads || __should_run_serial(__num_threads, __size, __default_chunk_size))
     {
         return __reduction(__first, __last, std::move(__init));
     }

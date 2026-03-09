@@ -104,6 +104,8 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     // Aim for 3 chunks per thread for better load balancing
     constexpr std::size_t __nominal_chunks_per_thread = 3;
     std::size_t __nominal_n_chunks = __num_threads * __nominal_chunks_per_thread;
+
+    // This truncating division or the equivalents in if-else branches below will be accounted for with __n_larger_chunks
     std::size_t __nominal_chunk_size = __n / __nominal_n_chunks;
 
     // Large input. Limit chunk size to aid early-exit algorithms which cannot exit mid-way through a chunk.
