@@ -3114,8 +3114,7 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
 
                     _counting_iterator_t __it_d(0);
 
-                    const _IndexCommon __res_d =
-                        *std::lower_bound(__it_d, __it_d + _counting_iterator_difference_t{__d_size}, 1,
+                    auto __found = std::lower_bound(__it_d, __it_d + _counting_iterator_difference_t{__d_size}, 1,
                                           [&](_IndexCommon __d, auto __val) {
                                               _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
                                               _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
@@ -3126,6 +3125,7 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
 
                                               return __res < __val;
                                           });
+                    const _IndexCommon __res_d = *__found;  // __found == end → __d_size, which is intentional
 
                     //intersection point
                     __r = static_cast<_Index1>(__get_row(__res_d));
