@@ -653,9 +653,30 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     if (__n_out_lim == 0)
         return {__it_1, __it_2, __it_out};
 
+    //{1} is empty
+    if (__n1 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
+
+        auto __it_2_to = __it_2 + std::min(__n2, __n_out_lim);
+        auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_2,
+                                                              __it_2_to, __it_out, __copy_range);
+        return {__it_1, __it_2_to, __it_out_res};
+    }
+
+    //{2} is empty
+    if (__n2 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
+
+        auto __it_1_to = __it_1 + std::min(__n1, __n_out_lim);
+        auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1,
+                                                              __it_1_to, __it_out, __copy_range);
+        return {__it_1_to, __it_2, __it_out_res};
+    }
+
     auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n1, __it_2,
                                                   __n2, __it_out, __n_out_lim, __comp, __proj1, __proj2);
-
     return {__res1, __res2, __it_out + __n_out_lim};
 }
 
