@@ -3085,6 +3085,10 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
     using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
     using _counting_iterator_difference_t = std::iterator_traits<_counting_iterator_t>::difference_type;
 
+    assert(__n_1 > 0);
+    assert(__n_2 > 0);
+    assert(__n_out > 0);
+
     _It1 __it_res_1 = __it_1 + __n_1;
     _It2 __it_res_2 = __it_2 + __n_2;
 
