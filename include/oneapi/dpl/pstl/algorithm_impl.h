@@ -3083,7 +3083,6 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
     using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
 
     using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
-    using _counting_iterator_difference_t = typename std::iterator_traits<_counting_iterator_t>::difference_type;
 
     assert(__n_1 > 0);
     assert(__n_2 > 0);
@@ -3129,7 +3128,7 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                     const _counting_iterator_t __it_d(0);
 
                     _counting_iterator_t __found =
-                        std::lower_bound(__it_d, __it_d + static_cast<_counting_iterator_difference_t>(__d_size), 1,
+                        std::lower_bound(__it_d, __it_d + static_cast<_IndexCommon>(__d_size), 1,
                                          [&](_IndexCommon __d, auto __val) {
                                              const _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
                                              const _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
