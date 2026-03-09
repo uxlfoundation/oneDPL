@@ -3079,8 +3079,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    _It1 __it_res_1;
-    _It2 __it_res_2;
+    _It1 __it_res_1 = __it_1 + __n_1;
+    _It2 __it_res_2 = __it_2 + __n_2;
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
