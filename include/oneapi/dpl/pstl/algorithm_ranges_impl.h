@@ -660,7 +660,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __it_2_to = __it_2 + std::min<_Index2>(__n2, _Index2{__n_out_lim});
+        auto __it_2_to = __it_2 + std::min(__n2, static_cast<_Index2>(__n_out_lim));
         auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_2,
                                                               __it_2_to, __it_out, __copy_range);
         return {__it_1, __it_2_to, __it_out_res};
@@ -671,7 +671,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __it_1_to = __it_1 + std::min<_Index1>(__n1, _Index1{__n_out_lim});
+        auto __it_1_to = __it_1 + std::min(__n1, static_cast<_Index1>(__n_out_lim));
         auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1,
                                                               __it_1_to, __it_out, __copy_range);
         return {__it_1_to, __it_2, __it_out_res};
