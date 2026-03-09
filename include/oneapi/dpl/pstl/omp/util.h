@@ -129,7 +129,7 @@ __chunk_partitioner(_RandomAccessIterator __first, _RandomAccessIterator __last,
     // Not enough input even for one chunk per thread.
     else
     {
-        __n_chunks = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __preferred_min_chunk_size);
+        __n_chunks = __n / __preferred_min_chunk_size;
         __chunk_size = __n / __n_chunks;
     }
     __n_larger_chunks = __n - (__n_chunks * __chunk_size);
