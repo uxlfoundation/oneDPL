@@ -3108,9 +3108,8 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                         return std::min<_IndexCommonSigned>(__i, __n_1) - __d - 1;
                     };
                     auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommonSigned {
-                        return std::max<_IndexCommonSigned>(_IndexCommonSigned{0},
-                                                            _IndexCommonSigned{__i} - _IndexCommonSigned{__n_1} - 1) +
-                               __d + (_IndexCommonSigned{__i} / (_IndexCommonSigned{__n_1} + 1) > 0 ? 1 : 0);
+                        return std::max<_IndexCommonSigned>(0, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_1}) +
+                               _IndexCommonSigned{__d};
                     };
 
                     _counting_iterator_t __it_d(0);
