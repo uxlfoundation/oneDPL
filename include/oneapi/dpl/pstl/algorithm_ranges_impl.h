@@ -642,21 +642,21 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     using _Index2 = std::ranges::range_difference_t<_R2>;
     using _Index3 = std::ranges::range_difference_t<_OutRange>;
 
-    const _Index1 __n_1 = std::ranges::size(__r1);
-    const _Index2 __n_2 = std::ranges::size(__r2);
-    const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, std::ranges::size(__out_r));
+    const _Index1 __n1 = std::ranges::size(__r1);
+    const _Index2 __n2 = std::ranges::size(__r2);
+    const _Index3 __n_out_lim = std::min<_Index3>(__n1 + __n2, std::ranges::size(__out_r));
 
     auto __it_1 = std::ranges::begin(__r1);
     auto __it_2 = std::ranges::begin(__r2);
     auto __it_out = std::ranges::begin(__out_r);
 
-    if (__n_out == 0)
+    if (__n_out_lim == 0)
         return {__it_1, __it_2, __it_out};
 
-    auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n_1, __it_2,
-                                                  __n_2, __it_out, __n_out, __comp, __proj1, __proj2);
+    auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n1, __it_2,
+                                                  __n2, __it_out, __n_out_lim, __comp, __proj1, __proj2);
 
-    return {__res1, __res2, __it_out + __n_out};
+    return {__res1, __res2, __it_out + __n_out_lim};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
