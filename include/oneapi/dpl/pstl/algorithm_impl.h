@@ -3103,36 +3103,49 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                 if (__i > 0)
                 {
                     //calc merge path intersection:
-                    const _IndexCommon __d_size =
-                        static_cast<_IndexCommon>(std::abs(
-                            std::max(_IndexCommonSigned{0}, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_2}) -
-                            (std::min(_IndexCommonSigned{__i}, _IndexCommonSigned{__n_1}) - 1))) + 1;
+                    //      The number of valid cells on diagonal __i of the merge matrix.
+                    //      A cell (r, c) is valid iff 0 <= r < __n_1 and 0 <= c < __n_2,
+                    //      where r = min(__i, __n_1) - d - 1,  c = max(0, __i - __n_1) + d.
+                    //      The range of d is [0, __d_size), so __d_size = min(__i, __n_1) - max(0, __i - __n_2).
+                    //      This value is always positive for 0 < __i < __n_1 + __n_2:
+                    //        - if __i <= __n_2: max(0, __i - __n_2) = 0, so __d_size = min(__i, __n_1) >= 1.
+                    //        - if __i >  __n_2: __d_size = min(__i, __n_1) - (__i - __n_2)
+                    //            = __n_2 (when __i <= __n_1), or __n_1 + __n_2 - __i > 0 (when __i > __n_1, since __i < __n_out <= __n_1 + __n_2).
+                    //      Therefore std::abs is not needed here.
+                    const _IndexCommonSigned __d_size =
+                        std::min(static_cast<_IndexCommonSigned>(__i), static_cast<_IndexCommonSigned>(__n_1)) -
+                        std::max(_IndexCommonSigned{0},
+                                 static_cast<_IndexCommonSigned>(__i) - static_cast<_IndexCommonSigned>(__n_2));
+                    assert(__d_size >= 0);
 
-                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommonSigned {
-                        return std::min<_IndexCommonSigned>(__i, __n_1) - __d - 1;
+                    auto __get_row = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
+                        return std::min(static_cast<_IndexCommonSigned>(__i), static_cast<_IndexCommonSigned>(__n_1)) - __d - 1;
                     };
-                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommonSigned {
-                        return std::max<_IndexCommonSigned>(0, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_1}) +
-                               _IndexCommonSigned{__d};
+                    auto __get_column = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
+                        return std::max(_IndexCommonSigned{0},
+                                        static_cast<_IndexCommonSigned>(__i) - static_cast<_IndexCommonSigned>(__n_1)) + __d;
                     };
 
                     _counting_iterator_t __it_d(0);
 
-                    auto __found = std::lower_bound(__it_d, __it_d + _counting_iterator_difference_t{__d_size}, 1,
-                                                    [&](_IndexCommon __d, auto __val) {
-                                                        _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
-                                                        _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
+                    auto __found =
+                        std::lower_bound(__it_d, __it_d + static_cast<_counting_iterator_difference_t>(__d_size), 1,
+                                         [&](_IndexCommon __d, auto __val) {
+                                             _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
+                                             _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
 
-                                                        assert(0 <= __r_tmp && __r_tmp < __n_1);
-                                                        assert(0 <= __c_tmp && __c_tmp < __n_2);
+                                             assert(0 <= __r_tmp && __r_tmp < __n_1);
+                                             assert(0 <= __c_tmp && __c_tmp < __n_2);
 
-                                                        const auto __res =
-                                                            std::invoke(__comp, std::invoke(__proj2, __it_2[__c_tmp]),
-                                                                        std::invoke(__proj1, __it_1[__r_tmp])) ? 0 : 1;
+                                             const auto __res =
+                                                 std::invoke(__comp, std::invoke(__proj2, __it_2[__c_tmp]),
+                                                             std::invoke(__proj1, __it_1[__r_tmp]))
+                                                     ? 0
+                                                     : 1;
 
-                                                        return __res < __val;
-                                                    });
-                    const _IndexCommon __res_d = *__found; // __found == end → __d_size, which is intentional
+                                             return __res < __val;
+                                         });
+                    const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
 
                     //intersection point
                     __r = static_cast<_Index1>(__get_row(__res_d));
