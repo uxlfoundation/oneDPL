@@ -3053,8 +3053,10 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
-          typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _It2, typename _OutIt, typename _Comp,
+          typename _Proj1, typename _Proj2, typename _Index1 = std::iterator_traits<_It1>::difference_type,
+          typename _Index2 = std::iterator_traits<_It2>::difference_type,
+          typename _Index3 = std::iterator_traits<_OutIt>::difference_type>
 std::pair<_It1, _It2>
 ___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
                       _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -3067,8 +3069,10 @@ ___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
-          typename _Index2, typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _It2, typename _OutIt, typename _Comp,
+          typename _Proj1, typename _Proj2, typename _Index1 = std::iterator_traits<_It1>::difference_type,
+          typename _Index2 = std::iterator_traits<_It2>::difference_type,
+          typename _Index3 = std::iterator_traits<_OutIt>::difference_type>
 std::pair<_It1, _It2>
 ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
                       _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
