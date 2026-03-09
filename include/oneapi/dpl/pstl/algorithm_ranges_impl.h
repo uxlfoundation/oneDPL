@@ -641,11 +641,12 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     using _Index1 = std::ranges::range_difference_t<_R1>;
     using _Index2 = std::ranges::range_difference_t<_R2>;
     using _Index3 = std::ranges::range_difference_t<_OutRange>;
+    using _SizeCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
     const _Index1 __n1 = std::ranges::size(__r1);
     const _Index2 __n2 = std::ranges::size(__r2);
     const _Index3 __n_out_lim =
-        std::min<_Index3>(static_cast<_Index3>(__n1) + static_cast<_Index3>(__n2), std::ranges::size(__out_r));
+        std::min<_Index3>(static_cast<_SizeCommon>(__n1) + static_cast<_SizeCommon>(__n2), std::ranges::size(__out_r));
 
     auto __it_1 = std::ranges::begin(__r1);
     auto __it_2 = std::ranges::begin(__r2);
