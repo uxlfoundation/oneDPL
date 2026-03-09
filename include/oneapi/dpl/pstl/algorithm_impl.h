@@ -3101,13 +3101,15 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                             std::max(_IndexCommonSigned{0}, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_2}) -
                             (std::min(_IndexCommonSigned{__i}, _IndexCommonSigned{__n_1}) - 1))) + 1;
 
-                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::min<_IndexCommon>(__i, __n_1) - __d - 1;
+                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommonSigned {
+                        return std::min<_IndexCommonSigned>(__i, __n_1) - __d - 1;
                     };
-                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
-                        return std::max<_IndexCommon>(_IndexCommon{0}, _IndexCommon{__i} - _IndexCommon{__n_1} - 1) +
+                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommonSigned {
+                        return std::max<_IndexCommonSigned>(_IndexCommonSigned{0},
+                                                            _IndexCommonSigned{__i} - _IndexCommonSigned{__n_1} - 1) +
                                __d +
-                               (_IndexCommon{__i} / (_IndexCommon{__n_1} + 1) > 0 ? _IndexCommon{1} : _IndexCommon{0});
+                               (_IndexCommonSigned{__i} / (_IndexCommonSigned{__n_1} + 1) > 0 ? _IndexCommonSigned{1}
+                                                                                              : _IndexCommonSigned{0});
                     };
 
                     using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
