@@ -641,12 +641,13 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     using _Index1 = std::ranges::range_difference_t<_R1>;
     using _Index2 = std::ranges::range_difference_t<_R2>;
     using _Index3 = std::ranges::range_difference_t<_OutRange>;
-    using _SizeCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
+    using _IndexCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
     const _Index1 __n1 = std::ranges::size(__r1);
     const _Index2 __n2 = std::ranges::size(__r2);
-    const _Index3 __n_out_lim =
-        std::min<_Index3>(static_cast<_SizeCommon>(__n1) + static_cast<_SizeCommon>(__n2), std::ranges::size(__out_r));
+    const _Index3 __n_out = std::ranges::size(__out_r);
+    const _IndexCommon __n_out_lim = std::min<_IndexCommon>(
+        static_cast<_IndexCommon>(__n1) + static_cast<_IndexCommon>(__n2), static_cast<_IndexCommon>(__n_out));
 
     auto __it_1 = std::ranges::begin(__r1);
     auto __it_2 = std::ranges::begin(__r2);
@@ -660,7 +661,7 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __it_2_to = __it_2 + std::min(__n2, static_cast<_Index2>(__n_out_lim));
+        auto __it_2_to = __it_2 + static_cast<_Index2>(std::min(static_cast<_IndexCommon>(__n2), __n_out_lim));
         auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_2,
                                                               __it_2_to, __it_out, __copy_range);
         return {__it_1, __it_2_to, __it_out_res};
@@ -671,15 +672,16 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __it_1_to = __it_1 + std::min(__n1, static_cast<_Index1>(__n_out_lim));
+        auto __it_1_to = __it_1 + static_cast<_Index1>(std::min(static_cast<_IndexCommon>(__n1), __n_out_lim));
         auto __it_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1,
                                                               __it_1_to, __it_out, __copy_range);
         return {__it_1_to, __it_2, __it_out_res};
     }
 
-    auto [__res1, __res2] = __merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n1, __it_2,
-                                                 __n2, __it_out, __n_out_lim, __comp, __proj1, __proj2);
-    return {__res1, __res2, __it_out + __n_out_lim};
+    auto [__res1, __res2] =
+        __merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n1, __it_2, __n2, __it_out,
+                             static_cast<_Index3>(__n_out_lim), __comp, __proj1, __proj2);
+    return {__res1, __res2, __it_out + static_cast<_Index3>(__n_out_lim)};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
