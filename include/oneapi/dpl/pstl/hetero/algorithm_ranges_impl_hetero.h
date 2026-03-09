@@ -1097,7 +1097,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
     {
-        // TODO incorrect approach for new rules of stop positions at least on std::ranges::set_intersection
+        // TODO incorrect approach for new rules of stop positions for std::ranges::set_intersection
         return {__first1 + __n1, __first2 + __n2, __result};
     }
 
@@ -1106,7 +1106,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    // TODO incorrect approach for new rules of stop positions at least on std::ranges::set_intersection
+    // TODO incorrect approach for new rules of stop positions for std::ranges::set_intersection
     return {__first1 + __n1, __first2 + __n2, __result + __result_size};
 }
 
