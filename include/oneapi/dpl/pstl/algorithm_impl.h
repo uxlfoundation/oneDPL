@@ -3071,7 +3071,7 @@ template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename
           typename _Index2Arg, typename _OutIt, typename _Index3Arg, typename _Comp, typename _Proj1, typename _Proj2>
 std::pair<_It1, _It2>
 __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1Arg __n_1, _It2 __it_2,
-                     _Index2Arg __n_2, _OutIt __it_out, _Index3Arg __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                     _Index2Arg __n_2, _OutIt __it_out, _Index3Arg __n_out_arg, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3085,7 +3085,9 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
 
     assert(__n_1 > 0);
     assert(__n_2 > 0);
-    assert(__n_out > 0);
+    assert(__n_out_arg > 0);
+
+    const _Index3 __n_out = static_cast<_Index3>(__n_out_arg);
 
     _It1 __it_res_1 = __it_1 + __n_1;
     _It2 __it_res_2 = __it_2 + __n_2;
