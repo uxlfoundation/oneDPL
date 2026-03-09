@@ -3126,13 +3126,13 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                                         static_cast<_IndexCommonSigned>(__i) - static_cast<_IndexCommonSigned>(__n_1)) + __d;
                     };
 
-                    _counting_iterator_t __it_d(0);
+                    const _counting_iterator_t __it_d(0);
 
                     _counting_iterator_t __found =
                         std::lower_bound(__it_d, __it_d + static_cast<_counting_iterator_difference_t>(__d_size), 1,
                                          [&](_IndexCommon __d, auto __val) {
-                                             _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
-                                             _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
+                                             const _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
+                                             const _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
 
                                              assert(0 <= __r_tmp && __r_tmp < __n_1);
                                              assert(0 <= __c_tmp && __c_tmp < __n_2);
@@ -3153,7 +3153,7 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                 }
 
                 //serial merge n elements, starting from input x and y, to [i, j) output range
-                auto [__res1, __res2] =
+                const auto [__res1, __res2] =
                     __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c, __it_2 + __n_2, __it_out + __i,
                                            __it_out + __j, __comp, __proj1, __proj2);
 
