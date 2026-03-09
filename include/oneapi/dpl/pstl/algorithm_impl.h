@@ -3079,6 +3079,9 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
+    using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
+    using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
+
     _It1 __it_res_1 = __it_1 + __n_1;
     _It2 __it_res_2 = __it_2 + __n_2;
 
@@ -3093,29 +3096,42 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                 if (__i > 0)
                 {
                     //calc merge path intersection:
-                    const _Index3 __d_size =
-                        std::abs(std::max<_Index2>(0, __i - __n_2) - (std::min<_Index1>(__i, __n_1) - 1)) + 1;
+                    const _IndexCommon __d_size =
+                        static_cast<_IndexCommon>(std::abs(
+                            std::max(_IndexCommonSigned{0}, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_2}) -
+                            (std::min(_IndexCommonSigned{__i}, _IndexCommonSigned{__n_1}) - 1))) + 1;
 
-                    auto __get_row = [__i, __n_1](auto __d) { return std::min<_Index1>(__i, __n_1) - __d - 1; };
-                    auto __get_column = [__i, __n_1](auto __d) {
-                        return std::max<_Index1>(0, __i - __n_1 - 1) + __d + (__i / (__n_1 + 1) > 0 ? 1 : 0);
+                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
+                        return std::min<_IndexCommon>(__i, __n_1) - __d - 1;
+                    };
+                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
+                        return std::max<_IndexCommon>(_IndexCommon{0}, _IndexCommon{__i} - _IndexCommon{__n_1} - 1) +
+                               __d +
+                               (_IndexCommon{__i} / (_IndexCommon{__n_1} + 1) > 0 ? _IndexCommon{1} : _IndexCommon{0});
                     };
 
-                    oneapi::dpl::counting_iterator<_Index3> __it_d(0);
+                    using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
+                    using _counting_iterator_difference_t = std::iterator_traits<_counting_iterator_t>::difference_type;
 
-                    auto __res_d = *std::lower_bound(__it_d, __it_d + __d_size, 1, [&](auto __d, auto __val) {
-                        auto __r = __get_row(__d);
-                        auto __c = __get_column(__d);
+                    _counting_iterator_t __it_d(0);
 
-                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
-                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
+                    const _IndexCommon __res_d =
+                        *std::lower_bound(__it_d, __it_d + _counting_iterator_difference_t{__d_size}, 1,
+                                          [&](_IndexCommon __d, auto __val) {
+                                              _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
+                                              _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
 
-                        return __res < __val;
-                    });
+                                              const auto __res =
+                                                  std::invoke(__comp, std::invoke(__proj2, __it_2[__c_tmp]),
+                                                              std::invoke(__proj1, __it_1[__r_tmp])) ? 0 : 1;
+
+                                              return __res < __val;
+                                          });
 
                     //intersection point
-                    __r = __get_row(__res_d);
-                    __c = __get_column(__res_d);
+                    __r = static_cast<_Index1>(__get_row(__res_d));
+                    __c = static_cast<_Index2>(__get_column(__res_d));
+
                     ++__r; //to get a merge matrix ceil, lying on the current diagonal
                 }
 
