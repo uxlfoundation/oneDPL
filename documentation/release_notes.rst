@@ -21,7 +21,7 @@ Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
-- ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on Intel's GPU devices.
+- ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
 
 New in 2022.11.0
 ================
@@ -46,7 +46,7 @@ Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
-- ``ranges::copy_if`` with the output size smaller than the input size may lose performance on Intel's GPU devices.
+- ``ranges::copy_if`` with the output size smaller than the input size may lose performance on GPU devices.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
