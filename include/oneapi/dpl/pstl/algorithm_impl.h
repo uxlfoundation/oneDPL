@@ -3119,6 +3119,9 @@ ___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1
                                               _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
                                               _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
 
+                                              assert(0 <= __r_tmp && __r_tmp < __n_1);
+                                              assert(0 <= __c_tmp && __c_tmp < __n_2);
+
                                               const auto __res =
                                                   std::invoke(__comp, std::invoke(__proj2, __it_2[__c_tmp]),
                                                               std::invoke(__proj1, __it_1[__r_tmp])) ? 0 : 1;
