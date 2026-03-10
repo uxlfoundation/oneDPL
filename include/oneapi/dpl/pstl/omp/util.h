@@ -149,6 +149,10 @@ __process_chunk(const __chunk_metrics& __metrics, _Iterator __base, _Index __chu
     auto __first = __base + __index;
     auto __last = __first + __this_chunk_size;
     __f(__first, __last);
+    bool __is_larger_chunk = __chunk_index < __metrics.__n_larger_chunks;
+    std::size_t __n_previous_larger_chunks = __is_larger_chunk ? __chunk_index : __metrics.__n_larger_chunks;
+    _Iterator __first = __base + __chunk_index * __metrics.__chunk_size + __n_previous_larger_chunks;;
+    __f(__first, __first + __metrics.__chunk_size + __is_larger_chunk);
 }
 
 namespace __detail
