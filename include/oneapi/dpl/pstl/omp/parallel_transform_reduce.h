@@ -42,8 +42,11 @@ __transform_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __l
     const std::size_t __num_threads = omp_get_num_threads();
     const std::size_t __size = __last - __first;
 
-    // Resort to indices in __should_run_serial to avoid getting a past-the-end iterator
-    if (__size <= __num_threads || __should_run_serial(__num_threads, __size, __default_chunk_size))
+    // Serial fallback. The condition is equivalent to __chunk_partitioner returning 1 chunk.
+    // It is placed before to avoid __first + __num_threads pointing after __last later in __chunk_partitioner.
+    // The first __num_threads items are reserved for initializing the accumulators.
+    // __default_chunk_size is the minimum chunk size.
+    if (__size <= __num_threads + __default_chunk_size)
     {
         return __reduction(__first, __last, std::move(__init));
     }
