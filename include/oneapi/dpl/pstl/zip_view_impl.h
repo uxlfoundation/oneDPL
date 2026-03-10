@@ -156,7 +156,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         constexpr explicit iterator(__iterators_type __current) : __current(std::move(__current)) {}
 
-        template <class _Tp>
+        template <typename _Tp>
         static constexpr _Tp
         __abs(_Tp __t)
         {
@@ -539,7 +539,7 @@ zip_view(_Rs&&...) -> zip_view<std::views::all_t<_Rs>...>;
 
 struct zip_fn
 {
-    template <class... _Ranges>
+    template <typename... _Ranges>
     constexpr auto
     operator()(_Ranges&&... __rs) const
         -> decltype(oneapi::dpl::ranges::__internal::zip_view<std::views::all_t<_Ranges&&>...>(
@@ -564,7 +564,7 @@ inline constexpr oneapi::dpl::ranges::__internal::zip_fn zip{};
 } // namespace dpl
 } // namespace oneapi
 
-template <class... _Ranges>
+template <typename... _Ranges>
 inline constexpr bool std::ranges::enable_borrowed_range<oneapi::dpl::ranges::__internal::zip_view<_Ranges...>> =
     (std::ranges::enable_borrowed_range<_Ranges> && ...);
 
