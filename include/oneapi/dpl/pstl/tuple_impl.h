@@ -421,7 +421,7 @@ struct tuple<T1, T...>
                   std::conjunction_v<std::is_default_constructible<_Tp>, std::is_default_constructible<T>...>, int> = 0>
     tuple() : holder{}, next{}
     {
-    } //The std::tuple makes value-initialization all elements, so we also follow this.
+    } //The std::tuple value-initializes all elements, so we also follow this.
     tuple(const tuple& other) = default;
     tuple(tuple&& other) = default;
     template <typename _U1, typename... _U, typename = ::std::enable_if_t<(sizeof...(_U) == sizeof...(T))>>
