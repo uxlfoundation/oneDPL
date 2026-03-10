@@ -509,9 +509,9 @@ _ValueType
 __radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, std::plus<_ValueType>, 
                             [[maybe_unused]] std::uint32_t __sg_local_id, [[maybe_unused]] std::uint32_t __sg_size)
 {
-    // With icpx version prior to 2025.0, exclusive_scan_over_group encounters some issues
-    // only seems to effect CPU openCL targets, but this is not possible to detect at compile time
-#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER < 20250000
+    // With icpx version 2024.2, exclusive_scan_over_group encounters some crashes which
+    // only seem to affect CPU openCL targets, but this is not possible to detect at compile time
+#if defined(__INTEL_LLVM_COMPILER) && __INTEL_LLVM_COMPILER >= 20240200 && __INTEL_LLVM_COMPILER < 20250000
     _ValueType __inclusive = __val;
     for (std::uint32_t __shift = 1; __shift < __sg_size; __shift <<= 1)
     {
