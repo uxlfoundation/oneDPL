@@ -122,7 +122,7 @@ template <class It>
 cpp17_input_iterator(It) -> cpp17_input_iterator<It>;
 #endif
 
-#if TEST_STD_VER > 17 !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
+#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
    static_assert(std::input_iterator<cpp17_input_iterator<int*>>);
 #endif
 
