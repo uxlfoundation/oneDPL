@@ -410,7 +410,9 @@ struct __contains_fn
     bool
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::find(std::forward<_ExecutionPolicy>(__exec), __r, __value, __proj) != std::ranges::end(__r);
+        // To ensure no dangling pointer is returned, __r may not be forwarded
+        return oneapi::dpl::ranges::find(std::forward<_ExecutionPolicy>(__exec), __r, __value, __proj)
+               != std::ranges::end(__r);
     }
 }; // __contains_fn
 
@@ -426,9 +428,9 @@ struct __contains_subrange_fn
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
-        return __r2.size() == 0 ||
-               ! oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
-                                             std::forward<_R2>(__r2), __pred, __proj1, __proj2).empty();
+        // To ensure no dangling subrange is returned, __r1 may not be forwarded
+        return __r2.size() == 0 || ! oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                                                                 __pred, __proj1, __proj2).empty();
     }
 }; // __contains_subrange_fn
 } // __internal
