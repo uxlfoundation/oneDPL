@@ -506,8 +506,8 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 }
 template <typename _ValueType>
 _ValueType
-__radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, std::plus<_ValueType>,
-                            [[maybe_unused]] std::uint32_t __sg_size)
+__radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, std::plus<_ValueType>, 
+                            [[maybe_unused]] std::uint32_t __sg_local_id, [[maybe_unused]] std::uint32_t __sg_size)
 {
     // With icpx version prior to 2025.0, exclusive_scan_over_group encounters some issues
     // only seems to effect CPU targets, but this is not possible to detect at compile time
@@ -517,7 +517,7 @@ __radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, std::
     {
         _ValueType __partial = sycl::shift_group_right(__sub_group,
                                                         __inclusive, __shift);
-        if (__sub_group.get_local_linear_id() >= __shift)
+        if (__sg_local_id >= __shift)
             __inclusive += __partial;
     }
     return __inclusive - __val;
@@ -558,7 +558,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
         for (std::uint32_t __b = 0; __b < __radix_states; ++__b)
         {
             __wi_prefix[__b] = __radix_sort_exclusive_scan(__sub_group, __local_counts[__b],
-                                                                       __dpl_sycl::__plus<std::uint16_t>(), __sg_size);
+                                                           __dpl_sycl::__plus<std::uint16_t>(), __sg_local_id,
+                                                           __sg_size);
             if (__is_last_in_sg)
                 __slm_counts[__sg_id * __radix_states + __b] = __wi_prefix[__b] + __local_counts[__b];
         }
@@ -582,7 +583,8 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
                 (__sg_idx < __num_subgroups) ? __slm_counts[__sg_idx * __radix_states + __radix_state] : 0;
 
             // Exclusive scan within chunk
-            std::uint16_t __local_prefix = __radix_sort_exclusive_scan(__sub_group, __val, std::plus<std::uint16_t>(), __sg_size);
+            std::uint16_t __local_prefix = __radix_sort_exclusive_scan(__sub_group, __val, std::plus<std::uint16_t>(),
+                                                                       __sg_local_id, __sg_size);
 
             // Add running sum from previous chunks
             std::uint16_t __prefix = __running_sum + __local_prefix;
