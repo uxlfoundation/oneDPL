@@ -35,17 +35,17 @@ namespace ranges
 namespace __internal
 {
 
-template <bool _Const, typename T>
-using __maybe_const = std::conditional_t<_Const, const T, T>;
+template <bool _Const, typename _T>
+using __maybe_const = std::conditional_t<_Const, const _T, _T>;
 
-template <bool C, typename... _Views>
-concept __all_forward = (std::ranges::forward_range<__maybe_const<C, _Views>> && ...);
+template <bool _C, typename... _Views>
+concept __all_forward = (std::ranges::forward_range<__maybe_const<_C, _Views>> && ...);
 
-template <bool C, typename... _Views>
-concept __all_bidirectional = (std::ranges::bidirectional_range<__maybe_const<C, _Views>> && ...);
+template <bool _C, typename... _Views>
+concept __all_bidirectional = (std::ranges::bidirectional_range<__maybe_const<_C, _Views>> && ...);
 
-template <bool C, typename... _Views>
-concept __all_random_access = (std::ranges::random_access_range<__maybe_const<C, _Views>> && ...);
+template <bool _C, typename... _Views>
+concept __all_random_access = (std::ranges::random_access_range<__maybe_const<_C, _Views>> && ...);
 
 // Determine when a zip_view can be a "common range" (where begin() and end() return the same type).
 // This is true in three cases:
@@ -53,10 +53,10 @@ concept __all_random_access = (std::ranges::random_access_range<__maybe_const<C,
 // 2. All ranges are common ranges but NOT all bidirectional (simpler iteration logic)
 // 3. All ranges are both random-access AND sized (can calculate end position directly)
 // For details see https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2321r2.html#when-is-zip_view-a-common_range
-template <typename... Rs>
-concept __zip_is_common = (sizeof...(Rs) == 1 && (std::ranges::common_range<Rs> && ...)) ||
-                          (!(std::ranges::bidirectional_range<Rs> && ...) && (std::ranges::common_range<Rs> && ...)) ||
-                          ((std::ranges::random_access_range<Rs> && ...) && (std::ranges::sized_range<Rs> && ...));
+template <typename... _Rs>
+concept __zip_is_common = (sizeof...(_Rs) == 1 && (std::ranges::common_range<_Rs> && ...)) ||
+                          (!(std::ranges::bidirectional_range<_Rs> && ...) && (std::ranges::common_range<_Rs> && ...)) ||
+                          ((std::ranges::random_access_range<_Rs> && ...) && (std::ranges::sized_range<_Rs> && ...));
 
 template <bool _Const, typename... _Views>
 struct __declare_iterator_category
@@ -109,8 +109,8 @@ template <std::ranges::input_range... _Views>
     requires((std::ranges::view<_Views> && ...) && (sizeof...(_Views) > 0))
 class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 {
-    template <typename... Types>
-    using __tuple_type = oneapi::dpl::__internal::tuple<Types...>;
+    template <typename... _Types>
+    using __tuple_type = oneapi::dpl::__internal::tuple<_Types...>;
 
   public:
     zip_view() = default;
@@ -144,12 +144,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 
       public:
         iterator() = default;
-        constexpr iterator(iterator<!_Const> i)
+        constexpr iterator(iterator<!_Const> __i)
             requires _Const &&
                      (std::convertible_to<std::ranges::iterator_t<_Views>,
                                           std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
                       ...)
-            : __current(std::move(i.__current))
+            : __current(std::move(__i.__current))
         {
         }
 
@@ -164,13 +164,13 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
 
       public:
-        template <typename... Iterators>
-        operator oneapi::dpl::zip_iterator<Iterators...>() const
+        template <typename... _Iterators>
+        operator oneapi::dpl::zip_iterator<_Iterators...>() const
         {
             auto __tr = [](auto&&... __args) -> decltype(auto) {
                 return oneapi::dpl::make_zip_iterator(std::forward<decltype(__args)>(__args)...);
             };
-            return __internal::__apply_to_tuple([](auto it) -> decltype(auto) { return it; }, __current, __tr);
+            return __internal::__apply_to_tuple([](auto __it) -> decltype(auto) { return __it; }, __current, __tr);
         }
 
         constexpr decltype(auto)
@@ -290,8 +290,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
                                              std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
                      ...)
         {
-            auto __calc_val = [&]<std::size_t... In>(std::index_sequence<In...>) {
-                return std::ranges::min({difference_type(std::get<In>(__x.__current) - std::get<In>(__y.__current))...},
+            auto __calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
+                return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__current))...},
                                         std::less{}, [](auto __a) { return iterator::__abs(__a); });
             };
 
@@ -398,19 +398,19 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         using difference_type =
             std::common_type_t<std::ranges::range_difference_t<__internal::__maybe_const<_Const, _Views>>...>;
 
-        template <typename... Sentinels>
-        constexpr explicit sentinel(Sentinels... sentinels) : __end(std::move(sentinels)...)
+        template <typename... _Sentinels>
+        constexpr explicit sentinel(_Sentinels... __sentinels) : __end(std::move(__sentinels)...)
         {
         }
 
       public:
         sentinel() = default;
-        constexpr sentinel(sentinel<!_Const> i)
+        constexpr sentinel(sentinel<!_Const> __i)
             requires _Const &&
                      (std::convertible_to<std::ranges::sentinel_t<_Views>,
                                           std::ranges::sentinel_t<__internal::__maybe_const<_Const, _Views>>> &&
                       ...)
-            : __end(std::move(i.__end))
+            : __end(std::move(__i.__end))
         {
         }
 
@@ -505,8 +505,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         requires(std::ranges::sized_range<_Views> && ...)
     {
         auto __tr = [](auto... __args) {
-            using CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
-            return std::ranges::min({CT(__args)...});
+            using _CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
+            return std::ranges::min({_CT(__args)...});
         };
 
         return __internal::__apply_to_tuple(std::ranges::size, __views, __tr);
@@ -517,8 +517,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         requires(std::ranges::sized_range<const _Views> && ...)
     {
         auto __tr = [](auto... __args) {
-            using CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
-            return std::ranges::min({CT(__args)...});
+            using _CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
+            return std::ranges::min({_CT(__args)...});
         };
 
         return __internal::__apply_to_tuple(std::ranges::size, __views, __tr);
@@ -534,8 +534,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     __tuple_type<_Views...> __views;
 }; // class zip_view
 
-template <typename... Rs>
-zip_view(Rs&&...) -> zip_view<std::views::all_t<Rs>...>;
+template <typename... _Rs>
+zip_view(_Rs&&...) -> zip_view<std::views::all_t<_Rs>...>;
 
 struct zip_fn
 {
