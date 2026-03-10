@@ -395,6 +395,47 @@ struct __search_n_fn
 
 inline constexpr __internal::__search_n_fn search_n;
 
+// [alg.contains]
+
+namespace __internal
+{
+struct __contains_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> &&
+                 std::indirect_binary_predicate<std::ranges::equal_to,
+                                                std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::find(std::forward<_ExecutionPolicy>(__exec), __r, __value, __proj) != std::ranges::end(__r);
+    }
+}; // __contains_fn
+
+struct __contains_subrange_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        return __r2.size() == 0 ||
+               ! oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1),
+                                             std::forward<_R2>(__r2), __pred, __proj1, __proj2).empty();
+    }
+}; // __contains_subrange_fn
+} // __internal
+
+inline constexpr __internal::__contains_fn contains;
+inline constexpr __internal::__contains_subrange_fn contains_subrange;
+
 // [alg.count_if]
 
 namespace __internal
