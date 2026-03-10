@@ -1033,8 +1033,8 @@ namespace __internal
 {
 struct __replace_if_fn
 {
-    template <typename _ExecutionPolicy, std::ranges::random_access_range _R,
-              typename _Proj = std::identity, typename _T = std::ranges::range_value_t<_R>,
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              typename _T = std::ranges::range_value_t<_R>,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
              && std::ranges::sized_range<_R> && std::indirectly_writable<std::ranges::iterator_t<_R>, const _T&>
@@ -1067,7 +1067,8 @@ struct __replace_fn
                                                std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T1*>
 
     std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value, _Proj __proj = {}) const
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value,
+               _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::replace_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
