@@ -43,6 +43,7 @@ Macro                              Macro values and the functionality
 ``ONEDPL_HAS_RANDOM_NUMBERS``      Pseudo-random number generators and distributions.
 
                                    * ``202409L`` - added support of comparison and I/O stream operators and an experimental Philox engine
+                                   * ``202603L`` - moved Philox engine out of the experimental namespace
 ---------------------------------- -----------------------------------------------
 ``ONEDPL_HAS_RANGE_ALGORITHMS``    Parallel range algorithms.
 

@@ -80,7 +80,7 @@ main()
     std::uint_fast32_t philox2_32_ref = 2942762615U;
     std::uint_fast64_t philox2_64_ref = 14685864013162917916U;
 
-    // Reference values, generated using Clang's std::philox_engine
+    // Reference values, generated using std::philox_engine from libstdc++
     std::uint_fast32_t philox2_32_w5_ref = 15U;
     std::uint_fast64_t philox2_64_w5_ref = 1U;
     std::uint_fast32_t philox4_32_w5_ref = 3U;
