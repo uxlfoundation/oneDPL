@@ -48,6 +48,58 @@ The onesweep approach reduces this traffic:
 
 This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
 
+**Traditional Multi-Pass Radix Sort:**
+```mermaid
+graph LR
+    A1[Histogram 1<br/>bits 0-7] --> B1[Scan 1]
+    B1 --> C1[Reorder 1<br/>bits 0-7]
+    C1 --> A2[Histogram 2<br/>bits 8-15]
+    A2 --> B2[Scan 2]
+    B2 --> C2[Reorder 2<br/>bits 8-15]
+    C2 --> A3[Histogram 3<br/>bits 16-23]
+    A3 --> B3[Scan 3]
+    B3 --> C3[Reorder 3<br/>bits 16-23]
+    C3 --> A4[Histogram 4<br/>bits 24-31]
+    A4 --> B4[Scan 4]
+    B4 --> C4[Reorder 4<br/>bits 24-31]
+    C4 --> D[Sorted Output]
+
+    style A1 fill:#ffcccc
+    style A2 fill:#ffcccc
+    style A3 fill:#ffcccc
+    style A4 fill:#ffcccc
+    style B1 fill:#cce5ff
+    style B2 fill:#cce5ff
+    style B3 fill:#cce5ff
+    style B4 fill:#cce5ff
+    style C1 fill:#ffffcc
+    style C2 fill:#ffffcc
+    style C3 fill:#ffffcc
+    style C4 fill:#ffffcc
+```
+
+Each stage requires a separate histogram pass (1 read), scan, and reorder pass (1 read + 1 write), resulting in ~3n memory accesses per stage.
+
+**Onesweep Radix Sort:**
+```mermaid
+graph LR
+    A[Histogram<br/>all stages] --> B[Scan<br/>all stages]
+    B --> C[Stage 1<br/>bits 0-7]
+    C --> D[Stage 2<br/>bits 8-15]
+    D --> E[Stage 3<br/>bits 16-23]
+    E --> F[Stage 4<br/>bits 24-31]
+    F --> G[Sorted Output]
+
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#ffe1f5
+    style D fill:#ffe1f5
+    style E fill:#ffe1f5
+    style F fill:#ffe1f5
+```
+
+The upfront histogram and scan compute global bin offsets for all 4 stages at once (one-time cost). Each onesweep stage then performs only 1 read + 1 write, avoiding repeated histogram passes.
+
 #### Decoupled Lookback
 
 Decoupled lookback enables work-groups to process data independently without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each work-group publishes its local histogram to global memory after computing it. Work-group N then sequentially looks back at the published histograms from work-groups N-1 through 0 to determine the global offset for its data. Work-groups may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram.
@@ -209,42 +261,29 @@ Both implementations use an 8-bit radix, resulting in 256 bins per stage.
 
 ### Unified Design Architecture
 
-The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic, the submitter manages kernel launches and memory orchestration, and the kernel contains the actual sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
-
-The onesweep algorithm executes as a sequence of kernel launches: an upfront histogram computes bin counts, a scan determines global offsets, and then multiple onesweep stages perform the actual reordering (4 stages for 32-bit keys with 8-bit radix).
+The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic (problem size, optimization selection), the submitter manages kernel launches and memory orchestration, and the kernel contains the backend-specific sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
 
 ```mermaid
 graph LR
-    A[User API<br/>radix_sort] --> B[Dispatcher<br/>radix_sort_dispatchers.h]
+    A[User API<br/>kt::gpu::radix_sort<br/>kt::gpu::esimd::radix_sort] --> B[Dispatcher<br/>radix_sort_dispatchers.h]
 
-    B -->|Small input<br/>ESIMD only| C[Submitter]
-    B -->|Large input| D[Submitter]
+    B --> C[Submitter<br/>radix_sort_submitters.h]
 
-    C --> E[Single Work-Group<br/>Kernel]
-    E --> J[Sorted<br/>Output]
+    C --> D[Kernels<br/>esimd_radix_sort_kernels.h<br/>sycl_radix_sort_kernels.h]
 
-    D --> F[Histogram<br/>Kernel]
-    D --> G[Scan<br/>Kernel]
+    D --> E[Device Execution]
 
-    F --> H[Stage 1<br/>bits 0-7]
-    G --> H
+    F[__esimd_tag] -.->|tag dispatch| B
+    F -.->|tag dispatch| C
+    F -.->|tag dispatch| D
 
-    H --> I1[Stage 2<br/>bits 8-15]
-    I1 --> I2[Stage 3<br/>bits 16-23]
-    I2 --> I3[Stage 4<br/>bits 24-31]
+    G[__sycl_tag] -.->|tag dispatch| B
+    G -.->|tag dispatch| C
+    G -.->|tag dispatch| D
 
-    I3 --> J
-
-    K[__esimd_tag] -.->|tag dispatch| B
-    L[__sycl_tag] -.->|tag dispatch| B
-
-    style E fill:#d4edda
-    style F fill:#e1f5ff
-    style G fill:#e1f5ff
-    style H fill:#ffe1f5
-    style I1 fill:#ffe1f5
-    style I2 fill:#ffe1f5
-    style I3 fill:#ffe1f5
+    style B fill:#e1f5ff
+    style C fill:#ffe1f5
+    style D fill:#d4edda
 ```
 
 ## Open Questions
