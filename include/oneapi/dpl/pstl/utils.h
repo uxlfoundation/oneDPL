@@ -1172,6 +1172,10 @@ inline constexpr bool __trivial_uninitialized_value_construct =
     std::is_trivially_default_constructible_v<_ValueType> && // required operation
     std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
 
+// Trick to get behavior similar to static_assert(false) pre-C++23.
+template <typename...>
+inline constexpr bool __always_false_v = false;
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
