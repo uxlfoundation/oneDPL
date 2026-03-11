@@ -98,7 +98,9 @@
 
 /* Make a nice name for the standard version */
 #ifndef TEST_STD_VER
-#    if __cplusplus >= 202002L || _MSVC_LANG >= 202002L
+#    if __cplusplus >= 202302L || _MSVC_LANG >= 202302L
+#        define TEST_STD_VER 23
+#    elif __cplusplus >= 202002L || _MSVC_LANG >= 202002L
 #        define TEST_STD_VER 20
 #    elif __cplusplus >= 201703L || _MSVC_LANG >= 201703L
 #        define TEST_STD_VER 17
