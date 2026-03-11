@@ -3050,9 +3050,12 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
+using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
+
 template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
           typename _OutputIterator, typename _Comp, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                      _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __first3,
                      _OutputIterator __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
@@ -3064,15 +3067,12 @@ __merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forw
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy,
-          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _Comp, typename _Proj1, typename _Proj2>
-std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
-                     _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                     _OutputIterator __first3, _OutputIterator __last3,
-                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Comp, typename _Proj1, typename _Proj2>
+_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
+                     _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                     _OutputIterator __first3, _OutputIterator __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
@@ -3092,7 +3092,7 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
     assert(__n_2 > 0);
     assert(__n_out > 0);
 
-    std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2, __first3};
+    _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
