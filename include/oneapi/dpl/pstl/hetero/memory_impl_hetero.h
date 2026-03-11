@@ -28,7 +28,7 @@ void
 __pattern_uninitialized_walk1(__hetero_tag<_BackendTag> tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                               _ForwardIterator __last, _Function __f)
 {
-    oneapi::dpl::__internal::__pattern_hetero_walk1<sycl::access_mode::write, /*_IsNoInitRequested=*/false>(
+    oneapi::dpl::__internal::__pattern_hetero_walk1<sycl::access_mode::write, /*_IsNoInitRequested=*/true>(
         tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 
@@ -42,7 +42,7 @@ _ForwardIterator
 __pattern_uninitialized_walk1_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                                 _Size __n, _Function __f)
 {
-    oneapi::dpl::__internal::__pattern_hetero_walk1<sycl::access_mode::write, /*_IsNoInitRequested=*/false>(
+    oneapi::dpl::__internal::__pattern_hetero_walk1<sycl::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f);
     return __first + __n;
 }

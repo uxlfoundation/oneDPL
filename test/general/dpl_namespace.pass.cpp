@@ -14,13 +14,13 @@
 //===----------------------------------------------------------------------===//
 
 #include <oneapi/dpl/execution>
+#include <oneapi/dpl/numeric>
 #include <oneapi/dpl/algorithm>
 #include <oneapi/dpl/iterator>
 #include <oneapi/dpl/functional>
 
 #include "support/utils.h"
 
-#include <iostream>
 #include <tuple>
 
 class ForEach;
@@ -32,7 +32,7 @@ int main()
 #if TEST_DPCPP_BACKEND_PRESENT
     const int n = 1000;
     const int k = 1000;
-    using T = std::uint64_t;
+    using T = unsigned long;
 
     sycl::buffer<T> key_buf{sycl::range<1>(n)};
     sycl::buffer<T> val_buf{sycl::range<1>(n)};
@@ -45,13 +45,13 @@ int main()
     auto zip_first = dpl::make_zip_iterator(counting_first, key_first);
 
     // key_buf = {0,0,...0,1,1,...,1}
-    std::for_each(TestUtils::make_device_policy<ForEach>(dpl::execution::dpcpp_default),
+    dpl::for_each(TestUtils::make_device_policy<ForEach>(dpl::execution::dpcpp_default),
 		zip_first, zip_first + n,
         [](std::tuple<T, T> x){
             std::get<1>(x) = (2 * std::get<0>(x)) / n;
         });
     // val_buf = {0,1,2,...,n-1}
-    std::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpcpp_default),
+    dpl::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpcpp_default),
 		counting_first, counting_first + n, val_first, dpl::identity());
     auto result = dpl::inclusive_scan_by_segment(
 		TestUtils::make_device_policy<Scan>(dpl::execution::dpcpp_default),
