@@ -676,6 +676,11 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
         return {__last1_tmp, __first2, __last_out_res};
     }
 
+    // Clamp: __merge_path_out_lim requires n_out <= n_1 + n_2
+    __last3 = __first3 + std::min<_IndexCommon>(static_cast<_IndexCommon>(__last3 - __first3),
+                                                static_cast<_IndexCommon>(__last1 - __first1) +
+                                                    static_cast<_IndexCommon>(__last2 - __first2));
+
     auto [__it1, __it2, __it3] = __merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                       __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
     return {__it1, __it2, __it3};

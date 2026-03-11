@@ -3092,13 +3092,11 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Forw
     assert(__n_2 > 0);
     assert(__n_out > 0);
 
-    const _IndexCommonSigned __n_out_lim = std::min(__n_out, __n_1 + __n_2);
-
     _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommonSigned{0}, __n_out_lim,
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommonSigned{0}, __n_out,
             [=, &__result](_IndexCommonSigned __i, _IndexCommonSigned __j) {
                 //a start merging point on the merge path; for each thread
                 _Index1 __r = 0; //row index
@@ -3146,7 +3144,7 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Forw
                     __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
                                            __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
 
-                if (__j == __n_out_lim)
+                if (__j == __n_out)
                     __result = __merge_out_lim_res;
             },
             __merge_path_cut_off); //grainsize
