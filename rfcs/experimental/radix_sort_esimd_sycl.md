@@ -41,64 +41,46 @@ Traditional radix sort implementations perform separate passes for each operatio
 - Reorder pass: 1 read + 1 write through the entire dataset
 - Total: approximately 3n memory accesses per radix iteration
 
+```mermaid
+graph LR
+    A1[Histogram 1<br/>bits 0-7] --> B1[Scan 1]
+    B1 --> C1[Reorder 1<br/>bits 0-7]
+    C1 --> D[...]
+    D --> A4[Histogram 4<br/>bits 24-31]
+    A4 --> B4[Scan 4]
+    B4 --> C4[Reorder 4<br/>bits 24-31]
+    C4 --> E[Sorted Output]
+
+    style A1 fill:#ffcccc
+    style A4 fill:#ffcccc
+    style B1 fill:#cce5ff
+    style B4 fill:#cce5ff
+    style C1 fill:#ffffcc
+    style C4 fill:#ffffcc
+    style D fill:#ffffff,stroke:#ffffff
+```
+
 The onesweep approach reduces this traffic:
 - Upfront global histogram and scan (one-time cost across all stages)
 - Per radix iteration: 1 read + 1 write through the entire dataset
 - No separate histogram pass needed per stage
 
-This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
-
-**Traditional Multi-Pass Radix Sort:**
-```mermaid
-graph LR
-    A1[Histogram 1<br/>bits 0-7] --> B1[Scan 1]
-    B1 --> C1[Reorder 1<br/>bits 0-7]
-    C1 --> A2[Histogram 2<br/>bits 8-15]
-    A2 --> B2[Scan 2]
-    B2 --> C2[Reorder 2<br/>bits 8-15]
-    C2 --> A3[Histogram 3<br/>bits 16-23]
-    A3 --> B3[Scan 3]
-    B3 --> C3[Reorder 3<br/>bits 16-23]
-    C3 --> A4[Histogram 4<br/>bits 24-31]
-    A4 --> B4[Scan 4]
-    B4 --> C4[Reorder 4<br/>bits 24-31]
-    C4 --> D[Sorted Output]
-
-    style A1 fill:#ffcccc
-    style A2 fill:#ffcccc
-    style A3 fill:#ffcccc
-    style A4 fill:#ffcccc
-    style B1 fill:#cce5ff
-    style B2 fill:#cce5ff
-    style B3 fill:#cce5ff
-    style B4 fill:#cce5ff
-    style C1 fill:#ffffcc
-    style C2 fill:#ffffcc
-    style C3 fill:#ffffcc
-    style C4 fill:#ffffcc
-```
-
-Each stage requires a separate histogram pass (1 read), scan, and reorder pass (1 read + 1 write), resulting in ~3n memory accesses per stage.
-
-**Onesweep Radix Sort:**
 ```mermaid
 graph LR
     A[Histogram<br/>all stages] --> B[Scan<br/>all stages]
     B --> C[Stage 1<br/>bits 0-7]
-    C --> D[Stage 2<br/>bits 8-15]
-    D --> E[Stage 3<br/>bits 16-23]
-    E --> F[Stage 4<br/>bits 24-31]
-    F --> G[Sorted Output]
+    C --> D[...]
+    D --> E[Stage 4<br/>bits 24-31]
+    E --> F[Sorted Output]
 
-    style A fill:#e1f5ff
-    style B fill:#e1f5ff
+    style A fill:#ffcccc
+    style B fill:#cce5ff
     style C fill:#ffe1f5
-    style D fill:#ffe1f5
     style E fill:#ffe1f5
-    style F fill:#ffe1f5
+    style D fill:#ffffff,stroke:#ffffff
 ```
 
-The upfront histogram and scan compute global bin offsets for all 4 stages at once (one-time cost). Each onesweep stage then performs only 1 read + 1 write, avoiding repeated histogram passes.
+This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
 
 #### Decoupled Lookback
 
@@ -261,29 +243,30 @@ Both implementations use an 8-bit radix, resulting in 256 bins per stage.
 
 ### Unified Design Architecture
 
-The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic (problem size, optimization selection), the submitter manages kernel launches and memory orchestration, and the kernel contains the backend-specific sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
+The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic (problem size, optimization selection), the submitter manages kernel launches and memory orchestration, and the kernel contains the actual sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer. The following diagram shows the generalized dispatch logic for the unified implementation:
 
 ```mermaid
-graph LR
-    A[User API<br/>kt::gpu::radix_sort<br/>kt::gpu::esimd::radix_sort] --> B[Dispatcher<br/>radix_sort_dispatchers.h]
+graph TD
+    A[User API: radix_sort] --> B{Backend Selection}
+    B -->|kt::gpu::esimd| C[__esimd_tag]
+    B -->|kt::gpu| D[__sycl_tag]
 
-    B --> C[Submitter<br/>radix_sort_submitters.h]
+    C --> E[Dispatcher<br/>radix_sort_dispatchers.h]
+    D --> E
 
-    C --> D[Kernels<br/>esimd_radix_sort_kernels.h<br/>sycl_radix_sort_kernels.h]
+    E --> F{Problem Size<br/>& Configuration}
+    F -->|Small inputs (ESIMD only)| G[Single Work-Group Path]
+    F -->|Large inputs| H[Multi Work-Group Path]
 
-    D --> E[Device Execution]
+    G --> I[Submitter<br/>radix_sort_submitters.h]
+    H --> I
 
-    F[__esimd_tag] -.->|tag dispatch| B
-    F -.->|tag dispatch| C
-    F -.->|tag dispatch| D
+    I --> J{Tag Dispatch}
+    J -->|__esimd_tag| K[ESIMD Kernel<br/>esimd_radix_sort_kernels.h]
+    J -->|__sycl_tag| L[SYCL Kernel<br/>sycl_radix_sort_kernels.h]
 
-    G[__sycl_tag] -.->|tag dispatch| B
-    G -.->|tag dispatch| C
-    G -.->|tag dispatch| D
-
-    style B fill:#e1f5ff
-    style C fill:#ffe1f5
-    style D fill:#d4edda
+    K --> M[Device Execution]
+    L --> M
 ```
 
 ## Open Questions
