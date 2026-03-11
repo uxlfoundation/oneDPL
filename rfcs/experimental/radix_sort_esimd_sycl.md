@@ -129,6 +129,40 @@ The functions return a `sycl::event` for asynchronous execution chaining.
 
 Unified dispatch logic in `radix_sort_dispatchers.h` and `radix_sort_submitters.h` selects the appropriate implementation and optimization path based on the input size and available hardware features.
 
+### Usage Example
+
+```cpp
+#include <oneapi/dpl/experimental/kt/gpu/radix_sort.h>
+
+// Sort 1M keys in ascending order
+sycl::queue q;
+sycl::buffer<uint32_t> keys(1'000'000);
+
+auto policy = kt::gpu::kernel_param<
+    /*workgroup_size=*/512,
+    /*data_per_work_item=*/32
+>{};
+
+auto event = kt::gpu::radix_sort(q, keys, policy);
+event.wait();
+
+// For ESIMD on PVC
+auto esimd_event = kt::gpu::esimd::radix_sort(q, keys, policy);
+```
+
+### Platform Support
+
+The ESIMD implementation is limited to Intel PVC architecture with a work-group size of 64 and data per work item multiple of 32. The SYCL implementation has been tested on Intel PVC and BMG with work-group sizes of 512 and 1024, requires forward progress extension support, and is expected to work on future Intel GPU architectures supporting the extension.
+
+### Testing
+
+Correctness is validated through a unified test structure that executes across all supported configurations. Tests verify sorting correctness for random, sorted, reverse-sorted, and pathological input distributions.
+
+| Variant | Work-Group Size | Data Per Work-Item | Key Types | Test Variants |
+|---------|-----------------|--------------------|-----------| ------------- |
+| ESIMD   | 64              | 32-512 (step 32)   | char, uint16_t, int, uint64_t, float, double | In-place, out-of-place, by-key |
+| SYCL    | 512, 1024       | 1-16               | char, uint16_t, int, uint64_t, float, double | In-place, out-of-place, by-key |
+
 ### Implementation Status
 
 **ESIMD Implementation:**
@@ -138,16 +172,6 @@ The ESIMD implementation provides a complete onesweep multi-work-group kernel. I
 The SYCL implementation provides an onesweep multi-work-group kernel using sub-group primitives for portability. It supports both keys-only sorting and key-value pair sorting. The one-work-group optimization remains an open topic for future work.
 
 Both implementations use an 8-bit radix, resulting in 256 bins per stage.
-
-### Programming Model Mapping
-
-The ESIMD and SYCL implementations differ in their parallelism models:
-
-**ESIMD:** Each work-item operates on explicit SIMD vectors. A work-item processes multiple elements using SIMD operations, with direct control over vector width and operations. Local ranking uses SIMD vector operations on histogram bins.
-
-**SYCL:** Each sub-group of 32 work-items cooperates to process data. Sub-group collective operations (ballot, vote, shuffle) implement the ranking and synchronization logic. Each work-item in the sub-group handles scalar values, and the sub-group coordinates through built-in functions.
-
-This difference reflects the underlying hardware model: ESIMD maps to explicit vector instructions on Intel GPUs, while SYCL sub-groups map to hardware thread groups across different vendors.
 
 ## Open Questions
 
