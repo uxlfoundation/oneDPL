@@ -15,6 +15,8 @@ Fixed Issues
 ------------
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
   instead of the corresponding libc++ versions.
+- Fixed the default template argument for the new value type in `ranges::replace` and `ranges::replace_if`
+  to not use projections.
 
 New in 2022.11.0
 =======================
