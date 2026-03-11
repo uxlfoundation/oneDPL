@@ -214,25 +214,28 @@ The ESIMD and SYCL implementations share a unified code structure using tag-base
 ```mermaid
 graph TD
     A[User API: radix_sort] --> B{Backend Selection}
+
     B -->|kt::gpu::esimd| C[__esimd_tag]
     B -->|kt::gpu| D[__sycl_tag]
 
-    C --> E[Dispatcher<br/>radix_sort_dispatchers.h]
-    D --> E
+    C --> E1[Dispatcher<br/>radix_sort_dispatchers.h]
+    D --> E2[Dispatcher<br/>radix_sort_dispatchers.h]
 
-    E --> F{Problem Size<br/>& Configuration}
+    E1 --> F{Problem Size<br/>& Configuration}
     F -->|Small inputs| G[Single Work-Group Path]
     F -->|Large inputs| H[Multi Work-Group Path]
 
-    G --> I[Submitter<br/>radix_sort_submitters.h]
-    H --> I
+    E2 --> I2[Multi Work-Group Path]
 
-    I --> J{Tag Dispatch}
-    J -->|__esimd_tag| K[ESIMD Kernel<br/>esimd_radix_sort_kernels.h]
-    J -->|__sycl_tag| L[SYCL Kernel<br/>sycl_radix_sort_kernels.h]
+    G --> J1[Submitter<br/>radix_sort_submitters.h]
+    H --> J1
+    I2 --> J2[Submitter<br/>radix_sort_submitters.h]
 
-    K --> M[Device Execution]
-    L --> M
+    J1 --> K[ESIMD Kernel<br/>esimd_radix_sort_kernels.h]
+    J2 --> L[SYCL Kernel<br/>sycl_radix_sort_kernels.h]
+
+    K --> M1[Device Execution]
+    L --> M2[Device Execution]
 ```
 
 ## Open Questions
