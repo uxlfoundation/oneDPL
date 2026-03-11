@@ -16,6 +16,8 @@ Fixed Issues
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
   instead of the corresponding libc++ versions.
 - Fixed ``ranges::unique_copy`` to allow output ranges of any size.
+- Fixed the default template argument for the new value type in `ranges::replace` and `ranges::replace_if`
+  to not use projections.
 
 Known Issues and Limitations
 ----------------------------
