@@ -314,25 +314,36 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    for (; __first1 != __last1;)
-    {
-        if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
 
-        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
-        {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
-            ++__result;
-            ++__first1;
-        }
-        else
-        {
-            if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                ++__first1;
-            ++__first2;
-        }
+    // __proj1_val < __proj2_val
+    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+        new (std::addressof(*__out_it)) _Tp(*__it1);
+        return {++__it1, __it2, ++__out_it};
+    };
+
+    // __proj2_val < __proj1_val
+    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+        return {__it1, ++__it2, __out_it};
+    };
+
+    // __proj1_val == __proj2_val
+    auto __op_val1_eq_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+        return {++__it1, ++__it2, __out_it};
+    };
+
+    // 1. Main set_difference operation
+    while (__first1 != __last1 && __first2 != __last2)
+    {
+        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
+        
+        std::tie(__first1, __first2, __result) = __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
+                                               : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
+                                             : __op_val1_eq_val2(__first1, __first2, __result));
     }
-    return __result;
+
+    return __cc_range(__first1, __last1, __result);
 }
 
 template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
