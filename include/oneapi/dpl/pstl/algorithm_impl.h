@@ -2987,41 +2987,41 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-template <typename _Iterator1, typename _Iterator2, typename _Iterator3,
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
           typename _Comp, typename _Proj1, typename _Proj2>
-std::tuple<_Iterator1, _Iterator2, _Iterator3>
-__serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e,
-                       _Iterator2 __y, _Iterator2 __y_e,
-                       _Iterator3 __out_b, _Iterator3 __out_e,
-                       _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                     _OutputIterator __first3, _OutputIterator __last3,
+                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    for (; __out_b != __out_e; ++__out_b)
+    for (; __first3 != __last3; ++__first3)
     {
-        if (__x == __x_e)
+        if (__first1 == __last1)
         {
-            assert(__y != __y_e);
-            *__out_b = *__y;
-            ++__y;
+            assert(__first2 != __last2);
+            *__first3 = *__first2;
+            ++__first2;
         }
-        else if (__y == __y_e)
+        else if (__first2 == __last2)
         {
-            assert(__x != __x_e);
-            *__out_b = *__x;
-            ++__x;
+            assert(__first1 != __last1);
+            *__first3 = *__first1;
+            ++__first1;
         }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            *__out_b = *__y;
-            ++__y;
+            *__first3 = *__first2;
+            ++__first2;
         }
         else
         {
-            *__out_b = *__x;
-            ++__x;
+            *__first3 = *__first1;
+            ++__first1;
         }
     }
 
-    return {__x, __y, __out_b};
+    return {__first1, __first2, __first3};
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
@@ -3063,12 +3063,12 @@ std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
 __merge_path_out_lim(_Tag, _ExecutionPolicy&&,
                      _ForwardIterator1 __first1, _ForwardIterator1 __last1,
                      _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                     _OutputIterator __d_first, _OutputIterator __d_last,
+                     _OutputIterator __first3, _OutputIterator __last3,
                      _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __d_first, __d_last, __comp, __proj1, __proj2);
+    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
 }
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
