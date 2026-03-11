@@ -36,45 +36,43 @@ The algorithm processes data in tiles, where each work-group handles a contiguou
 The onesweep approach significantly reduces global memory traffic. Assuming temporary storage and decoupled lookback traffic is negligble, we can model the reduction in memory traffic as shown below:
 
 Traditional radix sort implementations perform separate passes for each operation:
-- Histogram pass: 1 read through the entire dataset
-- Scan: negligble global memory traffic
-- Reorder pass: 1 read + 1 write through the entire dataset
-- Total: approximately 3n memory accesses per radix iteration
 
 ```mermaid
 graph LR
-    Start[ ] --> A[Histogram<br/>current stage] 
-    A --> B[Scan]
+    A[Histogram<br/>current stage] --> B[Scan]
     B --> C[Reorder<br/>current stage]
     C --> D{More<br/>stages?}
-    D -->|Yes| Start
+    D -->|Yes| A
     D -->|No| E[Sorted Output]
 
-    style Start fill:#ffffff,stroke:#ffffff
     style A fill:#ffcccc
     style B fill:#cce5ff
     style C fill:#ffffcc
 ```
 
+- Histogram pass: 1 read through the entire dataset
+- Scan: negligble global memory traffic
+- Reorder pass: 1 read + 1 write through the entire dataset
+- Total: approximately 3n memory accesses per radix iteration
+
 The onesweep approach reduces this traffic:
-- Upfront global histogram and scan (one-time cost across all stages)
-- Per radix iteration: 1 read + 1 write through the entire dataset
-- No separate histogram pass needed per stage
 
 ```mermaid
 graph LR
     A[Histogram<br/>all stages] --> B[Scan<br/>all stages]
-    B --> Start[ ]
-    Start --> C[Stage<br/>current radix]
+    B --> C[Stage<br/>current radix]
     C --> D{More<br/>stages?}
-    D -->|Yes| Start
+    D -->|Yes| C
     D -->|No| E[Sorted Output]
 
     style A fill:#ffcccc
     style B fill:#cce5ff
-    style Start fill:#ffffff,stroke:#ffffff
     style C fill:#ffe1f5
 ```
+
+- Upfront global histogram and scan (one-time cost across all stages)
+- Per radix iteration: 1 read + 1 write through the entire dataset
+- No separate histogram pass needed per stage
 
 This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
 
