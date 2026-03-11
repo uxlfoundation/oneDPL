@@ -2987,37 +2987,31 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Comp,
+          typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                     _OutputIterator __first3, _OutputIterator __last3,
-                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                       _ForwardIterator2 __last2, _OutputIterator __first3, _OutputIterator __last3, _Comp __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
 {
-    for (; __first3 != __last3; ++__first3)
+    while (__first3 != __last3)
     {
         if (__first1 == __last1)
         {
             assert(__first2 != __last2);
-            *__first3 = *__first2;
-            ++__first2;
+            *__first3++ = *__first2++;
         }
         else if (__first2 == __last2)
         {
             assert(__first1 != __last1);
-            *__first3 = *__first1;
-            ++__first1;
-        }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-        {
-            *__first3 = *__first2;
-            ++__first2;
+            *__first3++ = *__first1++;
         }
         else
         {
-            *__first3 = *__first1;
-            ++__first1;
+            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+                *__first3++ = *__first2++;
+            else
+                *__first3++ = *__first1++;
         }
     }
 
@@ -3056,15 +3050,12 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _Tag, typename _ExecutionPolicy,
-          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Comp, typename _Proj1, typename _Proj2>
 std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__merge_path_out_lim(_Tag, _ExecutionPolicy&&,
-                     _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                     _OutputIterator __first3, _OutputIterator __last3,
-                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __first3,
+                     _OutputIterator __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
