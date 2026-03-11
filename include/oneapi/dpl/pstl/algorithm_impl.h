@@ -3054,11 +3054,11 @@ template <typename _ForwardIterator1, typename _ForwardIterator2, typename _Outp
 using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
 
 template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Comp, typename _Proj1, typename _Proj2>
-_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+          typename _ForwardIterator3, typename _Comp, typename _Proj1, typename _Proj2>
+_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>
 __merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
-                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _OutputIterator __first3,
-                     _OutputIterator __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator3 __first3,
+                     _ForwardIterator3 __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -3067,18 +3067,20 @@ __merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _Forw
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
-          typename _OutputIterator, typename _Comp, typename _Proj1, typename _Proj2>
-_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
-__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
-                     _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator2 __last2,
-                     _OutputIterator __first3, _OutputIterator __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
+_merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>
+__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                     _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
+                     _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    using _Index1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
-    using _Index2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
-    using _Index3 = typename std::iterator_traits<_OutputIterator>::difference_type;
+    using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
     using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
     using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
 
@@ -3092,8 +3094,8 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Forw
     assert(__n_2 > 0);
     assert(__n_out > 0);
 
-    _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2,
-                                                                                                 __first3};
+    _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3> __result{
+        __first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
