@@ -216,7 +216,7 @@ void
 __pattern_uninitialized_walk1(_Tag tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last,
                               _Function __f)
 {
-    oneapi::dpl::__internal::__pattern_walk1(tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+    __pattern_walk1(tag, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 
 template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
