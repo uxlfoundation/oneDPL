@@ -207,6 +207,34 @@ The SYCL implementation provides an onesweep multi-work-group kernel using sub-g
 
 Both implementations use an 8-bit radix, resulting in 256 bins per stage.
 
+### Unified Design Architecture
+
+The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic (problem size, optimization selection), the submitter manages kernel launches and memory orchestration, and the kernel contains the actual sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
+
+```mermaid
+graph TD
+    A[User API: radix_sort] --> B{Backend Selection}
+    B -->|kt::gpu::esimd| C[__esimd_tag]
+    B -->|kt::gpu| D[__sycl_tag]
+
+    C --> E[Dispatcher<br/>radix_sort_dispatchers.h]
+    D --> E
+
+    E --> F{Problem Size<br/>& Configuration}
+    F -->|Small inputs| G[Single Work-Group Path]
+    F -->|Large inputs| H[Multi Work-Group Path]
+
+    G --> I[Submitter<br/>radix_sort_submitters.h]
+    H --> I
+
+    I --> J{Tag Dispatch}
+    J -->|__esimd_tag| K[ESIMD Kernel<br/>esimd_radix_sort_kernels.h]
+    J -->|__sycl_tag| L[SYCL Kernel<br/>sycl_radix_sort_kernels.h]
+
+    K --> M[Device Execution]
+    L --> M
+```
+
 ## Open Questions
 
 The following areas remain open for future investigation and development:
