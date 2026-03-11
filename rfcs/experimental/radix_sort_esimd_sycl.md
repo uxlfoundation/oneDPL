@@ -2,7 +2,8 @@
 
 ## Introduction
 
-This RFC describes the design and implementation of high-performance GPU radix sort algorithms for oneDPL kernel templates. Two implementations were provided: an ESIMD variant optimized for Intel GPUs and a portable SYCL variant targeting cross-vendor GPU architectures.
+This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. Two implementations were provided: an ESIMD variant optimized for Intel PVC archiecture and a portable SYCL variant targeting
+Intel GPUs that support work-group independent forward progress.
 
 Both implementations use the onesweep radix sort algorithm with decoupled lookback synchronization. This approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
 
@@ -18,7 +19,7 @@ The motivation for these implementations was to provide:
 
 #### Onesweep Radix Sort Overview
 
-The onesweep radix sort algorithm processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use separate histogram and reorder phases. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort.
+The onesweep radix sort algorithm processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use separate histogram and reorder phases. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once.
 
 Each radix stage follows this flow:
 1. Load keys from global memory
@@ -28,29 +29,32 @@ Each radix stage follows this flow:
 5. Reorder keys through shared local memory
 6. Scatter keys to global memory
 
-The algorithm processes data in tiles, where each work-group handles a contiguous block of elements. Work-groups execute concurrently and coordinate through a chained scan protocol rather than device-wide barriers.
+The algorithm processes data in tiles, where each work-group handles a contiguous block of elements. Work-groups execute concurrently and coordinate through a chained scan protocol via decoupled lookback.
 
 #### Memory Traffic and Performance Benefits
 
+The onesweep approach significantly reduces global memory traffic. Assuming temporary storage and decoupled lookback traffic is negligble, we can model the reduction in memory traffic as shown below:
+
 Traditional radix sort implementations perform separate passes for each operation:
 - Histogram pass: 1 read through the entire dataset
+- Scan: negligble global memory traffic
 - Reorder pass: 1 read + 1 write through the entire dataset
 - Total: approximately 3n memory accesses per radix iteration
 
 The onesweep approach reduces this traffic:
 - Upfront global histogram and scan (one-time cost across all stages)
-- Per radix iteration: approximately 2n memory accesses plus small lookback traffic
+- Per radix iteration: 1 read + 1 write through the entire dataset
 - No separate histogram pass needed per stage
 
 This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
 
 #### Decoupled Lookback
 
-Decoupled lookback enables work-groups to process data independently without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each work-group publishes its local histogram to global memory after computing it. Work-group N then looks back at the published histograms from work-groups N-1 through 0 to determine the global offset for its data. Work-groups may earlier exit from the decoupled lookback once an earlier work-group has found and published its full incoming histogram.
+Decoupled lookback enables work-groups to process data independently without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each work-group publishes its local histogram to global memory after computing it. Work-group N then sequentially looks back at the published histograms from work-groups N-1 through 0 to determine the global offset for its data. Work-groups may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram.
 
 This mechanism provides two key benefits:
 - Work-groups can begin processing as soon as their dependencies are satisfied
-- No global synchronization points that would stall all work-groups
+- No global synchronization points that would stall all work-groups, freeing hardware resources for higher indexed tiles
 
 The lookback operates by having each work-group spin-wait on global memory locations until the previous work-group has written its partial histogram. Work-groups accumulate these partial results to compute their global offsets.
 
@@ -68,7 +72,7 @@ The ESIMD implementation relies on specific PVC hardware scheduling characterist
 
 #### SYCL Solution and Alternatives
 
-The SYCL implementation uses the forward progress extension to guarantee safety:
+The SYCL implementation uses the oneAPI forward progress extension as a kernel launch property to guarantee safety:
 
 ```cpp
 auto get(syclex::properties_tag) const
@@ -81,15 +85,15 @@ auto get(syclex::properties_tag) const
 }
 ```
 
-This extension guarantees that work-groups within the kernel launch make independent forward progress even when some work-groups are executing spin-loops. This is the only approach that provides a formal hardware safety guarantee across different GPU schedulers and vendors where the property is supported.
+This extension guarantees that work-groups within the kernel launch execute concurrently and make independent forward progress. This is the only approach that provides a formal hardware safety guarantee across different GPU schedulers and vendors where the property is supported.
 
-An alternative approach using atomic counters was evaluated but rejected. In this approach, each work-group would increment a global atomic counter to receive a sequential execution ID, and lookback would use this ordering instead of dispatch order. This would potentially handle cases where work-groups execute out of dispatch order.
+An alternative approach using atomic counters was evaluated but rejected. In this approach, each work-group would increment a global atomic counter to receive a sequential tile ID, and lookback would use this ordering instead of their work-group identifier. This would potentially handle cases where work-groups execute out of dispatch order.
 
 However, this approach has limitations:
 - It requires empirical testing and implementation adjustment for each specific architecture to verify correct behavior
 - It does not provide a formal guarantee of safety
 - During evaluation, hardware hangs were examined on certain hardware configurations
-- It relies on scheduler behavior when multiple kernels are concurrently executing that is not specified by the programming model
+- It relies on scheduler behavior when multiple kernels are concurrently executing that is unspecified by the SYCL programming model
 
 The forward progress extension provides a principled solution that is supported by the oneAPI DPC++ compiler and guarantees correct behavior.
 
@@ -99,15 +103,13 @@ The implementations provide high-level sorting interfaces in the kernel template
 
 ```cpp
 namespace oneapi::dpl::experimental::kt::gpu {
-    // Portable SYCL implementation
     sycl::event radix_sort(sycl::queue q,
-                          /* ranges */,
+                          /* ranges or iterators */,
                           /* kernel_param */);
 
     namespace esimd {
-        // Intel GPU optimized implementation
         sycl::event radix_sort(sycl::queue q,
-                              /* ranges */,
+                              /* ranges or iterators */,
                               /* kernel_param */);
     }
 }
@@ -125,7 +127,7 @@ Template parameters control:
 
 The functions return a `sycl::event` for asynchronous execution chaining.
 
-Unified dispatch logic in `radix_sort_dispatchers.h` selects the appropriate implementation and optimization path based on the input size and available hardware features.
+Unified dispatch logic in `radix_sort_dispatchers.h` and `radix_sort_submitters.h` selects the appropriate implementation and optimization path based on the input size and available hardware features.
 
 ### Implementation Status
 
@@ -133,9 +135,9 @@ Unified dispatch logic in `radix_sort_dispatchers.h` selects the appropriate imp
 The ESIMD implementation provides a complete onesweep multi-work-group kernel. It includes a one-work-group optimization for small inputs where the problem size is less than or equal to `workgroup_size × data_per_work_item`. This optimization avoids the lookback synchronization overhead for cases that fit within a single work-group's SLM capacity. The implementation supports both keys-only sorting and key-value pair sorting.
 
 **SYCL Implementation:**
-The SYCL implementation provides an onesweep multi-work-group kernel using sub-group primitives for portability. It supports both keys-only sorting and key-value pair sorting. The one-work-group optimization remains an open topic for future work, as it requires careful consideration of SLM usage and sub-group programming patterns.
+The SYCL implementation provides an onesweep multi-work-group kernel using sub-group primitives for portability. It supports both keys-only sorting and key-value pair sorting. The one-work-group optimization remains an open topic for future work.
 
-Both implementations use an 8-bit radix, resulting in 256 bins per stage. The SYCL implementation currently uses a fixed work-group size of 256 work-items organized as 8 sub-groups of 32 work-items each.
+Both implementations use an 8-bit radix, resulting in 256 bins per stage.
 
 ### Programming Model Mapping
 
@@ -151,10 +153,11 @@ This difference reflects the underlying hardware model: ESIMD maps to explicit v
 
 The following areas remain open for future investigation and development:
 
-**Radix bit width:** The current implementations use an 8-bit radix (256 bins). Exploring support for other radix widths (e.g., 4, 6, 9, or 11 bits) could improve performance for different key distributions and hardware characteristics. Larger radix widths reduce the number of stages but increase SLM usage and histogram scan overhead.
+**Radix bit width:** The current implementations use an 8-bit radix (256 bins). Exploring support for other radix widths (e.g., 4 or 6 bits) could improve performance for different key distributions and hardware characteristics. Larger radix widths reduce the number of stages but increase SLM and register file usage. 
 
 **Single work-group kernel template:** The one-work-group optimization is currently embedded within the dispatch logic for ESIMD. Providing a separate kernel template API specifically for single work-group sorting would enable explicit control and specialization for small-data use cases.
 
 **Large input support:** The current implementations use bit masks that limit input sizes to 2^30 elements (approximately 1 billion elements for 4-byte keys). Extending support to larger inputs would require addressing the mask limitations in the offset calculations and histogram data structures.
 
-**Work-group size flexibility:** The SYCL implementation currently uses a fixed work-group size of 256. Supporting configurable work-group sizes (e.g., 128, 512) would enable better tuning for different hardware and problem sizes. This requires adjustments to the histogram scan logic and SLM layout.
+**Work-group size flexibility:** The SYCL implementation currently supports work-group sizes of 512 and 1024. Supporting more work-group size configurations (e.g. multiples of 128) would enable more flexible tuning for different hardware and problem sizes.
+
