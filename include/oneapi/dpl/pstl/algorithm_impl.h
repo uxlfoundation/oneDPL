@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <tuple>
 
 #include "algorithm_fwd.h"
 
