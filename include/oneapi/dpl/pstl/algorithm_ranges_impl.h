@@ -644,20 +644,20 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     auto __first2 = std::ranges::begin(__r2);
     auto __first3 = std::ranges::begin(__out_r);
 
-    auto __last1 = __first1 + std::ranges::size(__r1);
-    auto __last2 = __first2 + std::ranges::size(__r2);
-    auto __last3 = __first3 + std::ranges::size(__out_r);
+    const _IndexCommon __n1 = std::ranges::size(__r1);
+    const _IndexCommon __n2 = std::ranges::size(__r2);
+    const _IndexCommon __n3 = std::ranges::size(__out_r);
 
     //{3} is empty
-    if (__first3 == __last3)
+    if (__n3 == 0)
         return {__first1, __first2, __first3};
 
     //{1} is empty
-    if (__first1 == __last1)
+    if (__n1 == 0)
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __last2_tmp = __first2 + std::min<_IndexCommon>(__last3 - __first3, __last2 - __first2);
+        auto __last2_tmp = __first2 + std::min(__n3, __n2);
 
         auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
                                                                 __last2_tmp, __first3, __copy_range);
@@ -665,24 +665,21 @@ __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& 
     }
 
     //{2} is empty
-    if (__first2 == __last2)
+    if (__n2 == 0)
     {
         __internal::__brick_copy<_Tag> __copy_range{};
 
-        auto __last1_tmp = __first1 + std::min<_IndexCommon>(__last3 - __first3, __last1 - __first1);
+        auto __last1_tmp = __first1 + std::min(__n3, __n1);
 
         auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
                                                                 __last1_tmp, __first3, __copy_range);
         return {__last1_tmp, __first2, __last_out_res};
     }
 
-    // Clamp: __merge_path_out_lim requires n_out <= n_1 + n_2
-    __last3 = __first3 + std::min<_IndexCommon>(static_cast<_IndexCommon>(__last1 - __first1) +
-                                                    static_cast<_IndexCommon>(__last2 - __first2),
-                                                __last3 - __first3);
+    auto [__it1, __it2, __it3] = __merge_path_out_lim(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
+        __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
 
-    auto [__it1, __it2, __it3] = __merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
-                                                      __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
     return {__it1, __it2, __it3};
 }
 
