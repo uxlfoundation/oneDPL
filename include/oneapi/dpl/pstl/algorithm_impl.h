@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <tuple>
 
 #include "algorithm_fwd.h"
 
@@ -2987,38 +2988,35 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp, typename _Proj1,
-          typename _Proj2>
-std::pair<_Iterator1, _Iterator2>
-__serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
-                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _Comp,
+          typename _Proj1, typename _Proj2>
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                       _ForwardIterator2 __last2, _OutputIterator __first3, _OutputIterator __last3, _Comp __comp,
+                       _Proj1 __proj1, _Proj2 __proj2)
 {
-    for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
+    while (__first3 != __last3)
     {
-        if (__x == __x_e)
+        if (__first1 == __last1)
         {
-            assert(__y != __y_e);
-            *__k = *__y;
-            ++__y;
+            assert(__first2 != __last2);
+            *__first3++ = *__first2++;
         }
-        else if (__y == __y_e)
+        else if (__first2 == __last2)
         {
-            assert(__x != __x_e);
-            *__k = *__x;
-            ++__x;
-        }
-        else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
-        {
-            *__k = *__y;
-            ++__y;
+            assert(__first1 != __last1);
+            *__first3++ = *__first1++;
         }
         else
         {
-            *__k = *__x;
-            ++__x;
+            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+                *__first3++ = *__first2++;
+            else
+                *__first3++ = *__first1++;
         }
     }
-    return {__x, __y};
+
+    return {__first1, __first2, __first3};
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
@@ -3053,83 +3051,112 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
-          typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
-std::pair<_It1, _It2>
-___merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2,
-                      _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator>
+using _merge_path_out_lim_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
+
+template <typename _Tag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _ForwardIterator3, typename _Comp, typename _Proj1, typename _Proj2>
+_merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _ForwardIterator3>
+__merge_path_out_lim(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2, _ForwardIterator3 __first3,
+                     _ForwardIterator3 __last3, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp,
-                                  __proj1, __proj2);
+    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __first3, __last3, __comp, __proj1, __proj2);
 }
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2,
-          typename _Index2, typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
-std::pair<_It1, _It2>
-___merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1 __n_1, _It2 __it_2,
-                      _Index2 __n_2, _OutIt __it_out, _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
+          typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
+          typename _Proj2>
+std::enable_if_t<__is_random_access_iterator_v<_RandomAccessIterator1> &&
+                     __is_random_access_iterator_v<_RandomAccessIterator2> &&
+                     __is_random_access_iterator_v<_RandomAccessIterator3>,
+                 _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>>
+__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
+                     _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
+                     _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
+                     _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    _It1 __it_res_1;
-    _It2 __it_res_2;
+    using _Index1 = typename std::iterator_traits<_RandomAccessIterator1>::difference_type;
+    using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
+    using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
+    using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
+    static_assert(std::is_signed_v<_IndexCommon>);
+
+    using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
+
+    const _IndexCommon __n_1 = __last1 - __first1;
+    const _IndexCommon __n_2 = __last2 - __first2;
+    const _IndexCommon __n_out = __last3 - __first3;
+
+    assert(__n_1 > 0);
+    assert(__n_2 > 0);
+    assert(__n_out > 0);
+
+    _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3> __result{
+        __first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index3(0), __n_out,
-            [=, &__it_res_1, &__it_res_2](_Index3 __i, _Index3 __j) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
+            [=, &__result](_IndexCommon __i, _IndexCommon __j) {
                 //a start merging point on the merge path; for each thread
-                _Index1 __r = 0; //row index
-                _Index2 __c = 0; //column index
+                _IndexCommon __r = 0; //row index
+                _IndexCommon __c = 0; //column index
 
                 if (__i > 0)
                 {
                     //calc merge path intersection:
-                    const _Index3 __d_size =
-                        std::abs(std::max<_Index2>(0, __i - __n_2) - (std::min<_Index1>(__i, __n_1) - 1)) + 1;
+                    const _IndexCommon __d_size =
+                        std::abs(std::max(_IndexCommon{0}, __i - __n_2) - (std::min(__i, __n_1) - 1)) + 1;
 
-                    auto __get_row = [__i, __n_1](auto __d) { return std::min<_Index1>(__i, __n_1) - __d - 1; };
-                    auto __get_column = [__i, __n_1](auto __d) {
-                        return std::max<_Index1>(0, __i - __n_1 - 1) + __d + (__i / (__n_1 + 1) > 0 ? 1 : 0);
+                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
+                        return std::min(__i, __n_1) - __d - 1;
+                    };
+                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
+                        return std::max(_IndexCommon{0}, __i - __n_1) + __d;
                     };
 
-                    oneapi::dpl::counting_iterator<_Index3> __it_d(0);
+                    const _counting_iterator_t __it_d(0);
 
-                    auto __res_d = *std::lower_bound(__it_d, __it_d + __d_size, 1, [&](auto __d, auto __val) {
-                        auto __r = __get_row(__d);
-                        auto __c = __get_column(__d);
+                    _counting_iterator_t __found =
+                        std::lower_bound(__it_d, __it_d + __d_size, 1, [&](_IndexCommon __d, auto __val) {
+                            const _IndexCommon __r_tmp = __get_row(__d);
+                            const _IndexCommon __c_tmp = __get_column(__d);
 
-                        const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c]),
-                                                       std::invoke(__proj1, __it_1[__r])) ? 0 : 1;
+                            assert(0 <= __r_tmp && __r_tmp < __n_1);
+                            assert(0 <= __c_tmp && __c_tmp < __n_2);
 
-                        return __res < __val;
-                    });
+                            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
+                            return __res < __val;
+                        });
+                    const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
 
                     //intersection point
                     __r = __get_row(__res_d);
                     __c = __get_column(__res_d);
+
                     ++__r; //to get a merge matrix ceil, lying on the current diagonal
                 }
 
                 //serial merge n elements, starting from input x and y, to [i, j) output range
-                auto [__res1, __res2] = __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c,
-                                                               __it_2 + __n_2, __it_out + __i, __it_out + __j, __comp,
-                                                               __proj1, __proj2);
+                const auto __merge_out_lim_res =
+                    __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
+                                           __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
 
                 if (__j == __n_out)
-                {
-                    __it_res_1 = __res1;
-                    __it_res_2 = __res2;
-                }
+                    __result = __merge_out_lim_res;
             },
             __merge_path_cut_off); //grainsize
     });
 
-    return {__it_res_1, __it_res_2};
+    return __result;
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
