@@ -300,15 +300,13 @@ _ForwardIterator2
 __pattern_walk2_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator1 __first1,
                              _ForwardIterator1 __last1, _ForwardIterator2 __first2, _Function __func)
 {
-    // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
-    // values of the output sequence for elements where the predicate is false. We never actually read from the output
-    // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
-    // please see the comment above __pattern_hetero_walk2 and https://github.com/uxlfoundation/oneDPL/issues/1272.
+    // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
+    // the predicate is false. This preserves non-transformed elements in the output.
     return __pattern_hetero_walk2</*_WaitMode*/ __par_backend_hetero::__deferrable_mode,
-                                  __par_backend_hetero::access_mode::read_write, /*_IsOutNoInitRequested=*/false>(
+                                  __par_backend_hetero::access_mode::write,
+                                  /*_IsOutNoInitRequested=*/false>(
         __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
+        __par_backend_hetero::make_wrapped_policy<__walk2_transform_if_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __func);
 }
 
@@ -322,14 +320,12 @@ __pattern_walk3_transform_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&&
                              _ForwardIterator1 __last1, _ForwardIterator2 __first2, _ForwardIterator3 __first3,
                              _Function __func)
 {
-    // Require `read_write` access mode for output sequence to force a copy in for host iterators to capture incoming
-    // values of the output sequence for elements where the predicate is false. We never actually read from the output
-    // sequence, so there is no risk when ran with the vectorized path of walk_n_vector_or_scalars. For more info,
-    // please see the comment above __pattern_hetero_walk3 and https://github.com/uxlfoundation/oneDPL/issues/1272.
-    return __pattern_hetero_walk3<__par_backend_hetero::access_mode::read_write, /*_IsOutNoInitRequested=*/false>(
+    // Use `write` access mode (without no_init) for output sequence to copy in existing values for elements where
+    // the predicate is false. This preserves non-transformed elements in the output.
+    return __pattern_hetero_walk3<__par_backend_hetero::access_mode::write,
+                                  /*_IsOutNoInitRequested=*/false>(
         __tag,
-        __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(
-            ::std::forward<_ExecutionPolicy>(__exec)),
+        __par_backend_hetero::make_wrapped_policy<__walk3_transform_if_wrapper>(std::forward<_ExecutionPolicy>(__exec)),
         __first1, __last1, __first2, __first3, __func);
 }
 
@@ -354,7 +350,7 @@ _ForwardIterator
 __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                _ForwardIterator __last, const _T& __value)
 {
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, /*_IsNoInitRequested=*/false>(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
@@ -392,7 +388,7 @@ _ForwardIterator
 __pattern_generate(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                    _ForwardIterator __last, _Generator __g)
 {
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::read_write, /*_IsNoInitRequested=*/false>(
+    __pattern_hetero_walk1<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
         __tag, std::forward<_ExecutionPolicy>(__exec),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
         __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
@@ -1075,9 +1071,8 @@ __pattern_unique(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _It
 
     // The temporary buffer is constructed from a range, therefore it's destructor will not block, therefore
     // we must call __pattern_hetero_walk2 in a way which provides blocking synchronization for this pattern.
-    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode,
-                                  __par_backend_hetero::access_mode::read_write,
-                                  /*_IsOutNoInitRequested=*/false>(
+    return __pattern_hetero_walk2<__par_backend_hetero::__deferrable_mode, __par_backend_hetero::access_mode::write,
+                                  /*_IsOutNoInitRequested=*/true>(
         __tag, __par_backend_hetero::make_wrapped_policy<copy_back_wrapper>(::std::forward<_ExecutionPolicy>(__exec)),
         __copy_first, __copy_last, __first, __brick_copy<__hetero_tag<_BackendTag>>{});
 }
@@ -2059,100 +2054,6 @@ __pattern_shift_right(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 
     return __last - __res;
 }
-
-template <typename _Name>
-struct __copy_keys_values_wrapper;
-
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
-          typename _Iterator3, typename _Iterator4, typename _BinaryPredicate, typename _BinaryOperator>
-typename std::iterator_traits<_Iterator3>::difference_type
-__pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
-                            _Iterator1 __keys_last, _Iterator2 __values_first, _Iterator3 __out_keys_first,
-                            _Iterator4 __out_values_first, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
-{
-    const std::size_t __n = std::distance(__keys_first, __keys_last);
-
-    if (__n == 0)
-        return 0;
-
-    if (__n == 1)
-    {
-        __brick_copy<__hetero_tag<_BackendTag>> __copy_op{};
-
-        oneapi::dpl::__internal::__pattern_walk2_n(
-            __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_values_wrapper>(__exec),
-            oneapi::dpl::make_zip_iterator(__keys_first, __values_first), 1,
-            oneapi::dpl::make_zip_iterator(__out_keys_first, __out_values_first), __copy_op);
-
-        return 1;
-    }
-
-    auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
-    auto __keys = __keep_keys(__keys_first, __keys_last);
-    auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
-    auto __values = __keep_values(__values_first, __values_first + __n);
-    auto __keep_key_outputs = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
-    auto __out_keys = __keep_key_outputs(__out_keys_first, __out_keys_first + __n);
-    auto __keep_value_outputs =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
-    auto __out_values = __keep_value_outputs(__out_values_first, __out_values_first + __n);
-    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
-        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
-        __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
-}
-
-template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
-          typename _InitType>
-_OutputIterator
-__pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
-                               _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
-                               _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive, _InitType __init)
-{
-    const auto __n = std::distance(__first1, __last1);
-
-    // Check for empty element ranges
-    if (__n <= 0)
-        return __result;
-
-    namespace __bknd = oneapi::dpl::__par_backend_hetero;
-
-    auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
-    auto __key_buf = __keep_keys(__first1, __last1);
-    auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
-    auto __value_buf = __keep_values(__first2, __first2 + __n);
-    auto __keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
-    auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
-
-    __bknd::__parallel_scan_by_segment<_Inclusive::value>(
-        _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
-        __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
-    return __result + __n;
-}
-
-template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive, typename _T>
-_OutputIterator
-__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
-                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
-                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive, _T __init)
-{
-    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
-                                          __binary_pred, __binary_op, __is_inclusive,
-                                          unseq_backend::__init_value<_T>{__init});
-}
-
-template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
-          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
-_OutputIterator
-__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
-                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
-                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive)
-{
-    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
-                                          __binary_pred, __binary_op, __is_inclusive, unseq_backend::__no_init_value{});
-}
-
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

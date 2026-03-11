@@ -191,6 +191,39 @@ test()
     }
 }
 
+template <typename T1>
+struct test_transform_if_binary_inplace
+{
+    template <typename Policy, typename InputIterator1, typename InputIterator2, typename OutputIterator, typename Size>
+    void
+    operator()(Policy&& exec, InputIterator1 first, InputIterator1 last, InputIterator2 mask,
+               InputIterator2 /*mask_end*/, OutputIterator result_begin, OutputIterator result_end, Size n)
+    {
+        using in_value_type2 = typename std::iterator_traits<InputIterator2>::value_type;
+        using out_value_type = typename std::iterator_traits<OutputIterator>::value_type;
+
+        // Start with a fresh input to the inplace test
+        std::copy(first, last, result_begin);
+
+        // call transform_if inplace (output aliases first input)
+        oneapi::dpl::transform_if(std::forward<Policy>(exec), result_begin, result_end, mask, result_begin,
+                                  mutable_negate_first<out_value_type, in_value_type2>{},
+                                  mutable_check_mask_second<out_value_type, in_value_type2>{});
+
+        //calculate expected
+        std::vector<out_value_type> expected(n);
+        auto in_iter = first;
+        auto mask_iter = mask;
+        auto expected_iter = expected.begin();
+        for (; in_iter != last; in_iter++, (void)mask_iter++, expected_iter++)
+        {
+            *expected_iter = *mask_iter == 1 ? -(*in_iter) : *in_iter;
+        }
+
+        EXPECT_EQ_N(expected.begin(), result_begin, n, "wrong effect from transform_if inplace binary");
+    }
+};
+
 template <typename _Type>
 void
 test_inplace()
@@ -203,6 +236,14 @@ test_inplace()
 
             invoke_on_all_policies<4>()(test_transform_if_unary_inplace<_Type>(), in1.begin(), in1.end(), out.begin(),
                                         out.end(), n);
+        }
+        {
+            Sequence<_Type> in1(n, [=](size_t k) { return (3 * k) % std::numeric_limits<_Type>::max(); });
+            Sequence<_Type> in2(n, [=](size_t k) { return k % 2 == 0 ? 1 : 0; });
+            Sequence<_Type> out(n, [=](size_t) { return 0; });
+
+            invoke_on_all_policies<5>()(test_transform_if_binary_inplace<_Type>(), in1.begin(), in1.end(), in2.begin(),
+                                        in2.end(), out.begin(), out.end(), n);
         }
     }
 }
