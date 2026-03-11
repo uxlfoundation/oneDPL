@@ -66,9 +66,9 @@ void test() {
 #endif
 
     x = 5;
-    y = 0.1;
+    y = 0.5;
     assert(a[0] == 5);
-    assert(b[0] == 0.1);
+    assert(b[0] == 0.5); // exact comparison is safe: 0.5 is exactly representable in all FP precisions
   }
 
   {
