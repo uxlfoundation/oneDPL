@@ -209,33 +209,42 @@ Both implementations use an 8-bit radix, resulting in 256 bins per stage.
 
 ### Unified Design Architecture
 
-The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic (problem size, optimization selection), the submitter manages kernel launches and memory orchestration, and the kernel contains the actual sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
+The ESIMD and SYCL implementations share a unified code structure using tag-based dispatch. A compile-time tag (`__esimd_tag` or `__sycl_tag`) selects the appropriate implementation path through three main components: dispatcher, submitter, and kernel. The dispatcher handles high-level decision logic, the submitter manages kernel launches and memory orchestration, and the kernel contains the actual sort implementation. This design eliminates code duplication while allowing backend-specific optimizations at each layer.
+
+The onesweep algorithm executes as a sequence of kernel launches: an upfront histogram computes bin counts, a scan determines global offsets, and then multiple onesweep stages perform the actual reordering (4 stages for 32-bit keys with 8-bit radix).
 
 ```mermaid
-graph TD
-    A[User API: radix_sort] --> B{Backend Selection}
+graph LR
+    A[User API<br/>radix_sort] --> B[Dispatcher<br/>radix_sort_dispatchers.h]
 
-    B -->|kt::gpu::esimd| C[__esimd_tag]
-    B -->|kt::gpu| D[__sycl_tag]
+    B -->|Small input<br/>ESIMD only| C[Submitter]
+    B -->|Large input| D[Submitter]
 
-    C --> E1[Dispatcher<br/>radix_sort_dispatchers.h]
-    D --> E2[Dispatcher<br/>radix_sort_dispatchers.h]
+    C --> E[Single Work-Group<br/>Kernel]
+    E --> J[Sorted<br/>Output]
 
-    E1 --> F{Problem Size<br/>& Configuration}
-    F -->|Small inputs| G[Single Work-Group Path]
-    F -->|Large inputs| H[Multi Work-Group Path]
+    D --> F[Histogram<br/>Kernel]
+    D --> G[Scan<br/>Kernel]
 
-    E2 --> I2[Multi Work-Group Path]
+    F --> H[Stage 1<br/>bits 0-7]
+    G --> H
 
-    G --> J1[Submitter<br/>radix_sort_submitters.h]
-    H --> J1
-    I2 --> J2[Submitter<br/>radix_sort_submitters.h]
+    H --> I1[Stage 2<br/>bits 8-15]
+    I1 --> I2[Stage 3<br/>bits 16-23]
+    I2 --> I3[Stage 4<br/>bits 24-31]
 
-    J1 --> K[ESIMD Kernel<br/>esimd_radix_sort_kernels.h]
-    J2 --> L[SYCL Kernel<br/>sycl_radix_sort_kernels.h]
+    I3 --> J
 
-    K --> M1[Device Execution]
-    L --> M2[Device Execution]
+    K[__esimd_tag] -.->|tag dispatch| B
+    L[__sycl_tag] -.->|tag dispatch| B
+
+    style E fill:#d4edda
+    style F fill:#e1f5ff
+    style G fill:#e1f5ff
+    style H fill:#ffe1f5
+    style I1 fill:#ffe1f5
+    style I2 fill:#ffe1f5
+    style I3 fill:#ffe1f5
 ```
 
 ## Open Questions
