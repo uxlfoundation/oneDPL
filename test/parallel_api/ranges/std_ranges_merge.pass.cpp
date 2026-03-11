@@ -33,7 +33,7 @@ struct merge_checker_fn
         auto it_2_e = std::ranges::end(r_2);
         auto it_out_e = std::ranges::end(r_out);
 
-        while(it_1 != it_1_e && it_2 != it_2_e)
+        while (it_1 != it_1_e && it_2 != it_2_e && it_out != it_out_e)
         {
             if (std::invoke(comp, std::invoke(proj2, *it_2), std::invoke(proj1, *it_1)))
             {
