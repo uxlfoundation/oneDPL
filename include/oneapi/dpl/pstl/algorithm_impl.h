@@ -3070,7 +3070,10 @@ inline constexpr std::size_t __merge_path_cut_off = 2000;
 template <typename _IsVector, typename _ExecutionPolicy, typename _RandomAccessIterator1,
           typename _RandomAccessIterator2, typename _RandomAccessIterator3, typename _Comp, typename _Proj1,
           typename _Proj2>
-_merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>
+std::enable_if_t<__is_random_access_iterator_v<_RandomAccessIterator1> &&
+                     __is_random_access_iterator_v<_RandomAccessIterator2> &&
+                     __is_random_access_iterator_v<_RandomAccessIterator3>,
+                 _merge_path_out_lim_return_t<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessIterator3>>
 __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator1 __first1,
                      _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2, _RandomAccessIterator2 __last2,
                      _RandomAccessIterator3 __first3, _RandomAccessIterator3 __last3, _Comp __comp, _Proj1 __proj1,
@@ -3082,13 +3085,13 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
     using _Index2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _Index3 = typename std::iterator_traits<_RandomAccessIterator3>::difference_type;
     using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
-    using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
+    static_assert(std::is_signed_v<_IndexCommon>);
 
     using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
 
-    const _IndexCommonSigned __n_1 = __last1 - __first1;
-    const _IndexCommonSigned __n_2 = __last2 - __first2;
-    const _IndexCommonSigned __n_out = __last3 - __first3;
+    const _IndexCommon __n_1 = __last1 - __first1;
+    const _IndexCommon __n_2 = __last2 - __first2;
+    const _IndexCommon __n_out = __last3 - __first3;
 
     assert(__n_1 > 0);
     assert(__n_2 > 0);
@@ -3099,32 +3102,31 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommonSigned{0}, __n_out,
-            [=, &__result](_IndexCommonSigned __i, _IndexCommonSigned __j) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommon{0}, __n_out,
+            [=, &__result](_IndexCommon __i, _IndexCommon __j) {
                 //a start merging point on the merge path; for each thread
-                _Index1 __r = 0; //row index
-                _Index2 __c = 0; //column index
+                _IndexCommon __r = 0; //row index
+                _IndexCommon __c = 0; //column index
 
                 if (__i > 0)
                 {
                     //calc merge path intersection:
                     const _IndexCommon __d_size =
-                        static_cast<_IndexCommon>(
-                            std::abs(std::max(_IndexCommonSigned{0}, __i - __n_2) - (std::min(__i, __n_1) - 1))) + 1;
+                        std::abs(std::max(_IndexCommon{0}, __i - __n_2) - (std::min(__i, __n_1) - 1)) + 1;
 
-                    auto __get_row = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
+                    auto __get_row = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
                         return std::min(__i, __n_1) - __d - 1;
                     };
-                    auto __get_column = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
-                        return std::max(_IndexCommonSigned{0}, __i - __n_1) + __d;
+                    auto __get_column = [__i, __n_1](_IndexCommon __d) -> _IndexCommon {
+                        return std::max(_IndexCommon{0}, __i - __n_1) + __d;
                     };
 
                     const _counting_iterator_t __it_d(0);
 
                     _counting_iterator_t __found =
                         std::lower_bound(__it_d, __it_d + __d_size, 1, [&](_IndexCommon __d, auto __val) {
-                            const _Index1 __r_tmp = static_cast<_Index1>(__get_row(__d));
-                            const _Index2 __c_tmp = static_cast<_Index2>(__get_column(__d));
+                            const _IndexCommon __r_tmp = __get_row(__d);
+                            const _IndexCommon __c_tmp = __get_column(__d);
 
                             assert(0 <= __r_tmp && __r_tmp < __n_1);
                             assert(0 <= __c_tmp && __c_tmp < __n_2);
@@ -3136,8 +3138,8 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Rand
                     const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
 
                     //intersection point
-                    __r = static_cast<_Index1>(__get_row(__res_d));
-                    __c = static_cast<_Index2>(__get_column(__res_d));
+                    __r = __get_row(__res_d);
+                    __c = __get_column(__res_d);
 
                     ++__r; //to get a merge matrix ceil, lying on the current diagonal
                 }
