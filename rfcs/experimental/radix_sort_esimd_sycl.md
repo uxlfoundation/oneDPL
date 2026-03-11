@@ -43,21 +43,17 @@ Traditional radix sort implementations perform separate passes for each operatio
 
 ```mermaid
 graph LR
-    A1[Histogram 1<br/>bits 0-7] --> B1[Scan 1]
-    B1 --> C1[Reorder 1<br/>bits 0-7]
-    C1 --> D[...]
-    D --> A4[Histogram 4<br/>bits 24-31]
-    A4 --> B4[Scan 4]
-    B4 --> C4[Reorder 4<br/>bits 24-31]
-    C4 --> E[Sorted Output]
+    Start[ ] --> A[Histogram<br/>current stage] 
+    A --> B[Scan]
+    B --> C[Reorder<br/>current stage]
+    C --> D{More<br/>stages?}
+    D -->|Yes| Start
+    D -->|No| E[Sorted Output]
 
-    style A1 fill:#ffcccc
-    style A4 fill:#ffcccc
-    style B1 fill:#cce5ff
-    style B4 fill:#cce5ff
-    style C1 fill:#ffffcc
-    style C4 fill:#ffffcc
-    style D fill:#ffffff,stroke:#ffffff
+    style Start fill:#ffffff,stroke:#ffffff
+    style A fill:#ffcccc
+    style B fill:#cce5ff
+    style C fill:#ffffcc
 ```
 
 The onesweep approach reduces this traffic:
@@ -68,16 +64,16 @@ The onesweep approach reduces this traffic:
 ```mermaid
 graph LR
     A[Histogram<br/>all stages] --> B[Scan<br/>all stages]
-    B --> C[Stage 1<br/>bits 0-7]
-    C --> D[...]
-    D --> E[Stage 4<br/>bits 24-31]
-    E --> F[Sorted Output]
+    B --> Start[ ]
+    Start --> C[Stage<br/>current radix]
+    C --> D{More<br/>stages?}
+    D -->|Yes| Start
+    D -->|No| E[Sorted Output]
 
     style A fill:#ffcccc
     style B fill:#cce5ff
+    style Start fill:#ffffff,stroke:#ffffff
     style C fill:#ffe1f5
-    style E fill:#ffe1f5
-    style D fill:#ffffff,stroke:#ffffff
 ```
 
 This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
