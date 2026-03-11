@@ -506,8 +506,8 @@ __copy_kernel_for_radix_sort(sycl::nd_item<1> __self_item, const std::size_t __s
 }
 template <typename _ValueType>
 _ValueType
-__radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val,
-                            [[maybe_unused]] std::uint32_t __sg_local_id, [[maybe_unused]] std::uint32_t __sg_size)
+__radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val, [[maybe_unused]] std::uint32_t __sg_local_id,
+                            [[maybe_unused]] std::uint32_t __sg_size)
 {
     // With icpx version 2024.2, exclusive_scan_over_group encounters some crashes which
     // only seem to affect CPU openCL targets, but this is not possible to detect at compile time
@@ -515,8 +515,7 @@ __radix_sort_exclusive_scan(sycl::sub_group __sub_group, _ValueType __val,
     _ValueType __inclusive = __val;
     for (std::uint32_t __shift = 1; __shift < __sg_size; __shift <<= 1)
     {
-        _ValueType __partial = sycl::shift_group_right(__sub_group,
-                                                        __inclusive, __shift);
+        _ValueType __partial = sycl::shift_group_right(__sub_group, __inclusive, __shift);
         if (__sg_local_id >= __shift)
             __inclusive += __partial;
     }
