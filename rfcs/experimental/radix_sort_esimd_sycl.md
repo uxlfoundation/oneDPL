@@ -103,51 +103,85 @@ The implementations provide high-level sorting interfaces in the kernel template
 
 ```cpp
 namespace oneapi::dpl::experimental::kt::gpu {
-    sycl::event radix_sort(sycl::queue q,
-                          /* ranges or iterators */,
-                          /* kernel_param */);
+    // In-place sort (keys only)
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysRange>
+    sycl::event radix_sort(sycl::queue q, KeysRange&& keys, KernelParam param = {});
+
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysIterator>
+    sycl::event radix_sort(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
+                          KernelParam param = {});
+
+    // Out-of-place sort (keys only)
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+              typename KeysInRange, typename KeysOutRange>
+    sycl::event radix_sort(sycl::queue q, KeysInRange&& keys_in, KeysOutRange&& keys_out,
+                          KernelParam param = {});
+
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysIterator>
+    sycl::event radix_sort(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
+                          KeysIterator keys_out_first, KernelParam param = {});
+
+    // In-place sort by key (keys + values)
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+              typename KeysRange, typename ValuesRange>
+    sycl::event radix_sort_by_key(sycl::queue q, KeysRange&& keys, ValuesRange&& values,
+                                  KernelParam param = {});
+
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+              typename KeysIterator, typename ValuesIterator>
+    sycl::event radix_sort_by_key(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
+                                  ValuesIterator values_first, KernelParam param = {});
+
+    // Out-of-place sort by key (keys + values)
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+              typename KeysInRange, typename ValsInRange, typename KeysOutRange, typename ValsOutRange>
+    sycl::event radix_sort_by_key(sycl::queue q, KeysInRange&& keys_in, ValsInRange&& vals_in,
+                                  KeysOutRange&& keys_out, ValsOutRange&& vals_out,
+                                  KernelParam param = {});
+
+    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+              typename KeysIterator, typename ValsIterator>
+    sycl::event radix_sort_by_key(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
+                                  ValsIterator vals_first, KeysIterator keys_out_first,
+                                  ValsIterator vals_out_first, KernelParam param = {});
 
     namespace esimd {
-        sycl::event radix_sort(sycl::queue q,
-                              /* ranges or iterators */,
-                              /* kernel_param */);
+        // Same API signatures as gpu namespace
     }
 }
 ```
 
-The API takes:
-- A `sycl::queue` for device submission
-- Input and output range objects
-- A `kernel_param` configuration specifying work-group size, data per work-item, and other tuning parameters
-
-Template parameters control:
-- Sort order (ascending or descending)
-- Radix bit width
-- Work-group configuration
-
-The functions return a `sycl::event` for asynchronous execution chaining.
+Template parameters control sort order (`IsAscending`), radix bit width (`RadixBits`), and work-group configuration (via `KernelParam`). All functions return a `sycl::event` for asynchronous execution chaining.
 
 Unified dispatch logic in `radix_sort_dispatchers.h` and `radix_sort_submitters.h` selects the appropriate implementation and optimization path based on the input size and available hardware features.
 
 ### Usage Example
 
 ```cpp
-#include <oneapi/dpl/experimental/kt/gpu/radix_sort.h>
+#include <oneapi/dpl/experimental/kernel_templates>
 
-// Sort 1M keys in ascending order
+namespace kt = oneapi::dpl::experimental::kt;
+
 sycl::queue q;
-sycl::buffer<uint32_t> keys(1'000'000);
+constexpr std::size_t n = 1'000'000;
 
-auto policy = kt::gpu::kernel_param<
-    /*workgroup_size=*/512,
-    /*data_per_work_item=*/32
->{};
+// SYCL variant: work-group size 1024, 12 elements per work-item
+{
+    constexpr kt::kernel_param</*data_per_workitem=*/12, /*workgroup_size=*/1024> param;
+    uint32_t* keys = sycl::malloc_device<uint32_t>(n, q);
+    // ... initialize keys ...
+    kt::gpu::radix_sort(q, keys, keys + n, param).wait();
+    sycl::free(keys, q);
+}
 
-auto event = kt::gpu::radix_sort(q, keys, policy);
-event.wait();
-
-// For ESIMD on PVC
-auto esimd_event = kt::gpu::esimd::radix_sort(q, keys, policy);
+// ESIMD variant on PVC: work-group size 64, 96 elements per work-item
+{
+    constexpr kt::kernel_param</*data_per_workitem=*/96, /*workgroup_size=*/64> param;
+    uint32_t* keys = sycl::malloc_device<uint32_t>(n, q);
+    // ... initialize keys ...
+    kt::gpu::esimd::radix_sort(q, keys, keys + n, param).wait();
+    sycl::free(keys, q);
+}
 ```
 
 ### Platform Support
