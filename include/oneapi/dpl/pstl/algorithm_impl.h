@@ -2987,38 +2987,41 @@ __pattern_remove_if(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
 //------------------------------------------------------------------------
 // merge
 //------------------------------------------------------------------------
-template <typename _Iterator1, typename _Iterator2, typename _Iterator3, typename _Comp, typename _Proj1,
-          typename _Proj2>
-std::pair<_Iterator1, _Iterator2>
-__serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e, _Iterator2 __y, _Iterator2 __y_e, _Iterator3 __out_b,
-                       _Iterator3 __out_e, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _Iterator1, typename _Iterator2, typename _Iterator3,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::tuple<_Iterator1, _Iterator2, _Iterator3>
+__serial_merge_out_lim(_Iterator1 __x, _Iterator1 __x_e,
+                       _Iterator2 __y, _Iterator2 __y_e,
+                       _Iterator3 __out_b, _Iterator3 __out_e,
+                       _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    for (_Iterator3 __k = __out_b; __k != __out_e; ++__k)
+    for (; __out_b != __out_e; ++__out_b)
     {
         if (__x == __x_e)
         {
             assert(__y != __y_e);
-            *__k = *__y;
+            *__out_b = *__y;
             ++__y;
         }
         else if (__y == __y_e)
         {
             assert(__x != __x_e);
-            *__k = *__x;
+            *__out_b = *__x;
             ++__x;
         }
         else if (std::invoke(__comp, std::invoke(__proj2, *__y), std::invoke(__proj1, *__x)))
         {
-            *__k = *__y;
+            *__out_b = *__y;
             ++__y;
         }
         else
         {
-            *__k = *__x;
+            *__out_b = *__x;
             ++__x;
         }
     }
-    return {__x, __y};
+
+    return {__x, __y, __out_b};
 }
 
 template <class _ForwardIterator1, class _ForwardIterator2, class _OutputIterator, class _Compare>
@@ -3053,49 +3056,57 @@ __pattern_merge(_Tag, _ExecutionPolicy&&, _ForwardIterator1 __first1, _ForwardIt
                                      typename _Tag::__is_vector{});
 }
 
-template <typename _Tag, typename _ExecutionPolicy, typename _It1, typename _Index1, typename _It2, typename _Index2,
-          typename _OutIt, typename _Index3, typename _Comp, typename _Proj1, typename _Proj2>
-std::pair<_It1, _It2>
-__merge_path_out_lim(_Tag, _ExecutionPolicy&&, _It1 __it_1, _Index1 __n_1, _It2 __it_2, _Index2 __n_2, _OutIt __it_out,
-                     _Index3 __n_out, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _Tag, typename _ExecutionPolicy,
+          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__merge_path_out_lim(_Tag, _ExecutionPolicy&&,
+                     _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                     _OutputIterator __d_first, _OutputIterator __d_last,
+                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
-    return __serial_merge_out_lim(__it_1, __it_1 + __n_1, __it_2, __it_2 + __n_2, __it_out, __it_out + __n_out, __comp,
-                                  __proj1, __proj2);
+    return __serial_merge_out_lim(__first1, __last1, __first2, __last2, __d_first, __d_last, __comp, __proj1, __proj2);
 }
 
 inline constexpr std::size_t __merge_path_cut_off = 2000;
 
-template <typename _IsVector, typename _ExecutionPolicy, typename _It1, typename _Index1Arg, typename _It2,
-          typename _Index2Arg, typename _OutIt, typename _Index3Arg, typename _Comp, typename _Proj1, typename _Proj2>
-std::pair<_It1, _It2>
-__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 __it_1, _Index1Arg __n_1, _It2 __it_2,
-                     _Index2Arg __n_2, _OutIt __it_out, _Index3Arg __n_out_arg, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+template <typename _IsVector, typename _ExecutionPolicy,
+          typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _Comp, typename _Proj1, typename _Proj2>
+std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>
+__merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec,
+                     _ForwardIterator1 __first1, _ForwardIterator1 __last1,
+                     _ForwardIterator2 __first2, _ForwardIterator2 __last2,
+                     _OutputIterator __first3, _OutputIterator __last3,
+                     _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
 
-    using _Index1 = typename std::iterator_traits<_It1>::difference_type;
-    using _Index2 = typename std::iterator_traits<_It2>::difference_type;
-    using _Index3 = typename std::iterator_traits<_OutIt>::difference_type;
+    using _Index1 = typename std::iterator_traits<_ForwardIterator1>::difference_type;
+    using _Index2 = typename std::iterator_traits<_ForwardIterator2>::difference_type;
+    using _Index3 = typename std::iterator_traits<_OutputIterator>::difference_type;
     using _IndexCommon = std::common_type_t<_Index1, _Index2, _Index3>;
     using _IndexCommonSigned = std::make_signed_t<_IndexCommon>;
 
     using _counting_iterator_t = oneapi::dpl::counting_iterator<_IndexCommon>;
 
+    const _IndexCommonSigned __n_1 = __last1 - __first1;
+    const _IndexCommonSigned __n_2 = __last2 - __first2;
+    const _IndexCommonSigned __n_out = __last3 - __first3;
+
     assert(__n_1 > 0);
     assert(__n_2 > 0);
-    assert(__n_out_arg > 0);
+    assert(__n_out > 0);
 
-    const _Index3 __n_out = static_cast<_Index3>(__n_out_arg);
-
-    _It1 __it_res_1 = __it_1 + __n_1;
-    _It2 __it_res_2 = __it_2 + __n_2;
+    std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2, __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
-            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _Index3(0), __n_out,
-            [=, &__it_res_1, &__it_res_2](_Index3 __i, _Index3 __j) {
+            __backend_tag{}, std::forward<_ExecutionPolicy>(__exec), _IndexCommonSigned{0}, __n_out,
+            [=, &__result](_IndexCommonSigned __i, _IndexCommonSigned __j) {
                 //a start merging point on the merge path; for each thread
                 _Index1 __r = 0; //row index
                 _Index2 __c = 0; //column index
@@ -3104,16 +3115,14 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                 {
                     //calc merge path intersection:
                     const _IndexCommon __d_size =
-                        static_cast<_IndexCommon>(std::abs(
-                            std::max(_IndexCommonSigned{0}, _IndexCommonSigned{__i} - _IndexCommonSigned{__n_2}) -
-                            (std::min(_IndexCommonSigned{__i}, _IndexCommonSigned{__n_1}) - 1))) + 1;
+                        static_cast<_IndexCommon>(
+                            std::abs(std::max(_IndexCommonSigned{0}, __i - __n_2) - (std::min(__i, __n_1) - 1))) + 1;
 
                     auto __get_row = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
-                        return std::min(static_cast<_IndexCommonSigned>(__i), static_cast<_IndexCommonSigned>(__n_1)) - __d - 1;
+                        return std::min(__i, __n_1) - __d - 1;
                     };
                     auto __get_column = [__i, __n_1](_IndexCommonSigned __d) -> _IndexCommonSigned {
-                        return std::max(_IndexCommonSigned{0},
-                                        static_cast<_IndexCommonSigned>(__i) - static_cast<_IndexCommonSigned>(__n_1)) + __d;
+                        return std::max(_IndexCommonSigned{0}, __i - __n_1) + __d;
                     };
 
                     const _counting_iterator_t __it_d(0);
@@ -3126,8 +3135,8 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                             assert(0 <= __r_tmp && __r_tmp < __n_1);
                             assert(0 <= __c_tmp && __c_tmp < __n_2);
 
-                            const auto __res = std::invoke(__comp, std::invoke(__proj2, __it_2[__c_tmp]),
-                                                           std::invoke(__proj1, __it_1[__r_tmp])) ? 0 : 1;
+                            const auto __res = std::invoke(__comp, std::invoke(__proj2, __first2[__c_tmp]),
+                                                           std::invoke(__proj1, __first1[__r_tmp])) ? 0 : 1;
                             return __res < __val;
                         });
                     const _IndexCommon __res_d = *__found; // __found == end -> __d_size, which is intentional
@@ -3140,20 +3149,17 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _It1 
                 }
 
                 //serial merge n elements, starting from input x and y, to [i, j) output range
-                const auto [__res1, __res2] =
-                    __serial_merge_out_lim(__it_1 + __r, __it_1 + __n_1, __it_2 + __c, __it_2 + __n_2, __it_out + __i,
-                                           __it_out + __j, __comp, __proj1, __proj2);
+                const auto __merge_out_lim_res =
+                    __serial_merge_out_lim(__first1 + __r, __first1 + __n_1, __first2 + __c, __first2 + __n_2,
+                                           __first3 + __i, __first3 + __j, __comp, __proj1, __proj2);
 
                 if (__j == __n_out)
-                {
-                    __it_res_1 = __res1;
-                    __it_res_2 = __res2;
-                }
+                    __result = __merge_out_lim_res;
             },
             __merge_path_cut_off); //grainsize
     });
 
-    return {__it_res_1, __it_res_2};
+    return __result;
 }
 
 template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator1, class _RandomAccessIterator2,
