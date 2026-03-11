@@ -3092,7 +3092,8 @@ __merge_path_out_lim(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _Forw
     assert(__n_2 > 0);
     assert(__n_out > 0);
 
-    _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2, __first3};
+    _merge_path_out_lim_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator> __result{__first1, __first2,
+                                                                                                 __first3};
 
     __internal::__except_handler([&]() {
         __par_backend::__parallel_for(
