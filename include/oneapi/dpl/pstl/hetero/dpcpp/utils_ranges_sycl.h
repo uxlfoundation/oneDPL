@@ -702,7 +702,7 @@ struct __get_sycl_range
 
         const auto __offset = __first.get_idx();
         const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
-        const auto __n = ::std::min(decltype(__size)(__last - __first), __size);
+        const auto __n = std::min(decltype(__size)(__last - __first), __size);
         assert(__offset + __n <= __size);
 
         return __range_holder<
@@ -745,7 +745,7 @@ struct __get_sycl_range
     //SFINAE-overload for a contiguous host iterator
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last) -> ::std::enable_if_t<
+    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
         is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
             !is_permutation<_Iter>::value,
         __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
@@ -776,7 +776,7 @@ struct __get_sycl_range
     //SFINAE-overload for non-contiguous host iterator
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last) -> ::std::enable_if_t<
+    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
         is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
             !is_permutation<_Iter>::value,
         __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>

@@ -1456,7 +1456,7 @@ __pattern_partial_sort(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _It
     if (__last - __first < 2)
         return;
 
-    __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __first,
+    __par_backend_hetero::__parallel_partial_sort(_BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __first,
                                                   __mid, __last, __comp)
         .__checked_deferrable_wait();
 }
