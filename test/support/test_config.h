@@ -342,11 +342,4 @@
 #    define TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE 0
 #endif
 
-// The std::input_iterator and std::output_iterator concepts are broken in some versions of libstdc++.
-#if defined(__GLIBCXX__)
-#define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN (_ONEDPL_GCC_VERSION < 100400)
-#else
-#define _ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN 0
-#endif
-
 #endif // _TEST_CONFIG_H

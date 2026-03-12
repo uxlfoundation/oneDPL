@@ -60,7 +60,9 @@ using NonSimpleCommonRandomAccessSized = NonSimpleCommon;
 static_assert(std::ranges::common_range<Common<true>>);
 static_assert(std::ranges::random_access_range<SimpleCommon>);
 static_assert(std::ranges::sized_range<SimpleCommon>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SimpleCommon>);
+#endif
 static_assert(!simple_view<NonSimpleCommon>);
 
 template <bool Simple>
@@ -86,7 +88,9 @@ using NonSimpleCommonNonRandom = CommonNonRandom<false>;
 static_assert(std::ranges::common_range<SimpleCommonNonRandom>);
 static_assert(!std::ranges::random_access_range<SimpleCommonNonRandom>);
 static_assert(!std::ranges::sized_range<SimpleCommonNonRandom>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SimpleCommonNonRandom>);
+#endif
 static_assert(!simple_view<NonSimpleCommonNonRandom>);
 
 template <bool Simple>
@@ -110,7 +114,9 @@ using NonSimpleNonCommon = NonCommon<false>;
 static_assert(!std::ranges::common_range<SimpleNonCommon>);
 static_assert(std::ranges::random_access_range<SimpleNonCommon>);
 static_assert(!std::ranges::sized_range<SimpleNonCommon>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SimpleNonCommon>);
+#endif
 static_assert(!simple_view<NonSimpleNonCommon>);
 
 template <bool Simple>
@@ -137,7 +143,9 @@ using NonSimpleNonCommonRandomAccessSized = NonSimpleNonCommonSized;
 static_assert(!std::ranges::common_range<SimpleNonCommonSized>);
 static_assert(std::ranges::random_access_range<SimpleNonCommonSized>);
 static_assert(std::ranges::sized_range<SimpleNonCommonSized>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SimpleNonCommonSized>);
+#endif
 static_assert(!simple_view<NonSimpleNonCommonSized>);
 
 template <bool Simple>
@@ -167,7 +175,9 @@ using NonSimpleNonCommonNonRandom = NonCommonNonRandom<false>;
 static_assert(!std::ranges::common_range<SimpleNonCommonNonRandom>);
 static_assert(!std::ranges::random_access_range<SimpleNonCommonNonRandom>);
 static_assert(!std::ranges::sized_range<SimpleNonCommonNonRandom>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SimpleNonCommonNonRandom>);
+#endif
 static_assert(!simple_view<NonSimpleNonCommonNonRandom>);
 
 template <class Iter, class Sent = Iter, class NonConstIter = Iter, class NonConstSent = Sent>
@@ -233,7 +243,9 @@ static_assert(std::ranges::forward_range<ForwardSizedView>);
 static_assert(std::ranges::sized_range<ForwardSizedView>);
 static_assert(std::ranges::common_range<ForwardSizedView>);
 static_assert(!std::ranges::random_access_range<ForwardSizedView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<ForwardSizedView>);
+#endif
 
 using NonSimpleForwardSizedView = BasicView<forward_sized_iterator<const int*>, forward_sized_iterator<const int*>,
                                             forward_sized_iterator<int*>, forward_sized_iterator<int*>>;
@@ -248,7 +260,9 @@ static_assert(std::ranges::forward_range<ForwardSizedNonCommon>);
 static_assert(std::ranges::sized_range<ForwardSizedNonCommon>);
 static_assert(!std::ranges::common_range<ForwardSizedNonCommon>);
 static_assert(!std::ranges::random_access_range<ForwardSizedNonCommon>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<ForwardSizedNonCommon>);
+#endif
 
 using NonSimpleForwardSizedNonCommon =
     BasicView<forward_sized_iterator<const int*>, sized_sentinel<forward_sized_iterator<const int*>>,
@@ -268,7 +282,9 @@ struct SizedRandomAccessView : IntBufferView {
 
   constexpr decltype(auto) operator[](std::size_t n) const { return *(begin() + n); }
 };
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(std::ranges::view<SizedRandomAccessView>);
+#endif
 static_assert(std::ranges::random_access_range<SizedRandomAccessView>);
 static_assert(std::ranges::sized_range<SizedRandomAccessView>);
 
@@ -278,7 +294,9 @@ static_assert(!std::ranges::contiguous_range<NonSizedRandomAccessView>);
 static_assert(std::ranges::random_access_range<SizedRandomAccessView>);
 static_assert(!std::ranges::common_range<NonSizedRandomAccessView>);
 static_assert(!std::ranges::sized_range<NonSizedRandomAccessView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<NonSizedRandomAccessView>);
+#endif
 
 using NonSimpleNonSizedRandomAccessView =
     BasicView<random_access_iterator<const int*>, sentinel_wrapper<random_access_iterator<const int*>>,
@@ -309,7 +327,9 @@ using InputCommonView = BasicView<common_input_iterator<int*>>;
 static_assert(std::ranges::input_range<InputCommonView>);
 static_assert(!std::ranges::forward_range<InputCommonView>);
 static_assert(std::ranges::common_range<InputCommonView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<InputCommonView>);
+#endif
 
 using NonSimpleInputCommonView = BasicView<common_input_iterator<const int*>, common_input_iterator<const int*>,
                                            common_input_iterator<int*>, common_input_iterator<int*>>;
@@ -322,7 +342,9 @@ using InputNonCommonView = BasicView<common_input_iterator<int*>, sentinel_wrapp
 static_assert(std::ranges::input_range<InputNonCommonView>);
 static_assert(!std::ranges::forward_range<InputNonCommonView>);
 static_assert(!std::ranges::common_range<InputNonCommonView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<InputNonCommonView>);
+#endif
 
 using NonSimpleInputNonCommonView =
     BasicView<common_input_iterator<const int*>, sentinel_wrapper<common_input_iterator<const int*>>,
@@ -337,7 +359,9 @@ static_assert(!std::ranges::sized_range<BidiCommonView>);
 static_assert(std::ranges::bidirectional_range<BidiCommonView>);
 static_assert(!std::ranges::random_access_range<BidiCommonView>);
 static_assert(std::ranges::common_range<BidiCommonView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<BidiCommonView>);
+#endif
 
 using NonSimpleBidiCommonView = BasicView<bidirectional_iterator<const int*>, bidirectional_iterator<const int*>,
                                           bidirectional_iterator<int*>, bidirectional_iterator<int*>>;
@@ -355,7 +379,9 @@ static_assert(std::ranges::sized_range<SizedBidiCommon>);
 static_assert(std::ranges::bidirectional_range<SizedBidiCommon>);
 static_assert(!std::ranges::random_access_range<SizedBidiCommon>);
 static_assert(std::ranges::common_range<SizedBidiCommon>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SizedBidiCommon>);
+#endif
 
 struct NonSimpleSizedBidiCommon : NonSimpleBidiCommonView {
   using NonSimpleBidiCommonView::NonSimpleBidiCommonView;
@@ -372,7 +398,9 @@ static_assert(!std::ranges::sized_range<BidiNonCommonView>);
 static_assert(std::ranges::bidirectional_range<BidiNonCommonView>);
 static_assert(!std::ranges::random_access_range<BidiNonCommonView>);
 static_assert(!std::ranges::common_range<BidiNonCommonView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<BidiNonCommonView>);
+#endif
 
 using NonSimpleBidiNonCommonView =
     BasicView<bidirectional_iterator<const int*>, sentinel_wrapper<bidirectional_iterator<const int*>>,
@@ -388,7 +416,9 @@ static_assert(std::ranges::sized_range<SizedBidiNonCommonView>);
 static_assert(std::ranges::bidirectional_range<SizedBidiNonCommonView>);
 static_assert(!std::ranges::random_access_range<SizedBidiNonCommonView>);
 static_assert(!std::ranges::common_range<SizedBidiNonCommonView>);
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(simple_view<SizedBidiNonCommonView>);
+#endif
 
 using NonSimpleSizedBidiNonCommonView =
     BasicView<bidirectional_iterator<const int*>, sized_sentinel<bidirectional_iterator<const int*>>,

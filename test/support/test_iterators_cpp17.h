@@ -72,8 +72,8 @@ template <class It>
 cpp17_output_iterator(It) -> cpp17_output_iterator<It>;
 #endif
 
-#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
-   static_assert(std::output_iterator<cpp17_output_iterator<int*>, int>);
+#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+static_assert(std::output_iterator<cpp17_output_iterator<int*>, int>);
 #endif
 
 // This iterator meets C++20's Cpp17InputIterator requirements, as described
@@ -122,8 +122,8 @@ template <class It>
 cpp17_input_iterator(It) -> cpp17_input_iterator<It>;
 #endif
 
-#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
-   static_assert(std::input_iterator<cpp17_input_iterator<int*>>);
+#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+static_assert(std::input_iterator<cpp17_input_iterator<int*>>);
 #endif
 
 template <class It>
@@ -729,7 +729,9 @@ public:
 template <class It>
 cpp20_input_iterator(It) -> cpp20_input_iterator<It>;
 
+#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(std::input_iterator<cpp20_input_iterator<int*>>);
+#endif
 
 template<std::input_or_output_iterator>
 struct iter_value_or_void { using type = void; };
@@ -766,7 +768,9 @@ public:
 template <class It>
 cpp20_output_iterator(It) -> cpp20_output_iterator<It>;
 
+#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(std::output_iterator<cpp20_output_iterator<int*>, int>);
+#endif
 
 #  if TEST_STD_VER >= 20
 
