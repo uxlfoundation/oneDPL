@@ -2959,16 +2959,22 @@ __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
             *__first3++ = *__first1++;
     }
 
-    // Copy the rest of the remaining sequence if there is still some space in output sequence
     const _Difference __to_copy1 = std::min<_Difference>(__last1 - __first1, __last3 - __first3);
-    std::copy_n(__first1, __to_copy1, __first3);
-    __first1 += __to_copy1;
-    __first3 += __to_copy1;
+    if (__to_copy1 > 0)
+    {
+        // Copy the rest of the remaining sequence if there is still some space in output sequence
+        std::copy_n(__first1, __to_copy1, __first3);
+        __first1 += __to_copy1;
+        __first3 += __to_copy1;
+    }
 
     const _Difference __to_copy2 = std::min<_Difference>(__last2 - __first2, __last3 - __first3);
-    std::copy_n(__first2, __to_copy2, __first3);
-    __first2 += __to_copy2;
-    __first3 += __to_copy2;
+    if (__to_copy2 > 0)
+    {
+        std::copy_n(__first2, __to_copy2, __first3);
+        __first2 += __to_copy2;
+        __first3 += __to_copy2;
+    }
 
     return {__first1, __first2, __first3};
 }
