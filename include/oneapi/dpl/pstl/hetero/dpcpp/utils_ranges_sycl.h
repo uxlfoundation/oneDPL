@@ -700,17 +700,15 @@ struct __get_sycl_range
         static constexpr bool _ResolvedNoInit =
             __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
 
-        const auto __offset = __first.get_idx();
-        const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
-        const auto __n = std::min(decltype(__size)(__last - __first), __size);
+        const std::size_t __offset = __first.get_idx();
+        const std::size_t __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
+        const std::size_t __n = std::min<std::size_t>(__last - __first, __size);
         assert(__offset + __n <= __size);
 
-        return __range_holder<
-            oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit, __dpl_sycl::__target_device,
-                                            sycl::access::placeholder::true_t>>{
-            oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit, __dpl_sycl::__target_device,
-                                            sycl::access::placeholder::true_t>(__first.get_buffer() /* buffer */,
-                                                                               __offset /* offset*/, __n /* size*/)};
+        using _View = oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit,
+                                                      __dpl_sycl::__target_device, sycl::access::placeholder::true_t>;
+
+        return __range_holder<_View>{_View(__first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
     }
 
     //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
@@ -732,14 +730,14 @@ struct __get_sycl_range
         //  __first is not guaranteed to be a sycl_iterator, it may be another type which sets the trait
         //   is_hetero = ::std::true_type. We use get_idx() to get the buffer offset, use get_buffer() to get the
         //   buffer and use those to create the range.
-        const auto __offset = __first.get_idx();
-        const auto __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
-        const auto __n = ::std::min(decltype(__size)(__last - __first), __size);
+        const std::size_t __offset = __first.get_idx();
+        const std::size_t __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
+        const std::size_t __n = std::min<std::size_t>(__last - __first, __size);
         assert(__offset + __n <= __size);
 
-        return __range_holder<oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>>{
-            oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>(
-                __first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
+        using _View = oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>;
+
+        return __range_holder<_View>{_View(__first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
     }
 
     //SFINAE-overload for a contiguous host iterator
