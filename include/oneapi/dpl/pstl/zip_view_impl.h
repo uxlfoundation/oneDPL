@@ -473,10 +473,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
         else if constexpr ((std::ranges::random_access_range<_Views> && ...))
         {
-			using __diff_CT = std::common_type_t<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>::difference_type...>;
-
             auto __it = begin();
-            __it += static_cast<__diff_CT>(size());
+            __it += static_cast<typename decltype(__it)::difference_type>(size());
             return __it;        }
         else
         {
@@ -499,10 +497,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
         else if constexpr ((std::ranges::random_access_range<const _Views> && ...))
         {
-			using __diff_CT = std::common_type_t<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>::difference_type...>;
-
             auto __it = begin();
-            __it += static_cast<__diff_CT>(size());
+            __it += static_cast<typename decltype(__it)::difference_type>(size());
             return __it;        }
         else
         {
