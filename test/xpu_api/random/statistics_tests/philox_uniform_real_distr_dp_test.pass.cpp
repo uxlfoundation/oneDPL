@@ -16,7 +16,7 @@
 #if TEST_UNNAMED_LAMBDAS
 
 #include "common_for_distributions.hpp"
-static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202603L)
+static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202603L);
 
 /* ------   Tested the statistics of different engines   ------ */
 // n = 2
