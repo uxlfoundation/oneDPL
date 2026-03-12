@@ -440,16 +440,16 @@ class philox_engine
             __res_hi = __mult_result >> word_size;
             __res_lo = __mult_result;
         }
-        /* pen-pencil multiplication by 32-bit chunks */
+        /* pen-and-pencil multiplication by 32-bit chunks */
         else if constexpr (word_size > 32)
         {
-            constexpr std::size_t chunk_size = 32;
+            constexpr std::size_t __chunk_size = 32;
             __res_lo = __a * __b;
 
-            scalar_type __x0 = __a & __word_mask<chunk_size>;
-            scalar_type __x1 = __a >> chunk_size;
-            scalar_type __y0 = __b & __word_mask<chunk_size>;
-            scalar_type __y1 = __b >> chunk_size;
+            scalar_type __x0 = __a & __word_mask<__chunk_size>;
+            scalar_type __x1 = __a >> __chunk_size;
+            scalar_type __y0 = __b & __word_mask<__chunk_size>;
+            scalar_type __y1 = __b >> __chunk_size;
 
             scalar_type __p11 = __x1 * __y1;
             scalar_type __p01 = __x0 * __y1;
@@ -457,12 +457,12 @@ class philox_engine
             scalar_type __p00 = __x0 * __y0;
 
             /* addition of three 32-bit values to get the carry for the hi part */
-            scalar_type carry_hi =
-                ((__p10 & __word_mask<chunk_size>)+(__p00 >> chunk_size) + (__p01 & __word_mask<chunk_size>)) >>
-                chunk_size;
+            scalar_type __carry_hi =
+                ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
+                __chunk_size;
 
             /* 64-bit product + two 32-bit values + carry from the lo part */
-            __res_hi = (__p11 + (__p01 >> chunk_size) + (__p10 >> chunk_size) + carry_hi);
+            __res_hi = (__p11 + (__p01 >> __chunk_size) + (__p10 >> __chunk_size) + __carry_hi);
 
             /* for w!=64 the result should be concatenated with the lo part */
             __res_hi =
@@ -487,13 +487,13 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
     __CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto k_elm : __engine.state_.K)
+    for (auto __k_elm : __engine.state_.K)
     {
-        __os << k_elm << __sp;
+        __os << __k_elm << __sp;
     }
-    for (auto x_elm : __engine.state_.X)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << x_elm << __sp;
+        __os << __x_elm << __sp;
     }
     __os << __engine.state_.idx;
 
