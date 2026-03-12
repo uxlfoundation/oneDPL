@@ -128,7 +128,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 
   public:
     zip_view() = default;
-    constexpr zip_view(_Views... __views) : __views(std::move(__views)...) {}
+    constexpr explicit zip_view(_Views... __views) : __views(std::move(__views)...) {}
 
     //forward declaration of sentinel classes
     template <bool _Const>
