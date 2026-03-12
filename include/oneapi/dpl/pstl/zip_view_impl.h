@@ -476,7 +476,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 			      using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
 
             auto __it = begin();
-            __it += static_cast<__iterators_type::difference_type>(size());
+            __it += static_cast<typename iterator<false>::difference_type>(size());
             return __it;
         }
         else
@@ -503,7 +503,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 			      using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
 
             auto __it = begin();
-            __it += static_cast<__iterators_type::difference_type>(size());
+            __it += static_cast<typename iterator<true>::difference_type>(size());
             return __it;
         }
         else
