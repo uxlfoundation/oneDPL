@@ -111,6 +111,7 @@ main()
 #endif // TEST_LONG_RUN
     EXPECT_TRUE(!err, "Test FAILED");
 
+#if ONEDPL_HAS_RANDOM_NUMBERS >= 202603L
     std::cout << "---------------------------------------------------" << std::endl;
     std::cout << "philox_engine<uint_fast32_t, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>" << std::endl;
     std::cout << "---------------------------------------------------" << std::endl;
@@ -137,6 +138,8 @@ main()
     err += device_copyable_test<oneapi::dpl::uniform_real_distribution<sycl::vec<float, 16>>, oneapi::dpl::philox4x64_vec<2>>(queue);
     err += device_copyable_test<oneapi::dpl::uniform_real_distribution<sycl::vec<float, 16>>, oneapi::dpl::philox4x64_vec<1>>(queue);
 #endif // TEST_LONG_RUN
+#endif // ONEDPL_HAS_RANDOM_NUMBERS >= 202603L
+
     EXPECT_TRUE(!err, "Test FAILED");
 
 #endif // TEST_UNNAMED_LAMBDAS

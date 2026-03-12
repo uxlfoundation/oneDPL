@@ -16,6 +16,7 @@
 
 #include <random>
 #include <oneapi/dpl/random>
+static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202603L)
 
 /* Corner-case testing functions */
 

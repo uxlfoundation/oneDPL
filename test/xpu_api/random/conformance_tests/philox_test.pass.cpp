@@ -16,6 +16,7 @@
 #if TEST_UNNAMED_LAMBDAS
 #include "common_for_conformance_tests.hpp"
 #include <oneapi/dpl/random>
+static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202603L)
 
 using philox2x32 = oneapi::dpl::philox_engine<std::uint_fast32_t, 32, 2, 10, 0xD2511F53, 0x9E3779B9>;
 using philox2x64 = oneapi::dpl::philox_engine<std::uint_fast64_t, 64, 2, 10, 0xD2B74407B1CE6E93, 0x9E3779B97F4A7C15>;

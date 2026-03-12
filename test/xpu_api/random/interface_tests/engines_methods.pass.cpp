@@ -15,7 +15,7 @@
 
 #if TEST_UNNAMED_LAMBDAS
 #    include <oneapi/dpl/random>
-static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202409L);
+static_assert(ONEDPL_HAS_RANDOM_NUMBERS >= 202603L);
 
 #    include <iostream>
 #    include <vector>
