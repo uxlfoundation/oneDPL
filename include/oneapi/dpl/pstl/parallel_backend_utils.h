@@ -272,36 +272,21 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
                              _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _Compare __comp,
                              _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
-    // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {++__it1, __it2, __out_it};
-    };
-
-    // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {__it1, ++__it2, __out_it};
-    };
-
-    // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [_copy](_ForwardIterator1 __it1, _ForwardIterator2 __it2,  _OutputIterator __out_it) -> _OperationRes {
-        _copy(*__it1, *__out_it);
-        return {++__it1, ++__it2, ++__out_it};
-    };
-
-    // 1. Main set_intersection operation
     while (__first1 != __last1 && __first2 != __last2)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
+        if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+            ++__first1;
+        else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            ++__first2;
+        else
+        {
+            _copy(*__first1, *__result);
 
-        std::tie(__first1, __first2, __result) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
-                                             : __op_val1_eq_val2(__first1, __first2, __result));
+            ++__first1;
+            ++__first2;
+            ++__result;
+        }
     }
-
     return __result;
 }
 
