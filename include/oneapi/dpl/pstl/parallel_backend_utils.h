@@ -288,9 +288,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1&, _ForwardIterator2& __it2, _OutputIterator&) {
-        ++__it2;
-    };
+    auto __op_val2_lt_val1 = [](_ForwardIterator1&, _ForwardIterator2& __it2, _OutputIterator&) { ++__it2; };
 
     // __proj1_val == __proj2_val
     auto __op_val1_eq_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator&) {
@@ -301,9 +299,11 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
     // 1. Main set_difference operation
     while (__first1 != __last1 && __first2 != __last2)
     {
-        const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
-        const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
-        
+        const bool __val1_lt_val2 =
+            std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
+        const bool __val2_lt_val1 =
+            !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
+
         __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
                        : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
                                          : __op_val1_eq_val2(__first1, __first2, __result));
