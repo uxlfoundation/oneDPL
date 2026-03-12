@@ -79,7 +79,7 @@ template <typename _F, typename _Tuple, std::size_t... _Ip>
 void
 __apply_to_tuple_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
-    (__f(std::get<_Ip>(__t)), ...);
+    (void(__f(std::get<_Ip>(__t))), ...);
 }
 
 template <typename _ReturnAdapter, typename _F, typename _Tuple, std::size_t... _Ip>
