@@ -226,23 +226,25 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    for (; __first1 != __last1; ++__result)
+    while (__first1 != __last1 && __first2 != __last2)
     {
-        if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first2);
+            ::new (::std::addressof(*__result++)) _Tp(*__first2);
             ++__first2;
         }
         else
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
+            ::new (::std::addressof(*__result++)) _Tp(*__first1);
             if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
                 ++__first2;
             ++__first1;
         }
     }
+
+    if (__first2 == __last2)
+        return __cc_range(__first1, __last1, __result);
+
     return __cc_range(__first2, __last2, __result);
 }
 
