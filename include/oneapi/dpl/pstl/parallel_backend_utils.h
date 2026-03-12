@@ -282,7 +282,7 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 
     // __proj1_val < __proj2_val
     auto __op_val1_lt_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2&, _OutputIterator& __out_it) {
-        ::new (std::addressof(*__out_it)) _Tp(*__it1);
+        ::new (::std::addressof(*__out_it)) _Tp(*__it1);
         ++__it1;
         ++__out_it;
     };
