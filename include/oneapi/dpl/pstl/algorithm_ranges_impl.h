@@ -544,10 +544,11 @@ std::ranges::copy_if_result<std::ranges::borrowed_iterator_t<_InRange>, std::ran
 __pattern_copy_if_ranges(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _InRange&& __in_r,
                          _OutRange&& __out_r, _Pred __pred, _Proj __proj)
 {
+    using _Size = oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange>;
     auto __first_in = std::ranges::begin(__in_r);
     auto __first_out = std::ranges::begin(__out_r);
-    auto __sz_in = std::ranges::size(__in_r);
-    auto __sz_out = std::ranges::size(__out_r);
+    _Size __sz_in = std::ranges::size(__in_r);
+    _Size __sz_out = std::ranges::size(__out_r);
 
     // TODO: test if redirecting to "regular" copy_if for sufficient output performs better
     if (__sz_in > 0 && __sz_out > 0)
@@ -600,7 +601,6 @@ __pattern_copy_if_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionP
                 break;
         }
     }
-
     return {__it_in, __it_out};
 }
 
@@ -638,25 +638,49 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _Index1 = std::ranges::range_difference_t<_R1>;
-    using _Index2 = std::ranges::range_difference_t<_R2>;
-    using _Index3 = std::ranges::range_difference_t<_OutRange>;
+    using _IndexCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
-    const _Index1 __n_1 = std::ranges::size(__r1);
-    const _Index2 __n_2 = std::ranges::size(__r2);
-    const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, std::ranges::size(__out_r));
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
 
-    auto __it_1 = std::ranges::begin(__r1);
-    auto __it_2 = std::ranges::begin(__r2);
-    auto __it_out = std::ranges::begin(__out_r);
+    const _IndexCommon __n1 = std::ranges::size(__r1);
+    const _IndexCommon __n2 = std::ranges::size(__r2);
+    const _IndexCommon __n3 = std::ranges::size(__out_r);
 
-    if (__n_out == 0)
-        return {__it_1, __it_2, __it_out};
+    //{3} is empty
+    if (__n3 == 0)
+        return {__first1, __first2, __first3};
 
-    auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n_1, __it_2,
-                                                  __n_2, __it_out, __n_out, __comp, __proj1, __proj2);
+    //{1} is empty
+    if (__n1 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
 
-    return {__res1, __res2, __it_out + __n_out};
+        auto __last2_tmp = __first2 + std::min(__n3, __n2);
+
+        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                                                __last2_tmp, __first3, __copy_range);
+        return {__first1, __last2_tmp, __last_out_res};
+    }
+
+    //{2} is empty
+    if (__n2 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
+
+        auto __last1_tmp = __first1 + std::min(__n3, __n1);
+
+        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                                __last1_tmp, __first3, __copy_range);
+        return {__last1_tmp, __first2, __last_out_res};
+    }
+
+    auto [__it1, __it2, __it3] = __merge_path_out_lim(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
+        __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
+
+    return {__it1, __it2, __it3};
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -944,8 +968,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                    _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
                         __first1, __last1, __first2, __last2, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::true_type{}, __comp, __proj1, __proj2);
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2);
             return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
@@ -963,9 +986,8 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
                 [](_RandomAccessIterator1 __first1, _RandomAccessIterator1 __last1, _RandomAccessIterator2 __first2,
                    _RandomAccessIterator2 __last2, _T* __result, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2) {
                     return oneapi::dpl::__utils::__set_intersection_construct(
-                        __first2, __last2, __first1, __last1, __result,
-                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{},
-                        /*CopyFromFirstSet = */ std::false_type{}, __comp, __proj2, __proj1);
+                        __first1, __last1, __first2, __last2, __result,
+                        oneapi::dpl::__internal::__op_uninitialized_copy<_ExecutionPolicy>{}, __comp, __proj1, __proj2);
                 },
                 __comp, __proj1, __proj2);
             return __set_intersection_return_t<_R1, _R2, _OutRange>{__last1, __last2, __out_last};
@@ -1347,32 +1369,59 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
 
-template <typename _R, typename _OutRange>
+template <typename _R, typename _OutR>
 using __unique_copy_return_t =
-    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutRange>>;
+    std::ranges::unique_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>;
 
-template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-__unique_copy_return_t<_R, _OutRange>
-__pattern_unique_copy(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutRange&& __out_r, _Comp __comp, _Proj __proj)
-{
-    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
-
-    auto __beg = std::ranges::begin(__r);
-    auto __end = __beg + std::ranges::size(__r);
-    auto __it = oneapi::dpl::__internal::__pattern_unique_copy(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __beg, __end, std::ranges::begin(__out_r),
-        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
-    return {__end, __it};
-}
-
-template <typename _ExecutionPolicy, typename _R, typename _OutRange, typename _Comp, typename _Proj>
-__unique_copy_return_t<_R, _OutRange>
-__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutRange&& __out_r,
+template <typename _IsVector, typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r,
                       _Comp __comp, _Proj __proj)
 {
-    return std::ranges::unique_copy(std::forward<_R>(__r), std::ranges::begin(__out_r), __comp, __proj);
+    using _DiffType = std::make_signed_t<oneapi::dpl::__ranges::__common_size_t<_R, _OutR>>;
+    _DiffType __sz_in = std::ranges::ssize(__r);
+    _DiffType __sz_out = std::ranges::ssize(__out_r);
+
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__pattern_bounded_unique_copy(
+        __tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r), __sz_in, std::ranges::begin(__out_r),
+        __sz_out, oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj});
+
+    return {__res.first, __res.second};
 }
 
+template <typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::true_type>, _ExecutionPolicy&&, _R&& __r, _OutR&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    auto /*std::pair*/ __res = oneapi::dpl::__internal::__brick_bounded_unique_copy(
+        std::ranges::begin(__r), std::ranges::ssize(__r), std::ranges::begin(__out_r), std::ranges::ssize(__out_r),
+        oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj>{__comp, __proj, __proj}, /*vector=*/std::true_type{});
+
+    return {__res.first, __res.second};
+}
+
+template <typename _ExecutionPolicy, typename _R, typename _OutR, typename _Comp, typename _Proj>
+__unique_copy_return_t<_R, _OutR>
+__pattern_unique_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _R&& __r, _OutR&& __out_r,
+                      _Comp __comp, _Proj __proj)
+{
+    auto __it_in = std::ranges::begin(__r);
+    auto __it_out = std::ranges::begin(__out_r);
+    auto __end_in = std::ranges::end(__r);
+    auto __end_out = std::ranges::end(__out_r);
+    auto __not_comp = std::not_fn(__comp);
+    for (; __it_out != __end_out && __it_in != __end_in; ++__it_out)
+    {
+        *__it_out = *__it_in;
+        // Find an element that is *not* equivalent to the next one
+        __it_in = std::ranges::adjacent_find(__it_in, __end_in, __not_comp, __proj);
+        // That very next one should be read from in the next loop iteration
+        if (__it_in != __end_in)
+            ++__it_in;
+    }
+    return {__it_in, __it_out};
+}
 } // namespace __ranges
 } // namespace __internal
 } // namespace dpl

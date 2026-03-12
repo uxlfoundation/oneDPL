@@ -51,11 +51,9 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
     auto __n = __last1 - __first1;
-    auto __keep1 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _RandomAccessIterator1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first1, __last1);
-    auto __keep2 =
-        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _RandomAccessIterator2>();
+    auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf2 = __keep2(__first2, __first2 + __n);
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
@@ -83,7 +81,7 @@ __pattern_transform_reduce(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
     using _Functor = unseq_backend::walk_n<_UnaryOperation>;
     using _RepackedTp = __par_backend_hetero::__repacked_tuple_t<_Tp>;
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf = __keep(__first, __last);
 
     return oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_RepackedTp,
@@ -134,14 +132,15 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
 
     const auto __n = __last - __first;
 
-    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _Iterator1>();
+    auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __buf1 = __keep1(__first, __last);
 
     // This is a temporary workaround for an in-place exclusive scan while the SYCL backend scan pattern is not fixed.
     const bool __is_scan_inplace_exclusive = __n > 1 && !_Inclusive{} && __iterators_possibly_equal(__first, __result);
     if (!__is_scan_inplace_exclusive)
     {
-        auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
+        auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
         auto __buf2 = __keep2(__result, __result + __n);
 
         oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
@@ -164,7 +163,8 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         oneapi::dpl::__par_backend_hetero::__buffer<_Type> __tmp_buf(__n);
         auto __first_tmp = __tmp_buf.get();
         auto __last_tmp = __first_tmp + __n;
-        auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _Iterator2>();
+        auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
@@ -250,11 +250,10 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     {
         oneapi::dpl::__internal::__transform_functor<_BinaryOperation, std::true_type> __fn{__op};
 
-        auto __keep1 =
-            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read, _ForwardIterator1>();
+        auto __keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
         auto __buf1 = __keep1(__first, __last);
-        auto __keep2 =
-            oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, _ForwardIterator2>();
+        auto __keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write,
+                                                               /*_IsNoInitRequested=*/true>();
         auto __buf2 = __keep2(__d_first, __d_last);
 
         using _Function = unseq_backend::walk_adjacent_difference<decltype(__fn)>;
@@ -266,6 +265,103 @@ __pattern_adjacent_difference(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     }
 
     return __d_last;
+}
+
+//------------------------------------------------------------------------
+// segmented numeric algorithms
+//------------------------------------------------------------------------
+
+template <typename _Name>
+struct __copy_keys_values_wrapper;
+
+template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
+          typename _Iterator3, typename _Iterator4, typename _BinaryPredicate, typename _BinaryOperator>
+typename std::iterator_traits<_Iterator3>::difference_type
+__pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Iterator1 __keys_first,
+                            _Iterator1 __keys_last, _Iterator2 __values_first, _Iterator3 __out_keys_first,
+                            _Iterator4 __out_values_first, _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
+{
+    const std::size_t __n = std::distance(__keys_first, __keys_last);
+
+    if (__n == 0)
+        return 0;
+
+    if (__n == 1)
+    {
+        __brick_copy<__hetero_tag<_BackendTag>> __copy_op{};
+
+        oneapi::dpl::__internal::__pattern_walk2_n(
+            __tag, oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__copy_keys_values_wrapper>(__exec),
+            oneapi::dpl::make_zip_iterator(__keys_first, __values_first), 1,
+            oneapi::dpl::make_zip_iterator(__out_keys_first, __out_values_first), __copy_op);
+
+        return 1;
+    }
+
+    auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __keys = __keep_keys(__keys_first, __keys_last);
+    auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
+    auto __values = __keep_values(__values_first, __values_first + __n);
+    auto __keep_key_outputs = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __out_keys = __keep_key_outputs(__out_keys_first, __out_keys_first + __n);
+    auto __keep_value_outputs =
+        oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
+    auto __out_values = __keep_value_outputs(__out_values_first, __out_values_first + __n);
+    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
+        __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive,
+          typename _InitType>
+_OutputIterator
+__pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _InputIterator1 __first1,
+                               _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                               _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive, _InitType __init)
+{
+    const auto __n = std::distance(__first1, __last1);
+
+    // Check for empty element ranges
+    if (__n <= 0)
+        return __result;
+
+    namespace __bknd = oneapi::dpl::__par_backend_hetero;
+
+    auto __keep_keys = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
+    auto __key_buf = __keep_keys(__first1, __last1);
+    auto __keep_values = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read>();
+    auto __value_buf = __keep_values(__first2, __first2 + __n);
+    auto __keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
+    auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
+
+    __bknd::__parallel_scan_by_segment<_Inclusive::value>(
+        _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
+        __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
+    return __result + __n;
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive, typename _T>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive, _T __init)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive,
+                                          unseq_backend::__init_value<_T>{__init});
+}
+
+template <typename _BackendTag, typename _Policy, typename _InputIterator1, typename _InputIterator2,
+          typename _OutputIterator, typename _BinaryPredicate, typename _Operator, typename _Inclusive>
+_OutputIterator
+__pattern_scan_by_segment(__hetero_tag<_BackendTag> __tag, _Policy&& __policy, _InputIterator1 __first1,
+                          _InputIterator1 __last1, _InputIterator2 __first2, _OutputIterator __result,
+                          _BinaryPredicate __binary_pred, _Operator __binary_op, _Inclusive __is_inclusive)
+{
+    return __pattern_scan_by_segment_impl(__tag, std::forward<_Policy>(__policy), __first1, __last1, __first2, __result,
+                                          __binary_pred, __binary_op, __is_inclusive, unseq_backend::__no_init_value{});
 }
 
 } // namespace __internal

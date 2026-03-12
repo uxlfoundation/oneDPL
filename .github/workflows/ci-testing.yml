@@ -49,12 +49,7 @@ jobs:
       - name: Get clang-format
         run: sudo apt-get install -yqq clang-format
       - name: Applying clang-format for changed files
-        run: |
-          MERGE_BASE=$(git merge-base ${{ github.event.pull_request.head.sha }} ${{ github.event.pull_request.base.sha }})
-          FILES=$(git diff --diff-filter=d --name-only $MERGE_BASE | grep ^include | grep -v nanorange\.hpp\$ || true)
-          CLANG_FORMAT_DIFF_PATH=$(which clang-format-diff)
-          echo $FILES | xargs -n1 -t -r git diff -U0 --no-color --relative $MERGE_BASE | python3 $CLANG_FORMAT_DIFF_PATH -i -p1 -style file
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: .github/scripts/clang-format-diff.sh ${{ github.event.pull_request.head.sha }} ${{ github.event.pull_request.base.sha }}
       - name: Creating diff
         run: git diff > clang-format.diff
       - name: Checking if diff is empty
@@ -159,8 +154,24 @@ jobs:
         if: (matrix.backend == 'tbb' || matrix.backend == 'dpcpp' || matrix.cxx_compiler == 'icpx' || matrix.cxx_compiler == 'icx' || matrix.cxx_compiler == 'icx-cl' || matrix.cxx_compiler == 'dpcpp' || matrix.cxx_compiler == 'dpcpp-cl')
         run: |
           # https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-linux/2024-0/apt.html
-          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-          | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          success=false
+          for i in 1 2 3 4 5; do
+            if wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null; then
+              success=true
+              break
+            fi
+            if [ "$i" -lt 5 ]; then
+              echo "Attempt $i failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "Attempt $i failed; no more retries left."
+            fi
+          done
+          if [ "$success" = false ]; then
+            echo "Failed to download Intel GPG key after 5 attempts"
+            exit 1
+          fi
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update -y
       - name: Install Intel® oneAPI Threading Building Blocks
@@ -234,10 +245,10 @@ jobs:
           if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
             warning_flags="${warning_flags} -Wno-error=recommended-option"
           fi
-
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${warning_flags}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
+          ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure ${ctest_flags} |& tee ctest.log
 
           # Generate a summary
@@ -377,12 +388,13 @@ jobs:
             set warning_flags=-Wall -Werror -Wno-error=sign-compare -Wno-error=pass-failed
           )
 
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DONEDPL_DEVICE_TYPE=${{ matrix.device_type }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="%warning_flags%" ..
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           for %%t in (%ninja_targets%) do (
             ninja -j 2 -v "%%t" >> build.log 2>&1
             if !errorlevel! neq 0 set exit_code=!errorlevel!
           )
+          set ONEAPI_DEVICE_SELECTOR=*:${{ matrix.device_type }}
           ctest --timeout %TEST_TIMEOUT% -C ${{ matrix.build_type }} --output-on-failure %ctest_flags% > ctest.log 2>&1
           if !errorlevel! neq 0 set exit_code=!errorlevel!
           type ctest.log

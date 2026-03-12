@@ -23,6 +23,7 @@
 #include <stdexcept>        // for std::logic_error
 
 #include "iterator_utils.h"
+#include "oneapi/dpl/execution"
 #include "compile_only_checks.h"
 #include "utils_sycl_defs.h"
 

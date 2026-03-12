@@ -32,6 +32,7 @@ endif()
 
 # disable fast math for ALL TESTS
 # icpx and dpcpp accept -fno-fast-math, but icx-cl and dpcpp-cl only accept /clang:-fno-fast-math
+_onedpl_push_quiet_checks()
 foreach(_fno_fast_math_flag -fno-fast-math /clang:-fno-fast-math)
     string(MAKE_C_IDENTIFIER ${_fno_fast_math_flag} FLAG_DISPLAY_NAME)
     check_cxx_compiler_flag(${_fno_fast_math_flag} ${FLAG_DISPLAY_NAME}_option)
@@ -41,6 +42,7 @@ foreach(_fno_fast_math_flag -fno-fast-math /clang:-fno-fast-math)
         break()
     endif()
 endforeach()
+_onedpl_pop_quiet_checks()
 if (_fno_fast_math_option)
     add_compile_options(${_fno_fast_math_option})
 else()
@@ -131,21 +133,6 @@ macro(onedpl_construct_exec test_source_file _test_name switch_off_checked_itera
         endif()
 
         set_tests_properties(${_test_name} PROPERTIES SKIP_RETURN_CODE 77)
-
-        if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
-            if (DEFINED DEVICE_SELECTION_LINE)
-                message(FATAL_ERROR "PSTL offload tests ${_test_name} don't need ${DEVICE_SELECTION_LINE} variable, so one should be not set.")
-            endif()
-            # This test is only one requiring device selection environment, set it manually.
-            if ("${_test_name}" STREQUAL selected_different_device.pass AND _ONEDPL_PSTL_OFFLOAD MATCHES "(cpu|gpu)")
-                set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${_ONEDPL_PSTL_OFFLOAD}")
-            endif()
-        elseif (DEFINED DEVICE_SELECTION_LINE)
-            file(GLOB_RECURSE DS_TESTS "parallel_api/dynamic_selection/*.cpp")
-            if (NOT "${DS_TESTS}" MATCHES "${_test_name}") # do not set SYCL_DEVICE_FILTER for dynamic selection tests
-                set_tests_properties(${_test_name} PROPERTIES ENVIRONMENT ${DEVICE_SELECTION_LINE})
-            endif()
-        endif()
 
         add_custom_target(run-${_test_name}
             COMMAND "${CMAKE_CTEST_COMMAND}" -R ^${_test_name}$$ --output-on-failure --no-label-summary
@@ -239,7 +226,9 @@ foreach (_file IN LISTS UNIT_TESTS)
         if (NOT _ONEDPL_PSTL_OFFLOAD STREQUAL off)
             if (_file MATCHES "${_regexp_pstl_offload_header_presence_required}")
                 get_filename_component(_filename "${_file}" NAME_WE)
+                _onedpl_push_quiet_checks()
                 CHECK_INCLUDE_FILE_CXX(${_filename} _has_header_file)
+                _onedpl_pop_quiet_checks()
                 if (_has_header_file)
                     onedpl_add_test(${_file} false)
                 endif()

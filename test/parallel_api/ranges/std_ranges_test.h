@@ -47,8 +47,12 @@ namespace test_std_ranges
 template <typename>
 constexpr bool supress_dangling_iterators_check = false;
 
+#if PSTL_USE_DEBUG
+inline constexpr int big_size = (1<<22) + 37; //4M
+#else
 // The largest specializations of algorithms with device policies handle 16M+ elements.
 inline constexpr int big_size = (1<<24) + 10; //16M
+#endif
 
 // ~100K is sufficient for parallel policies.
 // It also usually results in using multiple-work-group specializations for device policies.
@@ -203,6 +207,18 @@ int out_size_with_empty_in2(int) { return 0; }
 
 auto data_gen2_default = [](auto i) { return i % 5 ? i : 0;};
 auto data_gen_unprocessed = [](auto) { return -1;};
+
+template <typename T>
+static constexpr bool check_in_in_result{};
+
+template <typename I1, typename I2>
+static constexpr bool check_in_in_result<std::ranges::in_in_result<I1, I2>> = true;
+
+template <typename T>
+static constexpr bool check_in_in_out_result{};
+
+template <typename I1, typename I2, typename O>
+static constexpr bool check_in_in_out_result<std::ranges::in_in_out_result<I1, I2, O>> = true;
 
 template <typename _ReturnType>
 struct all_dangling_in_result : std::false_type
@@ -360,9 +376,13 @@ private:
             test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
     }
 
+    template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
-    process_data_in(int max_n, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    process_data_in(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, auto... args)
     {
+        std::string sizes{" for "};
+        sizes += std::to_string(max_n) + " elements";
+
         Container cont_in(exec, max_n, DataGen1{});
         Container cont_exp(exec, max_n, DataGen1{});
 
@@ -376,29 +396,33 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        using Algo = decltype(algo);
         EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
-                  (std::string("wrong return value from algo with ranges: ") + typeid(Algo).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+                  (std::string("wrong stop position with ") + typeid(Algo).name() +
+                   typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
         if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
-            n = calc_res_size<std::remove_cvref_t<decltype(algo)>>(n, std::ranges::size(res));
+            n = calc_res_size<std::remove_cvref_t<Algo>>(n, std::ranges::size(res));
 
-        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("wrong effect algo with ranges: ")
-            + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
+            + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
-    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
+    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
+             TestDataMode mode = test_mode>
     void
     process_data_in_out(int max_n, int n_in, int n_out, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                         TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_out || mode == data_in_out_lim);
+        std::string names{typeid(Algo).name()};
+        names += "<" + std::string{typeid(Policy).name()} + ">";
+        std::string sizes{" for "};
+        sizes += std::to_string(n_in) + " elements and " + std::to_string(n_out) + " space";
 
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
@@ -421,19 +445,40 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo with input range: ") + typeid(Algo).name()).c_str());
+        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+        }
+        else if constexpr (check_in_in_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong input stop position with ") + names + sizes).c_str());
+        }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
-                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+                  (std::string("wrong output stop position with ") + names + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
+                    (std::string("output mismatch with ") + names + sizes).c_str());
 
         //check result
         auto n_in_exp = std::ranges::size(in_exp_view);
-        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp, (std::string("wrong effect algo with ranges: ") + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
+                    (std::string("input mismatch with ") + names + sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -472,7 +517,8 @@ public:
         process_data_in_out(max_n, 1, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
-    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
+    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, 
+             TestDataMode mode = test_mode>
     std::enable_if_t<mode == data_in_in>
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, TransOut, auto... args)
     {
@@ -488,9 +534,14 @@ public:
     }
 
 private:
+    template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
-    process_data_in_in(int max_n, int n_in1, int n_in2, auto&& exec, auto algo, auto& checker, auto tr_in, auto... args)
+    process_data_in_in(int max_n, int n_in1, int n_in2, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
+                       auto... args)
     {
+        std::string sizes{" for "};
+        sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements";
+
         assert(n_in1 <= max_n);
         assert(n_in2 <= max_n);
 
@@ -509,29 +560,46 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        if constexpr (!std::is_same_v<decltype(res), bool>)
+        if constexpr (check_in_in_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
+        else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
         else
         {
             EXPECT_EQ(expected_res, res,
-                      (std::string("wrong return value from algo: ") + typeid(decltype(algo)).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name()).c_str());
+                      (std::string("wrong return value from ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
     }
 
-    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut, TestDataMode mode = test_mode>
+    template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
+             TestDataMode mode = test_mode>
     void
     process_data_in_in_out(int max_n, int n_in1, int n_in2, int n_out, Policy&& exec, Algo algo, Checker& checker,
                            TransIn tr_in, TransOut tr_out, auto... args)
     {
         static_assert(mode == data_in_in_out || mode == data_in_in_out_lim);
+        std::string sizes{" for "};
+        sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements and " + std::to_string(n_out) + " space";
 
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
@@ -556,19 +624,29 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                  (std::string("wrong return value from algo with input range 1: ") + typeid(Algo).name()).c_str());
+        if constexpr (check_in_in_out_result<decltype(expected_res)>)
+        {
+            EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
-        EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                  (std::string("wrong return value from algo with input range 2: ") + typeid(Algo).name()).c_str());
+            EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
+                      (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
 
+            EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
+                      (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+        }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
-                  (std::string("wrong return value from algo with output range: ") + typeid(Algo).name()).c_str());
+                    (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("wrong effect algo with ranges: ") + typeid(Policy).name()
-            + typeid(Algo).name()).c_str());
+        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("output mismatch with ")
+                    + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
 
         // Test dangling iterators in return types for call with temporary data
         test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
@@ -599,26 +677,46 @@ public:
         process_data_in_in_out(max_n, r_size, r_size/2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size, r_size, r_size/2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-	    //test cases with empty sequence(s)
+        //test cases with empty sequence(s) and/or zero output capacity
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, 0, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 private:
 
-    template<typename Ret, typename Begin>
+    template <std::size_t InIdx = 0, typename Ret, typename Begin>
     auto ret_in_val(Ret&& ret, Begin&& begin)
     {
         if constexpr (check_in<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for check_in");
             return std::distance(begin, ret.in);
-        else if constexpr (check_in1<Ret>)
+        }
+        else if constexpr (check_in1<Ret> && InIdx == 1)
+        {
             return std::distance(begin, ret.in1);
-        else if constexpr (check_in2<Ret>)
+        }
+        else if constexpr (check_in2<Ret> && InIdx == 2)
+        {
             return std::distance(begin, ret.in2);
+        }
         else if constexpr (is_iterator<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for iterator return type");
             return std::distance(begin, ret);
-        else if constexpr(is_range<Ret>)
+        }
+        else if constexpr (is_range<Ret>)
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for range return type");
             return std::pair{std::distance(begin, ret.begin()), std::ranges::distance(ret.begin(), ret.end())};
+        }
         else if constexpr(check_minmax<Ret>)
         {
+            static_assert(InIdx == 0, "InIdx should be 0 for minmax return type");
+
             const auto& [first, second] = ret;
             if constexpr(std::random_access_iterator<std::remove_cvref_t<decltype(first)>>)
                 return std::pair{std::distance(begin, first), std::ranges::distance(begin, second)};
@@ -626,7 +724,10 @@ private:
                 return std::pair{first, second};
         }
         else
+        {
+            static_assert(InIdx == 0, "InIdx should be 0 for fundamental return type");
             return ret;
+        }
     }
 
     template<typename Ret, typename Begin>
@@ -831,9 +932,9 @@ template<int call_id = 0, typename T = int, TestDataMode mode = data_in, typenam
 struct test_range_algo
 {
     const int n_serial = small_size;
-    const int n_parallel = small_size;
+    const int n_parallel = medium_size/8; // 16K
 #if TEST_DPCPP_BACKEND_PRESENT
-    const int n_device = small_size;
+    const int n_device = medium_size;
 #endif
 
     test_range_algo() = default;

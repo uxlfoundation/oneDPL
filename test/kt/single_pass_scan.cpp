@@ -29,7 +29,7 @@
 #include "../support/sycl_alloc_utils.h"
 #include "../support/scan_serial_impl.h"
 
-#include "esimd_radix_sort_utils.h"
+#include "radix_sort_utils.h"
 
 #include <random>
 #include <algorithm>

@@ -19,7 +19,33 @@
 
 #if TEST_DPCPP_BACKEND_PRESENT
 #include <oneapi/dpl/pstl/hetero/dpcpp/utils_ranges_sycl.h>
-#endif
+
+#if _ENABLE_STD_RANGES_TESTING
+template <typename SourceView>
+    requires std::ranges::view<SourceView>
+void
+verify_subscription_view_concept_equality()
+{
+    using SourceViewValue = std::ranges::range_value_t<SourceView>;
+
+    using TSubscriptionView = decltype(oneapi::dpl::__ranges::__get_subscription_view(std::declval<SourceView>()));
+    using TSubscriptionViewValue = std::ranges::range_value_t<TSubscriptionView>;
+
+    static_assert(std::ranges::range<SourceView> == std::ranges::range<TSubscriptionView>);
+    static_assert(std::ranges::borrowed_range<SourceView> == std::ranges::borrowed_range<TSubscriptionView>);
+    static_assert(std::ranges::sized_range<SourceView> == std::ranges::sized_range<TSubscriptionView>);
+    static_assert(std::ranges::view<SourceView> == std::ranges::view<TSubscriptionView>);
+    static_assert(std::ranges::input_range<SourceView> == std::ranges::input_range<TSubscriptionView>);
+    static_assert(std::ranges::output_range<SourceView, SourceViewValue> == std::ranges::output_range<TSubscriptionView, TSubscriptionViewValue>);
+    static_assert(std::ranges::forward_range<SourceView> == std::ranges::forward_range<TSubscriptionView>);
+    static_assert(std::ranges::bidirectional_range<SourceView> == std::ranges::bidirectional_range<TSubscriptionView>);
+    static_assert(std::ranges::random_access_range<SourceView> == std::ranges::random_access_range<TSubscriptionView>);
+    static_assert(std::ranges::contiguous_range<SourceView> == std::ranges::contiguous_range<TSubscriptionView>);
+    static_assert(std::ranges::common_range<SourceView> == std::ranges::common_range<TSubscriptionView>);
+    static_assert(std::ranges::viewable_range<SourceView> == std::ranges::viewable_range<TSubscriptionView>);
+}
+#endif // _ENABLE_STD_RANGES_TESTING
+#endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
 main()
@@ -72,6 +98,9 @@ main()
     
     // Check that MinimalisticView with vector<int>::iterator is a range
     static_assert(std::ranges::range<TestUtils::MinimalisticView<IntVector::iterator>>);
+
+    // Verify that subscription_view preserves range concepts for MinimalisticView
+    verify_subscription_view_concept_equality<TestUtils::MinimalisticView<IntVector::iterator>>();
 
     // All oneDPL algorithms require at least a random access range
     static_assert(std::ranges::random_access_range<TestUtils::MinimalisticView<IntVector::iterator>>);

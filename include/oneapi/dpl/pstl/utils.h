@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <exception>
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "hetero/dpcpp/sycl_defs.h"
@@ -98,6 +99,7 @@ class __not_pred
     }
 };
 
+//! Change the order of arguments when invoking a binary predicate
 template <typename _Pred>
 class __reorder_pred
 {
@@ -114,7 +116,49 @@ class __reorder_pred
     }
 };
 
-//! custom assignment operator used in copy_if and other algorithms using predicates
+//! Apply a predicate to an element at a given index of a random-access sequence
+template <typename _Pred>
+class __pred_at_index
+{
+    mutable _Pred _M_pred;
+
+  public:
+    explicit __pred_at_index(_Pred __pred) : _M_pred(__pred) {}
+
+    template <typename _RandomAccessTp, typename _IndexTp>
+    bool
+    operator()(_RandomAccessTp&& __arr, _IndexTp __i) const
+    {
+        return _M_pred(__arr[__i]);
+    }
+};
+
+//! Apply a predicate to two consecutive elements of a random-access sequence to find non-equivalent (unique) ones
+template <typename _Pred, bool _CheckZero = false>
+class __unique_at_index
+{
+    mutable _Pred _M_pred;
+
+  public:
+    explicit __unique_at_index(_Pred __pred) : _M_pred(__pred) {}
+
+    template <typename _RandomAccessTp, typename _IndexTp>
+    bool
+    operator()(_RandomAccessTp&& __arr, _IndexTp __i) const
+    {
+        if constexpr (_CheckZero)
+        {
+            if (__i == 0)
+                return true;
+        }
+        else
+            static_assert(std::is_signed_v<_IndexTp>, "The index of an unsigned type can cause a wraparound error.");
+
+        return !_M_pred(__arr[__i], __arr[__i - 1]);
+    }
+};
+
+//! Custom assignment operator used in copy_if and other algorithms using predicates
 class __pstl_assign
 {
   public:
@@ -1127,6 +1171,10 @@ template <typename _ValueType>
 inline constexpr bool __trivial_uninitialized_value_construct =
     std::is_trivially_default_constructible_v<_ValueType> && // required operation
     std::is_trivially_copy_assignable_v<_ValueType>;         // actual operation
+
+// Trick to get behavior similar to static_assert(false) pre-C++23.
+template <typename...>
+inline constexpr bool __always_false_v = false;
 
 } // namespace __internal
 } // namespace dpl

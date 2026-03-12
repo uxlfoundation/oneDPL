@@ -337,6 +337,10 @@ struct run_for_rnd_fw : non_const_wrapper_tagged<Op, ::std::bidirectional_iterat
 {
 };
 
+template <typename Iterator>
+using is_const_iterator =
+    typename ::std::is_const<::std::remove_pointer_t<typename ::std::iterator_traits<Iterator>::pointer>>;
+
 // Invoker for different types of iterators.
 template <typename IteratorTag, typename IsReverse>
 struct iterator_invoker
@@ -345,7 +349,7 @@ struct iterator_invoker
     using make_iterator = MakeIterator<Iterator, IteratorTag, IsReverse>;
 
     template <typename Iterator>
-    using invoke_if = invoke_if_<IsReverse, typename oneapi::dpl::__internal::is_const_iterator<Iterator>::type>;
+    using invoke_if = invoke_if_<IsReverse, typename is_const_iterator<Iterator>::type>;
 
     // A single iterator version which is used for non_const testcases
     template <typename Policy, typename Op, typename Iterator>
