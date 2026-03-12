@@ -75,6 +75,13 @@ concept __simple_view = std::ranges::view<_R> && std::ranges::range<const _R> &&
                         std::same_as<std::ranges::iterator_t<_R>, std::ranges::iterator_t<const _R>> &&
                         std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
+template <typename _F, typename _Tuple, std::size_t... _Ip>
+void
+__apply_to_tuple_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
+{
+    (__f(std::get<_Ip>(__t)), ...);
+}
+
 template <typename _ReturnAdapter, typename _F, typename _Tuple, std::size_t... _Ip>
 decltype(auto)
 __apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
@@ -87,6 +94,13 @@ void
 __apply_to_tuples_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
 {
     (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
+}
+
+template <typename _F, typename _Tuple>
+void
+__apply_to_tuple(_F __f, _Tuple& __t)
+{
+    __apply_to_tuple_impl(__f, __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
 }
 
 template <typename _F, typename _Tuple, typename _ReturnAdapter>
@@ -114,7 +128,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
 
   public:
     zip_view() = default;
-    constexpr explicit zip_view(_Views... __views) : __views(std::move(__views)...) {}
+    constexpr zip_view(_Views... __views) : __views(std::move(__views)...) {}
 
     //forward declaration of sentinel classes
     template <bool _Const>
@@ -192,8 +206,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr iterator&
         operator++()
         {
-			auto __gen_lambda = [](auto&&...) {};
-            __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return ++__it; }, __current, __gen_lambda);
+            __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return ++__it; }, __current);
             return *this;
         }
 
@@ -216,8 +229,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator--()
             requires __internal::__all_bidirectional<_Const, _Views...>
         {
-			auto __gen_lambda = [](auto&&...) {};
-            __internal::__apply_to_tuple([](auto& __it) { return --__it; }, __current, __gen_lambda);
+            __internal::__apply_to_tuple([](auto& __it) { return --__it; }, __current);
             return *this;
         }
 
@@ -234,8 +246,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator+=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-			auto __gen_lambda = [](auto&&...) {};
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it += __n; }, __current, __gen_lambda);
+            __internal::__apply_to_tuple([__n](auto& __it) { return __it += __n; }, __current);
             return *this;
         }
 
@@ -243,8 +254,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-			auto __gen_lambda = [](auto&&...) {};
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it -= __n; }, __current, __gen_lambda);
+            __internal::__apply_to_tuple([__n](auto& __it) { return __it -= __n; }, __current);
             return *this;
         }
 
@@ -464,7 +474,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         else if constexpr ((std::ranges::random_access_range<_Views> && ...))
         {
             auto __it = begin();
-            __it += size();
+            __it += static_cast<difference_type>(size());
             return __it;
         }
         else
@@ -489,7 +499,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         else if constexpr ((std::ranges::random_access_range<const _Views> && ...))
         {
             auto __it = begin();
-            __it += size();
+            __it += static_cast<difference_type>(size());
             return __it;
         }
         else
