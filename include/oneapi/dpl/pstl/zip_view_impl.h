@@ -77,46 +77,62 @@ concept __simple_view = std::ranges::view<_R> && std::ranges::range<const _R> &&
 
 template <typename _F, typename _Tuple, std::size_t... _Ip>
 void
-__apply_to_tuple_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
+__tuple_for_each_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
     (void(__f(std::get<_Ip>(__t))), ...);
 }
 
-template <typename _ReturnAdapter, typename _F, typename _Tuple, std::size_t... _Ip>
+template <typename _F, typename _Tuple, std::size_t... _Ip>
 decltype(auto)
-__apply_to_tuple_impl(_ReturnAdapter __tr, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
+__tuple_apply_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
-    return __tr(__f(std::get<_Ip>(__t))...);
+    return __f(std::get<_Ip>(__t)...);
 }
 
-template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
-void
-__apply_to_tuples_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+template <typename _Adaptor, typename _F, typename _Tuple, std::size_t... _Ip>
+decltype(auto)
+__tuple_apply_impl(_Adaptor __adaptor, _F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
-    (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
+    return __adaptor(__f(std::get<_Ip>(__t))...);
 }
 
 template <typename _F, typename _Tuple>
 void
-__apply_to_tuple(_F __f, _Tuple& __t)
+__tuple_for_each(_F __f, _Tuple& __t)
 {
-    __apply_to_tuple_impl(__f, __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
+    __tuple_for_each_impl(std::move(__f), __t,
+                          std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
-template <typename _F, typename _Tuple, typename _ReturnAdapter>
+template <typename _F, typename _Tuple>
 decltype(auto)
-__apply_to_tuple(_F __f, _Tuple& __t, _ReturnAdapter __tr)
+__tuple_apply(_F __f, _Tuple& __t)
 {
-    return __apply_to_tuple_impl(__tr, __f, __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
+    return __tuple_apply_impl(std::move(__f), __t,
+                              std::make_index_sequence<std::tuple_size_v<_Tuple>>());
+}
+
+template <typename _Adaptor, typename _F, typename _Tuple>
+decltype(auto)
+__tuple_apply(_Adaptor __adaptor, _F __f, _Tuple& __t)
+{
+    return __tuple_apply_impl(std::move(__adaptor), std::move(__f), __t,
+                              std::make_index_sequence<std::tuple_size_v<_Tuple>());
+}
+
+template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
+void
+__tuples_apply_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+{
+    (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
 }
 
 template <typename _F, typename _Tuple1, typename _Tuple2>
 void
-__apply_to_tuples(_F __f, _Tuple1& __t1, _Tuple2& __t2)
+__tuples_apply(_F __f, _Tuple1& __t1, _Tuple2& __t2)
 {
     static_assert(std::tuple_size_v<_Tuple1> == std::tuple_size_v<_Tuple2>);
-
-    __apply_to_tuples_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
+    __tuples_apply_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
 }
 
 template <std::ranges::input_range... _Views>
@@ -181,19 +197,24 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         template <typename... _Iterators>
         operator oneapi::dpl::zip_iterator<_Iterators...>() const
         {
-            auto __adaptor = [](auto&&... __iterators) -> decltype(auto) {
+            auto __make_zip = [](auto&&... __iterators) -> decltype(auto) {
                 return oneapi::dpl::make_zip_iterator(std::forward<decltype(__iterators)>(__iterators)...);
-            };
-            return __internal::__apply_to_tuple([](auto __it) -> decltype(auto) { return __it; }, __current, __adaptor);
+            }
+            return __internal::__tuple_apply(__make_zip, __current);
         }
 
         constexpr decltype(auto)
         operator*() const
         {
-            auto __tr = [](auto&&... __args) -> decltype(auto) {
+            auto __dereference = [](auto& __it) -> decltype(auto) {
+                return *__it;
+            };
+
+            auto __make_ref = [](auto&&... __args) -> decltype(auto) {
                 return __reference_type(std::forward<decltype(__args)>(__args)...);
             };
-            return __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return *__it; }, __current, __tr);
+            
+            return __internal::__tuple_apply(__make_ref, __dereference, __current);
         }
 
         constexpr decltype(auto)
@@ -206,7 +227,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr iterator&
         operator++()
         {
-            __internal::__apply_to_tuple([](auto& __it) -> decltype(auto) { return ++__it; }, __current);
+            auto __increment = [](auto& __it) {
+                ++__it;
+            };
+            __internal::__tuple_for_each(__increment, __current);
             return *this;
         }
 
@@ -229,7 +253,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator--()
             requires __internal::__all_bidirectional<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([](auto& __it) { return --__it; }, __current);
+            auto __decrement = [](auto& __it) {
+                --__it;
+            };
+            __internal::__tuple_for_each(__decrement, __current);
             return *this;
         }
 
@@ -246,7 +273,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator+=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it += __n; }, __current);
+            auto __increment_n = [__n](auto& __it) {
+                __it += __n;
+            };
+            __internal::__tuple_for_each(__increment_n, __current);
             return *this;
         }
 
@@ -254,7 +284,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            __internal::__apply_to_tuple([__n](auto& __it) { return __it -= __n; }, __current);
+            auto __decrement_n = [__n](auto& __it) {
+                __it -= __n;
+            }
+            __internal::__tuple_for_each(__decrement_n, __current);
             return *this;
         }
 
@@ -364,10 +397,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
                  std::ranges::range_rvalue_reference_t<__internal::__maybe_const<_Const, _Views>>> &&
              ...))
         {
-            auto __tr = [](auto&&... __args) -> decltype(auto) {
+            auto __make_rvalue_reference = [](auto&&... __args) -> decltype(auto) {
                 return __rvalue_reference_type(std::forward<decltype(__args)>(__args)...);
             };
-            return __internal::__apply_to_tuple(std::ranges::iter_move, __x.__current, __tr);
+            return __internal::__tuple_apply(__make_rvalue_reference, std::ranges::iter_move, __x.__current);
         }
 
         friend constexpr void
@@ -379,7 +412,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             requires(std::indirectly_swappable<std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
                      ...)
         {
-            __internal::__apply_to_tuples(std::ranges::iter_swap, __x.__current, __y.__current);
+            __internal::__tuples_apply(std::ranges::iter_swap, __x.__current, __y.__current);
         }
 
       private:
@@ -445,10 +478,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         requires(!(__internal::__simple_view<_Views> && ...))
     {
         using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
-        auto __tr = [](auto&&... __args) {
+        auto __make_iterator = [](auto&&... __args) {
             return iterator<false>(__iterators_type(std::forward<decltype(__args)>(__args)...));
         };
-        return __internal::__apply_to_tuple(std::ranges::begin, __views, __tr);
+        return __internal::__tuple_apply(__make_iterator, std::ranges::begin, __views);
     }
 
     constexpr auto
@@ -456,10 +489,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         requires(std::ranges::range<const _Views> && ...)
     {
         using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
-        auto __tr = [](auto&&... __args) {
+        auto __make_iterator = [](auto&&... __args) {
             return iterator<true>(__iterators_type(std::forward<decltype(__args)>(__args)...));
         };
-        return __internal::__apply_to_tuple(std::ranges::begin, __views, __tr);
+        return __internal::__tuple_apply(__make_iterator, std::ranges::begin, __views);
     }
 
     constexpr auto
@@ -468,8 +501,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     {
         if constexpr (!__internal::__zip_is_common<_Views...>)
         {
-            auto __tr = [](auto&&... __args) { return sentinel<false>(std::forward<decltype(__args)>(__args)...); };
-            return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
+            auto __make_sentinel = [](auto&&... __args) {
+                return sentinel<false>(std::forward<decltype(__args)>(__args)...);
+            };
+            return __internal::__tuple_apply(__make_sentinel, std::ranges::end, __views);
         }
         else if constexpr ((std::ranges::random_access_range<_Views> && ...))
         {
@@ -479,10 +514,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
-            auto __tr = [](auto&&... __args) {
+            auto __make_iterator = [](auto&&... __args) {
                 return iterator<false>(__iterators_type(std::forward<decltype(__args)>(__args)...));
             };
-            return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
+            return __internal::__tuple_apply(__make_iterator, std::ranges::end, __views);
         }
     }
 
@@ -492,8 +527,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     {
         if constexpr (!__internal::__zip_is_common<const _Views...>)
         {
-            auto __tr = [](auto&&... __args) { return sentinel<true>(std::forward<decltype(__args)>(__args)...); };
-            return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
+            auto __make_sentinel = [](auto&&... __args) {
+                return sentinel<true>(std::forward<decltype(__args)>(__args)...);
+            };
+            return __internal::__tuple_apply(__make_sentinel, std::ranges::end, __views);
         }
         else if constexpr ((std::ranges::random_access_range<const _Views> && ...))
         {
@@ -503,8 +540,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
-            auto __tr = [](auto&&... __args) { return iterator<true>(__iterators_type(std::forward<decltype(__args)>(__args)...)); };
-            return __internal::__apply_to_tuple(std::ranges::end, __views, __tr);
+            auto __make_iterator = [](auto&&... __args) {
+                return iterator<true>(__iterators_type(std::forward<decltype(__args)>(__args)...));
+            };
+            return __internal::__tuple_apply(__make_iterator, std::ranges::end, __views);
         }
     }
 
@@ -512,24 +551,24 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
     size()
         requires(std::ranges::sized_range<_Views> && ...)
     {
-        auto __tr = [](auto... __args) {
+        auto __calc_min = [](auto... __args) {
             using _CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
             return std::ranges::min({_CT(__args)...});
         };
 
-        return __internal::__apply_to_tuple(std::ranges::size, __views, __tr);
+        return __internal::__tuple_apply(__calc_min, std::ranges::size, __views);
     }
 
     constexpr auto
     size() const
         requires(std::ranges::sized_range<const _Views> && ...)
     {
-        auto __tr = [](auto... __args) {
+        auto __calc_min = [](auto... __args) {
             using _CT = std::make_unsigned_t<std::common_type_t<decltype(__args)...>>;
             return std::ranges::min({_CT(__args)...});
         };
 
-        return __internal::__apply_to_tuple(std::ranges::size, __views, __tr);
+        return __internal::__tuple_apply(__calc_min, std::ranges::size, __views);
     }
 
     const __tuple_type<_Views...>&
