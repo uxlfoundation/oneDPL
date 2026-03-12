@@ -473,12 +473,11 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
         else if constexpr ((std::ranges::random_access_range<_Views> && ...))
         {
-			      using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
+			using __iterator_type = std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>;
 
             auto __it = begin();
-            __it += static_cast<typename iterator<false>::difference_type>(size());
-            return __it;
-        }
+            __it += static_cast<__iterator_type::difference_type>(size());
+            return __it;        }
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
@@ -500,12 +499,11 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         }
         else if constexpr ((std::ranges::random_access_range<const _Views> && ...))
         {
-			      using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
+			using __iterator_type = std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>;
 
             auto __it = begin();
-            __it += static_cast<typename iterator<true>::difference_type>(size());
-            return __it;
-        }
+            __it += static_cast<__iterator_type::difference_type>(size());
+            return __it;        }
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
