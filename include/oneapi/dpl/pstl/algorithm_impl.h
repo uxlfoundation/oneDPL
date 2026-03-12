@@ -2947,26 +2947,28 @@ __serial_merge_out_lim(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _F
                        _ForwardIterator2 __last2, _OutputIterator __first3, _OutputIterator __last3, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    while (__first3 != __last3)
+    using _Difference = typename std::common_type_t<typename std::iterator_traits<_ForwardIterator1>::difference_type,
+                                                    typename std::iterator_traits<_ForwardIterator2>::difference_type,
+                                                    typename std::iterator_traits<_OutputIterator>::difference_type>;
+
+    while (__first1 != __last1 && __first2 != __last2 && __first3 != __last3)
     {
-        if (__first1 == __last1)
-        {
-            assert(__first2 != __last2);
+        if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             *__first3++ = *__first2++;
-        }
-        else if (__first2 == __last2)
-        {
-            assert(__first1 != __last1);
-            *__first3++ = *__first1++;
-        }
         else
-        {
-            if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
-                *__first3++ = *__first2++;
-            else
-                *__first3++ = *__first1++;
-        }
+            *__first3++ = *__first1++;
     }
+
+    // Copy the rest of the remaining sequence if there is still some space in output sequence
+    const _Difference __to_copy1 = std::min<_Difference>(__last1 - __first1, __last3 - __first3);
+    std::copy_n(__first1, __to_copy1, __first3);
+    __first1 += __to_copy1;
+    __first3 += __to_copy1;
+
+    const _Difference __to_copy2 = std::min<_Difference>(__last2 - __first2, __last3 - __first3);
+    std::copy_n(__first2, __to_copy2, __first3);
+    __first2 += __to_copy2;
+    __first3 += __to_copy2;
 
     return {__first1, __first2, __first3};
 }
