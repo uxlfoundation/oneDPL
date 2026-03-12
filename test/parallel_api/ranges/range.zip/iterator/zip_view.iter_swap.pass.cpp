@@ -40,7 +40,8 @@ struct ThrowingMove {
 void test() {
   {
     std::array a1{1, 2, 3, 4};
-    std::array a2{0.1, 0.2, 0.3};
+    // Use dyadic rationals to avoid x87 excess-precision issues with exact FP comparisons on 32-bit
+    std::array a2{0.5, 0.25, 0.125};
     dpl_ranges::zip_view v(a1, a2);
     auto iter1 = v.begin();
     auto iter2 = ++v.begin();
@@ -49,8 +50,8 @@ void test() {
 
     assert(a1[0] == 2);
     assert(a1[1] == 1);
-    assert(a2[0] == 0.2);
-    assert(a2[1] == 0.1);
+    assert(a2[0] == 0.25);
+    assert(a2[1] == 0.5);
 
     auto [x1, y1] = *iter1;
     assert(&x1 == &a1[0]);
