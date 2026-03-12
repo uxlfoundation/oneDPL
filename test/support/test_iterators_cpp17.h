@@ -72,7 +72,7 @@ template <class It>
 cpp17_output_iterator(It) -> cpp17_output_iterator<It>;
 #endif
 
-#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 static_assert(std::output_iterator<cpp17_output_iterator<int*>, int>);
 #endif
 
@@ -122,7 +122,7 @@ template <class It>
 cpp17_input_iterator(It) -> cpp17_input_iterator<It>;
 #endif
 
-#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 static_assert(std::input_iterator<cpp17_input_iterator<int*>>);
 #endif
 
@@ -729,7 +729,7 @@ public:
 template <class It>
 cpp20_input_iterator(It) -> cpp20_input_iterator<It>;
 
-#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 static_assert(std::input_iterator<cpp20_input_iterator<int*>>);
 #endif
 
@@ -768,7 +768,7 @@ public:
 template <class It>
 cpp20_output_iterator(It) -> cpp20_output_iterator<It>;
 
-#if TEST_STD_VER > 17 && !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#if TEST_STD_VER > 17 && !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 static_assert(std::output_iterator<cpp20_output_iterator<int*>, int>);
 #endif
 

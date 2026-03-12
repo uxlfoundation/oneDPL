@@ -322,7 +322,7 @@ void testConceptTuple() {
 
 using OutputIter = cpp17_output_iterator<int*>;
 
-#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 static_assert(std::output_iterator<OutputIter, int>);
 
 struct OutputView : std::ranges::view_base {
@@ -341,7 +341,7 @@ concept zippable = requires {
 static_assert(!zippable<OutputView>);
 static_assert(!zippable<SimpleCommon, OutputView>);
 static_assert(zippable<SimpleCommon>);
-#endif // !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+#endif // !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 #endif //_ENABLE_STD_RANGES_TESTING
 
 int main() {
