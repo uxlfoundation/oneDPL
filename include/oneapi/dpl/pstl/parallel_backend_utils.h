@@ -226,24 +226,26 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val2_lt_val1 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it2);
-        return {__it1, ++__it2, ++__out_it};
+        ++__it2;
+        ++__out_it;
     };
 
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val1_lt_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it1);
-        return {++__it1, __it2, ++__out_it};
+        ++__it1;
+        ++__out_it;
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val1_eq_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it1);
-        return {++__it1, ++__it2, ++__out_it};
+        ++__it1;
+        ++__it2;
+        ++__out_it;
     };
 
     // 1. Main set_union operation
@@ -252,10 +254,9 @@ __set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _Fo
         const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
         const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
-        std::tie(__first1, __first2, __result) = __val2_lt_val1
-                                               ? __op_val2_lt_val1(__first1, __first2, __result)
-                                               : (__val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
-                                                                 : __op_val1_eq_val2(__first1, __first2, __result));
+        __val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
+                       : (__val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
+                                         : __op_val1_eq_val2(__first1, __first2, __result));
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
@@ -272,22 +273,22 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
                              _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _Compare __comp,
                              _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {++__it1, __it2, __out_it};
+    auto __op_val1_lt_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
+        ++__it1;
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {__it1, ++__it2, __out_it};
+    auto __op_val2_lt_val1 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
+        ++__it2;
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [_copy](_ForwardIterator1 __it1, _ForwardIterator2 __it2,  _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val1_eq_val2 = [_copy](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         _copy(*__it1, *__out_it);
-        return {++__it1, ++__it2, ++__out_it};
+        ++__it1;
+        ++__it2;
+        ++__out_it;
     };
 
     // 1. Main set_intersection operation
@@ -296,10 +297,9 @@ __set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __las
         const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
         const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
-        std::tie(__first1, __first2, __result) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
-                                             : __op_val1_eq_val2(__first1, __first2, __result));
+        __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
+                    : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
+                                        : __op_val1_eq_val2(__first1, __first2, __result));
     }
 
     return __result;
@@ -314,22 +314,22 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val1_lt_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it1);
-        return {++__it1, __it2, ++__out_it};
+        ++__it1;
+        ++__out_it;
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {__it1, ++__it2, __out_it};
+    auto __op_val2_lt_val1 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
+        ++__it2;
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {++__it1, ++__it2, __out_it};
+    auto __op_val1_eq_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
+        ++__it1;
+        ++__it2;
     };
 
     // 1. Main set_difference operation
@@ -338,9 +338,9 @@ __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1
         const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
         const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
         
-        std::tie(__first1, __first2, __result) = __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
-                                               : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
-                                             : __op_val1_eq_val2(__first1, __first2, __result));
+        __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
+                       : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
+                                         : __op_val1_eq_val2(__first1, __first2, __result));
     }
 
     return __cc_range(__first1, __last1, __result);
@@ -355,23 +355,24 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
 {
     using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
 
-    using _OperationRes = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator>;
-
     // __proj1_val < __proj2_val
-    auto __op_val1_lt_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val1_lt_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it1);
-        return {++__it1, __it2, ++__out_it};
+        ++__it1;
+        ++__out_it;
     };
 
     // __proj2_val < __proj1_val
-    auto __op_val2_lt_val1 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
+    auto __op_val2_lt_val1 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
         ::new (std::addressof(*__out_it)) _Tp(*__it2);
-        return {__it1, ++__it2, ++__out_it};
+        ++__it2;
+        ++__out_it;
     };
 
     // __proj1_val == __proj2_val
-    auto __op_val1_eq_val2 = [](_ForwardIterator1 __it1, _ForwardIterator2 __it2, _OutputIterator __out_it) -> _OperationRes {
-        return {++__it1, ++__it2, __out_it};
+    auto __op_val1_eq_val2 = [](_ForwardIterator1& __it1, _ForwardIterator2& __it2, _OutputIterator& __out_it) {
+        ++__it1;
+        ++__it2;
     };
 
     // 1. Main set_symmetric_difference operation
@@ -380,10 +381,9 @@ __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterato
         const bool __val1_lt_val2 = std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2));
         const bool __val2_lt_val1 = !__val1_lt_val2 && std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1));
 
-        std::tie(__first1, __first2, __result) =
-            __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
-                           : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
-                                             : __op_val1_eq_val2(__first1, __first2, __result));
+        __val1_lt_val2 ? __op_val1_lt_val2(__first1, __first2, __result)
+                        : (__val2_lt_val1 ? __op_val2_lt_val1(__first1, __first2, __result)
+                                            : __op_val1_eq_val2(__first1, __first2, __result));
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
