@@ -75,7 +75,7 @@ concept __simple_view = std::ranges::view<_R> && std::ranges::range<const _R> &&
                         std::same_as<std::ranges::iterator_t<_R>, std::ranges::iterator_t<const _R>> &&
                         std::same_as<std::ranges::sentinel_t<_R>, std::ranges::sentinel_t<const _R>>;
 
-template <typaname _F, typename _Tuple, std::size_t... _Ip>
+template <typename _F, typename _Tuple, std::size_t... _Ip>
 void
 __tuple_for_each_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
 {
