@@ -975,13 +975,11 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _Index1 = std::ranges::range_difference_t<_R1>;
-    using _Index2 = std::ranges::range_difference_t<_R2>;
-    using _Index3 = std::ranges::range_difference_t<_OutRange>;
+    using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
-    const _Index1 __n_1 = oneapi::dpl::__ranges::__size(__r1);
-    const _Index2 __n_2 = oneapi::dpl::__ranges::__size(__r2);
-    const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, oneapi::dpl::__ranges::__size(__out_r));
+    const _CommonSize __n_1 = oneapi::dpl::__ranges::__size(__r1);
+    const _CommonSize __n_2 = oneapi::dpl::__ranges::__size(__r2);
+    const _CommonSize __n_out = std::min<_CommonSize>(__n_1 + __n_2, oneapi::dpl::__ranges::__size(__out_r));
 
     const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge(
         __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
