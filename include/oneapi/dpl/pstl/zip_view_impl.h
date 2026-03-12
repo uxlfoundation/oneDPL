@@ -181,10 +181,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         template <typename... _Iterators>
         operator oneapi::dpl::zip_iterator<_Iterators...>() const
         {
-            auto __tr = [](auto&&... __args) -> decltype(auto) {
-                return oneapi::dpl::make_zip_iterator(std::forward<decltype(__args)>(__args)...);
+            auto __adaptor = [](auto&&... __iterators) -> decltype(auto) {
+                return oneapi::dpl::make_zip_iterator(std::forward<decltype(__iterators)>(__iterators)...);
             };
-            return __internal::__apply_to_tuple([](auto __it) -> decltype(auto) { return __it; }, __current, __tr);
+            return __internal::__apply_to_tuple([](auto __it) -> decltype(auto) { return __it; }, __current, __adaptor);
         }
 
         constexpr decltype(auto)
