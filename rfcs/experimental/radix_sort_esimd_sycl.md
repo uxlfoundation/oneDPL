@@ -5,7 +5,7 @@
 This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. Two implementations were provided: an ESIMD variant optimized for Intel PVC archiecture and a portable SYCL variant targeting
 Intel GPUs that support work-group independent forward progress.
 
-Both implementations use the onesweep radix sort algorithm with decoupled lookback synchronization. This approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
+Both implementations use the onesweep radix sort algorithm with decoupled lookback synchronization, the current state-of-the-art GPU sort. This approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
 
 The motivation for these implementations was to provide:
 - Competitive performance with state-of-the-art GPU sort
@@ -19,7 +19,7 @@ The motivation for these implementations was to provide:
 
 #### Onesweep Radix Sort Overview
 
-The onesweep radix sort algorithm processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use separate histogram and reorder phases. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once.
+The onesweep radix sort algorithm processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use separate histogram and reorder phases. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once with a single pass over keys.
 
 Each radix stage follows this flow:
 1. Load keys from global memory
@@ -60,28 +60,28 @@ The onesweep approach reduces this traffic:
 ```mermaid
 graph LR
     A[Histogram<br/>all stages] --> B[Scan<br/>all stages]
-    B --> C[Stage<br/>current radix]
+    B --> C[Reorder<br/>current stage]
     C --> D{More<br/>stages?}
     D -->|Yes| C
     D -->|No| E[Sorted Output]
 
     style A fill:#ffcccc
     style B fill:#cce5ff
-    style C fill:#ffe1f5
+    style C fill:#ffffcc
 ```
 
-- Upfront global histogram and scan (one-time cost across all stages)
+- Upfront global histogram and scan incurring n reads (one-time cost across all stages)
 - Per radix iteration: 1 read + 1 write through the entire dataset
 - No separate histogram pass needed per stage
 
-This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global offsets without revisiting the entire dataset at each stage.
+This reduction in memory bandwidth pressure is critical for GPU sort performance, where global memory bandwidth is the primary bottleneck. The upfront histogram enables work-groups to determine global bin offsets without revisiting the entire dataset at each stage.
 
 #### Decoupled Lookback
 
-Decoupled lookback enables work-groups to process data independently without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each work-group publishes its local histogram to global memory after computing it. Work-group N then sequentially looks back at the published histograms from work-groups N-1 through 0 to determine the global offset for its data. Work-groups may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram.
+Decoupled lookback enables work-groups to process data independently without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each work-group publishes its local histogram to global memory after computing it. Work-group N then sequentially looks back at the published histograms from work-groups N-1 through 0 performing an exclusive scan to determine its global offset across each radix bin. Work-groups may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram.
 
 This mechanism provides two key benefits:
-- Work-groups can begin processing as soon as their dependencies are satisfied
+- Work-groups can continue processing as soon as their immediate dependencies are satisfied
 - No global synchronization points that would stall all work-groups, freeing hardware resources for higher indexed tiles
 
 The lookback operates by having each work-group spin-wait on global memory locations until the previous work-group has written its partial histogram. Work-groups accumulate these partial results to compute their global offsets.
@@ -92,7 +92,8 @@ The lookback operates by having each work-group spin-wait on global memory locat
 
 The decoupled lookback protocol requires work-group N to spin-wait for work-group N-1 to publish its results. Without guarantees of concurrent execution, this can lead to deadlock if the hardware scheduler does not ensure that work-group N-1 makes progress while work-group N is waiting.
 
-This is a fundamental challenge for any GPU algorithm that uses inter-work-group synchronization within a single kernel launch.
+This is a fundamental challenge for any GPU algorithm that uses inter-work-group synchronization within a single kernel launch as current GPU programming models do not 
+provide any work-group forward progress guarantees with standard launch modes.
 
 #### ESIMD Approach
 
@@ -115,7 +116,8 @@ auto get(syclex::properties_tag) const
 
 This extension guarantees that work-groups within the kernel launch execute concurrently and make independent forward progress. This is the only approach that provides a formal hardware safety guarantee across different GPU schedulers and vendors where the property is supported.
 
-An alternative approach using atomic counters was evaluated but rejected. In this approach, each work-group would increment a global atomic counter to receive a sequential tile ID, and lookback would use this ordering instead of their work-group identifier. This would potentially handle cases where work-groups execute out of dispatch order.
+An alternative approach using atomic counters was evaluated but rejected. In this approach, each work-group would increment a global atomic counter to receive a sequential tile ID, and lookback would use this ordering instead of their work-group identifier, relying on the 
+assumption that once the atomic counter was incremented the work-group would continue to make progress. This potentially handle cases where work-groups execute out of dispatch order.
 
 However, this approach has limitations:
 - It requires empirical testing and implementation adjustment for each specific architecture to verify correct behavior
@@ -249,7 +251,7 @@ graph TD
     D --> E
 
     E --> F{Problem Size<br/>& Configuration}
-    F -->|Small inputs (ESIMD only)| G[Single Work-Group Path]
+    F -->|Small inputs - ESIMD only| G[Single Work-Group Path]
     F -->|Large inputs| H[Multi Work-Group Path]
 
     G --> I[Submitter<br/>radix_sort_submitters.h]
