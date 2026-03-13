@@ -103,6 +103,7 @@ struct P2
 {
     P2() {}
     P2(int v): x(v) {}
+    P2(int v, int w): x(v), y(w) {}
     int x = {};
     int y = {};
 
@@ -116,6 +117,14 @@ struct P2
         os << "{" << item.x << ", " << item.y << "}";
         return os;
     }
+};
+
+struct P3 : public P2
+{
+    using P2::P2;
+    P3(int v): P2(v, v + 13) {}
+
+    friend bool operator==(const P3& a, const P3& b) { return a.x == b.x && a.y == b.y; }
 };
 
 struct A
@@ -601,6 +610,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:

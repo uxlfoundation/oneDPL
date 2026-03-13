@@ -212,10 +212,10 @@ test_shift_by_type(Size m, Size n)
     TestUtils::Sequence<T> in(m, [](::std::size_t v) -> T { return T(v); }); //fill data
 
 #ifdef _PSTL_TEST_SHIFT_LEFT
-    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
+    TestUtils::invoke_on_all_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_left_algo{});
 #endif
 #ifdef _PSTL_TEST_SHIFT_RIGHT
-    TestUtils::invoke_on_all_policies()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
+    TestUtils::invoke_on_all_policies<>()(test_shift(), in.begin(), m, orig.begin(), n, shift_right_algo{});
 #endif
 }
 
