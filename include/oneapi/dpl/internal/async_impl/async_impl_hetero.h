@@ -108,6 +108,16 @@ __pattern_walk2_brick_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         __first1, __last1, __first2, __brick);
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
+auto
+__pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                      _ForwardIterator __last, _Function __f)
+{
+    return __pattern_walk1_async<__par_backend_hetero::access_mode::defer_to_hint>(
+        __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
+
 //------------------------------------------------------------------------
 // transform_reduce (version with two binary functions)
 //------------------------------------------------------------------------

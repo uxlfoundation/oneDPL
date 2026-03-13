@@ -78,7 +78,7 @@ for_each(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator _
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    oneapi::dpl::__internal::__pattern_walk1(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
+    oneapi::dpl::__internal::__pattern_for_each(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
                                              __f);
 }
 
@@ -88,7 +88,7 @@ for_each_n(_ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n, _Func
 {
     const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first);
 
-    return oneapi::dpl::__internal::__pattern_walk1_n(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
+    return oneapi::dpl::__internal::__pattern_for_each_n(__dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first,
                                                       __n, __f);
 }
 

@@ -153,7 +153,12 @@ namespace __par_backend_hetero
 {
 
 // aliases for faster access to modes
-using access_mode = sycl::access_mode;
+enum class access_mode {
+  read,
+  write,
+  read_write,
+  defer_to_hint
+};
 
 // function to simplify zip_iterator creation
 template <typename... T>

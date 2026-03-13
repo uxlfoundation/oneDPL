@@ -24,6 +24,7 @@
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
+#include "parallel_backend_sycl_utils.h"
 
 namespace oneapi
 {
@@ -213,90 +214,76 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 {
 };
 
-// Resolves conflicts between user-specified access mode (inMode, from sycl_iterator)
-// and algorithm-required access mode (outMode).
-// Primary template - undefined (invalid combinations fail to compile)
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool _LocalNoInit = false>
-struct __iter_mode_resolver;
-
-// Partial specialization when modes match exactly
-template <sycl::access_mode _Mode, bool _LocalNoInit>
-struct __iter_mode_resolver<_Mode, _Mode, _LocalNoInit>
+template <sycl::access_mode _UserHint>
+struct __extract_user_hint_data
 {
-    static constexpr sycl::access_mode value = _Mode;
-    static constexpr bool no_init = _LocalNoInit;
+    static constexpr sycl::access_mode value = _UserHint;
+    static constexpr bool no_init = false;
 };
 
-// read_write can satisfy read requirement (downgrade to read)
-template <bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::read, _LocalNoInit>
+template <>
+struct __extract_user_hint_data<sycl::access_mode::discard_write>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::read;
-    static constexpr bool no_init = _LocalNoInit;
+    static constexpr sycl::access_mode __value = sycl::access_mode::write;
+    static constexpr bool __no_init = true;
 };
 
-// read_write can satisfy write requirement (downgrade to write)
-template <bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::write, _LocalNoInit>
+template <>
+struct __extract_user_hint_data<sycl::access_mode::discard_read_write>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::write;
-    static constexpr bool no_init = _LocalNoInit;
+    static constexpr sycl::access_mode __value = sycl::access_mode::read_write;
+    static constexpr bool __no_init = true;
 };
 
-// read can satisfy read_write requirement (demoteable with hints read_write to serve for_each use case)
-template <bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::read, sycl::access_mode::read_write, _LocalNoInit>
+template <sycl::access_mode _UserHint>
+static constexpr sycl::access_mode __hint_access_mode_v = __extract_user_hint_data<_UserHint>::__value;
+template <sycl::access_mode _UserHint>
+static constexpr bool __hint_no_init_v = __extract_user_hint_data<_UserHint>::__no_init;
+
+template <oneapi::dpl::__par_backend_hetero::access_mode AccessMode>
+struct __to_sycl_access_mode;
+
+template <>
+struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::read>
 {
     static constexpr sycl::access_mode value = sycl::access_mode::read;
-    static constexpr bool no_init = _LocalNoInit;
 };
 
-// write can satisfy read_write requirement (demoteable with hints read_write to serve for_each use case)
-template <bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::write, sycl::access_mode::read_write, _LocalNoInit>
+template <>
+struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::write>
 {
     static constexpr sycl::access_mode value = sycl::access_mode::write;
+};
+
+template <>
+struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::read_write>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::read_write;
+};
+
+template <oneapi::dpl::__par_backend_hetero::access_mode AccessMode>
+inline constexpr sycl::access_mode __to_sycl_access_mode_v = __to_sycl_access_mode<AccessMode>::value;
+
+// By default, ignore hints provided by users, in favor of algorithmic needs
+template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool _LocalNoInit = false>
+struct __iter_mode_resolver
+{
+    static constexpr sycl::access_mode value = __to_sycl_access_mode_v<outMode>;
     static constexpr bool no_init = _LocalNoInit;
 };
 
-// discard_write can satisfy write requirement (discard modes inherently imply no_init)
-// if algorithm requires initialization, we ignore user hints
-template <bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, _LocalNoInit>
+// for algorithms which defer_to_hint, use user hints directly
+template <sycl::access_mode inMode, bool _LocalNoInit>
+struct __iter_mode_resolver<inMode, oneapi::dpl::__par_backend_hetero::access_mode::defer_to_hint, _LocalNoInit>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::write;
-    static constexpr bool no_init = _LocalNoInit;
+    static constexpr sycl::access_mode value = __hint_access_mode_v<inMode>;
+    static constexpr bool no_init = __hint_no_init_v<inMode>;
 };
 
-// discard_read_write can satisfy write or read_write requirement (discard modes inherently imply no_init)
-// if algorithm requires initialization, we ignore user hints
-template <sycl::access_mode outMode, bool _LocalNoInit>
-struct __iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, _LocalNoInit>
-{
-    static constexpr sycl::access_mode value = outMode;
-    static constexpr bool no_init = _LocalNoInit;
-};
-
-// Helper to check if a mode combination is resolvable
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit, typename = void>
-struct __is_iter_mode_resolvable : std::false_type
-{
-};
-
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
-struct __is_iter_mode_resolvable<inMode, outMode, noInit,
-                                 std::void_t<decltype(__iter_mode_resolver<inMode, outMode, noInit>::value)>>
-    : std::true_type
-{
-};
-
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
-inline constexpr bool __is_iter_mode_resolvable_v = __is_iter_mode_resolvable<inMode, outMode, noInit>::value;
-
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool noInit>
 inline constexpr sycl::access_mode __iter_mode_resolver_v = __iter_mode_resolver<inMode, outMode, noInit>::value;
 
-template <sycl::access_mode inMode, sycl::access_mode outMode, bool noInit>
+template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool noInit>
 inline constexpr bool __iter_mode_resolver_no_init_v = __iter_mode_resolver<inMode, outMode, noInit>::no_init;
 
 template <typename Iter, typename Void = void>
@@ -705,14 +692,11 @@ struct __get_sycl_range
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
-        // Check mode compatibility with a clear error message
-        static_assert(__is_iter_mode_resolvable_v<_Iter::mode, _LocalAccMode, _LocalNoInit>,
-                      "Access mode provided by user conflicts with the one required by the algorithm");
 
         assert(__first < __last);
         using value_type = val_t<_Iter>;
 
-        // Resolve the access mode and no_init: iterator's embedded mode vs. algorithm's required mode
+        // Resolve the access mode and no_init: for_each algorithms defer to user hints, otherwise ignore hints
         static constexpr sycl::access_mode _ResolvedMode =
             __iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
         static constexpr bool _ResolvedNoInit =

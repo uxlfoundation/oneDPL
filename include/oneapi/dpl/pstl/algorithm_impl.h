@@ -178,6 +178,15 @@ __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     });
 }
 
+
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_for_each(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Function __f)
+{
+    __pattern_walk1(_Tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
+
 //------------------------------------------------------------------------
 // walk1_n
 //------------------------------------------------------------------------
