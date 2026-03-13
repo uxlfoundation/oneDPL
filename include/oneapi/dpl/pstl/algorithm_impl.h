@@ -180,30 +180,6 @@ __pattern_walk1(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAcc
     });
 }
 
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Brick>
-void
-__pattern_walk_brick(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last,
-                     _Brick __brick) noexcept
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    __brick(__first, __last, typename _Tag::__is_vector{});
-}
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Brick>
-void
-__pattern_walk_brick(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first,
-                     _RandomAccessIterator __last, _Brick __brick)
-{
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
-    __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j, _IsVector{}); });
-    });
-}
-
 //------------------------------------------------------------------------
 // walk1_n
 //------------------------------------------------------------------------
@@ -240,30 +216,6 @@ __pattern_walk1_n(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
     oneapi::dpl::__internal::__pattern_walk1(__tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
                                              __f);
     return __first + __n;
-}
-
-template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Brick>
-_ForwardIterator
-__pattern_walk_brick_n(_Tag, _ExecutionPolicy&&, _ForwardIterator __first, _Size __n, _Brick __brick) noexcept
-{
-    static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
-
-    return __brick(__first, __n, typename _Tag::__is_vector{});
-}
-
-template <class _IsVector, class _ExecutionPolicy, class _RandomAccessIterator, class _Size, class _Brick>
-_RandomAccessIterator
-__pattern_walk_brick_n(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _RandomAccessIterator __first, _Size __n,
-                       _Brick __brick)
-{
-    using __backend_tag = typename __parallel_tag<_IsVector>::__backend_tag;
-
-    return __internal::__except_handler([&]() {
-        __par_backend::__parallel_for(
-            __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __first + __n,
-            [__brick](_RandomAccessIterator __i, _RandomAccessIterator __j) { __brick(__i, __j - __i, _IsVector{}); });
-        return __first + __n;
-    });
 }
 
 //------------------------------------------------------------------------
