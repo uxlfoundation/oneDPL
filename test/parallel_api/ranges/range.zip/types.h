@@ -25,9 +25,10 @@
 
 template <class T>
 struct BufferView : std::ranges::view_base {
-  T* buffer_;
-  std::size_t size_;
+  T* buffer_ = nullptr;
+  std::size_t size_ = 0;
 
+  BufferView() = default;
   template <std::size_t N>
   constexpr BufferView(T (&b)[N]) : buffer_(b), size_(N) {}
 };
