@@ -15,6 +15,12 @@
 
 #include "std_ranges_test.h"
 
+#if _ENABLE_STD_RANGES_TESTING
+    template<int call_id, typename T, typename DataGen2 = std::identity>
+    using launcher = test_std_ranges::test_range_algo<call_id, T, test_std_ranges::data_in_in,
+                                                      /*DataGen1*/ std::identity, DataGen2>;
+#endif
+
 std::int32_t
 main()
 {
@@ -23,11 +29,15 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     auto search_checker = TEST_PREPARE_CALLABLE(std::ranges::search);
+    auto lam = [](auto i) { return i + 371; };
+    using data_gen_shifted = decltype(lam);
 
-    test_range_algo<0, int, data_in_in>{big_sz}(dpl_ranges::search,  search_checker, binary_pred);
-    test_range_algo<1, int, data_in_in>{}(dpl_ranges::search,  search_checker, binary_pred, proj);
-    test_range_algo<2, P2, data_in_in>{}(dpl_ranges::search,  search_checker, binary_pred, &P2::x, &P2::x);
-    test_range_algo<3, P2, data_in_in>{}(dpl_ranges::search,  search_checker, binary_pred, &P2::proj, &P2::proj);
+    launcher<0, int>{big_sz}(dpl_ranges::search, search_checker, binary_pred);
+    launcher<1, int>{}(dpl_ranges::search, search_checker);
+    launcher<2, int>{}(dpl_ranges::search, search_checker, binary_pred_const, proj);
+    launcher<3, int, data_gen_shifted>{big_sz}(dpl_ranges::search, search_checker, binary_pred_const, proj, proj);
+    launcher<4, P3, data_gen_shifted>{}(dpl_ranges::search, search_checker, binary_pred, &P3::x, &P3::proj);
+    launcher<5, P3>{}(dpl_ranges::search, search_checker, std::equal_to<>{}, &P3::proj, &P3::y);
 #endif //_ENABLE_STD_RANGES_TESTING
 
     return TestUtils::done(_ENABLE_STD_RANGES_TESTING);

@@ -720,7 +720,8 @@ __find_subrange(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
         // then we can exit the loop (b_first == true) or keep the position
         // (b_first == false)
         if (__first != __last && (__global_last - __first >= __n2) &&
-            __internal::__brick_equal(__s_first + 1, __s_last, __first + 1, __pred, __is_vector))
+            __internal::__brick_equal(__s_first + 1, __s_last, __first + 1,
+                                      oneapi::dpl::__internal::__reorder_pred(__pred), __is_vector))
         {
             if (__b_first)
             {
