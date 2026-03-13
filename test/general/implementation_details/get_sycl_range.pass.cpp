@@ -76,10 +76,11 @@ test_is_copy_back_v()
     using read_write_mode = oneapi::dpl::__ranges::__get_sycl_range<sycl::access::mode::read_write>;
 
     // Test: read mode -> no copy back (false)
-    static_assert(read_mode::__is_copy_back_v<sycl::access::mode::read> == false, "read mode should not copy back");
-
+    static_assert(read_mode::__is_copy_back_v<sycl::access::mode::read> == false,
+                  "read mode should not copy back");
     // Test: write mode -> copy back (true)
-    static_assert(write_mode::__is_copy_back_v<sycl::access::mode::write> == true, "write mode should copy back");
+    static_assert(write_mode::__is_copy_back_v<sycl::access::mode::write> == true,
+                  "write mode should copy back");
 
     // Test: read_write mode -> copy back (true)
     static_assert(read_write_mode::__is_copy_back_v<sycl::access::mode::read_write> == true,
