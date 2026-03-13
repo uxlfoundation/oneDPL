@@ -214,7 +214,13 @@ __check_size(...)
 }
 
 template <typename _R>
-using __difference_t = std::make_signed_t<decltype(__check_size<_R>(0))>;
+using __size_t = decltype(__check_size<_R>(0));
+
+template <typename _R>
+using __unsigned_difference_t = std::make_unsigned_t<__size_t<_R>>;
+
+template <typename _R>
+using __difference_t = std::make_signed_t<__size_t<_R>>;
 
 } //namespace __internal
 
@@ -232,7 +238,7 @@ namespace __ranges
 {
 
 template <typename... _Rng>
-using __common_size_t = std::common_type_t<std::make_unsigned_t<decltype(__size(std::declval<_Rng>()))>...>;
+using __common_size_t = std::common_type_t<oneapi::dpl::__internal::__size_t<_Rng>...>;
 
 template <std::size_t _RngIndex>
 struct __nth_range_size
@@ -461,8 +467,8 @@ struct reverse_view_simple
         return __r[size() - __i - 1];
     }
 
-    auto
-    size() const -> decltype(oneapi::dpl::__ranges::__size(__r))
+    oneapi::dpl::__internal::__unsigned_difference_t<_R>
+    size() const
     {
         return oneapi::dpl::__ranges::__size(__r);
     }
@@ -622,8 +628,8 @@ struct transform_view_simple
         return __f(__r[__i]);
     }
 
-    auto
-    size() const -> decltype(oneapi::dpl::__ranges::__size(__r))
+    oneapi::dpl::__internal::__unsigned_difference_t<_R>
+    size() const
     {
         return oneapi::dpl::__ranges::__size(__r);
     }
