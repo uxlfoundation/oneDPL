@@ -78,6 +78,7 @@ test_is_copy_back_v()
     // Test: read mode -> no copy back (false)
     static_assert(read_mode::__is_copy_back_v<sycl::access::mode::read> == false,
                   "read mode should not copy back");
+
     // Test: write mode -> copy back (true)
     static_assert(write_mode::__is_copy_back_v<sycl::access::mode::write> == true,
                   "write mode should copy back");
