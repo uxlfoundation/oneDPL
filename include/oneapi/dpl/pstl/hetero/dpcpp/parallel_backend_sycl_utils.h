@@ -441,7 +441,8 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         // Only use host USM on L0 GPUs. Other devices should use device USM instead to avoid notable slowdown.
         sycl::device __device = __q.get_device();
-        if (__device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
+
+        if (__is_gpu_like(__device) && __device.has(sycl::aspect::usm_host_allocations) &&
             __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
             __result = sycl::malloc<_T>(__elements, __q, __alloc_t);
@@ -596,7 +597,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         bool __result = false;
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
-        __result = __device.is_gpu() && __device.has(sycl::aspect::usm_host_allocations) &&
+
+        __result = __is_gpu_like(__device) && __device.has(sycl::aspect::usm_host_allocations) &&
                    __device.get_backend() == __dpl_sycl::__level_zero_backend;
 #endif
         return __result;
