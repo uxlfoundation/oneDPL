@@ -648,7 +648,7 @@ struct __get_sycl_range
             oneapi::dpl::__ranges::guard_view<_Iter>{__first, __last - __first}};
     }
 
-    //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
+    //specialization for hetero iterator
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
@@ -680,10 +680,10 @@ struct __get_sycl_range
     //SFINAE-overload for a contiguous host iterator
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
-        is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
-            !is_permutation<_Iter>::value,
-        __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
+    __process_input_iter(_Iter __first, _Iter __last)
+        -> ::std::enable_if_t<is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
+                                  !is_permutation<_Iter>::value,
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
@@ -711,10 +711,10 @@ struct __get_sycl_range
     //SFINAE-overload for non-contiguous host iterator
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
-    __process_input_iter(_Iter __first, _Iter __last) -> std::enable_if_t<
-        is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
-            !is_permutation<_Iter>::value,
-        __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
+    __process_input_iter(_Iter __first, _Iter __last)
+        -> ::std::enable_if_t<is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
+                                  !is_permutation<_Iter>::value,
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
     {
         using _T = val_t<_Iter>;
 
@@ -804,10 +804,8 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
 //A specialization for enable_view to true because oneapi::dpl::__ranges::all_view models a view (see C++ standard)
-template <typename _T, sycl::access::mode _AccMode, bool _NoInit, sycl::target _Target,
-          sycl::access::placeholder _Placeholder>
-inline constexpr bool
-    std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> = true;
+template <typename _T, sycl::access::mode _AccMode, bool _NoInit, sycl::target _Target, sycl::access::placeholder _Placeholder>
+inline constexpr bool std::ranges::enable_view<oneapi::dpl::__ranges::all_view<_T, _AccMode, _NoInit, _Target, _Placeholder>> = true;
 #endif
 
 #endif // _ONEDPL_UTILS_RANGES_SYCL_H
