@@ -708,7 +708,7 @@ struct __get_sycl_range
         using _View = oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit,
                                                       __dpl_sycl::__target_device, sycl::access::placeholder::true_t>;
 
-        return __range_holder<_View>{_View(__first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
+        return __range_holder<_View>{_View(__first.get_buffer(), __offset, __n)};
     }
 
     //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
@@ -737,7 +737,7 @@ struct __get_sycl_range
 
         using _View = oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>;
 
-        return __range_holder<_View>{_View(__first.get_buffer() /* buffer */, __offset /* offset*/, __n /* size*/)};
+        return __range_holder<_View>{_View(__first.get_buffer(), __offset, __n)};
     }
 
     //SFINAE-overload for a contiguous host iterator
