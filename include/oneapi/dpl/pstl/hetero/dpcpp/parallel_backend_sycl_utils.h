@@ -111,7 +111,7 @@ __supports_sub_group_size(const sycl::device& __device, std::size_t __target_siz
 }
 
 // Indicates that the implementation identifies this device as a GPU
-// or as CPU which emulates GPU somehow
+// or a CPU that emulates a GPU
 inline bool
 __is_gpu_like(const sycl::device& __device)
 {
