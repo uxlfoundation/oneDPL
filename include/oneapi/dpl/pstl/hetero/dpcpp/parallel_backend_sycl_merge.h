@@ -23,9 +23,11 @@
 #include <algorithm> // std::min, std::lower_bound
 #include <type_traits> // std::void_t, std::true_type, std::false_type
 
+#include "../../functional_impl.h" // for oneapi::dpl::identity
+#include "../../utils_ranges.h"
+
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
-#include "../../functional_impl.h" // for oneapi::dpl::identity
 
 namespace oneapi
 {
@@ -211,7 +213,8 @@ struct __parallel_merge_submitter;
 template <typename _OutSizeLimit, typename _IdType, typename... _Name>
 struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional_kernel_name<_Name...>>
 {
-    template <typename _Range1, typename _Range2, typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
+    template <typename _Range1, typename _Range2, typename _Range3,
+              typename _Compare, typename _Proj1, typename _Proj2>
     __future<sycl::event, std::shared_ptr<__result_and_scratch_storage_base>>
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __rng3, _Compare __comp,
                _Proj1 __proj1, _Proj2 __proj2) const
@@ -229,8 +232,10 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
 
         const _IdType __steps = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk);
 
-        using __val_t = _split_point_t<_IdType>;
-        using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
+        //using __val_t = _split_point_t<_IdType>;
+        using __val_t = oneapi::dpl::__internal::_TupleOfRangeOffsets3<_Range1, _Range2, _Range3>;
+        using _NResults = std::conditional_t<_OutSizeLimit{},
+                                             std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;
         __result_and_scratch_storage_t* __p_res_storage = nullptr;
@@ -257,15 +262,17 @@ struct __parallel_merge_submitter<_OutSizeLimit, _IdType, __internal::__optional
                     __find_start_point(__rng1, _IdType{0}, __n1, __rng2, _IdType{0}, __n2, __i_elem, __comp,
                                        __proj1, __proj2);
 
-                [[maybe_unused]] const std::pair __ends =
-                    __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem, __n_merge, __n1,
-                                   __n2, __comp, __proj1, __proj2, __n);
+                [[maybe_unused]] const auto [__offset1, __offset2] =
+                    __serial_merge(__rng1, __rng2, __rng3,
+                                   __start.first, __start.second, __i_elem, __n_merge,
+                                   __n1, __n2,
+                                   __comp, __proj1, __proj2, __n);
 
                 if constexpr (_OutSizeLimit{})
                     if (__id == __steps - 1) //the last WI does additional work
                     {
                         auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__result_acc);
-                        *__res_ptr = __ends;
+                        *__res_ptr = std::make_tuple(__offset1, __offset2, __n);
                     }
             });
         });
@@ -410,7 +417,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         __start = __base_diagonals_sp_global_ptr[__diagonal_idx];
                     }
 
-                    [[maybe_unused]] const std::pair __ends =
+                    [[maybe_unused]] const auto [__offset1, __offset2] = 
                         __serial_merge(__rng1, __rng2, __rng3, __start.first, __start.second, __i_elem,
                                        __nd_range_params.chunk, __n1, __n2, __comp, __proj1, __proj2, __n);
 
@@ -418,7 +425,7 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
                         if (__global_idx == __nd_range_params.steps - 1)
                         {
                             auto __res_ptr = _Storage::__get_usm_or_buffer_accessor_ptr(__result_acc);
-                            *__res_ptr = __ends;
+                            *__res_ptr = std::make_tuple(__offset1, __offset2, __n);
                         }
                 });
         });
@@ -453,7 +460,8 @@ struct __parallel_merge_submitter_large<_OutSizeLimit, _IdType, _CustomName,
         const nd_range_params __nd_range_params = eval_nd_range_params(__q, __n);
 
         // Create storage to save split-points on each base diagonal + 1 (for the right base diagonal in the last work-group)
-        using __val_t = _split_point_t<_IdType>;
+        //using __val_t = _split_point_t<_IdType>;
+        using __val_t = oneapi::dpl::__internal::_TupleOfRangeOffsets3<_Range1, _Range2, _Range3>;
         using _NResults = std::conditional_t<_OutSizeLimit{}, std::integral_constant<std::size_t, 1>,
                                              std::integral_constant<std::size_t, 0>>;
         using __result_and_scratch_storage_t = __result_and_scratch_storage<__val_t, _NResults::value>;

@@ -1247,6 +1247,12 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
                                   _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
                                   _LazyValueType& __init_and_carry)
 {
+    static_assert(std::is_trivially_copyable_v<_ValueType>,
+                  "reduce-then-scan requires trivially copyable value type (needed by sycl::shift_group_right)");
+
+    //static_assert(std::is_invocable_r_v<_ValueType, _BinaryOp, _ValueType, _ValueType>,
+    //              "ReduceOp must be invocable with two ValueType arguments returning ValueType");
+
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
@@ -1254,6 +1260,17 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
         _ValueType __partial_carry_in = sycl::shift_group_right(__sub_group, __value, __shift);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
+            static_assert(std::is_invocable_r_v<decltype(__value), _BinaryOp, decltype(__partial_carry_in), decltype(__value)>,
+                          "ReduceOp must be invocable with two ValueType arguments returning ValueType");
+
+            //if constexpr (!std::is_invocable_r_v<decltype(__value), _BinaryOp, decltype(__partial_carry_in), decltype(__value)>)
+            //{
+            //    // unsigned long long
+            //    //decltype(__partial_carry_in)::dummy;
+            //    // unsigned long long
+            //    decltype(__value)::dummy;
+            //}
+
             __value = __binary_op(__partial_carry_in, __value);
         }
     }

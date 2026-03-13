@@ -222,6 +222,34 @@ using __unsigned_difference_t = std::make_unsigned_t<__size_t<_R>>;
 template <typename _R>
 using __difference_t = std::make_signed_t<__size_t<_R>>;
 
+#if 0
+template <typename _Range1, typename _Range2, typename _Range3>
+using _TupleOfRangeOffsets3 = oneapi::dpl::__internal::tuple<__unsigned_difference_t<_Range1>,
+                                                             __unsigned_difference_t<_Range2>,
+                                                             __unsigned_difference_t<_Range3>>;
+#else
+template <typename _Range1, typename _Range2, typename _Range3>
+struct _TupleOfRangeOffsets3
+{
+    __unsigned_difference_t<_Range1> offset1 = {};
+    __unsigned_difference_t<_Range2> offset2 = {};
+    __unsigned_difference_t<_Range3> offset3 = {};
+
+    __unsigned_difference_t<_Range3>
+    __get_output_size() const
+    {
+        return offset3;
+    }
+
+    friend _TupleOfRangeOffsets3
+    operator+(const _TupleOfRangeOffsets3& lhs, const _TupleOfRangeOffsets3& rhs)
+    {
+        return { lhs.offset1 + rhs.offset1,
+                 lhs.offset2 + rhs.offset2,
+                 lhs.offset3 + rhs.offset3 };
+    }
+};
+#endif
 } //namespace __internal
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
