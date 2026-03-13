@@ -215,77 +215,41 @@ struct is_sycl_iterator<oneapi::dpl::__internal::sycl_iterator<Mode, Types...>> 
 };
 
 template <sycl::access_mode _UserHint>
-struct __extract_user_hint_data
+struct __extract_user_hint_data_impl
 {
-    static constexpr sycl::access_mode value = _UserHint;
-    static constexpr bool no_init = false;
+    static constexpr sycl::access_mode __value = _UserHint;
+    static constexpr bool __no_init = false;
 };
 
 template <>
-struct __extract_user_hint_data<sycl::access_mode::discard_write>
+struct __extract_user_hint_data_impl<sycl::access_mode::discard_write>
 {
     static constexpr sycl::access_mode __value = sycl::access_mode::write;
     static constexpr bool __no_init = true;
 };
 
 template <>
-struct __extract_user_hint_data<sycl::access_mode::discard_read_write>
+struct __extract_user_hint_data_impl<sycl::access_mode::discard_read_write>
 {
     static constexpr sycl::access_mode __value = sycl::access_mode::read_write;
     static constexpr bool __no_init = true;
 };
 
-template <sycl::access_mode _UserHint>
-static constexpr sycl::access_mode __hint_access_mode_v = __extract_user_hint_data<_UserHint>::__value;
-template <sycl::access_mode _UserHint>
-static constexpr bool __hint_no_init_v = __extract_user_hint_data<_UserHint>::__no_init;
-
-template <oneapi::dpl::__par_backend_hetero::access_mode AccessMode>
-struct __to_sycl_access_mode;
-
-template <>
-struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::read>
+template <typename ForwardIterator>
+struct __extract_user_hint_data : public __extract_user_hint_data_impl<sycl::access_mode::read_write>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::read;
 };
 
-template <>
-struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::write>
+template <sycl::access_mode _AccessMode, typename T, typename Allocator>
+struct __extract_user_hint_data<oneapi::dpl::__internal::sycl_iterator<_AccessMode, T, Allocator>>
+    : public __extract_user_hint_data_impl<_AccessMode>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::write;
 };
 
-template <>
-struct __to_sycl_access_mode<oneapi::dpl::__par_backend_hetero::access_mode::read_write>
-{
-    static constexpr sycl::access_mode value = sycl::access_mode::read_write;
-};
-
-template <oneapi::dpl::__par_backend_hetero::access_mode AccessMode>
-inline constexpr sycl::access_mode __to_sycl_access_mode_v = __to_sycl_access_mode<AccessMode>::value;
-
-// By default, ignore hints provided by users, in favor of algorithmic needs
-template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool _LocalNoInit = false>
-struct __iter_mode_resolver
-{
-    static constexpr sycl::access_mode value = __to_sycl_access_mode_v<outMode>;
-    static constexpr bool no_init = _LocalNoInit;
-};
-
-// for algorithms which defer_to_hint, use user hints directly
-template <sycl::access_mode inMode, bool _LocalNoInit>
-struct __iter_mode_resolver<inMode, oneapi::dpl::__par_backend_hetero::access_mode::defer_to_hint, _LocalNoInit>
-{
-    static constexpr sycl::access_mode value = __hint_access_mode_v<inMode>;
-    static constexpr bool no_init = __hint_no_init_v<inMode>;
-};
-
-template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool noInit>
-inline constexpr sycl::access_mode __iter_mode_resolver_v = __iter_mode_resolver<inMode, outMode, noInit>::value;
-
-template <sycl::access_mode inMode, oneapi::dpl::__par_backend_hetero::access_mode outMode, bool noInit>
-inline constexpr bool __iter_mode_resolver_no_init_v = __iter_mode_resolver<inMode, outMode, noInit>::no_init;
-
+template <typename _ForwardIterator>
+static constexpr sycl::access_mode __extract_hint_access_mode_v = __extract_user_hint_data<_ForwardIterator>::__value;
+template <typename _ForwardIterator>
+static constexpr bool __extract_hint_no_init_v = __extract_user_hint_data<_ForwardIterator>::__no_init;
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
 {
@@ -684,40 +648,11 @@ struct __get_sycl_range
             oneapi::dpl::__ranges::guard_view<_Iter>{__first, __last - __first}};
     }
 
-    //specialization for sycl_iterator (applies access mode resolution)
-    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter,
-              std::enable_if_t<is_sycl_iterator<_Iter>::value, int> = 0>
-    auto
-    __process_input_iter(_Iter __first, _Iter __last)
-    {
-        static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
-                      "Read mode cannot be used with no_init property.");
-
-        assert(__first < __last);
-        using value_type = val_t<_Iter>;
-
-        // Resolve the access mode and no_init: for_each algorithms defer to user hints, otherwise ignore hints
-        static constexpr sycl::access_mode _ResolvedMode =
-            __iter_mode_resolver_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
-        static constexpr bool _ResolvedNoInit =
-            __iter_mode_resolver_no_init_v<_Iter::mode, _LocalAccMode, _LocalNoInit>;
-
-        const std::size_t __offset = __first.get_idx();
-        const std::size_t __size = __dpl_sycl::__get_buffer_size(__first.get_buffer());
-        const std::size_t __n = std::min<std::size_t>(__last - __first, __size);
-        assert(__offset + __n <= __size);
-
-        using _View = oneapi::dpl::__ranges::all_view<value_type, _ResolvedMode, _ResolvedNoInit,
-                                                      __dpl_sycl::__target_device, sycl::access::placeholder::true_t>;
-
-        return __range_holder<_View>{_View(__first.get_buffer(), __offset, __n)};
-    }
-
     //specialization for other hetero iterators (non-sycl_iterator that sets is_hetero trait)
     template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
     auto
     __process_input_iter(_Iter __first, _Iter __last)
-        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter> && !is_sycl_iterator<_Iter>::value,
+        -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
                             __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),

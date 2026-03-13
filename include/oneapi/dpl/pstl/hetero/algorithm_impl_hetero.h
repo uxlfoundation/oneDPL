@@ -74,9 +74,10 @@ __pattern_walk1(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIt
 
 template <class _BackendTag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
 void
-__pattern_for_each(__hetero_tag<_BackendTag>, _ExecutionPolicy&&, _ForwardIterator __first, _ForwardIterator __last, _Function __f)
+__pattern_for_each(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIterator __last, _Function __f)
 {
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::defer_to_hint>(__hetero_tag<_BackendTag>{},
+    __pattern_hetero_walk1<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
+                           oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(__hetero_tag<_BackendTag>{},
                                                                              std::forward<_ExecutionPolicy>(__exec),
                                                                              __first, __last, __f);
 }
@@ -103,7 +104,8 @@ _ForwardIterator
 __pattern_for_each_n(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _ForwardIterator __first, _Size __n,
                   _Function __f)
 {
-    __pattern_hetero_walk1<__par_backend_hetero::access_mode::defer_to_hint>(
+    __pattern_hetero_walk1<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
+                           oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(
         __tag, std::forward<_ExecutionPolicy>(__exec), __first, __first + __n, __f);
     return __first + __n;
 }

@@ -147,78 +147,6 @@ test_default_template_parameter()
                   "default _IsNoInitRequested should be false");
 }
 
-template <sycl::access_mode _UserHint>
-struct __extract_user_hint_data<_UserHint>
-{
-    static constexpr sycl::access_mode value = _UserHint;
-};
-
-template <>
-struct __extract_user_hint_data<__par_backend_hetero::access_mode::discard_write>
-{
-    static constexpr sycl::access_mode __value = sycl::access_mode::write;
-    static constexpr bool __no_init = true;
-};
-
-template <>
-struct __extract_user_hint_data<__par_backend_hetero::access_mode::discard_read_write>
-{
-    static constexpr sycl::access_mode __value = sycl::access_mode::read_write;
-    static constexpr bool __no_init = true;
-};
-
-template <sycl::access_mode _UserHint>
-using __hint_access_mode_v = __extract_user_hint_data<_UserHint>::__value;
-template <sycl::access_mode _UserHint>
-using __hint_no_init_v = __extract_user_hint_data<_UserHint>::__no_init;
-
-
-template <sycl::access_mode UserHint, sycl::access_mode AccessMode, bool IsNoInit>
-void 
-check_ignore_hint()
-{
-    using oneapi::dpl::__ranges::__iter_mode_resolver_v;
-    using oneapi::dpl::__ranges::__iter_mode_resolver_no_init_v;
-    if constexpr (AccessMode != __par_backend_hetero::access_mode::defer_to_hint)
-    {
-        static_assert(__iter_mode_resolver_v<UserHint, AccessMode, false> == AccessMode &&
-                    __iter_mode_resolver_no_init_v<UserHint, AccessMode, IsNoInit> == IsNoInit,
-                    "When defer_to_hint is not used, user hints should be ignored in favor of algorithmic access mode");
-    }
-    else //defer_to_hint case: user hint should be used
-    {
-        static_assert(__iter_mode_resolver_v<UserHint, AccessMode, IsNoInit> == __hint_access_mode_v<UserHint> &&
-                    __iter_mode_resolver_no_init_v<UserHint, AccessMode, IsNoInit> == __hint_no_init_v<UserHint>,
-                    "When defer_to_hint is used, user hints should be honored");
-    }
-}
-
-template <__par_backend_hetero::access_mode AccessMode, bool IsNoInit>
-void
-check_all_modes()
-{
-    namespace sa = sycl::access;
-    check_ignore_hint<sa::mode::read, AccessMode, IsNoInit>();
-    check_ignore_hint<sa::mode::write, AccessMode, IsNoInit>();
-    check_ignore_hint<sa::mode::read_write, AccessMode, IsNoInit>();
-    check_ignore_hint<sa::mode::discard_write, AccessMode, IsNoInit>();
-    check_ignore_hint<sa::mode::discard_read_write, AccessMode, IsNoInit>();
-}
-
-void
-test_is_iter_mode_resolvable_v()
-{
-    namespace pa = __par_backend_hetero::access_mode;
-    check_all_modes<pa::read, false>();
-    check_all_modes<pa::write, false>();
-    check_all_modes<pa::read_write, false>();
-    check_all_modes<pa::read, true>();
-    check_all_modes<pa::write, true>();
-    check_all_modes<pa::read_write, true>();
-    check_all_modes<pa::defer_to_hint, false>();
-    check_all_modes<pa::defer_to_hint, true>();
-}
-
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -229,7 +157,6 @@ main()
     test_is_copy_back_v();
     test_traits_use_local_parameters();
     test_default_template_parameter();
-    test_is_iter_mode_resolvable_v();
 #endif
 
     return TestUtils::done(TEST_DPCPP_BACKEND_PRESENT);

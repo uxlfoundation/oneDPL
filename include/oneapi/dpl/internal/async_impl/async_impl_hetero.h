@@ -113,7 +113,8 @@ auto
 __pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                       _ForwardIterator __last, _Function __f)
 {
-    return __pattern_walk1_async<__par_backend_hetero::access_mode::defer_to_hint>(
+    return __pattern_walk1_async<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
+                                 oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(
         __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 
