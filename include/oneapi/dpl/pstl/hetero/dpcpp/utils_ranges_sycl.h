@@ -243,20 +243,38 @@ struct __iter_mode_resolver<sycl::access_mode::read_write, sycl::access_mode::wr
     static constexpr bool no_init = _LocalNoInit;
 };
 
-// discard_write can satisfy write requirement with no_init
-template <>
-struct __iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, true>
+// read can satisfy read_write requirement (demoteable with hints read_write to serve for_each use case)
+template <bool _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::read, sycl::access_mode::read_write, _LocalNoInit>
 {
-    static constexpr sycl::access_mode value = sycl::access_mode::write;
-    static constexpr bool no_init = true;
+    static constexpr sycl::access_mode value = sycl::access_mode::read;
+    static constexpr bool no_init = _LocalNoInit;
 };
 
-// discard_read_write can satisfy any requirement with no_init
-template <sycl::access_mode outMode>
-struct __iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, true>
+// write can satisfy read_write requirement (demoteable with hints read_write to serve for_each use case)
+template <bool _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::write, sycl::access_mode::read_write, _LocalNoInit>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::write;
+    static constexpr bool no_init = _LocalNoInit;
+};
+
+// discard_write can satisfy write requirement (discard modes inherently imply no_init)
+// if algorithm requires initialization, we ignore user hints
+template <bool _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::discard_write, sycl::access_mode::write, _LocalNoInit>
+{
+    static constexpr sycl::access_mode value = sycl::access_mode::write;
+    static constexpr bool no_init = _LocalNoInit;
+};
+
+// discard_read_write can satisfy write or read_write requirement (discard modes inherently imply no_init)
+// if algorithm requires initialization, we ignore user hints
+template <sycl::access_mode outMode, bool _LocalNoInit>
+struct __iter_mode_resolver<sycl::access_mode::discard_read_write, outMode, _LocalNoInit>
 {
     static constexpr sycl::access_mode value = outMode;
-    static constexpr bool no_init = true;
+    static constexpr bool no_init = _LocalNoInit;
 };
 
 // Helper to check if a mode combination is resolvable

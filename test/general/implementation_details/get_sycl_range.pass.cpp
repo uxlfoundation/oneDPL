@@ -151,52 +151,99 @@ void
 test_is_iter_mode_resolvable_v()
 {
     using oneapi::dpl::__ranges::__is_iter_mode_resolvable_v;
+    using oneapi::dpl::__ranges::__iter_mode_resolver_v;
+    using oneapi::dpl::__ranges::__iter_mode_resolver_no_init_v;
     namespace sa = sycl::access;
 
     // Standard modes are always resolvable regardless of noInit
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, false>, "read/read should be resolvable");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, true>,
-                  "read/read should be resolvable with no_init");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, false>,
-                  "write/write should be resolvable");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, true>,
-                  "write/write should be resolvable with no_init");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, false>,
-                  "read_write/read_write should be resolvable");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, true>,
-                  "read_write/read_write should be resolvable with no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, false> &&
+                  __iter_mode_resolver_v<sa::mode::read, sa::mode::read, false> == sa::mode::read &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read, sa::mode::read, false> == false,
+                  "read_init/read_init should resolve to read_init");
+
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read, true> &&
+                  __iter_mode_resolver_v<sa::mode::read, sa::mode::read, true> == sa::mode::read &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read, sa::mode::read, true> == true,
+                  "read_init/read_no_init should resolve to read_no_init");
+    
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, false> &&
+                  __iter_mode_resolver_v<sa::mode::write, sa::mode::write, false> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::write, sa::mode::write, false> == false,
+                  "write_init/write_init should resolve to write_init");
+
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::write, true> &&
+                  __iter_mode_resolver_v<sa::mode::write, sa::mode::write, true> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::write, sa::mode::write, true> == true,
+                  "write_init/write_no_init should resolve to write_no_init");
+    
+
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, false> &&
+                  __iter_mode_resolver_v<sa::mode::read_write, sa::mode::read_write, false> == sa::mode::read_write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read_write, sa::mode::read_write, false> == false,
+                  "read_write_init/read_write_init should resolve to read_write_init");
+
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read_write, true> &&
+                  __iter_mode_resolver_v<sa::mode::read_write, sa::mode::read_write, true> == sa::mode::read_write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read_write, sa::mode::read_write, true> == true,
+                  "read_write_init/read_write_no_init should resolve to read_write_no_init");
+
 
     // read_write iterator can be downgraded to satisfy read or write requirements
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read, false>,
-                  "read_write can satisfy read");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::write, false>,
-                  "read_write can satisfy write");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::read, false> &&
+                  __iter_mode_resolver_v<sa::mode::read_write, sa::mode::read, false> == sa::mode::read &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read_write, sa::mode::read, false> == false,
+                  "read_write_init/read_init should resolve to read_init");
+
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read_write, sa::mode::write, false> &&
+                  __iter_mode_resolver_v<sa::mode::read_write, sa::mode::write, false> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read_write, sa::mode::write, false> == false,
+                  "read_write_init/write_init should resolve to write_init");
 
     // Incompatible: read iterator cannot satisfy write or read_write
     static_assert(!__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::write, false>, "read cannot satisfy write");
-    static_assert(!__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read_write, false>,
-                  "read cannot satisfy read_write");
-
+    
     // Incompatible: write iterator cannot satisfy read or read_write
     static_assert(!__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::read, false>, "write cannot satisfy read");
-    static_assert(!__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::read_write, false>,
-                  "write cannot satisfy read_write");
+    
+    // demoteable read_write can be satisfied to serve for_each use case where read_write can be demoted 
+    // to read or write by user hints
+    // TODO: look at creating a specifically demotable access mode tag instead of using read_write for this purpose
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::read, sa::mode::read_write, false> &&
+                  __iter_mode_resolver_v<sa::mode::read, sa::mode::read_write, false> == sa::mode::read &&
+                  __iter_mode_resolver_no_init_v<sa::mode::read, sa::mode::read_write, false> == false,
+                  "read_init / read_write_init should resolve to read_init to serve demoteable for_each");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::write, sa::mode::read_write, false> &&
+                  __iter_mode_resolver_v<sa::mode::write, sa::mode::read_write, false> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::write, sa::mode::read_write, false> == false,
+                  "write_init / read_write_init should resolve to write_init to serve demoteable for_each");
 
     // Discard modes are resolvable with write when algorithm allows no_init
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, true>,
-                  "discard_write resolvable with write when algo allows no_init");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, true>,
-                  "discard_read_write resolvable with write when algo allows no_init");
-    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, true>,
-                  "discard_read_write resolvable with read_write when algo allows no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, true> &&
+                  __iter_mode_resolver_v<sa::mode::discard_write, sa::mode::write, true> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_write, sa::mode::write, true> == true,
+                "write_no_init / write_no_init should resolve to write_no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, true> && 
+                  __iter_mode_resolver_v<sa::mode::discard_read_write, sa::mode::write, true> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_read_write, sa::mode::write, true> == true,
+                  "read_write_no_init/ write_no_init should resolve to write_no_init");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, true> && 
+                  __iter_mode_resolver_v<sa::mode::discard_read_write, sa::mode::read_write, true> == sa::mode::read_write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_read_write, sa::mode::read_write, true> == true,
+                  "read_write_no_init/ read_write_no_init should resolve to read_write_no_init");
 
-    // Discard modes are NOT resolvable when algorithm requires initialization (noInit=false)
-    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, false>,
-                  "discard_write not resolvable with write when algo requires init");
-    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, false>,
-                  "discard_read_write not resolvable with write when algo requires init");
-    static_assert(!__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, false>,
-                  "discard_read_write not resolvable with read_write when algo requires init");
+    // Discard modes are resolvable (and hints ignored) when algorithm requires initialization (noInit=false)
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_write, sa::mode::write, false> &&
+                  __iter_mode_resolver_v<sa::mode::discard_write, sa::mode::write, false> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_write, sa::mode::write, false> == false,
+                  "write_no_init/ write_init should resolve to write_init (ignoring hint)");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::write, false> &&
+                  __iter_mode_resolver_v<sa::mode::discard_read_write, sa::mode::write, false> == sa::mode::write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_read_write, sa::mode::write, false> == false,
+                  "read_write_no_init/ write_init should resolve to write_init (ignoring hint)");
+    static_assert(__is_iter_mode_resolvable_v<sa::mode::discard_read_write, sa::mode::read_write, false> &&
+                  __iter_mode_resolver_v<sa::mode::discard_read_write, sa::mode::read_write, false> == sa::mode::read_write &&
+                  __iter_mode_resolver_no_init_v<sa::mode::discard_read_write, sa::mode::read_write, false> == false,
+                  "read_write_no_init/ read_write_init should resolve to read_write_init (ignoring hint)");
 }
 
 #endif // TEST_DPCPP_BACKEND_PRESENT
