@@ -2001,8 +2001,10 @@ __is_gpu_like(const sycl::device& __device)
 inline bool
 __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
-    return (__is_gpu_like(__q.get_device()) &&
-            oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
+    const sycl::device& __device = __q.get_device();
+
+    return __is_gpu_like(__device) &&
+           oneapi::dpl::__internal::__supports_sub_group_size(__device, __get_reduce_then_scan_reqd_sg_sz_host());
 }
 
 // General scan-like algorithm helpers
