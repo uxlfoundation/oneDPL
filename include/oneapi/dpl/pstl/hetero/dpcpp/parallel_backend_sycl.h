@@ -1153,7 +1153,7 @@ struct __set_union_copy_wrapper;
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q, _Range1&& __rng1,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_SetOpUnionTag, _UseReduceThenScan, sycl::queue& __q, _Range1&& __rng1,
                       _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
@@ -1170,7 +1170,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 
     //1. Calc difference {2} \ {1}
     const std::size_t __n_diff = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, __proj2,
+        oneapi::dpl::unseq_backend::_SetOpDifferenceTag{}, __q, __rng2, __rng1, __tmp_rng1.all_view(), __comp, __proj2,
         __proj1);
 
     //2. Merge {2} and the difference
@@ -1209,7 +1209,7 @@ struct __set_symmetric_difference_copy2_wrapper;
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_SetOpSymmetricDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
@@ -1234,13 +1234,13 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
 
     //1. Calc difference {1} \ {2}
     const std::size_t __n_diff_1 = oneapi::dpl::__par_backend_hetero::__set_op_impl<_CustomName>(
-        oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, __proj1,
+        oneapi::dpl::unseq_backend::_SetOpDifferenceTag{}, __q, __rng1, __rng2, __tmp_rng1.all_view(), __comp, __proj1,
         __proj2);
 
     //2. Calc difference {2} \ {1}
     const std::size_t __n_diff_2 =
         oneapi::dpl::__par_backend_hetero::__set_op_impl<__set_symmetric_difference_diff_wrapper<_CustomName>>(
-            oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range2>(__rng2),
+            oneapi::dpl::unseq_backend::_SetOpDifferenceTag{}, __q, std::forward<_Range2>(__rng2),
             std::forward<_Range1>(__rng1), __tmp_rng2.all_view(), __comp, __proj2, __proj1);
 
     auto __keep_tmp3 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
@@ -1284,17 +1284,17 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceThenScan, sycl::queue& __q,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_SetOpIntersectionTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
     if constexpr (_UseReduceThenScan::value)
         return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
-                   oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
+                   oneapi::dpl::unseq_backend::_SetOpIntersectionTag{}, __q, std::forward<_Range1>(__rng1),
                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
     else
-        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_IntersectionTag{}, __q,
+        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_SetOpIntersectionTag{}, __q,
                                                 std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                                 std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
@@ -1303,17 +1303,17 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
 template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 std::size_t
-__set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan, sycl::queue& __q,
+__set_write_a_only_op(oneapi::dpl::unseq_backend::_SetOpDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
     if constexpr (_UseReduceThenScan::value)
         return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
-                   oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
+                   oneapi::dpl::unseq_backend::_SetOpDifferenceTag{}, __q, std::forward<_Range1>(__rng1),
                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
     else
-        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_DifferenceTag{}, __q,
+        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_SetOpDifferenceTag{}, __q,
                                                 std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                                                 std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
@@ -1345,7 +1345,7 @@ struct __check_use_write_a_alg
 
     template <typename _Rng1, typename _Rng2>
     bool
-    operator()(oneapi::dpl::unseq_backend::_UnionTag, const _Rng1&, const _Rng2& __rng2) const
+    operator()(oneapi::dpl::unseq_backend::_SetOpUnionTag, const _Rng1&, const _Rng2& __rng2) const
     {
         // For union operations, we must use __rng2 as set A in a difference operation prior to a merge, so the
         // threshold should be on __n2. The sets must be kept in this order because semantically elements must be copied
@@ -1357,7 +1357,7 @@ struct __check_use_write_a_alg
 
     template <typename _Rng1, typename _Rng2>
     bool
-    operator()(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, const _Rng1&, const _Rng2&) const
+    operator()(oneapi::dpl::unseq_backend::_SetOpSymmetricDifferenceTag, const _Rng1&, const _Rng2&) const
     {
         // With complex compound alg, symmetric difference should always use single shot algorithm when available
         return false;

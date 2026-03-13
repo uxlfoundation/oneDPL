@@ -398,7 +398,7 @@ struct __gen_set_mask
 
         auto __res = oneapi::dpl::__internal::__pstl_lower_bound_idx(__set_b, std::size_t{0}, __nb, __set_a, __id,
                                                                      __comp, __proj2, __proj1);
-        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SetOpDifferenceTag>;
 
         //initialization is true in case of difference operation; false - intersection.
         bool bres = __is_difference;
@@ -576,21 +576,21 @@ template <typename _SetTag>
 struct __get_set_operation;
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SetOpIntersectionTag> : __set_intersection
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SetOpDifferenceTag> : __set_difference
 {
 };
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SetOpUnionTag> : __set_union
 {
 };
 
 template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
+struct __get_set_operation<oneapi::dpl::unseq_backend::_SetOpSymmetricDifferenceTag> : __set_symmetric_difference
 {
 };
 

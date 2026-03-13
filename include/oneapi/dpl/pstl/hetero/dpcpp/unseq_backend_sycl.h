@@ -1264,19 +1264,19 @@ struct __rotate_copy
 // brick_set_op for difference and intersection operations
 //------------------------------------------------------------------------
 
-struct _IntersectionTag
+struct _SetOpIntersectionTag
 {
 };
 
-struct _DifferenceTag
+struct _SetOpDifferenceTag
 {
 };
 
-struct _UnionTag
+struct _SetOpUnionTag
 {
 };
 
-struct _SymmetricDifferenceTag
+struct _SetOpSymmetricDifferenceTag
 {
 };
 
@@ -1315,7 +1315,7 @@ class __brick_set_op
         const _SizeB __res =
             __internal::__pstl_lower_bound_idx(__b, __b_beg, __nb, __a, __a_beg + __idx_a, __comp, __projB, __projA);
 
-        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_DifferenceTag>;
+        constexpr bool __is_difference = std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SetOpDifferenceTag>;
         bool bres = __is_difference; //initialization is true in case of difference operation; false - intersection.
         if (__res == __nb || std::invoke(__comp, std::invoke(__projA, __a[__a_beg + __idx_a]),
                                          std::invoke(__projB, __b[__b_beg + __res])))

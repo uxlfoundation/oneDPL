@@ -1749,8 +1749,8 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
 
     // For Difference and Intersection, the most we can write is the size of set A
     _SizeType __output_size = __n1;
-    if constexpr (std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_UnionTag> ||
-                  std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag>)
+    if constexpr (std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SetOpUnionTag> ||
+                  std::is_same_v<_SetTag, oneapi::dpl::unseq_backend::_SetOpSymmetricDifferenceTag>)
     {
         // For Union and Symmetric Difference, the most we can write is all input elements (when fully disjoint).
         __output_size = __n1 + __n2;
@@ -1782,7 +1782,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
     // intersection is empty
     if (__first1 == __last1 || __first2 == __last2)
         return __result;
-    return __pattern_hetero_set_op(__tag, unseq_backend::_IntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
+    return __pattern_hetero_set_op(__tag, unseq_backend::_SetOpIntersectionTag{}, std::forward<_ExecutionPolicy>(__exec),
                                    __first1, __last1, __first2, __last2, __result, __comp, oneapi::dpl::identity{},
                                    oneapi::dpl::identity{});
 }
@@ -1813,7 +1813,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_DifferenceTag{},
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SetOpDifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                    __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
@@ -1859,7 +1859,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
 
-    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_UnionTag{},
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SetOpUnionTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                    __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
@@ -1911,7 +1911,7 @@ __pattern_set_symmetric_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPo
                 ::std::forward<_ExecutionPolicy>(__exec)),
             __first1, __last1, __result, oneapi::dpl::__internal::__brick_copy<__hetero_tag<_BackendTag>>{});
     }
-    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag{},
+    return __pattern_hetero_set_op(__tag, oneapi::dpl::unseq_backend::_SetOpSymmetricDifferenceTag{},
                                    std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2,
                                    __result, __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{});
 }
