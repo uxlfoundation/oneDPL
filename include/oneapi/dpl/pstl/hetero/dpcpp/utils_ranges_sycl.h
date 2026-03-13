@@ -24,7 +24,6 @@
 #include "sycl_iterator.h"
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
-#include "parallel_backend_sycl_utils.h"
 
 namespace oneapi
 {
