@@ -145,6 +145,14 @@ struct IsOutputStreamable<T, TOutputStream,
 {
 };
 
+template <typename TOutputStream, typename T, typename U>
+std::enable_if_t<IsOutputStreamable<T, TOutputStream>::value && IsOutputStreamable<U, TOutputStream>::value,
+                 TOutputStream&>
+operator<<(std::ostream& os, const std::pair<T, U>& val)
+{
+    return (os << "{" << val.first << ", " << val.second << "}");
+}
+
 struct TagExpected{};
 struct TagActual{};
 

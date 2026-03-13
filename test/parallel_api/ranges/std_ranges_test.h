@@ -577,6 +577,10 @@ private:
     process_data_in_in(int max_n, int n_in1, int n_in2, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in,
                        auto... args)
     {
+        std::string names{typeid(Algo).name()};
+        names += std::string{"<"} + typeid(Policy).name() + 
+                 ", " + typeid(decltype(tr_in(std::declval<Container&>()()))).name() +
+                 ">";
         std::string sizes{" for "};
         sizes += std::to_string(n_in1) + " and " + std::to_string(n_in2) + " elements";
 
@@ -601,28 +605,22 @@ private:
         if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      (std::string("wrong stop position with ") + names + sizes).c_str());
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      (std::string("wrong stop position with ") + names + sizes).c_str());
         }
         else if constexpr (!std::is_same_v<decltype(res), bool>)
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      (std::string("wrong stop position with ") + names + sizes).c_str());
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
-                      (std::string("wrong stop position with ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+                      (std::string("wrong stop position with ") + names + sizes).c_str());
         }
         else
         {
-            EXPECT_EQ(expected_res, res,
-                      (std::string("wrong return value from ") + typeid(Algo).name() +
-                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            EXPECT_EQ(expected_res, res, (std::string("wrong return value from ") + names + sizes).c_str());
         }
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
