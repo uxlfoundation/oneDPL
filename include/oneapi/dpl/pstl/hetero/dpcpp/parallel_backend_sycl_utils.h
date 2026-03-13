@@ -110,6 +110,14 @@ __supports_sub_group_size(const sycl::device& __device, std::size_t __target_siz
     return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
+// Indicates that the implementation identifies this device as a GPU
+// or as CPU which emulates GPU somehow
+inline bool
+__is_gpu_like(const sycl::device& __device)
+{
+    return __device.is_gpu() || (__device.is_cpu() && __device.has(sycl::aspect::emulated));
+}
+
 //-----------------------------------------------------------------------------
 // Kernel run-time information helpers
 //-----------------------------------------------------------------------------
@@ -442,7 +450,7 @@ __allocate_usm(const sycl::queue& __q, std::size_t __elements)
         // Only use host USM on L0 GPUs. Other devices should use device USM instead to avoid notable slowdown.
         sycl::device __device = __q.get_device();
 
-        if (__is_gpu_like(__device) && __device.has(sycl::aspect::usm_host_allocations) &&
+        if (oneapi::dpl::__internal::__is_gpu_like(__device) && __device.has(sycl::aspect::usm_host_allocations) &&
             __device.get_backend() == __dpl_sycl::__level_zero_backend)
         {
             __result = sycl::malloc<_T>(__elements, __q, __alloc_t);
@@ -598,7 +606,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 #if _ONEDPL_SYCL_L0_EXT_PRESENT
         auto __device = __q.get_device();
 
-        __result = __is_gpu_like(__device) && __device.has(sycl::aspect::usm_host_allocations) &&
+        __result = oneapi::dpl::__internal::__is_gpu_like(__device) &&
+                   __device.has(sycl::aspect::usm_host_allocations) &&
                    __device.get_backend() == __dpl_sycl::__level_zero_backend;
 #endif
         return __result;

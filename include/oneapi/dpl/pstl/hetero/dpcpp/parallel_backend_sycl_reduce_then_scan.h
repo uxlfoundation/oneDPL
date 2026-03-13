@@ -1987,14 +1987,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     _InitType __init;
 };
 
-// Indicates that the implementation identifies this device as a GPU
-// or as CPU which emulates GPU somehow
-inline bool
-__is_gpu_like(const sycl::device& __device)
-{
-    return __device.is_gpu() || (__device.is_cpu() && __device.has(sycl::aspect::emulated));
-}
-
 // Enable reduce-then-scan if the device uses the required sub-group size and is ran on a device
 // with fast coordinated subgroup operations. We do not want to run this scan on CPU targets, as they are not
 // performant with this algorithm.
@@ -2003,7 +1995,7 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
     const sycl::device& __device = __q.get_device();
 
-    return __is_gpu_like(__device) &&
+    return oneapi::dpl::__internal::__is_gpu_like(__device) &&
            oneapi::dpl::__internal::__supports_sub_group_size(__device, __get_reduce_then_scan_reqd_sg_sz_host());
 }
 
