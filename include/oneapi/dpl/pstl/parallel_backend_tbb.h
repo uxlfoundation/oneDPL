@@ -478,7 +478,7 @@ class __func_task : public __task
     execute()
     {
         return _M_func(this);
-    };
+    }
 
   public:
     template <typename _Fn>

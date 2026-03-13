@@ -1,0 +1,1108 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) Intel Corporation
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// This file incorporates work covered by the following copyright and permission
+// notice:
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+//
+//===----------------------------------------------------------------------===//
+
+#include "support/test_config.h"
+#include "support/utils.h"
+
+#include <memory> // for std::allocator, std::destroy
+
+#if _ENABLE_STD_RANGES_TESTING
+
+#include <oneapi/dpl/pstl/parallel_backend_utils.h>
+
+#include <vector>
+#include <functional>
+#include <ranges>
+#include <iterator>
+#include <algorithm> // for std::count_if
+
+template <typename Container1, typename Container2>
+std::size_t
+evalContainerSize(const Container1& cont1, const Container2& cont2)
+{
+    return cont1.size() + cont2.size();
+}
+
+template <typename Container1, typename Container2>
+std::size_t
+evalMaskSize(const Container1& cont1, const Container2& cont2)
+{
+    return cont1.size() + cont2.size();
+}
+
+struct UninitializedCopyValueOp
+{
+    template <typename _SourceT, typename _TargetT>
+    void
+    operator()(_SourceT&& __source, _TargetT& __target) const
+    {
+        new (std::addressof(__target)) _TargetT(std::forward<_SourceT>(__source));
+    }
+};
+
+// For details please see description of the enum oneapi::dpl::__utils::__parallel_set_op_mask
+using MaskContainer = std::vector<oneapi::dpl::__utils::__parallel_set_op_mask>;
+
+// Container with uninitialized memory, used for testing set operations construction algorithms with output range without enough capacity
+template <typename T>
+class UninitializedMemoryContainer
+{
+    std::size_t _capacity = {};
+    std::allocator<T> _allocator;
+    T* _ptr = nullptr;
+
+  public:
+    explicit UninitializedMemoryContainer(std::size_t __n) : _capacity(__n), _ptr(_allocator.allocate(__n)) {}
+
+    ~UninitializedMemoryContainer() { _allocator.deallocate(_ptr, _capacity); }
+
+    // Non-copyable
+    UninitializedMemoryContainer(const UninitializedMemoryContainer&) = delete;
+    UninitializedMemoryContainer&
+    operator=(const UninitializedMemoryContainer&) = delete;
+
+    T*
+    begin() noexcept
+    {
+        return _ptr;
+    }
+
+    T*
+    end() noexcept
+    {
+        return _ptr + _capacity;
+    }
+
+    // Explicitly destroy the constructed range [begin(), __end) before destruction
+    void
+    destroy_range(T* __end) noexcept
+    {
+        std::destroy(_ptr, __end);
+    }
+};
+
+[[maybe_unused]] constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D1 = oneapi::dpl::__utils::__parallel_set_op_mask::eData1;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask    D2 = oneapi::dpl::__utils::__parallel_set_op_mask::eData2;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D12 = oneapi::dpl::__utils::__parallel_set_op_mask::eBoth;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D1O = oneapi::dpl::__utils::__parallel_set_op_mask::eData1Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask   D2O = oneapi::dpl::__utils::__parallel_set_op_mask::eData2Out;
+constexpr oneapi::dpl::__utils::__parallel_set_op_mask  D12O = oneapi::dpl::__utils::__parallel_set_op_mask::eBothOut;
+
+using BrickCopy = oneapi::dpl::__internal::__BrickCopyConstruct<std::false_type>;
+
+// The rules for testing set_union described at https://eel.is/c++draft/set.union
+void
+test_set_union_construct()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+    
+    // the first case - output range has enough capacity
+    {
+        const Container       cont1 = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container       cont2 = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,      D12O,      D12O,      D12O,       D2O,       D2O};
+        const Container  contOutExp = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}, {6, 3, 2}, {7, 4, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // the first case - output range has enough capacity - SWAP input ranges data
+    {
+        const Container       cont1 = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container       cont2 = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer maskExp = {      D2O,       D2O,      D12O,      D12O,      D12O,       D1O,       D1O};
+        const Container  contOutExp = {{1, 0, 2}, {2, 1, 2}, {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_union_construct_edge_cases()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // The case: both containers are empty
+    {
+        const Container cont1       = { };
+        const Container cont2       = { };
+        const MaskContainer maskExp = { };
+        const Container contOutExp  = { };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container is empty
+    {
+        const Container cont1       = {                               };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D2O,       D2O,       D2O};
+        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the second container is empty
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {                               };
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the first container
+    {
+        const Container cont1       = {           {2, 0, 1}           };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D2O,      D12O,       D2O};
+        const Container contOutExp  = {{1, 0, 2}, {2, 0, 1}, {3, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the second container
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {           {2, 0, 2}           };
+        const MaskContainer maskExp = {      D1O,      D12O,       D1O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items are equal but the last item in the first container is unique
+    {
+        const Container cont1       = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        const Container cont2       = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
+        const MaskContainer maskExp = {     D12O ,     D12O,      D12O,       D1O};
+        const Container contOutExp  = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: both containers have the same items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {     D12O,      D12O,      D12O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items in the first container less then in the second one
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
+        const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O,       D2O,       D2O,       D2O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container has duplicated items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
+        const Container cont2       = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
+        const MaskContainer maskExp = {      D1O,      D12O,       D1O,      D12O,       D2O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}, {4, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_union_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+// The rules for testing set_intersection described at https://eel.is/c++draft/set.intersection
+void
+test_set_intersection_construct()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // the first case - output range has enough capacity
+    {
+        const Container cont1       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const Container cont2       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O                      };
+        const Container contOutExp  = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}                      };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ(3, std::distance(contOut.begin(), out), "incorrect state of out for __set_intersection_construct");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        // Truncate output from out till the end to avoid compare error
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out),
+                         "wrong result of result contOut after __set_intersection_construct");
+
+        contOut.destroy_range(out);
+    }
+
+    // the first case - output range has enough capacity - SWAP input ranges data
+    {
+        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer maskExp = {       D2,        D2,      D12O,      D12O,      D12O                      };
+        const Container contOutExp  = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}                      };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_intersection_construct_edge_cases()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // The case: both containers are empty
+    {
+        const Container cont1       = { };
+        const Container cont2       = { };
+        const MaskContainer maskExp = { };
+        const Container contOutExp  = { };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container is empty
+    {
+        const Container cont1       = {                               };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {                               };
+        const Container contOutExp  = {                               };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the second container is empty
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {                               };
+        const MaskContainer maskExp = {                               };
+        const Container contOutExp  = {                               };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the first container
+    {
+        const Container cont1       = {           {2, 0, 1}           };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {       D2,      D12O           };
+        const Container contOutExp  = {           {2, 0, 1}           };
+
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_intersection_construct<UninitializedCopyValueOp>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_difference_construct()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // the first case - output range has enough capacity
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,       D12,       D12,       D12                      };
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}                                                       };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // the first case - output range has enough capacity - SWAP input ranges data
+    {
+        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer maskExp = {       D2,        D2,       D12,       D12,       D12,       D1O,       D1O};
+        const Container contOutExp  = {                                                       {6, 3, 1}, {7, 4, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_difference_construct_edge_cases()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // The case: both containers are empty
+    {
+        const Container cont1       = { };
+        const Container cont2       = { };
+        const MaskContainer maskExp = { };
+        const Container contOutExp  = { };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container is empty
+    {
+        const Container cont1       = {                               };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {                               };
+        const Container contOutExp  = {                               };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the second container is empty
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {                               };
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the first container
+    {
+        const Container cont1       = {           {2, 0, 1}           };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {       D2,       D12           };
+        const Container contOutExp  = {                               };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the second container
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {           {2, 0, 2}           };
+        const MaskContainer maskExp = {      D1O,       D12,       D1O};
+        const Container contOutExp  = {{1, 0, 1},            {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items are equal but the last item in the first container is unique
+    {
+        const Container cont1       = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        const Container cont2       = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
+        const MaskContainer maskExp = {      D12,       D12,       D12,       D1O};
+        const Container contOutExp  = {                                 {3, 3, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: both containers have the same items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D12,       D12,       D12};
+        const Container contOutExp  = {                               };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items in the first container less then in the second one
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
+        const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O                                 };
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container has duplicated items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
+        const Container cont2       = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
+        const MaskContainer maskExp = {      D1O,       D12,       D1O,       D12           };
+        const Container contOutExp  = {{1, 0, 1},            {2, 2, 1}                      };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_symmetric_difference_construct()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // the first case - output range has enough capacity
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 3, 1}, {5, 4, 1}                      };
+        const Container cont2       = {                      {3, 0, 2}, {4, 1, 2}, {5, 2, 2}, {6, 3, 2}, {7, 4, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,       D12,       D12,       D12,       D2O,       D2O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1},                                  {6, 3, 2}, {7, 4, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // the first case - output range has enough capacity - SWAP input ranges data
+    {
+        const Container cont1       = {                      {3, 0, 1}, {4, 1, 1}, {5, 2, 1}, {6, 3, 1}, {7, 4, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}, {4, 3, 2}, {5, 4, 2}                      };
+        const MaskContainer maskExp = {      D2O,       D2O,       D12,       D12,       D12,       D1O,       D1O};
+        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2},                                  {6, 3, 1}, {7, 4, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+
+void
+test_set_symmetric_difference_construct_edge_cases()
+{
+    using DataType = TestUtils::SetDataItem<int>;
+    using Container = std::vector<DataType>;
+
+    // The case: the first container is empty
+    {
+        const Container cont1       = {                               };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D2O,       D2O,       D2O};
+        const Container contOutExp  = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the second container is empty
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {                               };
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the first container
+    {
+        const Container cont1       = {           {2, 0, 1}           };
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D2O,       D12,       D2O};
+        const Container contOutExp  = {{1, 0, 2},            {3, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: one item in the second container
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {           {2, 0, 2}           };
+        const MaskContainer maskExp = {      D1O,       D12,       D1O};
+        const Container contOutExp  = {{1, 0, 1},            {3, 2, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items are equal but the last item in the first container is unique
+    {
+        const Container cont1       = {{2, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}};
+        const Container cont2       = {{2, 0, 2}, {2, 1, 2}, {2, 2, 2}           };
+        const MaskContainer maskExp = {      D12,       D12,       D12,       D1O};
+        const Container contOutExp  = {                                 {3, 3, 1}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: both containers have the same items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}};
+        const Container cont2       = {{1, 0, 2}, {2, 1, 2}, {3, 2, 2}};
+        const MaskContainer maskExp = {      D12,       D12,       D12};
+        const Container contOutExp  = {                               };
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: all items in the first container less then in the second one
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}                                 };
+        const Container cont2       = {                                 {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        const MaskContainer maskExp = {      D1O,       D1O,       D1O,       D2O,       D2O,       D2O};
+        const Container contOutExp  = {{1, 0, 1}, {2, 1, 1}, {3, 2, 1}, {4, 0, 2}, {5, 1, 2}, {6, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+
+    // The case: the first container has duplicated items
+    {
+        const Container cont1       = {{1, 0, 1}, {2, 1, 1}, {2, 2, 1}, {3, 3, 1}           };
+        const Container cont2       = {           {2, 0, 2},            {3, 1, 2}, {4, 2, 2}};
+        const MaskContainer maskExp = {      D1O,       D12,       D1O,       D12,       D2O};
+        const Container contOutExp  = {{1, 0, 1},            {2, 2, 1},            {4, 2, 2}};
+        UninitializedMemoryContainer<DataType> contOut(evalContainerSize(cont1, cont2));
+
+        MaskContainer mask(evalMaskSize(cont1, cont2));
+        auto mask_b = mask.data();
+
+        auto [it1, it2, out, mask_e] = oneapi::dpl::__utils::__set_symmetric_difference_construct<BrickCopy>(
+            cont1.begin(), cont1.end(),
+            cont2.begin(), cont2.end(),
+            contOut.begin(),
+            std::less{}, TestUtils::SetDataItemProj{}, TestUtils::SetDataItemProj{},
+            mask_b);
+
+        EXPECT_EQ_RANGES(contOutExp, std::ranges::subrange(contOut.begin(), out), "Incorrect result data state");
+        EXPECT_EQ_RANGES(maskExp, std::ranges::subrange(mask_b, mask_e), "Incorrect mask state");
+
+        contOut.destroy_range(out);
+    }
+}
+#endif // _ENABLE_STD_RANGES_TESTING
+
+int
+main()
+{
+    bool bProcessed = false;
+
+#if _ENABLE_STD_RANGES_TESTING
+    test_set_union_construct();
+    test_set_union_construct_edge_cases();
+
+    test_set_intersection_construct();
+    test_set_intersection_construct_edge_cases();
+
+    test_set_difference_construct();
+    test_set_difference_construct_edge_cases();
+
+    test_set_symmetric_difference_construct();
+    test_set_symmetric_difference_construct_edge_cases();
+
+    bProcessed = true;
+#endif // _ENABLE_STD_RANGES_TESTING
+
+    return TestUtils::done(bProcessed);
+}
