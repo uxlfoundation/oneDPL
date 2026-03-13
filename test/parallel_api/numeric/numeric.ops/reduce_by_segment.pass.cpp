@@ -24,7 +24,6 @@
 #include "support/test_config.h"
 
 #include "oneapi/dpl/execution"
-#include "oneapi/dpl/algorithm"
 #include "oneapi/dpl/numeric"
 #include "oneapi/dpl/iterator"
 

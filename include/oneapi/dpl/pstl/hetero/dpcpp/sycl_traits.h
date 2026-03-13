@@ -95,9 +95,6 @@ class __replace_functor;
 template <typename _Tp, typename _Pred>
 class __replace_copy_functor;
 
-template <typename _SourceT>
-struct fill_functor;
-
 template <typename _Generator>
 struct generate_functor;
 
@@ -245,12 +242,6 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::
 template <typename _Tp, typename _Pred>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::__replace_copy_functor, _Tp, _Pred)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Tp, _Pred>
-{
-};
-
-template <typename _SourceT>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__internal::fill_functor, _SourceT)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_SourceT>
 {
 };
 
