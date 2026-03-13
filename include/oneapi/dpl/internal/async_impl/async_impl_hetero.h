@@ -108,6 +108,17 @@ __pattern_walk2_brick_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         __first1, __last1, __first2, __brick);
 }
 
+template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
+auto
+__pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
+                      _ForwardIterator __last, _Function __f)
+{
+    return __pattern_walk1_async<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
+                                 oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(
+        __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
+}
+
+
 //------------------------------------------------------------------------
 // transform_reduce (version with two binary functions)
 //------------------------------------------------------------------------
@@ -169,9 +180,7 @@ __pattern_fill_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec,
                      _ForwardIterator __last, const _T& __value)
 {
     return __pattern_walk1_async<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>(
-        __tag, ::std::forward<_ExecutionPolicy>(__exec),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__first),
-        __par_backend_hetero::make_iter_mode<__par_backend_hetero::access_mode::write>(__last),
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
         oneapi::dpl::__internal::__brick_fill<__hetero_tag<_BackendTag>, _T>{__value});
 }
 
