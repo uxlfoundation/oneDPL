@@ -122,17 +122,17 @@ __tuple_apply(_Adaptor __adaptor, _F __f, _Tuple& __t)
 
 template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
 void
-__tuples_apply_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+__tuples_for_each_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
 {
     (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
 }
 
 template <typename _F, typename _Tuple1, typename _Tuple2>
 void
-__tuples_apply(_F __f, _Tuple1& __t1, _Tuple2& __t2)
+__tuples_for_each(_F __f, _Tuple1& __t1, _Tuple2& __t2)
 {
     static_assert(std::tuple_size_v<_Tuple1> == std::tuple_size_v<_Tuple2>);
-    __tuples_apply_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
+    __tuples_for_each_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
 }
 
 template <std::ranges::input_range... _Views>
@@ -412,7 +412,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             requires(std::indirectly_swappable<std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
                      ...)
         {
-            __internal::__tuples_apply(std::ranges::iter_swap, __x.__current, __y.__current);
+            __internal::__tuples_for_each(std::ranges::iter_swap, __x.__current, __y.__current);
         }
 
       private:
