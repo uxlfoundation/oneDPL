@@ -682,7 +682,7 @@ struct __get_sycl_range
     __process_input_iter(_Iter __first, _Iter __last)
         -> ::std::enable_if_t<is_temp_buff<_Iter>::value && __is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                                   !is_permutation<_Iter>::value,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
                       "Read mode cannot be used with no_init property.");
@@ -713,7 +713,7 @@ struct __get_sycl_range
     __process_input_iter(_Iter __first, _Iter __last)
         -> ::std::enable_if_t<is_temp_buff<_Iter>::value && !__is_addressable_v<_Iter> && !is_zip<_Iter>::value &&
                                   !is_permutation<_Iter>::value,
-                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode>>>
+                              __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
     {
         using _T = val_t<_Iter>;
 
