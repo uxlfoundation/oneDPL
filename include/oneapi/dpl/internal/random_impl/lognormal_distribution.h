@@ -20,6 +20,9 @@
 #ifndef _ONEDPL_LOGNORMAL_DISTRIBUTION_H
 #define _ONEDPL_LOGNORMAL_DISTRIBUTION_H
 
+#include "random_common.h"
+#include "normal_distribution.h"
+
 namespace oneapi
 {
 namespace dpl

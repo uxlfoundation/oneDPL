@@ -20,6 +20,8 @@
 #ifndef _ONEDPL_LINEAR_CONGRUENTIAL_ENGINE_H
 #define _ONEDPL_LINEAR_CONGRUENTIAL_ENGINE_H
 
+#include "random_common.h"
+
 namespace oneapi
 {
 namespace dpl

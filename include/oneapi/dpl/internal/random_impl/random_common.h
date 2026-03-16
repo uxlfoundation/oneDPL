@@ -20,6 +20,8 @@
 #ifndef _ONEDPL_RANDOM_COMMON_H
 #define _ONEDPL_RANDOM_COMMON_H
 
+#include <sycl/sycl.hpp>
+
 namespace oneapi
 {
 namespace dpl

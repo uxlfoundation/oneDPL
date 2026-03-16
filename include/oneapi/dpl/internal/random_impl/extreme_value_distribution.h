@@ -20,6 +20,10 @@
 #ifndef _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H
 #define _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H
 
+#include "random_common.h"
+#include "exponential_distribution.h"
+#include "normal_distribution.h"
+
 namespace oneapi
 {
 namespace dpl
