@@ -63,20 +63,20 @@ class philox_engine
 
   private:
     /* The size of the consts arrays */
-    static constexpr std::size_t __array_size = _n / 2;
+    static constexpr std::size_t array_size = _n / 2;
 
-    /* Methods for unpacking variadic of constants into two arrays */
-    template <std::size_t... _Is>
-    static constexpr auto
-    get_even_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    /* Method for unpacking variadic of constants into two arrays - with odd and even elements */
+    enum
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2]...};
-    }
-    template <std::size_t... _Is>
+        __even = 0,
+        __odd = 1
+    };
+    template <std::size_t _Offset, std::size_t... _Is>
     static constexpr auto
-    get_odd_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    get_consts_by_indices(std::index_sequence<_Is...>)
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + 1]...};
+        constexpr std::array __input_array{_consts...};
+        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + _Offset]...};
     }
 
   public:
@@ -94,10 +94,10 @@ class philox_engine
                   "size of the scalar UIntType (in case of sycl::vec<T, N> the size of T) must be less than 64 bits");
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
-    static constexpr std::array<scalar_type, __array_size> multipliers =
-        get_even_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
-    static constexpr std::array<scalar_type, __array_size> round_consts =
-        get_odd_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+    static constexpr std::array<scalar_type, array_size> multipliers =
+        get_consts_by_indices<__even>(std::make_index_sequence<array_size>{});
+    static constexpr std::array<scalar_type, array_size> round_consts =
+        get_consts_by_indices<__odd>(std::make_index_sequence<array_size>{});
 
     static constexpr scalar_type
     min()
@@ -201,12 +201,12 @@ class philox_engine
         scalar_type idx;                           // index
     } state_;
 
-    /* __word_mask<_W> - scalar_type with the low _W bits set */
+    /* word_mask<_W> - scalar_type with the low _W bits set */
     template <std::size_t _W, typename = std::enable_if_t<_W != 0>>
-    static constexpr scalar_type __word_mask = ~scalar_type(0) >> (std::numeric_limits<scalar_type>::digits - _W);
+    static constexpr scalar_type word_mask = ~scalar_type(0) >> (std::numeric_limits<scalar_type>::digits - _W);
 
     /* Processing mask */
-    static constexpr auto in_mask = __word_mask<word_size>;
+    static constexpr auto in_mask = word_mask<word_size>;
 
     void
     seed_internal(scalar_type __seed)
@@ -446,9 +446,9 @@ class philox_engine
             constexpr std::size_t __chunk_size = 32;
             __res_lo = __a * __b;
 
-            scalar_type __x0 = __a & __word_mask<__chunk_size>;
+            scalar_type __x0 = __a & word_mask<__chunk_size>;
             scalar_type __x1 = __a >> __chunk_size;
-            scalar_type __y0 = __b & __word_mask<__chunk_size>;
+            scalar_type __y0 = __b & word_mask<__chunk_size>;
             scalar_type __y1 = __b >> __chunk_size;
 
             scalar_type __p11 = __x1 * __y1;
@@ -458,7 +458,7 @@ class philox_engine
 
             /* addition of three 32-bit values to get the carry for the hi part */
             scalar_type __carry_hi =
-                ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
+                ((__p10 & word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & word_mask<__chunk_size>)) >>
                 __chunk_size;
 
             /* 64-bit product + two 32-bit values + carry from the lo part */
