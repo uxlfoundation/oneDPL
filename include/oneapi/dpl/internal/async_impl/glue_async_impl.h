@@ -131,7 +131,7 @@ for_each_async(_ExecutionPolicy&& __exec, _ForwardIterator __first, _ForwardIter
 
     wait_for_all(::std::forward<_Events>(__dependencies)...);
     auto ret_val = oneapi::dpl::__internal::__pattern_for_each_async<__par_backend_hetero::access_mode::read_write,
-                                                                  /*_IsNoInitRequested=*/false>(
+                                                                     /*_IsNoInitRequested=*/false>(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
     return ret_val;
 }

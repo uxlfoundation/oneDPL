@@ -111,13 +111,12 @@ __pattern_walk2_brick_async(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
 auto
 __pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
-                      _ForwardIterator __last, _Function __f)
+                         _ForwardIterator __last, _Function __f)
 {
     return __pattern_walk1_async<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
                                  oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(
         __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
-
 
 //------------------------------------------------------------------------
 // transform_reduce (version with two binary functions)
