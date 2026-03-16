@@ -297,7 +297,7 @@
 // - libc++    (Clang+libc++):           available since LLVM 16
 // - MSVC STL:                           available since C++23
 #if defined(__GLIBCXX__)
-#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_GLIBCXX_RELEASE >= 12)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_GLIBCXX_RELEASE >= 12) && (__GLIBCXX__ >= 20220728)
 #elif defined(_LIBCPP_VERSION)
 #    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_LIBCPP_VERSION >= 16000)
 #else
