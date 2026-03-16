@@ -210,14 +210,10 @@ class extreme_value_distribution
     inline scalar_type
     callback()
     {
-        return ((scalar_type*)(internal::gaussian_sp_table))[1];
-    }
-
-    template <>
-    inline scalar_type
-    callback<double>()
-    {
-        return ((scalar_type*)(internal::gaussian_dp_table))[1];
+        if constexpr (std::is_same_v<_Type, double>)
+            return ((scalar_type*)(internal::gaussian_dp_table))[1];
+        else
+            return ((scalar_type*)(internal::gaussian_sp_table))[1];
     }
 
     // Implementation for generate function
