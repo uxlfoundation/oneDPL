@@ -17,7 +17,6 @@
     auto checker = TEST_PREPARE_CALLABLE(std::ranges::contains_subrange);
 #else
     struct {
-        
         template<std::ranges::forward_range R1, std::ranges::forward_range R2, typename Pred = std::ranges::equal_to,
                  typename Proj1 = std::identity, typename Proj2 = std::identity>
         bool operator()(R1&& r1, R2&& r2, Pred pred = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
@@ -38,10 +37,10 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    auto lam = [](auto i) { return i + 371; };
-    using data_gen_shifted = decltype(lam);
+    auto shift = [](auto i) { return i + 371; };
+    using data_gen_shifted = decltype(shift);
 
-    // Sizes of both sequences will vary in the test, so each call might test both successful and unsuccessful searches
+    // Sizes of both sequences vary in the test, so each call might test both successful and unsuccessful searches
     launcher<0, int>{big_sz}(dpl_ranges::contains_subrange, checker, binary_pred_const);
     launcher<1, int>{}(dpl_ranges::contains_subrange, checker);
     launcher<2, int>{}(dpl_ranges::contains_subrange, checker, binary_pred, dpl::identity{});
