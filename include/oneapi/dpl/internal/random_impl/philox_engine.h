@@ -293,7 +293,7 @@ class philox_engine
         if (__random_nums >= _N)
             return operator()();
 
-        result_type __loc_result;
+        result_type __loc_result(0);
         for (int __elm_count = 0; __elm_count < __random_nums; ++__elm_count)
         {
             ++state_.idx;
@@ -316,7 +316,7 @@ class philox_engine
     std::enable_if_t<(_N > 0), result_type>
     generate_internal()
     {
-        result_type __loc_result;
+        result_type __loc_result(0);
         for (int __elm_count = 0; __elm_count < _N; ++__elm_count)
         {
             ++state_.idx;

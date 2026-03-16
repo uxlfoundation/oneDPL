@@ -285,7 +285,7 @@ class linear_congruential_engine
     ::std::enable_if_t<(_N > 0), result_type>
     result_portion_internal(unsigned int __random_nums)
     {
-        result_type __part_vec;
+        result_type __part_vec(0);
 
         if (__random_nums >= _N)
             return operator()();
