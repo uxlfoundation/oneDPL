@@ -1229,6 +1229,54 @@ struct __mismatch_fn
 
 inline constexpr __internal::__mismatch_fn mismatch;
 
+// [alg.starts.with] [alg.ends.with]
+
+namespace __internal
+{
+struct __starts_with_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        // To ensure no dangling iterator is returned, __r2 may not be forwarded
+        return std::ranges::end(__r2) == oneapi::dpl::ranges::mismatch(std::forward<_ExecutionPolicy>(__exec), __r1,
+                                                                       __r2, __pred, __proj1, __proj2).in2;
+    }
+}; // __starts_with_fn
+
+struct __ends_with_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        using _Size = std::common_type_t<decltype(std::ranges::size(__r1)), decltype(std::ranges::size(__r2))>;
+        _Size __n1 = std::ranges::size(__r1);
+        _Size __n2 = std::ranges::size(__r2);
+        return !(__n1 < __n2) && oneapi::dpl::ranges::equal(
+            std::forward<_ExecutionPolicy>(__exec), std::views::all(__r1) | std::views::drop(__n1 - __n2),
+            std::forward<_R2>(__r2),__pred, __proj1, __proj2);
+    }
+}; // __ends_with_fn
+} // __internal
+
+inline constexpr __internal::__starts_with_fn starts_with;
+inline constexpr __internal::__ends_with_fn ends_with;
+
+
 // [alg.remove_if]
 
 namespace __internal
