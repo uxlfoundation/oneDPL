@@ -1,5 +1,5 @@
-oneAPI DPC++ Library (oneDPL) Documentation
-===========================================
+oneAPI DPC++ Library Documentation
+==================================
 
 .. include:: library_guide/overview.rst
 

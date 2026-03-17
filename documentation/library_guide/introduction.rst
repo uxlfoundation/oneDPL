@@ -159,7 +159,7 @@ Known Limitations
   ``std::sqrt`` require device support for double precision.
 * STL algorithm functions (such as ``std::for_each``) used in DPC++ kernels do not compile with the debug version of
   the Microsoft Visual C++ standard library.
-- ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
+* ``std::array`` cannot be swapped in DPC++ kernels with ``std::swap`` function or ``swap`` member function
   in the Microsoft Visual C++ standard library. For a workaround, define the
   ``_USE_STD_VECTOR_ALGORITHMS`` macro to `` 0`` to the source file before including any headers.
 * ``exclusive_scan``, ``inclusive_scan``, ``exclusive_scan_by_segment``,
@@ -175,7 +175,7 @@ Known Limitations
 * The initial value type for ``reduce_by_segment``, ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment``
   should satisfy the ``MoveAssignable`` and the ``CopyConstructible`` requirements.
 * The initial value type for ``reduce``, ``transform_reduce``, should satisfy the ``CopyConstructible`` and the
-``CopyAssignable`` requirements when used with device execution policies.
+  ``CopyAssignable`` requirements when used with device execution policies.
 * The initial value type for ``exclusive_scan``, ``inclusive_scan``,  ``transform_exclusive_scan``,
   ``transform_inclusive_scan`` should satisfy the ``CopyConstructible`` and the ``CopyAssignable`` requirements.
 * For ``max_element``, ``min_element``, ``minmax_element``, ``partial_sort``, ``partial_sort_copy``, ``sort``, ``stable_sort``

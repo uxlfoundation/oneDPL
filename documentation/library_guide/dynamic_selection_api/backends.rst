@@ -79,7 +79,7 @@ Lazy Reporting
 
 For asynchronous execution, backends may use *lazy reporting* where
 :ref:`Execution Information <execution-information>` is not immediately available.
- The SYCL backend uses lazy reporting for ``task_completion`` and ``task_time``.
+The SYCL backend uses lazy reporting for ``task_completion`` and ``task_time``.
 
 Policies that use execution information always call the backend's
 ``lazy_report()`` function before making selections, ensuring they have
