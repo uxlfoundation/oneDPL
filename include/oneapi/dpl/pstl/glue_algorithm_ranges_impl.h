@@ -1266,16 +1266,15 @@ struct __ends_with_fn
         using _Size = std::common_type_t<decltype(std::ranges::size(__r1)), decltype(std::ranges::size(__r2))>;
         _Size __n1 = std::ranges::size(__r1);
         _Size __n2 = std::ranges::size(__r2);
-        return !(__n1 < __n2) && oneapi::dpl::ranges::equal(
-            std::forward<_ExecutionPolicy>(__exec), std::views::all(__r1) | std::views::drop(__n1 - __n2),
-            std::forward<_R2>(__r2),__pred, __proj1, __proj2);
+        return !(__n1 < __n2) && oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec),
+                                                            std::views::all(__r1) | std::views::drop(__n1 - __n2),
+                                                            std::forward<_R2>(__r2), __pred, __proj1, __proj2);
     }
 }; // __ends_with_fn
 } // __internal
 
 inline constexpr __internal::__starts_with_fn starts_with;
 inline constexpr __internal::__ends_with_fn ends_with;
-
 
 // [alg.remove_if]
 
