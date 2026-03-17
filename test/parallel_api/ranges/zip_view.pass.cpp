@@ -118,9 +118,9 @@ main()
         auto sent = z.end();
 
         // iterator - sentinel (member operator-)
-        EXPECT_EQ(it - sent, -5, "wrong result for zip_view iterator - sentinel");
+        EXPECT_EQ(-5, it - sent, "wrong result for zip_view iterator - sentinel");
         // sentinel - iterator (hidden friend, delegates to member)
-        EXPECT_EQ(sent - it, 5, "wrong result for zip_view sentinel - iterator");
+        EXPECT_EQ(5, sent - it, "wrong result for zip_view sentinel - iterator");
     }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
