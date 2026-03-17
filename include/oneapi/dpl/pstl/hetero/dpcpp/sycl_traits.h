@@ -24,6 +24,10 @@
 #ifndef _ONEDPL_SYCL_TRAITS_H
 #define _ONEDPL_SYCL_TRAITS_H
 
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#    include <ranges>
+#endif
+
 #if _ONEDPL_SYCL_DEVICE_COPYABLE_SPECIALIZATION_BROKEN
 // Prior to the particular version of SYCL library implementation, sycl::is_device_copyable relied upon a second
 // template parameter to resolve ambiguity with the general is_trivially_copyable trait. This does not follow the SYCL
