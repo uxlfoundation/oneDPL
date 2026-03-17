@@ -24,6 +24,7 @@
 #include "support/utils.h"
 #include "support/utils_device_copyable.h"
 
+#include <forward_list>
 #include <iostream>
 
 std::int32_t
@@ -89,6 +90,37 @@ main()
         EXPECT_TRUE(std::get<0>(z[3]) == 3, "wrong effect with zip_view (std ranges)");
         EXPECT_TRUE(std::get<1>(z[3]) == 13, "wrong effect with zip_view (std ranges)");
         EXPECT_EQ(5u, z.size(), "wrong size with zip_view (std ranges)");
+    }
+    {
+        //check iterator-sentinel equality using an unbounded iota view, which produces
+        //a sentinel type distinct from its iterator type
+        auto unbounded = std::views::iota(0);
+        auto z = zip_view(unbounded);
+        auto it = z.begin();
+        auto sent = z.end();
+
+        // iterator == sentinel (member operator==)
+        EXPECT_TRUE(!(it == sent), "iterator should not equal sentinel for unbounded range");
+        // sentinel == iterator (C++20 rewritten candidate)
+        EXPECT_TRUE(!(sent == it), "sentinel should not equal iterator for unbounded range");
+        // also verify != in both directions
+        EXPECT_TRUE(it != sent, "iterator != sentinel failed for unbounded range");
+        EXPECT_TRUE(sent != it, "sentinel != iterator failed for unbounded range");
+    }
+    {
+        //check iterator-sentinel operator- using a forward-only range with a sized sentinel.
+        //std::counted_iterator + std::default_sentinel satisfies sized_sentinel_for but is
+        //forward-only, which prevents __zip_is_common from collapsing end() to an iterator.
+        std::forward_list<int> fl = {1, 2, 3, 4, 5};
+        auto counted = std::ranges::subrange(std::counted_iterator(fl.begin(), 5), std::default_sentinel);
+        auto z = zip_view(counted);
+        auto it = z.begin();
+        auto sent = z.end();
+
+        // iterator - sentinel (member operator-)
+        EXPECT_EQ(it - sent, -5, "wrong result for zip_view iterator - sentinel");
+        // sentinel - iterator (hidden friend, delegates to member)
+        EXPECT_EQ(sent - it, 5, "wrong result for zip_view sentinel - iterator");
     }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
