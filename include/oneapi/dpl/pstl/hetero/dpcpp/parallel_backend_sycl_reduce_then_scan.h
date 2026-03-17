@@ -1997,6 +1997,23 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
             oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
+// Calculate optimal number of inputs per work-item for load balancing.
+// For full blocks, returns the maximum to maintain optimal throughput.
+// For partial blocks, distributes remaining inputs evenly across available work-items,
+// rounding up to the nearest power-of-2 for alignment.
+constexpr inline std::uint32_t
+__calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uint32_t __max_inputs_per_block,
+                            const std::uint16_t __max_inputs_per_item, const std::uint32_t __num_work_groups,
+                            const std::uint32_t __work_group_size)
+{
+    using namespace oneapi::dpl::__internal;
+
+    return __inputs_remaining >= __max_inputs_per_block
+               ? __max_inputs_per_item
+               : __dpl_ceiling_div(__dpl_bit_ceil(__inputs_remaining),
+                                   __num_work_groups * __work_group_size);
+}
+
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
@@ -2053,11 +2070,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
-    std::uint32_t __inputs_per_item =
-        __inputs_remaining >= __max_inputs_per_block
-            ? __max_inputs_per_item
-            : oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                                         __num_work_groups * __work_group_size);
+    std::uint32_t __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
+                                                                   __max_inputs_per_item, __num_work_groups,
+                                                                   __work_group_size);
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
 
@@ -2099,27 +2114,26 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
-        std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
-            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
-        std::uint32_t __workitems_in_block_round_up_workgroup =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
-        auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
-        auto __local_range = sycl::range<1>(__work_group_size);
-        auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
+        const std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
+
+        const std::uint32_t __workitems_in_block_round_up_workgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
+
+        const sycl::range<1> __global_range(__workitems_in_block_round_up_workgroup);
+        const sycl::range<1> __local_range(__work_group_size);
+        const sycl::nd_range<1> __kernel_nd_range(__global_range, __local_range);
+
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b);
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
+
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                         __prior_event, __inputs_remaining, __b);
+        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
+
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
-            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
-                                    ? __max_inputs_per_item
-                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
-                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                          __num_work_groups * __work_group_size);
+            __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
+                                                             __max_inputs_per_item, __num_work_groups,
+                                                             __work_group_size);
         }
     }
     return __future{std::move(__prior_event), std::move(__result_and_scratch)};
