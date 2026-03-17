@@ -429,8 +429,12 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-#    if defined(_MSC_VER)
-        //required for CL compiler, which does not find the friend iterator class
+        // Hidden friend functions defined in a sibling nested class (iterator) need access to
+        // sentinel's private __get_end(). Per CWG1699, this access should be granted since the
+        // hidden friend is a member-declaration of a nested class within the enclosing zip_view.
+        // However, GCC < 13 and MSVC do not extend friend permissions to hidden friends of
+        // sibling nested classes. Work around by making __get_end() public on those compilers.
+#    if defined(_MSC_VER) || (defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 13)
       public:
 #    endif
         decltype(auto)
