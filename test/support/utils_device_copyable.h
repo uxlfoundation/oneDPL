@@ -222,6 +222,7 @@ public:
     difference_type size() const { return m_size; }
     reference operator[](difference_type i) const { return m_data[i]; }
 
+    range_non_device_copyable() = default;
     range_non_device_copyable(const range_non_device_copyable& other) : m_data(other.data()), m_size(other.size())
     {
         std::cout << "non trivial copy ctor\n";
@@ -234,6 +235,13 @@ private:
 class range_device_copyable: public range_non_device_copyable {};
 
 } /* namespace TestUtils */
+
+#    if _ONEDPL_CPP20_RANGES_PRESENT
+template <>
+inline constexpr bool std::ranges::enable_view<TestUtils::range_non_device_copyable> = true;
+template <>
+inline constexpr bool std::ranges::enable_view<TestUtils::range_device_copyable> = true;
+#    endif // _ONEDPL_CPP20_RANGES_PRESENT
 
 template <>
 struct sycl::is_device_copyable<TestUtils::noop_device_copyable> : std::true_type

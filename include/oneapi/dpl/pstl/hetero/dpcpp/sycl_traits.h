@@ -926,6 +926,41 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::permutation_
 {
 };
 
+// zip_view device copyable specializations
+
+namespace oneapi::dpl::__ranges
+{
+
+template <typename... _Ranges>
+class zip_view;
+
+} // namespace oneapi::dpl::__ranges
+
+template <typename... _Ranges>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__ranges::zip_view, _Ranges...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Ranges...>
+{
+};
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+
+namespace oneapi::dpl::ranges::__internal
+{
+
+template <std::ranges::input_range... _Views>
+    requires((std::ranges::view<_Views> && ...) && (sizeof...(_Views) > 0))
+class zip_view;
+
+} // namespace oneapi::dpl::ranges::__internal
+
+template <typename... _Views>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::ranges::__internal::zip_view, _Views...)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_Views...>
+{
+};
+
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+
 #undef _ONEDPL_SPECIALIZE_FOR
 
 #endif // _ONEDPL_SYCL_TRAITS_H
