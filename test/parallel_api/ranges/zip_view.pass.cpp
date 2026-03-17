@@ -28,46 +28,71 @@
 std::int32_t
 main()
 {
-#if _ENABLE_RANGES_TESTING
-    constexpr int max_n = 10;
-    char data[max_n] = {'b', 'e', 'g', 'f', 'c', 'd', 'a', 'j', 'i', 'h'};
-    int key[max_n] = {1, 4, 6, 5, 2, 3, 0, 9, 8, 7};
+    bool run = false;
 
-    using namespace oneapi::dpl::experimental::ranges;
+#if _ENABLE_RANGES_TESTING 
 
-    //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
-    auto view = __nanorange::nano::views::all(data);
-    auto z = zip_view(view, __nanorange::nano::views::all(key));
+#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+    run = true;
+    {
+        constexpr int max_n = 10;
+        char data[max_n] = {'b', 'e', 'g', 'f', 'c', 'd', 'a', 'j', 'i', 'h'};
+        int key[max_n] = {1, 4, 6, 5, 2, 3, 0, 9, 8, 7};
 
-    //check access
-    EXPECT_TRUE(::std::get<0>(z[2]) == 'g', "wrong effect with zip_view");
+        using namespace oneapi::dpl::experimental::ranges;
 
-    int64_t max_int32p2 = (size_t)::std::numeric_limits<int32_t>::max() + 2L;
+        //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
+        auto view = __nanorange::nano::views::all(data);
+        auto z = zip_view(view, __nanorange::nano::views::all(key));
 
-    auto base_view = views::iota(::std::int64_t(0), max_int32p2);
+        //check access
+        EXPECT_TRUE(std::get<0>(z[2]) == 'g', "wrong effect with zip_view");
 
-    //avoiding allocating large amounts of memory, just reusing small data container
-    auto transform_data_idx = [&max_n, &data](auto idx) { return data[idx % max_n]; };
-    auto data_large_view = views::transform(base_view, transform_data_idx);
+        int64_t max_int32p2 = (size_t)std::numeric_limits<int32_t>::max() + 2L;
 
-    //avoiding allocating large amounts of memory, just reusing small data container
-    auto transform_key_idx = [&max_n, &key](auto idx) { return key[idx % max_n]; };
-    auto key_large_view = views::transform(base_view, transform_key_idx);
+        auto base_view = views::iota(std::int64_t(0), max_int32p2);
 
-    auto large_z = zip_view(data_large_view, key_large_view);
+        //avoiding allocating large amounts of memory, just reusing small data container
+        auto transform_data_idx = [&max_n, &data](auto idx) { return data[idx % max_n]; };
+        auto data_large_view = views::transform(base_view, transform_data_idx);
 
-    //check that zip_view ranges can be larger than a signed 32 bit integer
-    size_t i = large_z.size() - 1;
+        //avoiding allocating large amounts of memory, just reusing small data container
+        auto transform_key_idx = [&max_n, &key](auto idx) { return key[idx % max_n]; };
+        auto key_large_view = views::transform(base_view, transform_key_idx);
 
-    auto expected_key = key[i % max_n];
-    auto actual_key = ::std::get<1>(large_z[i]);
-    EXPECT_EQ(expected_key, actual_key, "wrong effect with zip_view bracket operator");
+        auto large_z = zip_view(data_large_view, key_large_view);
 
-    char expected_data = data[i % max_n];
-    char actual_data = ::std::get<0>(large_z[i]);
-    EXPECT_EQ(expected_data, actual_data, "wrong effect with zip_view bracket operator");
+        //check that zip_view ranges can be larger than a signed 32 bit integer
+        size_t i = large_z.size() - 1;
 
-#endif //_ENABLE_RANGES_TESTING
+        auto expected_key = key[i % max_n];
+        auto actual_key = std::get<1>(large_z[i]);
+        EXPECT_EQ(expected_key, actual_key, "wrong effect with zip_view bracket operator");
 
-    return TestUtils::done(_ENABLE_RANGES_TESTING);
+        char expected_data = data[i % max_n];
+        char actual_data = std::get<0>(large_z[i]);
+        EXPECT_EQ(expected_data, actual_data, "wrong effect with zip_view bracket operator");
+    }
+#endif // !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    run = true;
+    {
+        using oneapi::dpl::ranges::__internal::zip_view;
+
+        //check basic zip_view construction and access with std C++20 views
+        auto v1 = std::views::iota(0, 5);
+        auto v2 = std::views::iota(10, 15);
+        auto z = zip_view(v1, v2);
+
+        EXPECT_TRUE(std::get<0>(z[0]) == 0, "wrong effect with zip_view (std ranges)");
+        EXPECT_TRUE(std::get<1>(z[0]) == 10, "wrong effect with zip_view (std ranges)");
+        EXPECT_TRUE(std::get<0>(z[3]) == 3, "wrong effect with zip_view (std ranges)");
+        EXPECT_TRUE(std::get<1>(z[3]) == 13, "wrong effect with zip_view (std ranges)");
+        EXPECT_EQ(5u, z.size(), "wrong size with zip_view (std ranges)");
+    }
+#endif // _ONEDPL_CPP20_RANGES_PRESENT
+#endif // _ENABLE_RANGES_TESTING
+
+    return TestUtils::done(run);
 }
