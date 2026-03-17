@@ -293,10 +293,13 @@
 #endif
 
 // std::views::all on rvalue non-view ranges requires P2415R2 owning_view.
+// __cpp_lib_ranges >= 202110L
 // - libstdc++ (GCC or Clang+libstdc++): available since GCC 12
 // - libc++    (Clang+libc++):           available since LLVM 16
 // - MSVC STL:                           available since C++23
-#if defined(__GLIBCXX__)
+#if defined(__cpp_lib_ranges)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (__cpp_lib_ranges >= 202110L)
+#elif defined(__GLIBCXX__)
 #    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_GLIBCXX_RELEASE >= 12) && (__GLIBCXX__ >= 20220728)
 #elif defined(_LIBCPP_VERSION)
 #    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_LIBCPP_VERSION >= 16000)
