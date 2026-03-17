@@ -1,6 +1,8 @@
 oneAPI DPC++ Library (oneDPL) Documentation
 ===========================================
 
+.. include:: library_guide/overview.rst
+
 .. toctree::
    :maxdepth: 2
    :titlesonly:
@@ -9,7 +11,9 @@ oneAPI DPC++ Library (oneDPL) Documentation
    get_started/release_notes.rst
    get_started/onedpl_gsg.rst
 
-.. include:: library_guide/overview_toc.rst
+.. toctree::
+
+   library_guide/guide_toc.rst
 
 .. toctree::
    :hidden:

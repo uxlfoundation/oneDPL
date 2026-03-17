@@ -1,7 +1,9 @@
 |onedpl_long| Developer Guide
 =============================
 
-.. include:: overview_toc.rst
+.. include:: overview.rst
+
+.. include:: guide_toc.rst
 
 .. toctree::
    :hidden:
