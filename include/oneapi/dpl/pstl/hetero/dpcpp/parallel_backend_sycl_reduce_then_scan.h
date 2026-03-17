@@ -1322,7 +1322,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
                                std::uint32_t __active_subgroups)
 {
-    using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
+    using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, typename _GenInput::TempData&>;
 
     bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
