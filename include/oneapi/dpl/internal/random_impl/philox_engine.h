@@ -65,15 +65,15 @@ class philox_engine
     /* The size of the consts arrays */
     static constexpr std::size_t array_size = _n / 2;
 
-    /* Method for unpacking variadic of constants into two arrays - with odd and even elements */
-    enum
+    /* Method for unpacking even and odd elements of input constants into an array */
+    enum __indices_offset : std::size_t
     {
-        __even = 0,
-        __odd = 1
+        __even_indices = 0,
+        __odd_indices = 1
     };
     template <std::size_t _Offset, std::size_t... _Is>
     static constexpr auto
-    get_consts_by_indices(std::index_sequence<_Is...>)
+    __get_consts_by(std::index_sequence<_Is...>)
     {
         constexpr std::array __input_array{_consts...};
         return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + _Offset]...};
@@ -94,10 +94,10 @@ class philox_engine
                   "size of the scalar UIntType (in case of sycl::vec<T, N> the size of T) must be less than 64 bits");
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
-    static constexpr std::array<scalar_type, array_size> multipliers =
-        get_consts_by_indices<__even>(std::make_index_sequence<array_size>{});
-    static constexpr std::array<scalar_type, array_size> round_consts =
-        get_consts_by_indices<__odd>(std::make_index_sequence<array_size>{});
+    static constexpr std::array<scalar_type, __array_size> multipliers =
+        __get_consts_by<__even_indices>(std::make_index_sequence<__array_size>{});
+    static constexpr std::array<scalar_type, __array_size> round_consts =
+        __get_consts_by<__odd_indices>(std::make_index_sequence<__array_size>{});
 
     static constexpr scalar_type
     min()
