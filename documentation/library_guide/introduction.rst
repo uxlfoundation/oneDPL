@@ -64,7 +64,7 @@ include the corresponding C++ standard header files and use the ``std`` namespac
 
 Follow the steps below to build your code with |onedpl_short|:
 
-#. To build with the |dpcpp_cpp|, see the |dpcpp_gsg|_ for details.
+#. To build with the |dpcpp_compiler|, see the |dpcpp_gsg|_ for details.
 #. Set the environment variables for |onedpl_short| and |onetbb_short|.
 
 Here is an example of a command line used to compile code that contains |onedpl_short| parallel algorithms
@@ -72,7 +72,7 @@ on Linux* (depending on the code, parameters within [] could be unnecessary)::
 
   icpx [-fsycl] [-fiopenmp] program.cpp [-ltbb] -o program
 
-You may also use the |pstl_offload_option|_ of |dpcpp_cpp| powered by |onedpl_short|
+You may also use the |pstl_offload_option|_ of |dpcpp_compiler| powered by |onedpl_short|
 to build the standard C++ code for execution on a SYCL device::
 
   icpx -fsycl -fsycl-pstl-offload=gpu program.cpp -o program
@@ -110,7 +110,7 @@ Restrictions
 ************
 
 When called with device execution policies, |onedpl_short| algorithms apply the same restrictions as
-|dpcpp_short| does (see the |dpcpp_cpp| documentation and the SYCL specification for details), such as:
+|dpcpp_short| does (see the DPC++ documentation and the SYCL specification for details), such as:
 
 * Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
   `SYCL device-copyable`_.
@@ -129,7 +129,7 @@ restrictions on the data types that can be passed to algorithms executed with de
 Known Limitations
 *****************
 
-* The ``oneapi::dpl::execution::par_unseq`` policy is affected by ``-fsycl-pstl-offload`` option of |dpcpp_cpp|
+* The ``oneapi::dpl::execution::par_unseq`` policy is affected by ``-fsycl-pstl-offload`` option of |dpcpp_compiler|
   when |onedpl_short| substitutes this policy for the ``std::execution::par_unseq`` policy
   missing in a standard C++ library, particularly in libstdc++ version 8 and in libc++.
 * For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
@@ -144,8 +144,8 @@ Known Limitations
   provided.
 * ``exclusive_scan`` and ``transform_exclusive_scan`` algorithms may provide wrong results with
   unsequenced execution policies when building a program with GCC 10 and using ``-O0`` option.
-* Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_cpp| versions 2021 and older
-  may result in a runtime error. To fix this issue, use |dpcpp_cpp| version 2022 or newer.
+* Compiling ``reduce`` and ``transform_reduce`` algorithms with |dpcpp_compiler| versions 2021 and older
+  may result in a runtime error. To fix this issue, use |dpcpp_compiler| version 2022 or newer.
 * When compiling on Windows, add the option ``/EHsc`` to the compilation command to avoid errors with oneDPL's experimental
   ranges API that uses exceptions.
 * The ``using namespace oneapi;`` directive in a |onedpl_short| program code may result in compilation errors
