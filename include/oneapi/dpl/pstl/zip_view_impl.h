@@ -434,7 +434,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         // hidden friend is a member-declaration of a nested class within the enclosing zip_view.
         // However, GCC < 13 and MSVC do not extend friend permissions to hidden friends of
         // sibling nested classes. Work around by making __get_end() public on those compilers.
-#    if defined(_MSC_VER) || (defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 13)
+#    if defined(_MSC_VER) || (defined(__GNUC__) && !defined(__clang__) && _ONEDPL_GCC_VERSION < 130100)
       public:
 #    endif
         decltype(auto)
