@@ -25,7 +25,7 @@ namespace dpl
 namespace __omp_backend
 {
 
-template <bool _Bounded, class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
+template <class _ExecutionPolicy, class _Index, class _Up, class _Tp, class _Cp, class _Rp, class _Sp>
 _Tp
 __parallel_transform_scan(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __n, _Up /* __u */,
                           _Tp __init, _Cp /* __combine */, _Rp /* __brick_reduce */, _Sp __scan)
