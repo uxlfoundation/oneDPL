@@ -147,6 +147,7 @@ void test() {
     static_assert(HasIterCategory<Iter>);
   }
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // input_iterator_tag
     using Iter = std::ranges::iterator_t<dpl_ranges::zip_view<InputView<int>>>;
@@ -156,6 +157,7 @@ void test() {
     static_assert(std::is_same_v<Iter::difference_type, std::ptrdiff_t>);
     static_assert(std::is_same_v<Iter::value_type, tuple_type<int>>);
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 
   #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
   {

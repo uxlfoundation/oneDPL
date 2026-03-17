@@ -73,6 +73,7 @@ void test() {
     static_assert(!noexcept(std::ranges::iter_swap(iter1, iter2)));
   }
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // underlying iterators' iter_move are called through ranges::iter_swap
     adltest::IterMoveSwapRange r1, r2;
@@ -91,6 +92,7 @@ void test() {
     assert(r1.iter_swap_called_times == 4);
     assert(r2.iter_swap_called_times == 4);
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 

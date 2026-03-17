@@ -135,6 +135,7 @@ void test() {
     static_assert(weakly_equality_comparable_with<ConstIter, ConstSentinel>);
   }
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // underlying const/non-const sentinel cannot be compared with non-const/const iterator
     dpl_ranges::zip_view v{ComparableView(buffer1), ConstIncompatibleView{}};
@@ -153,6 +154,7 @@ void test() {
     static_assert(!weakly_equality_comparable_with<Iter, ConstSentinel>);
     static_assert(weakly_equality_comparable_with<ConstIter, ConstSentinel>);
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 
