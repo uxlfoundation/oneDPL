@@ -22,6 +22,7 @@
 #endif
 
 #include "support/utils.h"
+#include "support/utils_device_copyable.h"
 
 #include <iostream>
 
@@ -90,6 +91,27 @@ main()
         EXPECT_EQ(5u, z.size(), "wrong size with zip_view (std ranges)");
     }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
+
+#if TEST_DPCPP_BACKEND_PRESENT
+    run = true;
+    {
+        // zip_view: device copyable if all ranges are device copyable
+        static_assert(
+            sycl::is_device_copyable_v<
+                zip_view<TestUtils::range_device_copyable, TestUtils::range_device_copyable>>,
+            "zip_view is not device copyable with device copyable ranges");
+
+        static_assert(!sycl::is_device_copyable_v<zip_view<TestUtils::range_non_device_copyable,
+                                                           TestUtils::range_device_copyable>>,
+                      "zip_view is device copyable with non device copyable ranges");
+
+        static_assert(
+            !sycl::is_device_copyable_v<zip_view<TestUtils::range_device_copyable,
+                                                 TestUtils::range_non_device_copyable>>,
+            "zip_view is device copyable with non device copyable ranges");
+    }
+
+#endif     // TEST_DPCPP_BACKEND_PRESENT
 #endif // _ENABLE_RANGES_TESTING
 
     return TestUtils::done(run);
