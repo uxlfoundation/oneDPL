@@ -453,19 +453,19 @@ struct __gen_count_mask;
 template <typename _GenMask, typename _RangeTransform>
 struct __gen_expand_count_mask;
 
-template <int32_t __offset, typename _Assign>
+template <int32_t __offset, typename _Assign, bool _Bounded>
 struct __write_to_id_if;
 
-template <typename _Assign>
+template <typename _Assign, bool _Bounded>
 struct __write_to_id_if_else;
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, bool _Bounded>
 struct __write_red_by_seg;
 
-template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp, bool _Bounded>
 struct __write_scan_by_seg;
 
-template <typename _Assign>
+template <typename _Assign, bool _Bounded>
 struct __write_multiple_to_id;
 
 template <typename _Pred>
@@ -561,37 +561,37 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
 {
 };
 
-template <int32_t __offset, typename _Assign>
+template <int32_t __offset, typename _Assign, bool _Bounded>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if, __offset,
-                                                       _Assign)>
+                                                       _Assign, _Bounded)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };
 
-template <typename _Assign>
+template <typename _Assign, bool _Bounded>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_to_id_if_else,
-                                                       _Assign)>
+                                                       _Assign, _Bounded)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };
 
-template <typename _BinaryPred>
+template <typename _BinaryPred, bool _Bounded>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_red_by_seg,
-                                                       _BinaryPred)>
+                                                       _BinaryPred, _Bounded)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPred>
 {
 };
 
-template <bool __is_inclusive, typename _InitWrapper, typename _BinaryOp>
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp, bool _Bounded>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_scan_by_seg,
-                                                       __is_inclusive, _InitWrapper, _BinaryOp)>
-    : oneapi::dpl::__internal::__are_all_device_copyable<_InitWrapper, _BinaryOp>
+                                                       __is_inclusive, _InitType, _BinaryOp, _Bounded)>
+    : oneapi::dpl::__internal::__are_all_device_copyable<_InitType, _BinaryOp>
 {
 };
 
-template <typename _Assign>
+template <typename _Assign, bool _Bounded>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__write_multiple_to_id,
-                                                       _Assign)>
+                                                       _Assign, _Bounded)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_Assign>
 {
 };

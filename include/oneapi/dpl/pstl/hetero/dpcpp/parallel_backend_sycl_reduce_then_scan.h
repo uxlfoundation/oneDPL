@@ -105,11 +105,22 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
+struct __writer_base
+{
+    template <typename _OutRng, typename _SizeType>
+    bool
+    __is_in_bounds(const _OutRng& __out_rng, _SizeType __id) const
+    {
+        return __id < oneapi::dpl::__ranges::__size(__out_rng);
+    }
+};
+
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
-struct __simple_write_to_id
+struct __simple_write_to_id : __writer_base
 {
     using _TempData = __noop_temp_data;
+
     template <typename _OutRng, typename _ValueType>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
@@ -120,7 +131,8 @@ struct __simple_write_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+        if (__is_in_bounds(__out_rng, __id))
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
 };
 
@@ -128,7 +140,7 @@ struct __simple_write_to_id
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
 template <std::int32_t __offset, typename _Assign>
-struct __write_to_id_if
+struct __write_to_id_if : __writer_base
 {
     using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
@@ -142,8 +154,14 @@ struct __write_to_id_if
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+        {
+            const auto __out_idx = std::get<0>(__v) - 1 + __offset;                                                                                                                        
+
+            if (__is_in_bounds(__out_rng, __out_idx))
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+        }
     }
+
     _Assign __assign;
 };
 
@@ -151,7 +169,7 @@ struct __write_to_id_if
 // condition `get<1>(__v)` is `true`. Otherwise, writes the element to the output range at the index,
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
 template <typename _Assign>
-struct __write_to_id_if_else
+struct __write_to_id_if_else : __writer_base
 {
     using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
@@ -165,10 +183,19 @@ struct __write_to_id_if_else
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
         if (std::get<1>(__v))
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+        {
+            const auto __out_idx = std::get<0>(__v) - 1;
+
+            if (__is_in_bounds(__out_rng, __out_idx))
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+        }
         else
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+        {
+            const auto __out_idx = __id - std::get<0>(__v);
+
+            if (__is_in_bounds(__out_rng, __out_idx))
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+        }
     }
     _Assign __assign;
 };
@@ -176,9 +203,10 @@ struct __write_to_id_if_else
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
 // the current value and then the next key if it exists. Used for __parallel_reduce_by_segment_reduce_then_scan.
 template <typename _BinaryPred>
-struct __write_red_by_seg
+struct __write_red_by_seg : __writer_base
 {
     using _TempData = __noop_temp_data;
+
     template <typename _OutRng, typename _Tup>
     void
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
@@ -202,23 +230,30 @@ struct __write_red_by_seg
         // API requires that the first key in a segment is output and is important for when keys in a segment might not
         // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
         // segments process.
-        if (__id == 0)
+        if (__id == 0 && __is_in_bounds(__out_keys, 0))
             __out_keys[0] = __current_key;
+
         if (__is_seg_end)
         {
-            __out_values[__out_idx] = __current_value;
+            if (__is_in_bounds(__out_values, __out_idx))
+                __out_values[__out_idx] = __current_value;
+
             if (__id != __n - 1)
-                __out_keys[__out_idx + 1] = __next_key;
+            {
+                if (__is_in_bounds(__out_keys, __out_idx + 1))
+                    __out_keys[__out_idx + 1] = __next_key;
+            }
         }
     }
     _BinaryPred __binary_pred;
-    std::size_t __n;
+    const std::size_t __n;
 };
 
 template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
-struct __write_scan_by_seg
+struct __write_scan_by_seg : __writer_base
 {
     using _TempData = __noop_temp_data;
+
     _InitType __init_value;
     _BinaryOp __binary_op;
 
@@ -233,21 +268,26 @@ struct __write_scan_by_seg
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
+
         if constexpr (__is_inclusive)
         {
-            static_assert(std::is_same_v<_InitType,
-                                         oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
-                          "inclusive_scan_by_segment must not have an initial element");
-            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+            static_assert(
+                std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
+                "inclusive_scan_by_segment must not have an initial element");
+
+            if (__is_in_bounds(__out_rng, __id))
+                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
         }
         else
         {
             static_assert(
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
-            __out_rng[__id] =
-                get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+
+            if (__is_in_bounds(__out_rng, __id))
+                __out_rng[__id] = get<1>(__v)
+                                  ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                                  : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
         }
     }
 };
@@ -257,7 +297,7 @@ struct __write_scan_by_seg
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
 // of elements to write. Used for __parallel_set_write_a_b_op.
 template <typename _Assign>
-struct __write_multiple_to_id
+struct __write_multiple_to_id : __writer_base
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
@@ -270,12 +310,15 @@ struct __write_multiple_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         const std::size_t __n = std::get<1>(__v);
+        const std::size_t __base_idx = std::get<0>(__v) - __n;
+
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
-            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
-                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
+            if (__is_in_bounds(__out_rng, __base_idx + __i))
+                __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)), __out_rng[__base_idx + __i]);
         }
     }
+
     _Assign __assign;
 };
 
