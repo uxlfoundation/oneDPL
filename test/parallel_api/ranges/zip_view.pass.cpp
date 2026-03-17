@@ -32,14 +32,14 @@ main()
 
 #if _ENABLE_RANGES_TESTING 
 
+    using namespace oneapi::dpl::experimental::ranges;
+
 #if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
     run = true;
     {
         constexpr int max_n = 10;
         char data[max_n] = {'b', 'e', 'g', 'f', 'c', 'd', 'a', 'j', 'i', 'h'};
         int key[max_n] = {1, 4, 6, 5, 2, 3, 0, 9, 8, 7};
-
-        using namespace oneapi::dpl::experimental::ranges;
 
         //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
         auto view = __nanorange::nano::views::all(data);
@@ -78,8 +78,6 @@ main()
 #if _ONEDPL_CPP20_RANGES_PRESENT
     run = true;
     {
-        using oneapi::dpl::ranges::__internal::zip_view;
-
         //check basic zip_view construction and access with std C++20 views
         auto v1 = std::views::iota(0, 5);
         auto v2 = std::views::iota(10, 15);
