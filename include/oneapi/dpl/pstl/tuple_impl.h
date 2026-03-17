@@ -606,7 +606,7 @@ struct tuple<>
     {
         return *this;
     }
-	const tuple&
+    const tuple&
     operator=(const std::tuple<>&) const
     {
         return *this;
