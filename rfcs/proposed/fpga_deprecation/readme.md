@@ -17,8 +17,7 @@ Due to unclear perspectives and lack of practical feedback, the FPGA execution p
 was never added to the oneDPL specification.
 
 Since then, Intel has spun off its FPGA business; support for FPGAs in the oneAPI DPC++ compiler
-has been removed about a year ago. And there is no evidence of use, neither or interest to use
-oneDPL to program FPGAs.
+has been removed about a year ago. There is no evidence of use, nor of interest to use oneDPL to program FPGAs.
 
 ## Proposal
 
