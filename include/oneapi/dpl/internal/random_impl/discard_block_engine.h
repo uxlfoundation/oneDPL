@@ -215,7 +215,7 @@ class discard_block_engine
     ::std::enable_if_t<(_N > 0), result_type>
     generate_internal()
     {
-        result_type __res(0);
+        result_type __res;
         if (static_cast<::std::size_t>(_N) < (used_block - n_))
         {
             __res = engine_();

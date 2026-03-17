@@ -212,7 +212,7 @@ class subtract_with_carry_engine
     ::std::enable_if_t<(_N > 0), result_type>
     generate_internal()
     {
-        result_type __res(0);
+        result_type __res;
         for (int __i = 0; __i < _N; ++__i)
         {
             __res[__i] = generate_internal_scalar();
