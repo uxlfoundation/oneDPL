@@ -11,12 +11,4 @@ oneAPI DPC++ Library (oneDPL) Documentation
    get_started/release_notes.rst
    get_started/onedpl_gsg.rst
 
-.. toctree::
-
-   library_guide/guide_toc.rst
-
-.. toctree::
-   :hidden:
-   :caption: Notices and Disclaimers
-
-   notices_disclaimers.rst
+.. include:: library_guide/guide_toc.rst
