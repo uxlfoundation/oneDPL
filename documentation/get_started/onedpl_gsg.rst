@@ -5,15 +5,8 @@ Get Started with the |onedpl_long|
 to provide high-productivity APIs to developers, which can minimize SYCL*
 programming efforts across devices for high performance parallel applications.
 
-|onedpl_short| consists of the following components:
-
-* Parallel API
-* API for SYCL Kernels
-* Macros
-
-
 For general information about |onedpl_short|, visit the `oneDPL GitHub* repository <https://github.com/uxlfoundation/oneDPL>`_,
-or visit the |onedpl_library_guide|_ and the `Intel® oneAPI DPC++ Library main page
+or visit the |onedpl_library_guide| and the `Intel® oneAPI DPC++ Library main page
 <https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html>`_.
 
 Quick Start
@@ -39,8 +32,7 @@ Additionally, to use |onedpl_short| and other Base Kit components on non-Intel G
 `oneAPI for NVIDIA® GPUs plugin <https://developer.codeplay.com/products/oneapi/nvidia/home/>`_ or the
 `oneAPI for AMD GPUs plugin <https://developer.codeplay.com/products/oneapi/amd/home/>`_.
 
-See the |onedpl_short|
-`System Requirements <https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/intel-oneapi-dpc-library-introduction.html>`_
+See the |onedpl_requirements|
 for details on the compiler support required to compile applications using |onedpl_short| on CPU using OpenMP* or Intel®
 oneAPI Threading Building Blocks (oneTBB).
 
@@ -217,7 +209,7 @@ Find More
 
    * - Resource Link
      - Description
-   * - |onedpl_library_guide|_
+   * - |onedpl_library_guide|
      - Refer to the |onedpl_short| guide for  more in depth information.
    * - `System Requirements <https://www.intel.com/content/www/us/en/developer/articles/system-requirements/intel-oneapi-dpcpp-system-requirements.html>`_
      - Check system requirements before you install |onedpl_short|.

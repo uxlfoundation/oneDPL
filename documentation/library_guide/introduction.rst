@@ -25,6 +25,8 @@ page for:
 Install the `Intel® oneAPI Base Toolkit (Base Kit) <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html>`_
 to use |onedpl_short|.
 
+.. _library-requirements:
+
 System Requirements
 ===================
 
@@ -110,7 +112,7 @@ Restrictions
 ************
 
 When called with device execution policies, |onedpl_short| algorithms apply the same restrictions as
-|dpcpp_short| does (see the DPC++ documentation and the SYCL specification for details), such as:
+SYCL does (see the DPC++ documentation and the SYCL specification for details), such as:
 
 * Adding buffers to a lambda capture list is not allowed for lambdas passed to an algorithm, as buffers are not
   `SYCL device-copyable`_.
