@@ -66,17 +66,17 @@ class philox_engine
     static constexpr std::size_t __array_size = _n / 2;
 
     /* Method for unpacking even and odd elements of input constants into an array */
-    enum __indices_offset : std::size_t
+    enum class __indices_offset : std::size_t
     {
         __even_indices = 0,
         __odd_indices = 1
     };
-    template <std::size_t _Offset, std::size_t... _Is>
+    template <__indices_offset _Offset, std::size_t... _Is>
     static constexpr auto
     __get_consts_by(std::index_sequence<_Is...>)
     {
         constexpr std::array __input_array{_consts...};
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + _Offset]...};
+        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + static_cast<std::size_t>(_Offset)]...};
     }
 
   public:
@@ -95,9 +95,9 @@ class philox_engine
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
     static constexpr std::array<scalar_type, __array_size> multipliers =
-        __get_consts_by<__even_indices>(std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__even_indices>(std::make_index_sequence<__array_size>{});
     static constexpr std::array<scalar_type, __array_size> round_consts =
-        __get_consts_by<__odd_indices>(std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__odd_indices>(std::make_index_sequence<__array_size>{});
 
     static constexpr scalar_type
     min()
