@@ -30,11 +30,11 @@ main()
 {
     bool run = false;
 
-#if _ENABLE_RANGES_TESTING 
+#if _ENABLE_RANGES_TESTING
 
     using namespace oneapi::dpl::experimental::ranges;
 
-#if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+ #if !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
     run = true;
     {
         constexpr int max_n = 10;
@@ -73,7 +73,7 @@ main()
         char actual_data = std::get<0>(large_z[i]);
         EXPECT_EQ(expected_data, actual_data, "wrong effect with zip_view bracket operator");
     }
-#endif // !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
+ #endif // !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
     run = true;
