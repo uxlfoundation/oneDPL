@@ -278,10 +278,10 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
             requires(std::sentinel_for<std::ranges::sentinel_t<__internal::__maybe_const<_OtherConst, _Views>>,
                                        std::ranges::iterator_t<__internal::__maybe_const<_Const, _Views>>> &&
                      ...)
-        friend constexpr bool
-        operator==(const iterator& __x, const sentinel<_OtherConst>& __y)
+        constexpr bool
+        operator==(const sentinel<_OtherConst>& __y) const
         {
-            return __x.__compare_with_sentinels(__y.__get_end(), std::make_index_sequence<sizeof...(_Views)>());
+            return __compare_with_sentinels(__y.__get_end(), std::make_index_sequence<sizeof...(_Views)>());
         }
 
         friend constexpr auto
@@ -429,10 +429,6 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-#    if defined(_MSC_VER)
-        //required for CL compiler, which does not find the friend iterator class
-      public:
-#    endif
         decltype(auto)
         __get_end() const
         {
