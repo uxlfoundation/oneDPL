@@ -63,7 +63,7 @@ class philox_engine
 
   private:
     /* The size of the consts arrays */
-    static constexpr std::size_t array_size = _n / 2;
+    static constexpr std::size_t __array_size = _n / 2;
 
     /* Method for unpacking even and odd elements of input constants into an array */
     enum __indices_offset : std::size_t
@@ -109,7 +109,7 @@ class philox_engine
     max()
     {
         // equals to 2^w - 1
-        return in_mask;
+        return __in_mask;
     }
 
     static constexpr scalar_type default_seed = 20111115u;
@@ -123,7 +123,7 @@ class philox_engine
     void
     seed(scalar_type __seed = default_seed)
     {
-        seed_internal(__seed & in_mask);
+        __seed_internal(__seed & __in_mask);
     }
 
     /* Set the state to arbitrary position */
@@ -133,40 +133,40 @@ class philox_engine
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
             // all counters are set in reverse order
-            state_.X[word_count - __i - 1] = __counter[__i] & in_mask;
+            __state.__X[word_count - __i - 1] = __counter[__i] & __in_mask;
         }
-        state_.idx = word_count - 1;
+        __state.__idx = word_count - 1;
     }
 
     /* Generating functions */
     result_type
     operator()()
     {
-        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>();
+        return __generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>();
     }
 
     /* operator () overload for result portion generation */
     result_type
     operator()(unsigned int __random_nums)
     {
-        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>(__random_nums);
+        return __generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>(__random_nums);
     }
 
     /* Shift the counter only forward relative to its current position */
     void
     discard(unsigned long long __z)
     {
-        discard_internal(__z);
+        __discard_internal(__z);
     }
 
     /* Equality operators */
     friend bool
     operator==(const philox_engine& __x, const philox_engine& __y)
     {
-        return (std::equal(__x.state_.X.begin(), __x.state_.X.end(), __y.state_.X.begin()) &&
-                std::equal(__x.state_.K.begin(), __x.state_.K.end(), __y.state_.K.begin()) &&
-                std::equal(__x.state_.Y.begin(), __x.state_.Y.end(), __y.state_.Y.begin()) &&
-                __x.state_.idx == __y.state_.idx);
+        return (std::equal(__x.__state.__X.begin(), __x.__state.__X.end(), __y.__state.__X.begin()) &&
+                std::equal(__x.__state.__K.begin(), __x.__state.__K.end(), __y.__state.__K.begin()) &&
+                std::equal(__x.__state.__Y.begin(), __x.__state.__Y.end(), __y.__state.__Y.begin()) &&
+                __x.__state.__idx == __y.__state.__idx);
     }
 
     friend bool
@@ -193,48 +193,48 @@ class philox_engine
 
   private:
     /* Internal generator state */
-    struct state
+    struct __state_type
     {
-        std::array<scalar_type, word_count> X;     // counters
-        std::array<scalar_type, word_count / 2> K; // keys
-        std::array<scalar_type, word_count> Y;     // results
-        scalar_type idx;                           // index
-    } state_;
+        std::array<scalar_type, word_count> __X;     // counters
+        std::array<scalar_type, word_count / 2> __K; // keys
+        std::array<scalar_type, word_count> __Y;     // results
+        scalar_type __idx;                           // index
+    } __state;
 
-    /* word_mask<_W> - scalar_type with the low _W bits set */
+    /* __word_mask<_W> - scalar_type with the low _W bits set */
     template <std::size_t _W, typename = std::enable_if_t<_W != 0>>
-    static constexpr scalar_type word_mask = ~scalar_type(0) >> (std::numeric_limits<scalar_type>::digits - _W);
+    static constexpr scalar_type __word_mask = ~scalar_type(0) >> (std::numeric_limits<scalar_type>::digits - _W);
 
     /* Processing mask */
-    static constexpr auto in_mask = word_mask<word_size>;
+    static constexpr auto __in_mask = __word_mask<word_size>;
 
     void
-    seed_internal(scalar_type __seed)
+    __seed_internal(scalar_type __seed)
     {
         // set to zero counters and results
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            state_.X[__i] = 0;
-            state_.Y[__i] = 0;
+            __state.__X[__i] = 0;
+            __state.__Y[__i] = 0;
         }
         // 0th key element is set as seed, others are 0
-        state_.K[0] = __seed & in_mask;
+        __state.__K[0] = __seed & __in_mask;
         for (std::size_t __i = 1; __i < (word_count / 2); ++__i)
         {
-            state_.K[__i] = 0;
+            __state.__K[__i] = 0;
         }
 
-        state_.idx = word_count - 1;
+        __state.__idx = word_count - 1;
     }
 
     /* Increment counter by 1 */
     void
-    increase_counter_internal()
+    __increase_counter_internal()
     {
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            state_.X[__i] = (state_.X[__i] + 1) & in_mask;
-            if (state_.X[__i])
+            __state.__X[__i] = (__state.__X[__i] + 1) & __in_mask;
+            if (__state.__X[__i])
             {
                 return;
             }
@@ -243,19 +243,19 @@ class philox_engine
 
     /* Increment counter by an arbitrary __z */
     void
-    increase_counter_internal(unsigned long long __z)
+    __increase_counter_internal(unsigned long long __z)
     {
         unsigned long long __carry = 0;
         unsigned long long __ctr_inc = __z;
 
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            scalar_type __initial_x = state_.X[__i];
-            state_.X[__i] = (__initial_x + __ctr_inc + __carry) & in_mask;
+            scalar_type __initial_x = __state.__X[__i];
+            __state.__X[__i] = (__initial_x + __ctr_inc + __carry) & __in_mask;
 
             __carry = 0;
             // check overflow of the current chunk
-            if (state_.X[__i] < __initial_x)
+            if (__state.__X[__i] < __initial_x)
             {
                 __carry = 1;
             }
@@ -269,26 +269,26 @@ class philox_engine
 
     /* Decrement counter by 1 */
     void
-    decrease_counter_internal()
+    __decrease_counter_internal()
     {
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            if (state_.X[__i])
+            if (__state.__X[__i])
             {
-                state_.X[__i] = (state_.X[__i] - 1) & in_mask;
+                __state.__X[__i] = (__state.__X[__i] - 1) & __in_mask;
                 return;
             }
 
             /* Borrow for zero counter chunk */
-            state_.X[__i] = in_mask;
+            __state.__X[__i] = __in_mask;
         }
     }
 
-    /* generate_internal() specified for sycl_vec output 
+    /* __generate_internal() specified for sycl_vec output 
        and overload for result portion generation */
     template <unsigned int _N>
     std::enable_if_t<(_N > 0), result_type>
-    generate_internal(unsigned int __random_nums)
+    __generate_internal(unsigned int __random_nums)
     {
         if (__random_nums >= _N)
             return operator()();
@@ -296,67 +296,67 @@ class philox_engine
         result_type __loc_result(0);
         for (int __elm_count = 0; __elm_count < __random_nums; ++__elm_count)
         {
-            ++state_.idx;
+            ++__state.__idx;
 
             // check if buffer is empty
-            if (state_.idx == word_count)
+            if (__state.__idx == word_count)
             {
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = 0;
+                __philox_kernel();
+                __increase_counter_internal();
+                __state.__idx = 0;
             }
-            __loc_result[__elm_count] = state_.Y[state_.idx];
+            __loc_result[__elm_count] = __state.__Y[__state.__idx];
         }
 
         return __loc_result;
     }
 
-    /* generate_internal() specified for sycl_vec output */
+    /* __generate_internal() specified for sycl_vec output */
     template <unsigned int _N>
     std::enable_if_t<(_N > 0), result_type>
-    generate_internal()
+    __generate_internal()
     {
-        result_type __loc_result(0);
+        result_type __loc_result;
         for (int __elm_count = 0; __elm_count < _N; ++__elm_count)
         {
-            ++state_.idx;
+            ++__state.__idx;
 
             // check if buffer is empty
-            if (state_.idx == word_count)
+            if (__state.__idx == word_count)
             {
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = 0;
+                __philox_kernel();
+                __increase_counter_internal();
+                __state.__idx = 0;
             }
-            __loc_result[__elm_count] = state_.Y[state_.idx];
+            __loc_result[__elm_count] = __state.__Y[__state.__idx];
         }
 
         return __loc_result;
     }
 
-    /* generate_internal() specified for a scalar output */
+    /* __generate_internal() specified for a scalar output */
     template <unsigned int _N>
     std::enable_if_t<(_N == 0), result_type>
-    generate_internal()
+    __generate_internal()
     {
-        ++state_.idx;
-        if (state_.idx == word_count)
+        ++__state.__idx;
+        if (__state.__idx == word_count)
         {
-            philox_kernel();
-            increase_counter_internal();
-            state_.idx = 0;
+            __philox_kernel();
+            __increase_counter_internal();
+            __state.__idx = 0;
         }
 
-        return state_.Y[state_.idx];
+        return __state.__Y[__state.__idx];
     }
 
     void
-    discard_internal(unsigned long long __z)
+    __discard_internal(unsigned long long __z)
     {
-        std::uint32_t __available_in_buffer = word_count - 1 - state_.idx;
+        std::uint32_t __available_in_buffer = word_count - 1 - __state.__idx;
         if (__z <= __available_in_buffer)
         {
-            state_.idx += __z;
+            __state.__idx += __z;
         }
         else
         {
@@ -364,72 +364,72 @@ class philox_engine
             int __tail = __z % word_count;
             if (__tail == 0)
             {
-                increase_counter_internal(__z / word_count);
-                state_.idx = word_count - 1;
+                __increase_counter_internal(__z / word_count);
+                __state.__idx = word_count - 1;
             }
             else
             {
                 if (__z > word_count)
                 {
-                    increase_counter_internal((__z - 1) / word_count);
+                    __increase_counter_internal((__z - 1) / word_count);
                 }
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = __tail - 1;
+                __philox_kernel();
+                __increase_counter_internal();
+                __state.__idx = __tail - 1;
             }
         }
     }
 
     /* Internal generation Philox kernel */
     void
-    philox_kernel()
+    __philox_kernel()
     {
         if constexpr (word_count == 2)
         {
-            scalar_type __V0 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __K0 = state_.K[0];
+            scalar_type __V0 = __state.__X[0];
+            scalar_type __V1 = __state.__X[1];
+            scalar_type __K0 = __state.__K[0];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
+                auto [__hi0, __lo0] = __mulhilo(__V0, multipliers[0]);
                 __V0 = __hi0 ^ __K0 ^ __V1;
                 __V1 = __lo0;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
+                __K0 = (__K0 + round_consts[0]) & __in_mask;
             }
-            state_.Y[0] = __V0;
-            state_.Y[1] = __V1;
+            __state.__Y[0] = __V0;
+            __state.__Y[1] = __V1;
         }
         else if constexpr (word_count == 4)
         {
-            // permute X to V
-            scalar_type __V2 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __V0 = state_.X[2];
-            scalar_type __V3 = state_.X[3];
-            scalar_type __K0 = state_.K[0];
-            scalar_type __K1 = state_.K[1];
+            // permute __X to V
+            scalar_type __V2 = __state.__X[0];
+            scalar_type __V1 = __state.__X[1];
+            scalar_type __V0 = __state.__X[2];
+            scalar_type __V3 = __state.__X[3];
+            scalar_type __K0 = __state.__K[0];
+            scalar_type __K1 = __state.__K[1];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                auto [__hi1, __lo1] = mulhilo(__V2, multipliers[1]);
+                auto [__hi0, __lo0] = __mulhilo(__V0, multipliers[0]);
+                auto [__hi1, __lo1] = __mulhilo(__V2, multipliers[1]);
                 __V2 = __hi0 ^ __V1 ^ __K0;
                 __V1 = __lo0;
                 __V0 = __hi1 ^ __V3 ^ __K1;
                 __V3 = __lo1;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
-                __K1 = (__K1 + round_consts[1]) & in_mask;
+                __K0 = (__K0 + round_consts[0]) & __in_mask;
+                __K1 = (__K1 + round_consts[1]) & __in_mask;
             }
-            state_.Y[0] = __V2;
-            state_.Y[1] = __V1;
-            state_.Y[2] = __V0;
-            state_.Y[3] = __V3;
+            __state.__Y[0] = __V2;
+            __state.__Y[1] = __V1;
+            __state.__Y[2] = __V0;
+            __state.__Y[3] = __V3;
         }
     }
 
     /* Returns the word_size high and word_size low
        bits of the 2*word_size-bit product of __a and __b */
     static std::pair<scalar_type, scalar_type>
-    mulhilo(scalar_type __a, scalar_type __b)
+    __mulhilo(scalar_type __a, scalar_type __b)
     {
         scalar_type __res_hi, __res_lo;
 
@@ -446,9 +446,9 @@ class philox_engine
             constexpr std::size_t __chunk_size = 32;
             __res_lo = __a * __b;
 
-            scalar_type __x0 = __a & word_mask<__chunk_size>;
+            scalar_type __x0 = __a & __word_mask<__chunk_size>;
             scalar_type __x1 = __a >> __chunk_size;
-            scalar_type __y0 = __b & word_mask<__chunk_size>;
+            scalar_type __y0 = __b & __word_mask<__chunk_size>;
             scalar_type __y1 = __b >> __chunk_size;
 
             scalar_type __p11 = __x1 * __y1;
@@ -458,7 +458,7 @@ class philox_engine
 
             /* addition of three 32-bit values to get the carry for the hi part */
             scalar_type __carry_hi =
-                ((__p10 & word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & word_mask<__chunk_size>)) >>
+                ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
                 __chunk_size;
 
             /* 64-bit product + two 32-bit values + carry from the lo part */
@@ -471,7 +471,7 @@ class philox_engine
                     : __res_hi << (std::numeric_limits<scalar_type>::digits - word_size) | (__res_lo >> word_size);
         }
 
-        return {__res_hi & in_mask, __res_lo & in_mask};
+        return {__res_hi & __in_mask, __res_lo & __in_mask};
     }
 };
 
@@ -487,15 +487,15 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
     __CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto __k_elm : __engine.state_.K)
+    for (auto __k_elm : __engine.__state.__K)
     {
         __os << __k_elm << __sp;
     }
-    for (auto __x_elm : __engine.state_.X)
+    for (auto __x_elm : __engine.__state.__X)
     {
         __os << __x_elm << __sp;
     }
-    __os << __engine.state_.idx;
+    __os << __engine.__state.__idx;
 
     return __os;
 }
@@ -505,15 +505,15 @@ template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r
 const sycl::stream&
 operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    for (auto __k_elm : __engine.state_.K)
+    for (auto __k_elm : __engine.__state.__K)
     {
         __os << __k_elm << ' ';
     }
-    for (auto __x_elm : __engine.state_.X)
+    for (auto __x_elm : __engine.__state.__X)
     {
         __os << __x_elm << ' ';
     }
-    __os << __engine.state_.idx;
+    __os << __engine.__state.__idx;
 
     return __os;
 }
@@ -527,7 +527,7 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    /* Number of elements in the state (K, X and idx) */
+    /* Number of elements in the state (__K, __X and __idx) */
     constexpr std::size_t __state_size = __n / 2 + __n + 1;
 
     std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
@@ -541,20 +541,20 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
         int __inp_itr = 0;
         for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
         {
-            __engine.state_.K[__i] = __tmp_inp[__inp_itr];
+            __engine.__state.__K[__i] = __tmp_inp[__inp_itr];
         }
         for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
         {
-            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
+            __engine.__state.__X[__i] = __tmp_inp[__inp_itr];
         }
-        __engine.state_.idx = __tmp_inp[__inp_itr];
+        __engine.__state.__idx = __tmp_inp[__inp_itr];
 
         /* Counter is incremented right after the generation of Yi - to restore the unused sequence Yi, the counter has to be decremented */
-        if (__engine.state_.idx != __n - 1)
+        if (__engine.__state.__idx != __n - 1)
         {
-            __engine.decrease_counter_internal();
+            __engine.__decrease_counter_internal();
             /* setup Yi */
-            __engine.philox_kernel();
+            __engine.__philox_kernel();
         }
     }
 
