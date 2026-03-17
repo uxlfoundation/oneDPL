@@ -40,8 +40,8 @@ author = 'Intel'
 release = '2022.11.0'
 
 rst_epilog = """
-.. include:: /variables.txt
-.. include:: /common_cross_document_links.txt
+.. include:: /_auxiliary/variables.txt
+.. include:: /_auxiliary/common_cross_document_links.txt
 """
 
 # -- General configuration ---------------------------------------------------
