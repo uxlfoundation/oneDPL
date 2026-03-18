@@ -1195,9 +1195,9 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ite
                                                                /*_IsNoInitRequested=*/true>();
         auto __buf3 = __keep3(__d_first, __d_first + __n);
 
-        __par_backend_hetero::__parallel_merge(_BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
-                                               __buf1.all_view(), __buf2.all_view(), __buf3.all_view(), __comp,
-                                               oneapi::dpl::identity{}, oneapi::dpl::identity{})
+        __par_backend_hetero::__parallel_merge</*_Bounded*/ false>(
+            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
+            __buf3.all_view(), __comp, oneapi::dpl::identity{}, oneapi::dpl::identity{})
             .__checked_deferrable_wait();
     }
     return __d_first + __n;
