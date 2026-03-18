@@ -25,8 +25,9 @@
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
 
-// TODO: Break circular dependency between utils_ranges_sycl and ranges_defs.h
-//       by extracting SYCL-specific range/view definitions into their own file
+// TODO: Explore extracting SYCL-specific range/view definitions into their own
+//       file or forward declaring them, to allow inclusion of ranges_defs.h
+//       here instead of zip_view_impl.h
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #include "../../zip_view_impl.h"
 namespace _dpl_ranges_zip = oneapi::dpl::ranges::__internal;
