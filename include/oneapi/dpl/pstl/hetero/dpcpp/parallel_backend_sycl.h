@@ -717,7 +717,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
                                                                          typename _InitType::__value_type>;
             using _ScanInputTransform = oneapi::dpl::identity;
-            using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
+            using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id<_Bounded>;
 
             _GenInput __gen_transform{__unary_op};
 
@@ -840,7 +840,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, _Bounded>;
 
         _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
@@ -882,7 +882,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     // Returns the first component from scan input which is scanned over
     using _ScanInputTransform = __get_zeroth_element;
     // Writes current segment's output reduction and the next segment's output key
-    using _WriteOp = __write_red_by_seg<_BinaryPredicate>;
+    using _WriteOp = __write_red_by_seg<_BinaryPredicate, _Bounded>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
@@ -912,7 +912,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
         using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
+            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign, _Bounded>;
 
         return __parallel_reduce_then_scan_copy<_CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
@@ -956,7 +956,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
-        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign>;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign, _Bounded>;
 
         _Size __stop_out = __parallel_reduce_then_scan_copy<_CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
@@ -992,7 +992,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     using _MaskRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<2>;
     using _MaskPredicate = oneapi::dpl::identity;
     using _GenMaskScan = oneapi::dpl::__par_backend_hetero::__gen_mask<_MaskPredicate, _MaskRangeTransform>;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, oneapi::dpl::__internal::__pstl_assign, _Bounded>;
     using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
     using _ScanRangeTransform = oneapi::dpl::__par_backend_hetero::__extract_range_from_zip<0>;
 
@@ -1039,7 +1039,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare,
                                                                                  _Proj1, _Proj2>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
-    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign, _Bounded>;
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
     const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
@@ -2364,7 +2364,7 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     // __no_init_value to the transform scan call. This is because init handling must occur on a per-segment basis
     // and functions differently than the typical scan init which is only applied once in a single location.
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
-    using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator>;
+    using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator, _Bounded>;
     return __parallel_transform_reduce_then_scan<sizeof(_PackedFlagValueType), _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},

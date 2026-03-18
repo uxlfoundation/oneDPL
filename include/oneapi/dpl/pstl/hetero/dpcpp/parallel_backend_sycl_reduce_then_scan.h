@@ -105,19 +105,24 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-struct __writer_base
+template <bool _Bounded>
+struct __write_op_base
 {
     template <typename _OutRng, typename _SizeType>
     bool
     __is_in_bounds(const _OutRng& __out_rng, _SizeType __id) const
     {
-        return __id < oneapi::dpl::__ranges::__size(__out_rng);
+        if constexpr (_Bounded)
+            return __id < oneapi::dpl::__ranges::__size(__out_rng);
+        else
+            return true;
     }
 };
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
-struct __simple_write_to_id : __writer_base
+template <bool _Bounded>
+struct __simple_write_to_id : __write_op_base<_Bounded>
 {
     using _TempData = __noop_temp_data;
 
@@ -139,8 +144,8 @@ struct __simple_write_to_id : __writer_base
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1 + __offset`, but only if the
 // condition `get<0>(__v)` is `true`. Used in __parallel_copy_if, __parallel_unique_copy, and
 // __parallel_set_reduce_then_scan_set_a_write
-template <std::int32_t __offset, typename _Assign>
-struct __write_to_id_if : __writer_base
+template <std::int32_t __offset, typename _Assign, bool _Bounded>
+struct __write_to_id_if : __write_op_base<_Bounded>
 {
     using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
@@ -168,8 +173,8 @@ struct __write_to_id_if : __writer_base
 // Writes a single element `get<2>(__v)` to the output range at the index, `get<0>(__v) - 1`, but only if the
 // condition `get<1>(__v)` is `true`. Otherwise, writes the element to the output range at the index,
 // `__id - get<0>(__v)`. Used for __parallel_partition_copy.
-template <typename _Assign>
-struct __write_to_id_if_else : __writer_base
+template <typename _Assign, bool _Bounded>
+struct __write_to_id_if_else : __write_op_base<_Bounded>
 {
     using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
@@ -202,8 +207,8 @@ struct __write_to_id_if_else : __writer_base
 
 // Writes operation for reduce_by_segment, writes first key if the id is 0. Also, if the segment end is reached, writes
 // the current value and then the next key if it exists. Used for __parallel_reduce_by_segment_reduce_then_scan.
-template <typename _BinaryPred>
-struct __write_red_by_seg : __writer_base
+template <typename _BinaryPred, bool _Bounded>
+struct __write_red_by_seg : __write_op_base<_Bounded>
 {
     using _TempData = __noop_temp_data;
 
@@ -249,8 +254,8 @@ struct __write_red_by_seg : __writer_base
     const std::size_t __n;
 };
 
-template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
-struct __write_scan_by_seg : __writer_base
+template <bool __is_inclusive, typename _InitType, typename _BinaryOp, bool _Bounded>
+struct __write_scan_by_seg : __write_op_base<_Bounded>
 {
     using _TempData = __noop_temp_data;
 
@@ -296,8 +301,8 @@ struct __write_scan_by_seg : __writer_base
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
 // of elements to write. Used for __parallel_set_write_a_b_op.
-template <typename _Assign>
-struct __write_multiple_to_id : __writer_base
+template <typename _Assign, bool _Bounded>
+struct __write_multiple_to_id : __write_op_base<_Bounded>
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     void
