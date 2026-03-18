@@ -2,23 +2,23 @@
 
 ## Introduction
 
-This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. Two implementations have been provided: an ESIMD implementation optimized for Intel PVC architecture and a SYCL implementation optimized for Intel GPUs that support work-group independent forward progress.
+This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. At the time of writing, two implementations have been provided: an initial ESIMD [[3]](#references) implementation designed for Intel's PVC (GPU Series Max) architecture and a subsequent pure SYCL implementation that generalizes the approach to Intel GPUs supporting the forward progress extension [[4]](#references).
 
 Both implementations use the onesweep radix sort algorithm [[1]](#references) with decoupled lookback synchronization [[2]](#references), the current state-of-the-art GPU sort. This algorithmic approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
 
 The motivation for these implementations was to provide:
 - Competitive performance with state-of-the-art GPU sort
-- A specialized ESIMD implementation that best leverages Intel PVC architecture
-- Portable and performant SYCL implementation for broad Intel Xe GPU support
+- An initial ESIMD implementation (an explicit SIMD extension to SYCL) that best leverages Intel PVC architecture
+- A portable pure SYCL implementation that generalizes the ESIMD approach while maintaining comparable performance across Intel Xe GPU architectures
 - Integration with the oneDPL kernel templates framework, providing tunability and asynchronous execution
 
 ## Proposal
 
 ### API Overview
 
-The implementations provide high-level sorting interfaces in the kernel templates framework. Two function families are provided: `radix_sort` for keys-only sorting and `radix_sort_by_key` for sorting key-value pairs. Each function has overloads for range and iterator inputs, and for in-place and out-of-place operation.
+The implementations provide high-level sorting interfaces in the kernel templates framework. Two sorting variants are provided: `radix_sort` for keys-only sorting and `radix_sort_by_key` for sorting key-value pairs. Each of these variants provide overloads for range and iterator inputs, and for in-place and out-of-place operation.
 
-Representative signatures for keys-only sorting:
+The pure SYCL implementation defines its functions in the `oneapi::dpl::experimental::kt::gpu` namespace. The following lists function signatures for the SYCL keys-only sorting:
 
 ```cpp
 namespace oneapi::dpl::experimental::kt::gpu {
@@ -52,7 +52,7 @@ The following table lists valid `kernel_param` configurations for each implement
 | Parameter | ESIMD | SYCL |
 |-----------|-------|------|
 | Work-group size | 64 | 512, 1024 |
-| Data per work-item | Multiples of 32 | Multiples of 1, >1 (limited by SLM capacity) |
+| Data per work-item | Multiples of 32 (limited by SLM capacity) | Multiples of 1 (limited by SLM capacity) |
 | Radix bits | 8 | 8 |
 
 ### Usage Example
@@ -90,30 +90,41 @@ constexpr std::size_t n = 1'000'000;
 
 The onesweep radix sort algorithm [[1]](#references) processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use an additional input pass per radix stage. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once with a single pass over keys.
 
+High-level psuedocode for each radix sort kernel is shown below:
+
 **Histogram kernel** — computes per-bin counts across all stages in a single pass:
 ```
-for each key in input:
-    for each stage:
-        bin = extract_radix_bits(key, stage)
-        SLM_histogram[stage][bin]++          // atomic increment in SLM
-reduce SLM_histogram into global_histogram   // atomic accumulate
+onesweep_histogram_kernel():
+    for each key assigned to this work-group:
+        for each stage:
+            bin = extract_radix_bits(key, stage)
+            SLM_histogram[stage][bin]++          // atomic increment in SLM
+    reduce SLM_histogram into global_histogram   // atomic accumulate
 ```
 
 **Scan kernel** — converts per-bin counts into global offsets:
 ```
-for each stage:
+onesweep_scan_kernel():
+    stage = work_group_id
     exclusive_scan(global_histogram[stage])   // in-place prefix sum over bins
 ```
 
 **Onesweep reorder kernel** — executed once per radix stage:
 ```
-for each tile assigned to this work-group:
-    keys = load_tile(input, tile_id)
-    local_histogram = rank_keys_within_subgroups(keys)
-    scan_histograms_across_subgroups(local_histogram)
-    incoming_offsets = decoupled_lookback(tile_id, local_histogram)
-    reorder keys through SLM using local ranks
-    scatter keys to output using incoming_offsets
+onesweep_reorder_kernel():
+    for each tile assigned to this work-group:
+        // 1. load tile and extract bins
+        keys, values = load_tile(tile_id)
+        bins = extract_radix_bins(keys, current_stage)
+        // 2. Rank keys efficiently in each sub-group
+        ranks = rank_local(bins)
+        // 3. scan over bin rankings per sub-group, publish work-group totals, and perform
+        // decoupled lookback to compute per-bin global offsets
+        rank_global(tile_id, subgroup_histograms) 
+        // 4. Locally reorder keys & values for this work-group into SLM
+        reorder_reg_to_slm(keys, values, ranks, bins)
+        // 5. Scatter keys & values from SLM to global memory 
+        reorder_slm_to_glob(keys, values, bins)
 ```
 
 The algorithm processes data in contiguous tiles, where each work-group may handle multiple tiles. Work-groups execute concurrently and coordinate through a chained scan protocol via decoupled lookback [[2]](#references).
@@ -275,4 +286,6 @@ The exit criteria for this feature align with the [kernel templates exit criteri
 
 1. A. Adinets and D. Merrill, "Onesweep: A Faster Least Significant Digit Radix Sort for GPUs," 2022. Available: https://arxiv.org/abs/2206.01784
 2. D. Merrill and M. Garland, "Single-pass Parallel Prefix Scan with Decoupled Look-back," 2016. Available: https://research.nvidia.com/publication/2016-03_single-pass-parallel-prefix-scan-decoupled-look-back
+3. "Explicit SIMD SYCL extension (ESIMD)," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/supported/sycl_ext_intel_esimd/sycl_ext_intel_esimd.md
+4. "Forward Progress Guarantees Extension," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_forward_progress.asciidoc
 
