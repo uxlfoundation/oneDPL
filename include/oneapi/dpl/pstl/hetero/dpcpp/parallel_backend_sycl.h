@@ -920,7 +920,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     return __ret;
 }
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 __future<sycl::event, __result_and_scratch_storage<
                           oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
