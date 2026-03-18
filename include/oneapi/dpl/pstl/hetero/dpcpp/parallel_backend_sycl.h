@@ -395,7 +395,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    __future<sycl::event, __combined_storage<typename _InitType::__value_type>>
+    std::tuple<sycl::event, __result_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
     {
@@ -404,14 +404,14 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        __combined_storage<_InitType> __result{__q, 0, /*result size*/ 1};
+        __result_storage<_ValueType> __result{__q, 1};
 
          sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -469,7 +469,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
                                                                __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    __future<sycl::event, __combined_storage<typename _InitType::__value_type>>
+    std::tuple<sycl::event, __result_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op)
     {
@@ -477,14 +477,14 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
         constexpr ::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
 
-        __combined_storage<_InitType> __result{__q, 0, /*result size*/ 1};
+        __result_storage<_ValueType> __result{__q, 1};
 
         sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
@@ -639,7 +639,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-__future<sycl::event, __combined_storage<typename _InitType::__value_type>>
+std::tuple<sycl::event, __result_storage<typename _InitType::__value_type>>
 __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
