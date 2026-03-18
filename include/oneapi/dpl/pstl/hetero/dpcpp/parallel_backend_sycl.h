@@ -1071,7 +1071,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 }
 
 // balanced path
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
@@ -1436,7 +1436,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
                 __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
                 std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
         }
-        return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
+        return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper<_CustomName>>(
                    __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                    std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
