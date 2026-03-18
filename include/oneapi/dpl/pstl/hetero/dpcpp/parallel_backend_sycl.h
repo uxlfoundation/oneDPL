@@ -868,7 +868,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
+template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Size, typename _BinaryPredicate>
 std::array<_Size, 2>
 __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                        _Range2&& __result, _Size __n, _Size __n_out, _BinaryPredicate __pred)

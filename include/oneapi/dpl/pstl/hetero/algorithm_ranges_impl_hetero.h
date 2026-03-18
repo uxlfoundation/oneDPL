@@ -830,7 +830,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Ran
         return 1;
     }
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+    return oneapi::dpl::__par_backend_hetero::__parallel_unique_copy</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__result)), __n, __n_out, __pred)[0];
@@ -851,7 +851,7 @@ __pattern_unique_copy(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec
 
     oneapi::dpl::__internal::__binary_op<_Comp, _Proj, _Proj> __pred_2{__comp, __proj, __proj};
 
-    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy(
+    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_unique_copy</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r),
         oneapi::dpl::__ranges::views::all_write(__out_r), __n, __n_out, __pred_2);
 
