@@ -118,7 +118,7 @@ decltype(auto)
 __tuple_apply(_Adaptor __adaptor, _F __f, _Tuple& __t)
 {
     return __tuple_apply_impl(std::move(__adaptor), std::move(__f), __t,
-                              std::make_index_sequence<std::tuple_size_v<_Tuple>());
+                              std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
 template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
@@ -200,7 +200,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __make_zip = [](auto&&... __iterators) -> decltype(auto) {
                 return oneapi::dpl::make_zip_iterator(std::forward<decltype(__iterators)>(__iterators)...);
-            }
+            };
             return __internal::__tuple_apply(__make_zip, __current);
         }
 
@@ -287,7 +287,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __decrement_n = [__n](auto& __it) {
                 __it -= __n;
-            }
+            };
             __internal::__tuple_for_each(__decrement_n, __current);
             return *this;
         }
