@@ -115,6 +115,7 @@ void test() {
     assert(&(std::get<0>(*it)) == &(buffer[2]));
   }
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // all input+
     int buffer[3] = {4, 5, 6};
@@ -136,6 +137,7 @@ void test() {
     assert(&(std::get<0>(*it)) == &(a[2]));
     assert(&(std::get<1>(*it)) == &(buffer[2]));
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 }
 
 #endif //_ENABLE_STD_RANGES_TESTING

@@ -638,25 +638,49 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
                        _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _Index1 = std::ranges::range_difference_t<_R1>;
-    using _Index2 = std::ranges::range_difference_t<_R2>;
-    using _Index3 = std::ranges::range_difference_t<_OutRange>;
+    using _IndexCommon = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
 
-    const _Index1 __n_1 = std::ranges::size(__r1);
-    const _Index2 __n_2 = std::ranges::size(__r2);
-    const _Index3 __n_out = std::min<_Index3>(__n_1 + __n_2, std::ranges::size(__out_r));
+    auto __first1 = std::ranges::begin(__r1);
+    auto __first2 = std::ranges::begin(__r2);
+    auto __first3 = std::ranges::begin(__out_r);
 
-    auto __it_1 = std::ranges::begin(__r1);
-    auto __it_2 = std::ranges::begin(__r2);
-    auto __it_out = std::ranges::begin(__out_r);
+    const _IndexCommon __n1 = std::ranges::size(__r1);
+    const _IndexCommon __n2 = std::ranges::size(__r2);
+    const _IndexCommon __n3 = std::ranges::size(__out_r);
 
-    if (__n_out == 0)
-        return {__it_1, __it_2, __it_out};
+    //{3} is empty
+    if (__n3 == 0)
+        return {__first1, __first2, __first3};
 
-    auto [__res1, __res2] = ___merge_path_out_lim(__tag, std::forward<_ExecutionPolicy>(__exec), __it_1, __n_1, __it_2,
-                                                  __n_2, __it_out, __n_out, __comp, __proj1, __proj2);
+    //{1} is empty
+    if (__n1 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
 
-    return {__res1, __res2, __it_out + __n_out};
+        auto __last2_tmp = __first2 + std::min(__n3, __n2);
+
+        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first2,
+                                                                __last2_tmp, __first3, __copy_range);
+        return {__first1, __last2_tmp, __last_out_res};
+    }
+
+    //{2} is empty
+    if (__n2 == 0)
+    {
+        __internal::__brick_copy<_Tag> __copy_range{};
+
+        auto __last1_tmp = __first1 + std::min(__n3, __n1);
+
+        auto __last_out_res = __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1,
+                                                                __last1_tmp, __first3, __copy_range);
+        return {__last1_tmp, __first2, __last_out_res};
+    }
+
+    auto [__it1, __it2, __it3] = __merge_path_out_lim(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n1, __first2, __first2 + __n2, __first3,
+        __first3 + std::min<_IndexCommon>(__n1 + __n2, __n3), __comp, __proj1, __proj2);
+
+    return {__it1, __it2, __it3};
 }
 
 //---------------------------------------------------------------------------------------------------------------------

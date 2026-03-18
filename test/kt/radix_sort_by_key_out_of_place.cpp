@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- esimd_radix_sort_by_key_out_of_place.cpp --------------------------===//
+//===-- radix_sort_by_key_out_of_place.cpp --------------------------------===//
 //
 // Copyright (C) 2023 Intel Corporation
 //
@@ -25,7 +25,7 @@
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
 
-#include "esimd_radix_sort_utils.h"
+#include "radix_sort_utils.h"
 
 template <typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
 void
@@ -50,9 +50,7 @@ test_sycl_buffer(sycl::queue q, std::size_t size, KernelParam param)
         sycl::buffer<KeyT> keys_out(actual_keys_out.data(), actual_keys_out.size());
         sycl::buffer<ValueT> values_out(actual_values_out.data(), actual_values_out.size());
 
-        oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, keys_out,
-                                                                                        values_out, param)
-            .wait();
+        kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, keys, values, keys_out, values_out, param).wait();
     }
 
     auto expected_first = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
@@ -101,9 +99,8 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
     auto expected_first = oneapi::dpl::make_zip_iterator(std::begin(expected_keys), std::begin(expected_values));
     std::stable_sort(expected_first, expected_first + size, CompareKey<isAscending>{});
 
-    oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<isAscending, RadixBits>(
-        q, keys.get_data(), keys.get_data() + size, values.get_data(), keys_out.get_data(), values_out.get_data(),
-        param)
+    kt_ns::radix_sort_by_key<isAscending, RadixBits>(q, keys.get_data(), keys.get_data() + size, values.get_data(),
+                                                     keys_out.get_data(), values_out.get_data(), param)
         .wait();
 
     std::vector<KeyT> actual_keys_out(size);
@@ -137,9 +134,11 @@ test_usm(sycl::queue q, std::size_t size, KernelParam param)
 int
 main()
 {
+    bool run_test = false;
+#if TEST_SYCL_RADIX_SORT_KT_AVAILABLE || defined(TEST_KT_BACKEND_ESIMD)
     constexpr oneapi::dpl::experimental::kt::kernel_param<TEST_DATA_PER_WORK_ITEM, TEST_WORK_GROUP_SIZE> params;
     auto q = TestUtils::get_test_queue();
-    bool run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
+    run_test = can_run_test<decltype(params), TEST_KEY_TYPE, TEST_VALUE_TYPE>(q, params);
 
     if (run_test)
     {
@@ -163,6 +162,7 @@ main()
             return EXIT_FAILURE;
         }
     }
+#endif
 
     return TestUtils::done(run_test);
 }

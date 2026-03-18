@@ -148,6 +148,7 @@ constexpr void inequalityOperatorsDoNotExistTest(auto&& iter1, auto&& iter2) {
 }
 
 void test() {
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // Test a new-school iterator with operator<=>; the iterator should also have operator<=>.
     using It = three_way_contiguous_iterator<int*>;
@@ -168,6 +169,7 @@ void test() {
     assert((iter1 <=> iter1) == std::strong_ordering::equal);
     assert((iter2 <=> iter1) == std::strong_ordering::greater);
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 
   {
     // Test an old-school iterator with no operator<=>; the transform iterator shouldn't have
@@ -246,6 +248,7 @@ void test() {
     compareOperatorTest(iter1, iter2);
   }
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // underlying iterator does not support ==
     using IterNoEqualView = BasicView<cpp20_input_iterator<int*>, sentinel_wrapper<cpp20_input_iterator<int*>>>;
@@ -256,6 +259,7 @@ void test() {
     static_assert(!weakly_equality_comparable_with<Iter, Iter>);
     inequalityOperatorsDoNotExistTest(it, it);
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 }
 #endif //_ENABLE_STD_RANGES_TESTING
 

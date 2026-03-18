@@ -41,6 +41,14 @@ struct __op_uninitialized_default_construct;
 template <typename... _ExecutionPolicy>
 struct __op_uninitialized_value_construct;
 
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Function>
+void
+__pattern_uninitialized_walk1(_Tag, _ExecutionPolicy&&, _ForwardIterator, _ForwardIterator, _Function);
+
+template <class _Tag, class _ExecutionPolicy, class _ForwardIterator, class _Size, class _Function>
+_ForwardIterator
+__pattern_uninitialized_walk1_n(_Tag, _ExecutionPolicy&&, _ForwardIterator, _Size, _Function);
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi

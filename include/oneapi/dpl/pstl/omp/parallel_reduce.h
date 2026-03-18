@@ -30,7 +30,7 @@ _Value
 __parallel_reduce_body(_RandomAccessIterator __first, _RandomAccessIterator __last, _Value __identity,
                        _RealBody __real_body, _Reduction __reduce)
 {
-    if (__should_run_serial(__first, __last))
+    if (__should_run_serial(__first, __last, __default_chunk_size))
     {
         return __real_body(__first, __last, __identity);
     }

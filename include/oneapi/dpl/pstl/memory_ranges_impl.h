@@ -54,7 +54,7 @@ __pattern_uninitialized_default_construct(_Tag __tag, _ExecutionPolicy&& __exec,
 
     if constexpr (!std::is_trivially_default_constructible_v<_ValueType>)
     {
-        oneapi::dpl::__internal::__pattern_walk1(
+        oneapi::dpl::__internal::__pattern_uninitialized_walk1(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_default_construct<std::decay_t<_ExecutionPolicy>>{});
     }
@@ -85,13 +85,12 @@ __pattern_uninitialized_value_construct(_Tag __tag, _ExecutionPolicy&& __exec, _
     auto __last = __first + std::ranges::size(__r);
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_value_construct<_ValueType>)
     {
-        oneapi::dpl::__internal::__pattern_walk_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType()});
+        oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                _ValueType());
     }
     else
     {
-        oneapi::dpl::__internal::__pattern_walk1(
+        oneapi::dpl::__internal::__pattern_uninitialized_walk1(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_value_construct<std::decay_t<_ExecutionPolicy>>{});
     }
@@ -221,13 +220,12 @@ __pattern_uninitialized_fill(_Tag __tag, _ExecutionPolicy&& __exec, _R&& __r, co
 
     if constexpr (oneapi::dpl::__internal::__trivial_uninitialized_fill<_ValueType, _T>)
     {
-        oneapi::dpl::__internal::__pattern_walk_brick(
-            __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
-            oneapi::dpl::__internal::__brick_fill<_Tag, _ValueType>{_ValueType(__value)});
+        oneapi::dpl::__internal::__pattern_fill(__tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
+                                                _ValueType(__value));
     }
     else
     {
-        oneapi::dpl::__internal::__pattern_walk1(
+        oneapi::dpl::__internal::__pattern_uninitialized_walk1(
             __tag, std::forward<_ExecutionPolicy>(__exec), __first, __last,
             oneapi::dpl::__internal::__op_uninitialized_fill<_T, std::decay_t<_ExecutionPolicy>>{__value});
     }

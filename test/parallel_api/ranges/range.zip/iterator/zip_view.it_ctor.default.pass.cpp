@@ -54,6 +54,7 @@ struct IterNoDefaultCtrView : std::ranges::view_base {
   sentinel_wrapper<cpp20_input_iterator<int*>> end() const;
 };
 
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 template <class... Views>
 using zip_iter = std::ranges::iterator_t<dpl_ranges::zip_view<Views...>>;
 
@@ -63,7 +64,11 @@ static_assert(!std::default_initializable<zip_iter<IterNoDefaultCtrView, IterNoD
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView>>);
 static_assert(std::default_initializable<zip_iter<IterDefaultCtrView, IterDefaultCtrView>>);
 
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
+
 void test() {
+	
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   using ZipIter = zip_iter<IterDefaultCtrView>;
   {
     ZipIter iter;
@@ -76,6 +81,7 @@ void test() {
     auto [x] = *iter;
     assert(x == 0); // PODIter has to be initialised to have value 0
   }
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
 }
 
 #endif //_ENABLE_STD_RANGES_TESTING

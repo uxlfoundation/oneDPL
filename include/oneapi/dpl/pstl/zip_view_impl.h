@@ -54,9 +54,10 @@ concept __all_random_access = (std::ranges::random_access_range<__maybe_const<_C
 // 3. All ranges are both random-access AND sized (can calculate end position directly)
 // For details see https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2321r2.html#when-is-zip_view-a-common_range
 template <typename... _Rs>
-concept __zip_is_common = (sizeof...(_Rs) == 1 && (std::ranges::common_range<_Rs> && ...)) ||
-                          (!(std::ranges::bidirectional_range<_Rs> && ...) && (std::ranges::common_range<_Rs> && ...)) ||
-                          ((std::ranges::random_access_range<_Rs> && ...) && (std::ranges::sized_range<_Rs> && ...));
+concept __zip_is_common =
+    (sizeof...(_Rs) == 1 && (std::ranges::common_range<_Rs> && ...)) ||
+    (!(std::ranges::bidirectional_range<_Rs> && ...) && (std::ranges::common_range<_Rs> && ...)) ||
+    ((std::ranges::random_access_range<_Rs> && ...) && (std::ranges::sized_range<_Rs> && ...));
 
 template <bool _Const, typename... _Views>
 struct __declare_iterator_category
@@ -334,8 +335,9 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
                      ...)
         {
             auto __calc_val = [&]<std::size_t... _In>(std::index_sequence<_In...>) {
-                return std::ranges::min({difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__current))...},
-                                        std::less{}, [](auto __a) { return iterator::__abs(__a); });
+                return std::ranges::min(
+                    {difference_type(std::get<_In>(__x.__current) - std::get<_In>(__y.__current))...}, std::less{},
+                    [](auto __a) { return iterator::__abs(__a); });
             };
 
             return __calc_val(std::make_index_sequence<sizeof...(_Views)>());

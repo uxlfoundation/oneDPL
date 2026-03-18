@@ -57,9 +57,11 @@ struct NoDefaultCtrView : std::ranges::view_base {
 static_assert(std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView>>);
 static_assert(
     std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>>);
+#    if !TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE
 static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<DefaultConstructibleView, NoDefaultCtrView>>);
 static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<NoDefaultCtrView, NoDefaultCtrView>>);
 static_assert(!std::is_default_constructible_v<dpl_ranges::zip_view<NoDefaultCtrView>>);
+#    endif
 
 int test() {
   {

@@ -59,6 +59,7 @@ struct StrangeSizeView : std::ranges::view_base {
 };
 
 void test() {
+#if !_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // single range
     dpl_ranges::zip_view v(View(8));
@@ -87,7 +88,7 @@ void test() {
     static_assert(std::ranges::sized_range<decltype(v)>);
     static_assert(!std::ranges::sized_range<decltype(std::as_const(v))>);
   }
-
+#endif //!_ONEDPL_CPP20_IN_OUT_ITERATOR_BROKEN
   {
     // const/non-const has different sizes
     dpl_ranges::zip_view v(StrangeSizeView{});

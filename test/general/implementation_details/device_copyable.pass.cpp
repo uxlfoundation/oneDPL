@@ -338,9 +338,6 @@ test_device_copyable()
     static_assert(sycl::is_device_copyable_v<
                       oneapi::dpl::__internal::__replace_copy_functor<int_device_copyable, noop_device_copyable>>,
                   "__replace_copy_functor is not device copyable with device copyable types");
-    //fill_functor
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::fill_functor<int_device_copyable>>,
-                  "fill_functor is not device copyable with device copyable types");
     //generate_functor
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__internal::generate_functor<int_device_copyable>>,
                   "generate_functor is not device copyable with device copyable types");
@@ -675,10 +672,6 @@ test_non_device_copyable()
     static_assert(!sycl::is_device_copyable_v<
                       oneapi::dpl::__internal::__replace_copy_functor<int_device_copyable, noop_non_device_copyable>>,
                   "__replace_copy_functor is device copyable with non device copyable types");
-
-    //fill_functor
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::fill_functor<int_non_device_copyable>>,
-                  "fill_functor is device copyable with non device copyable types");
 
     //generate_functor
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__internal::generate_functor<int_non_device_copyable>>,
