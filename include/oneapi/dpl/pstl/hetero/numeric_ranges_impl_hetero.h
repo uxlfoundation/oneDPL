@@ -97,10 +97,12 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n == 0)
         return 0;
 
-    oneapi::dpl::__par_backend_hetero::__parallel_transform_scan(
+    oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n, __unary_op, __init, __binary_op, _Inclusive{})
         .__checked_deferrable_wait();
+
+    // KSATODO : probably this return value is not quite correct if __rng2 is too small
     return __n;
 }
 
