@@ -391,7 +391,7 @@ template <bool _Bounded, bool _Inclusive, typename _KernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter;
 
 template <bool _Bounded, bool _Inclusive, typename... _ScanKernelName>
-struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
+struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclusive,
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
@@ -460,15 +460,16 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
     }
 };
 
-template <bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename _KernelName>
+template <bool _Bounded, bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename _KernelName>
 struct __parallel_transform_scan_static_single_group_submitter;
 
-template <bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize, typename... _ScanKernelName>
-struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _ElemsPerItem, _WGSize,
+template <bool _Bounded, bool _Inclusive, std::uint16_t _ElemsPerItem, std::uint16_t _WGSize,
+          typename... _ScanKernelName>
+struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclusive, _ElemsPerItem, _WGSize,
                                                                __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    sycl::event
+    __future<sycl::event, __combined_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op)
     {
@@ -476,14 +477,21 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 
         constexpr ::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
 
-        return __q.submit([&](sycl::handler& __hdl) {
+        __combined_storage<_InitType> __result{__q, 0, /*result size*/ 1};
+
+        sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
+
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
                     const auto& __group = __self_item.get_group();
+
+                    const auto __global_id = __item.get_global_linear_id();
+
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
 
@@ -498,10 +506,31 @@ struct __parallel_transform_scan_static_single_group_submitter<_Inclusive, _Elem
 
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
                     {
-                        __out_rng[__idx] = __lacc[__idx];
+                        if constexpr (_Bounded)
+                        {
+                            if (__idx < oneapi::dpl::__ranges::__size(__out_rng))
+                            {
+                                __out_rng[__idx] = __lacc[__idx];
+                            }
+                        }
+                        else
+                        {
+                            __out_rng[__idx] = __lacc[__idx];
+                        }
+                    }
+
+                    // Save processed data size
+                    if (__global_id == 0)
+                    {
+                        if constexpr (_Bounded)
+                            __res_acc.__data()[0] = std::min(__n, oneapi::dpl::__ranges::__size(__out_rng));
+                        else
+                            __res_acc.__data()[0] = oneapi::dpl::__ranges::__size(__out_rng);
                     }
                 });
         });
+
+        return {std::move(__event), std::move(__result)};
     }
 };
 
@@ -629,9 +658,10 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
 
             return __parallel_transform_scan_static_single_group_submitter<
-                _Inclusive::value, __num_elems_per_item, __wg_size,
+                _Bounded, _Inclusive::value, __num_elems_per_item, __wg_size,
                 oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                    __scan_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
+                    __scan_single_wg_kernel<_Bounded,
+                                            std::integral_constant<std::uint16_t, __wg_size>,
                                             std::integral_constant<std::uint16_t, __num_elems_per_item>,
                                             _BinaryOperation, _Inclusive, _CustomName>>>()(
                 __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
