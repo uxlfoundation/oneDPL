@@ -1438,8 +1438,8 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& _
 template <typename _Name>
 struct __copy_keys_values_range_wrapper;
 
-template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3,
-          typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
+template <bool _Bounded, typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
+          typename _Range3, typename _Range4, typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __keys,
                             _Range2&& __values, _Range3&& __out_keys, _Range4&& __out_values,
@@ -1476,7 +1476,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
         return 1;
     }
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
+    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment<_Bounded>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__keys)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__values)),
