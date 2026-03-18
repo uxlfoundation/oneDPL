@@ -387,15 +387,15 @@ __scan_work_group(const _Group& __group, _InPtr __begin, _InPtr __end, _OutPtr _
         __dpl_sycl::__joint_exclusive_scan(__group, __begin, __end, __out_it, __init.__value, __bin_op);
 }
 
-template <bool _Inclusive, typename _KernelName>
+template <bool _Bounded, bool _Inclusive, typename _KernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter;
 
-template <bool _Inclusive, typename... _ScanKernelName>
+template <bool _Bounded, bool _Inclusive, typename... _ScanKernelName>
 struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
                                                                 __internal::__optional_kernel_name<_ScanKernelName...>>
 {
     template <typename _InRng, typename _OutRng, typename _InitType, typename _BinaryOperation, typename _UnaryOp>
-    sycl::event
+    __future<sycl::event, __combined_storage<typename _InitType::__value_type>>
     operator()(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n, _InitType __init,
                _BinaryOperation __bin_op, _UnaryOp __unary_op, ::std::uint16_t __wg_size)
     {
@@ -404,13 +404,21 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        return __q.submit([&](sycl::handler& __hdl) {
+        __combined_storage<_InitType> __result{__q, 0, /*result size*/ 1};
+
+         sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
+
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
+
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                     const auto& __group = __self_item.get_group();
+
+                    const auto __global_id = __self_item.get_global_linear_id();
+
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
 
@@ -424,10 +432,31 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive,
 
                     for (::std::uint16_t __idx = __item_id; __idx < __n; __idx += __wg_size)
                     {
-                        __out_rng[__idx] = __lacc[__idx];
+                        if constexpr (_Bounded)
+                        {
+                            if (__idx < oneapi::dpl::__ranges::__size(__out_rng))
+                            {
+                                __out_rng[__idx] = __lacc[__idx];
+                            }
+                        }
+                        else
+                        {
+                            __out_rng[__idx] = __lacc[__idx];
+                        }
+                    }
+
+                    // Save processed data size
+                    if (__global_id == 0)
+                    {
+                        if constexpr (_Bounded)
+                            __res_acc.__data()[0] = std::min(__n, oneapi::dpl::__ranges::__size(__out_rng));
+                        else
+                            __res_acc.__data()[0] = oneapi::dpl::__ranges::__size(__out_rng);
                     }
                 });
         });
+
+        return {std::move(__event), std::move(__result)};
     }
 };
 
@@ -634,9 +663,11 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     else
     {
         using _DynamicGroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
+            __par_backend_hetero::__scan_single_wg_dynamic_kernel<std::integral_constant<bool, _Bounded>,
+                                                                  _BinaryOperation, _CustomName>>;
 
-        return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
+        return __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclusive::value,
+                                                                        _DynamicGroupScanKernel>()(
             __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
             __max_wg_size);
     }
