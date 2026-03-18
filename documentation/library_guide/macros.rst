@@ -118,10 +118,10 @@ Macro                              Description
                                    and their usage will lead to compilation errors.
 ---------------------------------- ------------------------------
 ``ONEDPL_USE_PREDEFINED_POLICIES`` This macro enables the use of predefined device policy objects,
-                                   such as ``dpcpp_default`` and ``dpcpp_fpga``. When the macro is not defined (by default)
+                                   such as ``dpcpp_default``. When the macro is not defined (by default)
                                    or evaluates to non-zero, predefined policies objects can be used.
-                                   When the macro is set to 0, predefined policies objects and make functions
-                                   without arguments (``make_device_policy()`` and ``make_fpga_policy()``) are not available.
+                                   When the macro is set to 0, predefined policies objects and the
+                                   ``make_device_policy()`` function without arguments are not available.
 ---------------------------------- ------------------------------
 ``ONEDPL_ALLOW_DEFERRED_WAITING``  This macro allows waiting for completion of certain algorithms executed with
                                    device policies to be deferred. (Disabled by default.)
@@ -135,6 +135,9 @@ Macro                              Description
 ---------------------------------- ------------------------------
 ``ONEDPL_FPGA_DEVICE``             Use this macro to build your code containing |onedpl_short| parallel
                                    algorithms for FPGA devices. (Disabled by default.)
+                                   
+                                   .. Warning:: Support for FPGA and FPGA emulation devices in oneDPL parallel algorithms
+                                      is deprecated and will be removed in a future release.
 ---------------------------------- ------------------------------
 ``ONEDPL_FPGA_EMULATOR``           Use this macro to build your code containing Parallel STL
                                    algorithms for FPGA emulation device. (Disabled by default.)
