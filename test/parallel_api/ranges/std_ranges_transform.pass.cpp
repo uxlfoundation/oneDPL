@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define _ONEDPL_DEBUG_SYCL 1
+
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
