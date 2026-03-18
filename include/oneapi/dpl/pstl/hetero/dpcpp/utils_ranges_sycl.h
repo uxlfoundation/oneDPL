@@ -30,10 +30,7 @@
 //       here instead of zip_view_impl.h
 #if _ONEDPL_CPP20_RANGES_PRESENT
 #include "../../zip_view_impl.h"
-namespace _dpl_ranges_zip = oneapi::dpl::ranges::__internal;
-#else
-namespace _dpl_ranges_zip = oneapi::dpl::__ranges;
-#endif //_ONEDPL_CPP20_RANGES_PRESENT
+#endif
 
 namespace oneapi
 {
@@ -262,6 +259,12 @@ template <typename _Iter>
 using val_t = typename ::std::iterator_traits<_Iter>::value_type;
 
 //range/zip_view/all_view/ variadic utilities
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+namespace _dpl_ranges_zip = oneapi::dpl::ranges::__internal;
+#else
+namespace _dpl_ranges_zip = oneapi::dpl::__ranges;
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //forward declaration required for _require_access_args
 template <typename _Range, typename... _Ranges>
