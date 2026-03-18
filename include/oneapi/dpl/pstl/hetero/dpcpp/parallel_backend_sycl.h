@@ -2341,8 +2341,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 // parallel_scan_by_segment - sync pattern
 //------------------------------------------------------------------------
-template <typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2, typename _Range3,
-          typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+template <bool _Bounded, typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2,
+          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 __future<sycl::event, __result_and_scratch_storage<
                           oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
@@ -2497,7 +2497,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
         sycl::queue __q_local = __exec.queue();
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
-            __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
+            __parallel_scan_by_segment_reduce_then_scan<_Bounded, _CustomName, __is_inclusive>(
                 __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
                 std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
                 .wait();
