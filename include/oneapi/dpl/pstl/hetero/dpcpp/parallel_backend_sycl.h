@@ -411,7 +411,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -484,13 +484,13 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
                     const auto& __group = __self_item.get_group();
 
-                    const auto __global_id = __item.get_global_linear_id();
+                    const auto __global_id = __self_item.get_global_linear_id();
 
                     // This kernel is only launched for sizes less than 2^16
                     const ::std::uint16_t __item_id = __self_item.get_local_linear_id();
