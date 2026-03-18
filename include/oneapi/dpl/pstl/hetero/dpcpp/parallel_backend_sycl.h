@@ -2381,8 +2381,8 @@ struct __scan_by_seg_transform_wrapper1;
 template <typename _CustomName>
 struct __scan_by_seg_transform_wrapper2;
 
-template <typename _CustonName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2,
-          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+template <bool _Bounded, typename _CustonName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1,
+          typename _Range2, typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 void
 __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                     _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,
@@ -2506,7 +2506,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     }
     // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
     // reduce-then-scan and needs to avoid duplicate kernel names.
-    __parallel_scan_by_segment_fallback<_CustomName, __is_inclusive>(
+    __parallel_scan_by_segment_fallback<_Bounded, _CustomName, __is_inclusive>(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_fallback>(
             std::forward<_ExecutionPolicy>(__exec)),
