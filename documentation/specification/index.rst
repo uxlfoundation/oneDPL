@@ -5,9 +5,9 @@
 
 .. _oneDPL-section:
 
-======
-oneDPL
-======
+====================
+oneDPL Specification
+====================
 
 This is the specification of |dpl_full_name|, part of the oneAPI Specification version |dpl_version|.
 
