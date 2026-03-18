@@ -291,8 +291,8 @@ make_fpga_policy(const fpga_policy<old_unroll_factor, OldKernelName>& policy
 
 template <unsigned int new_unroll_factor, typename NewKernelName, unsigned int old_unroll_factor = 1,
           typename OldKernelName = DefaultKernelNameFPGA>
-fpga_policy<new_unroll_factor, NewKernelName>
 [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
+fpga_policy<new_unroll_factor, NewKernelName>
 make_hetero_policy(const fpga_policy<old_unroll_factor, OldKernelName>& policy)
 {
     return fpga_policy<new_unroll_factor, NewKernelName>(policy);
