@@ -952,7 +952,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
         /*Inclusive*/ std::true_type{}, /*_IsUniquePattern=*/std::false_type{});
 }
 
-template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
+template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
                           _Range2&& __result, _UnaryPredicate __pred)
