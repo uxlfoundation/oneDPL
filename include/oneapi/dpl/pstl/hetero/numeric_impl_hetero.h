@@ -335,7 +335,7 @@ __pattern_scan_by_segment_impl(__hetero_tag<_BackendTag>, _Policy&& __policy, _I
     auto __keep_value_outputs = oneapi::dpl::__ranges::__get_sycl_range<__bknd::access_mode::read_write>();
     auto __value_output_buf = __keep_value_outputs(__result, __result + __n);
 
-    __bknd::__parallel_scan_by_segment<_Inclusive::value>(
+    __bknd::__parallel_scan_by_segment</*_Bounded*/ false, _Inclusive::value>(
         _BackendTag{}, std::forward<_Policy>(__policy), __key_buf.all_view(), __value_buf.all_view(),
         __value_output_buf.all_view(), __binary_pred, __binary_op, __init);
     return __result + __n;
