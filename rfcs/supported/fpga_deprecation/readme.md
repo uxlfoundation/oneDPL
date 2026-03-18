@@ -1,5 +1,7 @@
 # Deprecate FPGA support
 
+The proposal is implemented in oneDPL 2022.12.
+
 ## Introduction
 
 FPGA support in oneDPL dates back to beta versions. At the time, Intel had
@@ -34,3 +36,9 @@ The oneDPL documentation should add deprecation notices for the affected APIs.
 
 An open question is if the FPGA-tailored implementation of `parallel_for` is worth preserving
 once FPGA support is removed. One possible option is to keep it as an experimental kernel template.
+
+## Next Steps
+
+The FPGA support in oneDPL will likely be fully removed in the first half of 2027.
+As a prerequisite, the open questions above should be addressed.
+After the removal, this document should move to `rfcs/archived`.
