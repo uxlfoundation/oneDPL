@@ -657,6 +657,7 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
                                                                           _WriteOp, _InitType>
 {
 };
+
 template <typename _GenInput, typename KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
     oneapi::dpl::__par_backend_hetero::__partition_set_balanced_path_submitter, _GenInput, KernelName)>
