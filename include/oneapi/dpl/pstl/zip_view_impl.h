@@ -101,16 +101,14 @@ template <typename _F, typename _Tuple>
 void
 __tuple_for_each(_F __f, _Tuple& __t)
 {
-    __tuple_for_each_impl(std::move(__f), __t,
-                          std::make_index_sequence<std::tuple_size_v<_Tuple>>());
+    __tuple_for_each_impl(std::move(__f), __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
 template <typename _F, typename _Tuple>
 decltype(auto)
 __tuple_apply(_F __f, _Tuple& __t)
 {
-    return __tuple_apply_impl(std::move(__f), __t,
-                              std::make_index_sequence<std::tuple_size_v<_Tuple>>());
+    return __tuple_apply_impl(std::move(__f), __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
 template <typename _Adaptor, typename _F, typename _Tuple>
@@ -207,14 +205,11 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr decltype(auto)
         operator*() const
         {
-            auto __dereference = [](auto& __it) -> decltype(auto) {
-                return *__it;
-            };
+            auto __dereference = [](auto& __it) -> decltype(auto) { return *__it; };
 
             auto __make_ref = [](auto&&... __args) -> decltype(auto) {
                 return __reference_type(std::forward<decltype(__args)>(__args)...);
             };
-            
             return __internal::__tuple_apply(__make_ref, __dereference, __current);
         }
 
@@ -228,9 +223,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         constexpr iterator&
         operator++()
         {
-            auto __increment = [](auto& __it) {
-                ++__it;
-            };
+            auto __increment = [](auto& __it) { ++__it; };
             __internal::__tuple_for_each(__increment, __current);
             return *this;
         }
@@ -254,9 +247,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator--()
             requires __internal::__all_bidirectional<_Const, _Views...>
         {
-            auto __decrement = [](auto& __it) {
-                --__it;
-            };
+            auto __decrement = [](auto& __it) { --__it; };
             __internal::__tuple_for_each(__decrement, __current);
             return *this;
         }
@@ -274,9 +265,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator+=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            auto __increment_n = [__n](auto& __it) {
-                __it += __n;
-            };
+            auto __increment_n = [__n](auto& __it) { __it += __n; };
             __internal::__tuple_for_each(__increment_n, __current);
             return *this;
         }
@@ -285,9 +274,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         operator-=(difference_type __n)
             requires __internal::__all_random_access<_Const, _Views...>
         {
-            auto __decrement_n = [__n](auto& __it) {
-                __it -= __n;
-            };
+            auto __decrement_n = [__n](auto& __it) { __it -= __n; };
             __internal::__tuple_for_each(__decrement_n, __current);
             return *this;
         }
@@ -512,7 +499,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __it = begin();
             __it += static_cast<typename decltype(__it)::difference_type>(size());
-            return __it;        }
+            return __it;
+        }
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<false, _Views>>...>;
@@ -538,7 +526,8 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
         {
             auto __it = begin();
             __it += static_cast<typename decltype(__it)::difference_type>(size());
-            return __it;        }
+            return __it;
+        }
         else
         {
             using __iterators_type = __tuple_type<std::ranges::iterator_t<__internal::__maybe_const<true, _Views>>...>;
