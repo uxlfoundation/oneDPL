@@ -1036,7 +1036,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
 }
 
 // This function is currently unused, but may be utilized for small sizes sets at some point in the future.
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range3>>>
 __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
@@ -1344,7 +1344,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
                       _Proj2 __proj2)
 {
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
                    oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
@@ -1363,7 +1363,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThen
                       _Proj2 __proj2)
 {
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
                    oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
