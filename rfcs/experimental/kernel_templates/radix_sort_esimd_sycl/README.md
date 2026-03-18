@@ -95,7 +95,7 @@ High-level psuedocode is shown for the onesweep implementation below:
 **Histogram kernel** — Computes per-bin counts across all stages in a single pass.
 ```
 onesweep_histogram_kernel:
-1.    Initialize SLM histogram with `stagecount x bins` zeros
+1.    Initialize SLM histogram with stagecount × bins zeros
 2.    for each key assigned to this work-group:
 3.        Load key from global memory
 4.        for each stage:
@@ -282,6 +282,9 @@ In addition to the open questions for kernel templates in general, the following
 **Large input support:** The current implementations use bit masks that limit input sizes to 2^30 elements (approximately 1 billion elements for 4-byte keys). Extending support to larger inputs would require addressing the mask limitations in the offset calculations and histogram data structures.
 
 **Work-group size flexibility:** The SYCL implementation currently supports work-group sizes of 512 and 1024. Supporting more work-group size configurations (e.g. multiples of 128) would enable flexible tuning for different hardware and problem sizes.
+
+**Bit range:** Some applications may not use all bits in the underlying key type for sorting. For example, a user may pack a 32-bit key and 32-bit value into a 64-bit type, using only half of the bits for sorting. We should evaluate
+exposing a configurable bit-range for the key to enable such usages.
 
 ## Exit Criteria
 
