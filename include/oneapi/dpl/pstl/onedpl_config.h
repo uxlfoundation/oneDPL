@@ -292,6 +292,21 @@
 #    define _ONEDPL_CPP26_DEFAULT_VALUE_TYPE_PRESENT 0
 #endif
 
+// std::views::all on rvalue non-view ranges requires P2415R2 owning_view.
+// __cpp_lib_ranges >= 202110L
+// - libstdc++ (GCC or Clang+libstdc++): available since GCC 12
+// - libc++    (Clang+libc++):           available since LLVM 16
+// - MSVC STL:                           available since C++23
+#if defined(__cpp_lib_ranges)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (__cpp_lib_ranges >= 202110L)
+#elif defined(__GLIBCXX__)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (__GLIBCXX__ >= 20220728)
+#elif defined(_LIBCPP_VERSION)
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_LIBCPP_VERSION >= 16000)
+#else
+#    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_ONEDPL___cplusplus >= 202302L)
+#endif
+
 // When C++20 concepts are available, we must use std::tuple as a proxy reference to satisfy iterator concepts, which
 // requires the changes to std::tuple in P2321R2 and the tuple-like basic_common_reference specialization in P2165R4.
 #define _ONEDPL_CAN_USE_STD_TUPLE_PROXY_ITERATOR                                                                       \
