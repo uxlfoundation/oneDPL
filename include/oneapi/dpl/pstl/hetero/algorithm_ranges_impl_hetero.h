@@ -660,7 +660,7 @@ __pattern_copy_if(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&
     if (__n == 0 || __n_out == 0)
         return 0;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    return oneapi::dpl::__par_backend_hetero::__parallel_copy_if</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)), __n, __n_out, __pred)[0];
@@ -688,7 +688,7 @@ __pattern_copy_if_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
 
     oneapi::dpl::__internal::__unary_op<_Pred, _Proj> __pred_1{__pred, __proj};
 
-    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_copy_if(
+    std::array<_Size, 2> __stops = oneapi::dpl::__par_backend_hetero::__parallel_copy_if</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__in_r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)), __n, __n_out, __pred_1);
