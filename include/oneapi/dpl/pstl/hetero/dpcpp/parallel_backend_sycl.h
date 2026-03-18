@@ -759,7 +759,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
-                auto&& [__event, __payload] = __parallel_transform_scan_single_group<_Bounded, _CustomName, _InitType>(
+                auto&& [__event, __payload] = __parallel_transform_scan_single_group<_Bounded, _CustomName>(
                     __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
                     __init, __binary_op, _Inclusive{});
 
