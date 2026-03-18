@@ -95,12 +95,13 @@ High-level psuedocode is shown for the onesweep implementation below:
 **Histogram kernel** — computes per-bin counts across all stages in a single pass:
 ```
 onesweep_histogram_kernel:
-1.    for each key assigned to this work-group:
-2.        Load key from global memory
-3.        for each stage:
-4.            Extract bin for current stage
-5.            Atomic increment SLM_histogram[stage][bin]
-6.    Atomic fetch add global_histogram with SLM_histogram 
+1.    Initialize SLM histogram with zeros
+2.    for each key assigned to this work-group:
+3.        Load key from global memory
+4.        for each stage:
+5.            Extract bin for current stage
+6.            Atomic increment SLM histogram[stage][bin]
+7.    Atomic fetch add global histogram with SLM histogram
 ```
 
 **Scan kernel** — converts per-bin counts into global offsets:
@@ -117,7 +118,8 @@ onesweep_reorder_kernel:
 2.        Load keys & values from tile
 3.        Extract bins from keys
 4.        Rank bins efficiently in each sub-group
-5.        Scan over bin ranks per sub-group and publish work-group total to global memory for decoupled lookback
+5.        Scan over bin ranks across sub-groups and publish work-group total to global memory for decoupled lookback,
+          prefixing tile zero's work-group total with the scanned global histogram
 6.        Perform decoupled lookback to compute incoming global offsets per bin
 6.        Locally reorder keys & values for this work-group into SLM
 7.        Scatter keys & values from SLM to global memory using global offsets and local ranks
