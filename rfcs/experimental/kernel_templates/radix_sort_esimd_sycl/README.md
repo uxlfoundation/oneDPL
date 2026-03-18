@@ -90,44 +90,49 @@ constexpr std::size_t n = 1'000'000;
 
 The onesweep radix sort algorithm [[1]](#references) processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use an additional input pass per radix stage. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once with a single pass over keys.
 
-High-level psuedocode for each radix sort kernel is shown below:
+High-level psuedocode is shown for the onesweep implementation below:
 
 **Histogram kernel** — computes per-bin counts across all stages in a single pass:
 ```
-onesweep_histogram_kernel():
-    for each key assigned to this work-group:
-        for each stage:
-            bin = extract_radix_bits(key, stage)
-            SLM_histogram[stage][bin]++          // atomic increment in SLM
-    reduce SLM_histogram into global_histogram   // atomic accumulate
+onesweep_histogram_kernel:
+1.    for each key assigned to this work-group:
+2.        Load key from global memory
+3.        for each stage:
+4.            Extract bin for current stage
+5.            Atomic increment SLM_histogram[stage][bin]
+6.    Atomic fetch add global_histogram with SLM_histogram 
 ```
 
 **Scan kernel** — converts per-bin counts into global offsets:
 ```
-onesweep_scan_kernel():
-    stage = work_group_id
-    exclusive_scan(global_histogram[stage])   // in-place prefix sum over bins
+onesweep_scan_kernel:
+1.    Launch work-group for each stage
+2.    Perform an in-place exclusive scan
 ```
 
 **Onesweep reorder kernel** — executed once per radix stage:
-```
-onesweep_reorder_kernel():
-    for each tile assigned to this work-group:
-        // 1. load tile and extract bins
-        keys, values = load_tile(tile_id)
-        bins = extract_radix_bins(keys, current_stage)
-        // 2. Rank keys efficiently in each sub-group
-        ranks = rank_local(bins)
-        // 3. scan over bin rankings per sub-group, publish work-group totals, and perform
-        // decoupled lookback to compute per-bin global offsets
-        rank_global(tile_id, subgroup_histograms) 
-        // 4. Locally reorder keys & values for this work-group into SLM
-        reorder_reg_to_slm(keys, values, ranks, bins)
-        // 5. Scatter keys & values from SLM to global memory 
-        reorder_slm_to_glob(keys, values, bins)
+```text
+onesweep_reorder_kernel:
+1.    for each tile assigned to this work-group:
+2.        Load keys & values from tile
+3.        Extract bins from keys
+4.        Rank bins efficiently in each sub-group
+5.        Scan over bin ranks per sub-group and publish work-group total to global memory for decoupled lookback
+6.        Perform decoupled lookback to compute incoming global offsets per bin
+6.        Locally reorder keys & values for this work-group into SLM
+7.        Scatter keys & values from SLM to global memory using global offsets and local ranks
 ```
 
 The algorithm processes data in contiguous tiles, where each work-group may handle multiple tiles. Work-groups execute concurrently and coordinate through a chained scan protocol via decoupled lookback [[2]](#references).
+
+**Host Radix Sort Submitters** — submits the GPU kernels to compute full radix sort
+```
+radix_sort_impl:
+1.     Submit onesweep_histogram_kernel
+2.     Submit onesweep_scan_kernel
+3.     for each radix stage:
+4.         Submit onesweep_reorder_kernel
+```
 
 #### Decoupled Lookback
 
