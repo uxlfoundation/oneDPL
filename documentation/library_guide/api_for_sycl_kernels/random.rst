@@ -20,7 +20,7 @@ Engine                          Description
 ``linear_congruential_engine``  Implements a linear congruential algorithm
 ``subtract_with_carry_engine``  Implements a subtract-with-carry algorithm
 ``discard_block_engine``        Implements a discard block adaptor
-``experimental::philox_engine`` Implements a Philox algorithm
+``philox_engine``               Implements a philox algorithm
 =============================== ============================================
 
 Predefined Random Number Engines
@@ -41,8 +41,8 @@ Type               Description
 ``ranlux48_base``  ``oneapi::dpl::subtract_with_carry_engine<std::uint64_t, 48, 5, 12>``
 ``ranlux24``       ``oneapi::dpl::discard_block_engine<ranlux24_base, 223, 23>``
 ``ranlux48``       ``oneapi::dpl::discard_block_engine<ranlux48_base, 389, 11>``
-``philox4x32``     ``oneapi::dpl::experimental::philox_engine<std::uint_fast32_t, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>``
-``philox4x64``     ``oneapi::dpl::experimental::philox_engine<std::uint_fast64_t, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>``
+``philox4x32``     ``oneapi::dpl::philox_engine<std::uint_fast32_t, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>``
+``philox4x64``     ``oneapi::dpl::philox_engine<std::uint_fast64_t, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>``
 ================== =================================================================================
 
 The following predefined engines can efficiently generate vectors of random numbers.
@@ -76,11 +76,11 @@ Type                                               Description
 
                                                    ``ranlux48`` that generates a vector.
 -------------------------------------------------- -----------------------------------------------------------------------------------------------
-``template<std::int32_t N> philox4x32_vec<N>``     ``oneapi::dpl::experimental::philox_engine<sycl::vec<std::uint_fast32_t, N>, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>``
+``template<std::int32_t N> philox4x32_vec<N>``     ``oneapi::dpl::philox_engine<sycl::vec<std::uint_fast32_t, N>, 32, 4, 10, 0xCD9E8D57, 0x9E3779B9, 0xD2511F53, 0xBB67AE85>``
 
                                                    ``philox4x32`` that generates a vector.
 -------------------------------------------------- -----------------------------------------------------------------------------------------------
-``template<std::int32_t N> philox4x64_vec<N>``     ``oneapi::dpl::experimental::philox_engine<sycl::vec<std::uint_fast64_t, N>, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>``
+``template<std::int32_t N> philox4x64_vec<N>``     ``oneapi::dpl::philox_engine<sycl::vec<std::uint_fast64_t, N>, 64, 4, 10, 0xCA5A826395121157, 0x9E3779B97F4A7C15, 0xD2E7470EE14C6C93, 0xBB67AE8584CAA73B>``
 
                                                    ``philox4x64`` that generates a vector.
 ================================================== ===============================================================================================

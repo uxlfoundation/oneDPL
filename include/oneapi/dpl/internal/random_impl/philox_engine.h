@@ -32,8 +32,6 @@ namespace oneapi
 {
 namespace dpl
 {
-namespace experimental
-{
 
 template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
           oneapi::dpl::internal::element_type_t<_UIntType>... _consts>
@@ -269,6 +267,23 @@ class philox_engine
         }
     }
 
+    /* Decrement counter by 1 */
+    void
+    decrease_counter_internal()
+    {
+        for (std::size_t __i = 0; __i < word_count; ++__i)
+        {
+            if (state_.X[__i])
+            {
+                state_.X[__i] = (state_.X[__i] - 1) & in_mask;
+                return;
+            }
+
+            /* Borrow for zero counter chunk */
+            state_.X[__i] = in_mask;
+        }
+    }
+
     /* generate_internal() specified for sycl_vec output 
        and overload for result portion generation */
     template <unsigned int _N>
@@ -422,33 +437,41 @@ class philox_engine
         if constexpr (word_size <= 32)
         {
             std::uint_fast64_t __mult_result = (std::uint_fast64_t)__a * (std::uint_fast64_t)__b;
-            __res_hi = (__mult_result >> word_size) & in_mask;
-            __res_lo = __mult_result & in_mask;
+            __res_hi = __mult_result >> word_size;
+            __res_lo = __mult_result;
         }
-        /* pen-pencil multiplication by 32-bit chunks */
+        /* pen-and-pencil multiplication by 32-bit chunks */
         else if constexpr (word_size > 32)
         {
-            constexpr std::size_t chunk_size = 32;
-            __res_lo = (__a * __b) & in_mask;
+            constexpr std::size_t __chunk_size = 32;
+            __res_lo = __a * __b;
 
-            scalar_type __x0 = __a & __word_mask<chunk_size>;
-            scalar_type __x1 = __a >> chunk_size;
-            scalar_type __y0 = __b & __word_mask<chunk_size>;
-            scalar_type __y1 = __b >> chunk_size;
+            scalar_type __x0 = __a & __word_mask<__chunk_size>;
+            scalar_type __x1 = __a >> __chunk_size;
+            scalar_type __y0 = __b & __word_mask<__chunk_size>;
+            scalar_type __y1 = __b >> __chunk_size;
 
             scalar_type __p11 = __x1 * __y1;
             scalar_type __p01 = __x0 * __y1;
             scalar_type __p10 = __x1 * __y0;
             scalar_type __p00 = __x0 * __y0;
 
-            // 64-bit product + two 32-bit values
-            scalar_type __middle = __p10 + (__p00 >> chunk_size) + (__p01 & __word_mask<chunk_size>);
+            /* addition of three 32-bit values to get the carry for the hi part */
+            scalar_type __carry_hi =
+                ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
+                __chunk_size;
 
-            // 64-bit product + two 32-bit values
-            __res_hi = (__p11 + (__middle >> chunk_size) + (__p01 >> chunk_size)) & in_mask;
+            /* 64-bit product + two 32-bit values + carry from the lo part */
+            __res_hi = (__p11 + (__p01 >> __chunk_size) + (__p10 >> __chunk_size) + __carry_hi);
+
+            /* for w!=64 the result should be concatenated with the lo part */
+            __res_hi =
+                (word_size == std::numeric_limits<scalar_type>::digits)
+                    ? __res_hi
+                    : __res_hi << (std::numeric_limits<scalar_type>::digits - word_size) | (__res_lo >> word_size);
         }
 
-        return {__res_hi, __res_lo};
+        return {__res_hi & in_mask, __res_lo & in_mask};
     }
 };
 
@@ -464,17 +487,13 @@ operator<<(std::basic_ostream<__CharT, __Traits>& __os,
     __CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto x_elm : __engine.state_.X)
+    for (auto __k_elm : __engine.state_.K)
     {
-        __os << x_elm << __sp;
+        __os << __k_elm << __sp;
     }
-    for (auto k_elm : __engine.state_.K)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << k_elm << __sp;
-    }
-    for (auto y_elm : __engine.state_.Y)
-    {
-        __os << y_elm << __sp;
+        __os << __x_elm << __sp;
     }
     __os << __engine.state_.idx;
 
@@ -486,17 +505,13 @@ template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r
 const sycl::stream&
 operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
 {
-    for (auto __x_elm : __engine.state_.X)
-    {
-        __os << __x_elm << ' ';
-    }
     for (auto __k_elm : __engine.state_.K)
     {
         __os << __k_elm << ' ';
     }
-    for (auto __y_elm : __engine.state_.Y)
+    for (auto __x_elm : __engine.state_.X)
     {
-        __os << __y_elm << ' ';
+        __os << __x_elm << ' ';
     }
     __os << __engine.state_.idx;
 
@@ -512,8 +527,8 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
 
     __is.setf(std::ios_base::dec);
 
-    /* Number of elements in the state (X, K, Y and idx) */
-    constexpr std::size_t __state_size = 2 * __n + __n / 2 + 1;
+    /* Number of elements in the state (K, X and idx) */
+    constexpr std::size_t __state_size = __n / 2 + __n + 1;
 
     std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
     for (std::size_t __i = 0; __i < __state_size; ++__i)
@@ -524,19 +539,28 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
     if (!__is.fail())
     {
         int __inp_itr = 0;
-        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
-            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
         for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
+        {
             __engine.state_.K[__i] = __tmp_inp[__inp_itr];
+        }
         for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
-            __engine.state_.Y[__i] = __tmp_inp[__inp_itr];
+        {
+            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
+        }
         __engine.state_.idx = __tmp_inp[__inp_itr];
+
+        /* Counter is incremented right after the generation of Yi - to restore the unused sequence Yi, the counter has to be decremented */
+        if (__engine.state_.idx != __n - 1)
+        {
+            __engine.decrease_counter_internal();
+            /* setup Yi */
+            __engine.philox_kernel();
+        }
     }
 
     return __is;
 }
 
-} // namespace experimental
 } // namespace dpl
 } // namespace oneapi
 
