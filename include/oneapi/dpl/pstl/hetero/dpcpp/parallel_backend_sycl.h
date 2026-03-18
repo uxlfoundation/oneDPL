@@ -469,6 +469,9 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
         __result_storage<_ValueType> __result{__q, 1};
 
+        if constexpr (_Bounded)
+            __n = std::min<decltype(__n)>(__n, oneapi::dpl::__ranges::__size(__out_rng));
+
         sycl::event __event = __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
 
@@ -496,27 +499,12 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
                     for (std::uint16_t __idx = __item_id; __idx < __n; __idx += _WGSize)
                     {
-                        if constexpr (_Bounded)
-                        {
-                            if (__idx < oneapi::dpl::__ranges::__size(__out_rng))
-                            {
-                                __out_rng[__idx] = __lacc[__idx];
-                            }
-                        }
-                        else
-                        {
-                            __out_rng[__idx] = __lacc[__idx];
-                        }
+                        __out_rng[__idx] = __lacc[__idx];
                     }
 
                     // Save processed data size
                     if (__global_id == 0)
-                    {
-                        if constexpr (_Bounded)
-                            __res_acc.__data()[0] = std::min(__n, oneapi::dpl::__ranges::__size(__out_rng));
-                        else
-                            __res_acc.__data()[0] = oneapi::dpl::__ranges::__size(__out_rng);
-                    }
+                        __res_acc.__data()[0] = __n;
                 });
         });
 
