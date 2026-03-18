@@ -2,9 +2,9 @@
 
 ## Introduction
 
-This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. At the time of writing, two implementations have been provided: an initial ESIMD [[3]](#references) implementation designed for Intel's PVC (GPU Series Max) architecture and a subsequent pure SYCL implementation that generalizes the approach to Intel GPUs supporting the forward progress extension [[4]](#references).
+This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. At the time of writing, two implementations have been provided: an initial ESIMD [[1]](#references) implementation designed for Intel's PVC (GPU Series Max) architecture and a subsequent pure SYCL implementation that generalizes the approach to Intel GPUs supporting the forward progress extension [[2]](#references).
 
-Both implementations use the onesweep radix sort algorithm [[1]](#references) with decoupled lookback synchronization [[2]](#references), the current state-of-the-art GPU sort. This algorithmic approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
+Both implementations use the onesweep radix sort algorithm [[3]](#references) with decoupled lookback synchronization [[4]](#references), the current state-of-the-art GPU sort. This algorithmic approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
 
 The motivation for these implementations was to provide:
 - Competitive performance with state-of-the-art GPU sort
@@ -88,46 +88,44 @@ constexpr std::size_t n = 1'000'000;
 
 #### Onesweep Radix Sort Overview
 
-The onesweep radix sort algorithm [[1]](#references) processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use an additional input pass per radix stage. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once with a single pass over keys.
+The onesweep radix sort algorithm [[3]](#references) processes keys in a single pass per radix stage, unlike traditional radix sort implementations that use an additional input pass per radix stage. For an 8-bit radix, a 32-bit key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets across all stages at once with a single pass over keys.
 
 High-level psuedocode is shown for the onesweep implementation below:
 
-**Histogram kernel** — computes per-bin counts across all stages in a single pass:
+**Histogram kernel** — Computes per-bin counts across all stages in a single pass.
 ```
 onesweep_histogram_kernel:
-1.    Initialize SLM histogram with zeros
+1.    Initialize SLM histogram with `stagecount x bins` zeros
 2.    for each key assigned to this work-group:
 3.        Load key from global memory
 4.        for each stage:
 5.            Extract bin for current stage
 6.            Atomic increment SLM histogram[stage][bin]
-7.    Atomic fetch add global histogram with SLM histogram
+7.    Atomic fetch add global histogram with SLM histogram for all stages and bins
 ```
 
-**Scan kernel** — converts per-bin counts into global offsets:
+**Scan kernel** — Converts per-bin counts into global incoming offsets for each bin across each stage.
 ```
 onesweep_scan_kernel:
-1.    Launch work-group for each stage
-2.    Perform an in-place exclusive scan
+1.    Perform an in-place exclusive scan for each stage on the global histogram computed in `onesweep_histogram_kernel`
 ```
 
-**Onesweep reorder kernel** — executed once per radix stage:
+**Onesweep reorder kernel** — Reording for each stage. If keysort is used, then no values are processed.
 ```text
 onesweep_reorder_kernel:
 1.    for each tile assigned to this work-group:
-2.        Load keys & values from tile
-3.        Extract bins from keys
+2.        Load keys & values from global memory to registers for this tile
+3.        Extract bins for current stage from keys
 4.        Rank bins efficiently in each sub-group
-5.        Scan over bin ranks across sub-groups and publish work-group total to global memory for decoupled lookback,
-          prefixing tile zero's work-group total with the scanned global histogram
-6.        Perform decoupled lookback to compute incoming global offsets per bin
-6.        Locally reorder keys & values for this work-group into SLM
+5.        Scan over bin ranks across sub-groups and publish work-group bin totals to global memory for decoupled lookback
+6.        Perform decoupled lookback to compute incoming global offsets per bin. For tile zero use the scanned global histogram at the current stage computed by `onesweep_scan_kernel`
+6.        Locally reorder keys & values for this work-group from registers into SLM
 7.        Scatter keys & values from SLM to global memory using global offsets and local ranks
 ```
 
-The algorithm processes data in contiguous tiles, where each work-group may handle multiple tiles. Work-groups execute concurrently and coordinate through a chained scan protocol via decoupled lookback [[2]](#references).
+The algorithm processes data in contiguous tiles, where each work-group may handle multiple tiles. Work-groups execute concurrently and coordinate through a chained scan protocol via decoupled lookback [[4]](#references).
 
-**Host Radix Sort Submitters** — submits the GPU kernels to compute full radix sort
+**Host Radix Sort Submitters** — Submits the GPU kernels to compute the full radix sort.
 ```
 radix_sort_impl:
 1.     Submit onesweep_histogram_kernel
@@ -138,7 +136,7 @@ radix_sort_impl:
 
 #### Decoupled Lookback
 
-Decoupled lookback [[2]](#references) enables work-groups to communicate without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each tile publishes its local histogram to global memory after computing it. Tile N then sequentially looks back at the published histograms from tiles N-1 through 0 performing an exclusive scan to determine its global offset across each radix bin. Tile 0 is prefixed with the output from the initial histogram kernel for the current stage.
+Decoupled lookback [[4]](#references) enables work-groups to communicate without device-wide barriers and avoid expensive reloading of keys from global memory with separate kernels. Each tile publishes its local histogram to global memory after computing it. Tile N then sequentially looks back at the published histograms from tiles N-1 through 0 performing an exclusive scan to determine its global offset across each radix bin. Tile 0 is prefixed with the output from the initial histogram kernel for the current stage.
 Tiles may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram. Prior to exiting, the tile publishes its own incoming histogram, so high indexed tiles may also early exit.
 
 This mechanism provides two key benefits:
@@ -291,8 +289,7 @@ The exit criteria for this feature align with the [kernel templates exit criteri
 
 ## References
 
-1. A. Adinets and D. Merrill, "Onesweep: A Faster Least Significant Digit Radix Sort for GPUs," 2022. Available: https://arxiv.org/abs/2206.01784
-2. D. Merrill and M. Garland, "Single-pass Parallel Prefix Scan with Decoupled Look-back," 2016. Available: https://research.nvidia.com/publication/2016-03_single-pass-parallel-prefix-scan-decoupled-look-back
-3. "Explicit SIMD SYCL extension (ESIMD)," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/supported/sycl_ext_intel_esimd/sycl_ext_intel_esimd.md
-4. "Forward Progress Guarantees Extension," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_forward_progress.asciidoc
-
+1. "Explicit SIMD SYCL extension (ESIMD)," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/supported/sycl_ext_intel_esimd/sycl_ext_intel_esimd.md
+2. "Forward Progress Guarantees Extension," Intel LLVM SYCL Extensions. Available: https://github.com/intel/llvm/blob/sycl/sycl/doc/extensions/experimental/sycl_ext_oneapi_forward_progress.asciidoc
+3. A. Adinets and D. Merrill, "Onesweep: A Faster Least Significant Digit Radix Sort for GPUs," 2022. Available: https://arxiv.org/abs/2206.01784
+4. D. Merrill and M. Garland, "Single-pass Parallel Prefix Scan with Decoupled Look-back," 2016. Available: https://research.nvidia.com/publication/2016-03_single-pass-parallel-prefix-scan-decoupled-look-back
