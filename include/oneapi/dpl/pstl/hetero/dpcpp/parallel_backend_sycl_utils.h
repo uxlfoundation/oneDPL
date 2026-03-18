@@ -879,6 +879,14 @@ struct __result_storage : public __device_storage<_T>
         this->__copy_n(__dst, __kind == sycl::usm::alloc::host ? this->__usm_buf.get() : nullptr,
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
     }
+
+    template <typename _Forwarding>
+    friend std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __result_storage<_T>>,
+                            __copyable_storage_state<_T>>
+    __move_state_from(_Forwarding&& __src)
+    {
+        return {std::move(__src.__usm_buf), {}, std::move(__src.__sycl_buf), 0, __src.__kind};
+    }
 };
 
 template <typename _T>
