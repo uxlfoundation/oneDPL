@@ -2053,7 +2053,8 @@ reduce_by_segment(_ExecutionPolicy&& __exec, _Range1&& __keys, _Range2&& __value
     const auto __dispatch_tag =
         oneapi::dpl::__ranges::__select_backend(__exec, __keys, __values, __out_keys, __out_values);
 
-    return oneapi::dpl::__internal::__ranges::__pattern_reduce_by_segment</*_Bounded*/ true>(
+    // Bounded output not supported for oneapi::dpl::experimental::ranges::reduce_by_segment
+    return oneapi::dpl::__internal::__ranges::__pattern_reduce_by_segment</*_Bounded*/ false>(
         __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), views::all_read(::std::forward<_Range1>(__keys)),
         views::all_read(::std::forward<_Range2>(__values)), views::all_write(::std::forward<_Range3>(__out_keys)),
         views::all_write(::std::forward<_Range4>(__out_values)), __binary_pred, __binary_op);
