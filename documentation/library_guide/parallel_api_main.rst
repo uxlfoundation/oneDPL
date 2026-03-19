@@ -5,7 +5,7 @@ The Parallel API in |onedpl_long| (|onedpl_short|) is an implementation of the C
 with `execution policies <https://en.cppreference.com/w/cpp/algorithm#Execution_policies>`_,
 as specified in the ISO/IEC 14882:2017 standard (commonly called C++17), as well as those added in C++20.
 It offers threaded and SIMD execution of these algorithms on Intel® processors implemented on top of OpenMP*
-and |onetbb_short|, as well as data parallel execution on accelerators backed by SYCL* support in |dpcpp_cpp|.
+and |onetbb_short|, as well as data parallel execution on accelerators backed by SYCL* support in |dpcpp_compiler|.
 
 Extending the capabilities of `range algorithms <https://en.cppreference.com/w/cpp/algorithm/ranges>`_ in C++20,
 the Parallel API provides analogous *parallel range algorithms* that execute according to an execution policy.

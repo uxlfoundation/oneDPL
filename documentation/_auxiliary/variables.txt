@@ -1,0 +1,7 @@
+.. |dpcpp_compiler| replace:: oneAPI DPC++ Compiler
+.. |onedpl_long| replace:: oneAPI DPC++ Library
+.. |onedpl_short| replace:: oneDPL
+.. |onetbb_long| replace:: oneAPI Threading Building Blocks (oneTBB)
+.. |onetbb_short| replace:: oneTBB
+.. |tbb_long| replace:: Intel® Threading Building Blocks (Intel® TBB)
+.. |tbb_short| replace:: Intel® TBB
