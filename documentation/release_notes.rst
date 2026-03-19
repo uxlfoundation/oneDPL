@@ -9,7 +9,12 @@ and provides high-productivity APIs aimed to minimize programming efforts of C++
 creating efficient heterogeneous applications.
 
 New in 2022.12.0
-=======================
+================
+
+New Features
+------------
+- ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``, and ``histogram`` algorithms
+  are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
 
 Fixed Issues
 ------------
