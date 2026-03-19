@@ -188,8 +188,8 @@ class device_policy
 struct DefaultKernelNameFPGA;
 
 template <unsigned int factor = 1, typename KernelName = DefaultKernelNameFPGA>
-[[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
-class fpga_policy : public device_policy<KernelName>
+class [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
+fpga_policy : public device_policy<KernelName>
 {
     using base = device_policy<KernelName>;
 
