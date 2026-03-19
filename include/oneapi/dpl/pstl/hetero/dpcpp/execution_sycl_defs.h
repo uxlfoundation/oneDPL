@@ -221,8 +221,9 @@ inline const device_policy<> dpcpp_default{__internal::__global_instance_tag{}};
 #        if _ONEDPL_FPGA_DEVICE
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-inline const fpga_policy<> dpcpp_fpga{__internal::__global_instance_tag{}}
-    [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]];
+inline const fpga_policy<> dpcpp_fpga
+    [[deprecated("oneDPL execution policies for FPGA are deprecated and will be removed in a future release.")]]
+    {__internal::__global_instance_tag{}};
 #pragma GCC diagnostic pop
 #        endif // _ONEDPL_FPGA_DEVICE
 
