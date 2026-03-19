@@ -237,11 +237,6 @@ jobs:
           mkdir build && cd build
           lscpu
 
-          EXTRA_CXX_FLAGS=""
-          if [[ "${{ matrix.device_type }}" == "FPGA_EMU" ]]; then
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
-          fi
-
           # TODO: fix or justify the excluded warnings
           EXTRA_CXX_FLAGS="-Wall -Wextra-semi -Werror -Wno-error=sign-compare"
           if [[ "${{ matrix.cxx_compiler }}" != "g++" ]]; then
@@ -250,6 +245,11 @@ jobs:
           if [[ "${{ matrix.cxx_compiler }}" == "icpx" ]]; then
             EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=recommended-option"
           fi
+
+          if [[ "${{ matrix.device_type }}" == "FPGA_EMU" ]]; then
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
+          fi
+
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DONEDPL_BACKEND=${{ matrix.backend }} -DCMAKE_CXX_FLAGS="${EXTRA_CXX_FLAGS}" ..
           make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
