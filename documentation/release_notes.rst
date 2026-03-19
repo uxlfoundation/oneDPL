@@ -11,10 +11,17 @@ creating efficient heterogeneous applications.
 New in 2022.12.0
 ================
 
+Deprecation Notices
+-------------------
+- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. Use ``ONEAPI_DEVICE_SELECTOR``
+  environment variable or compiler options for device selection instead.
+
 New Features
 ------------
 - ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``, and ``histogram`` algorithms
   are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
+- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using device
+  policies for radix sortable cases (arithmetic types and ``std::less`` or ``std::greater`` as comparator).
 
 Fixed Issues
 ------------
@@ -23,6 +30,10 @@ Fixed Issues
 - Fixed ``ranges::unique_copy`` to allow output ranges of any size.
 - Fixed the default template argument for the new value type in `ranges::replace` and `ranges::replace_if`
   to not use projections.
+- Fixed issue of unnecessary host-side data copies for multiple algorithms when using device policies and host allocated
+  data: ``fill``, ``generate``, ``transform_if``, ``binary_search``, ``lower_bound``, ``upper_bound``,
+  ``histogram``, ``unique_copy``, ``uninitialized_copy``, ``uninitialized_move``, ``uninitialized_fill``,
+  ``uninitialized_value_construct``, ``uninitialized_default_construct``, and ``destroy``.
 
 Known Issues and Limitations
 ----------------------------
