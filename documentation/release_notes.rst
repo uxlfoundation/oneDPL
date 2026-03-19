@@ -22,6 +22,10 @@ New Features
   are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
 - Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using device
   policies for radix sortable cases (arithmetic types and ``std::less`` or ``std::greater`` as comparator).
+- Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the
+  ``oneapi::dpl::experimental::kt::gpu`` namespace. These algorithms allow configuring the number of elements to
+  process by a work item and the size of a workgroup. The implementation has been verified on Intel® Arc B580 Graphics
+  and Intel® Data Center GPU Max Series.
 
 Fixed Issues
 ------------
