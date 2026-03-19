@@ -541,10 +541,10 @@ __radix_sort_reorder_impl(_InputRange& __input, _OutputRange& __output, _OffsetR
 {
     constexpr std::uint32_t __radix_states = 1 << __radix_bits;
 
-    std::uint16_t __wi_prefix[__radix_states];
+    std::uint32_t __wi_prefix[__radix_states];
     {
         // Phase 1: Count pass - each work-item counts its contiguous elements
-        std::uint16_t __local_counts[__radix_states] = {0};
+        std::uint32_t __local_counts[__radix_states] = {0};
         for (std::size_t __idx = __wi_start; __idx < __wi_end; ++__idx)
         {
             auto __val = __order_preserving_cast<__is_ascending>(std::invoke(__proj, __input[__idx]));
