@@ -142,6 +142,9 @@ Macro                              Description
 ``ONEDPL_FPGA_EMULATOR``           Use this macro to build your code containing Parallel STL
                                    algorithms for FPGA emulation device. (Disabled by default.)
 
+                                   .. Warning:: Support for FPGA and FPGA emulation devices in oneDPL parallel algorithms
+                                      is deprecated and will be removed in a future release.
+
                                    .. Note:: Define ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR`` macros in the same
                                       application to run on a FPGA emulation device.
                                       Define only the ``ONEDPL_FPGA_DEVICE`` macro to run on a FPGA hardware device.
