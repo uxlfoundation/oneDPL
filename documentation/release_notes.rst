@@ -8,7 +8,7 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
-New in the next release
+New in 2022.12.0
 =======================
 
 Fixed Issues
