@@ -16,33 +16,6 @@
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
-namespace test_std_ranges
-{
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
-{
-#if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
-    static constexpr bool RunTestForHeteroPolicy = false;
-#else
-    static constexpr bool RunTestForHeteroPolicy = true;
-#endif
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
-};
-
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
-{
-#if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
-    static constexpr bool RunTestForHeteroPolicy = false;
-#else
-    static constexpr bool RunTestForHeteroPolicy = true;
-#endif
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
-};
-} // namespace test_std_ranges
-
 void test_mixed_types_host()
 {
     std::vector<test_std_ranges::A> r1 = {{1}, {2}, {3}};
