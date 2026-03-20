@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 #include <cassert>
+#include <cstdint> // for std::uint8_t
 #include "utils.h"
 #include "memory_fwd.h"
 #include "functional_impl.h" // for oneapi::dpl::identity, std::invoke
@@ -217,123 +218,323 @@ struct __serial_move_merge
     }
 };
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                      _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
-                      _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+enum class __parallel_set_op_mask : std::uint8_t
 {
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    eNone = 0x00,    // initial state
+    eData1 = 0x01,   // mask for first input data item usage
+    eData2 = 0x02,   // mask for second input data item usage
+    eDataOut = 0x04, // mask for output data item usage
+
+    eBoth = 0x03,     // eData1 | eData2: mask for both input data items usage
+    eData1Out = 0x05, // eData1 | eDataOut: mask for copy data item from the first data set into output
+    eData2Out = 0x06, // eData2 | eDataOut: mask for copy data item from the second data set into output
+    eBothOut = 0x07   // eBoth  | eDataOut: mask for copy data item from the first and the second data set into output
+};
+
+inline std::nullptr_t
+__set_iterator_mask(std::nullptr_t, __parallel_set_op_mask) noexcept
+{
+    return nullptr;
+}
+
+inline __parallel_set_op_mask*
+__set_iterator_mask(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state) noexcept
+{
+    *__mask = __state;
+    return ++__mask;
+}
+
+template <typename _Size>
+inline std::nullptr_t
+__set_iterator_mask_n(std::nullptr_t, __parallel_set_op_mask, _Size) noexcept
+{
+    return nullptr;
+}
+
+template <typename _Size>
+inline __parallel_set_op_mask*
+__set_iterator_mask_n(__parallel_set_op_mask* __mask, __parallel_set_op_mask __state, _Size __count) noexcept
+{
+    for (_Size __i = 0; __i < __count; ++__i)
+        __mask[__i] = __state;
+
+    return __mask + __count;
+}
+
+struct _SetOpDiscardIterator
+{
+    using iterator_category = std::output_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = void;
+    using pointer = void;
+    using reference = void;
+
+    _SetOpDiscardIterator&
+    operator*() noexcept
+    {
+        return *this;
+    }
+
+    _SetOpDiscardIterator&
+    operator++() noexcept
+    {
+        return *this;
+    }
+
+    _SetOpDiscardIterator
+    operator++(int) noexcept
+    {
+        return *this;
+    }
+
+    template <typename T>
+    _SetOpDiscardIterator&
+    operator=(const T&) noexcept
+    {
+        return *this;
+    }
+};
+
+template <typename _InputIterator, typename _OutputIterator>
+struct _UninitializedCopyItem
+{
+    using _OutValueType = typename std::iterator_traits<_OutputIterator>::value_type;
+
+    void
+    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
+    {
+        if constexpr (!std::is_same_v<_OutputIterator, _SetOpDiscardIterator>)
+        {
+            // We should use placement new here because this method really works with raw uninitialized memory
+            new (std::addressof(*__it_out)) _OutValueType(*__it_in);
+        }
+    }
+};
+
+template <typename _CopyConstructRange>
+struct _CopyConstructRangeOpWrapper
+{
+    _CopyConstructRange _cc_range;
+
+    template <typename _InputIterator>
+    _SetOpDiscardIterator
+    operator()(_InputIterator, _InputIterator, _SetOpDiscardIterator)
+    {
+        return _SetOpDiscardIterator{};
+    }
+
+    template <typename _InputIterator, typename _OutputIterator>
+    _OutputIterator
+    operator()(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
+    {
+        return _cc_range(__first, __last, __result);
+    }
+};
+
+template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _MaskIterator>
+using _union_construct_return_t = std::tuple<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>;
+
+template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_union_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                      _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                      _Proj2 __proj2, _MaskIterator __mask)
+{
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
+    _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
+
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
 
     for (; __first1 != __last1; ++__result)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+        {
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
+            __result = __cc_range(__first1, __last1, __result);
+
+            return {__last1, __first2, __result, __mask};
+        }
+
         if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first2);
+            _uninitialized_copy_from2(__first2, __result);
             ++__first2;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
         }
         else
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
+            _uninitialized_copy_from1(__first1, __result);
             if (!std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+            {
                 ++__first2;
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
+            }
+            else
+            {
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
+            }
             ++__first1;
         }
     }
-    return __cc_range(__first2, __last2, __result);
+
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
+    __result = __cc_range(__first2, __last2, __result);
+
+    return {__first1, __last2, __result, __mask};
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator, typename _CopyFunc,
-          typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
-__set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                             _ForwardIterator2 __last2, _OutputIterator __result, _CopyFunc _copy, _Compare __comp,
-                             _Proj1 __proj1, _Proj2 __proj2)
+template <typename _CopyFunc>
+struct CopyOpWrapper
 {
+    _CopyFunc _copy;
+
+    template <typename _InputIterator>
+    void
+    operator()(_InputIterator, _SetOpDiscardIterator) const
+    {
+    }
+
+    template <typename _InputIterator, typename _OutputIterator>
+    void
+    operator()(_InputIterator __it_in, _OutputIterator __it_out) const
+    {
+        _copy(*__it_in, *__it_out);
+    }
+};
+
+template <typename _CopyFunc, typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
+          typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
+__set_intersection_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
+                             _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                             _Proj2 __proj2, _MaskIterator __mask)
+{
+    CopyOpWrapper<_CopyFunc> __copy;
+
     while (__first1 != __last1 && __first2 != __last2)
     {
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
+        {
             ++__first1;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1);
+        }
         else if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+        {
             ++__first2;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+        }
         else
         {
-            _copy(*__first1, *__result);
-
+            __copy(__first1, __result);
             ++__first1;
             ++__first2;
             ++__result;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBothOut);
         }
     }
-    return __result;
+
+    return {__first1, __first2, __result, __mask};
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
+template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                           _ForwardIterator2 __last2, _OutputIterator __result, _CopyConstructRange __cc_range,
-                           _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+                           _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp, _Proj1 __proj1,
+                           _Proj2 __proj2, _MaskIterator __mask)
 {
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
 
-    for (; __first1 != __last1;)
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
+
+    while (__first1 != __last1)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+        {
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
+            __result = __cc_range(__first1, __last1, __result);
+
+            return {__last1, __first2, __result, __mask};
+        }
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
+            _uninitialized_copy_from1(__first1, __result);
             ++__result;
             ++__first1;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
         }
         else
         {
             if (!std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
+            {
                 ++__first1;
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+            }
+            else
+            {
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2);
+            }
             ++__first2;
         }
     }
-    return __result;
+
+    return {__first1, __first2, __result, __mask};
 }
 
-template <typename _ForwardIterator1, typename _ForwardIterator2, typename _OutputIterator,
-          typename _CopyConstructRange, typename _Compare, typename _Proj1, typename _Proj2>
-_OutputIterator
+template <typename _CopyConstructRange, typename _ForwardIterator1, typename _ForwardIterator2,
+          typename _OutputIterator, typename _Compare, typename _Proj1, typename _Proj2, typename _MaskIterator>
+_union_construct_return_t<_ForwardIterator1, _ForwardIterator2, _OutputIterator, _MaskIterator>
 __set_symmetric_difference_construct(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
-                                     _ForwardIterator2 __last2, _OutputIterator __result,
-                                     _CopyConstructRange __cc_range, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+                                     _ForwardIterator2 __last2, _OutputIterator __result, _Compare __comp,
+                                     _Proj1 __proj1, _Proj2 __proj2, _MaskIterator __mask)
 {
-    using _Tp = typename ::std::iterator_traits<_OutputIterator>::value_type;
+    _UninitializedCopyItem<_ForwardIterator1, _OutputIterator> _uninitialized_copy_from1;
+    _UninitializedCopyItem<_ForwardIterator2, _OutputIterator> _uninitialized_copy_from2;
 
-    for (; __first1 != __last1;)
+    _CopyConstructRangeOpWrapper<_CopyConstructRange> __cc_range;
+
+    while (__first1 != __last1)
     {
         if (__first2 == __last2)
-            return __cc_range(__first1, __last1, __result);
+        {
+            __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData1Out, __last1 - __first1);
+            __result = __cc_range(__first1, __last1, __result);
+
+            return {__last1, __first2, __result, __mask};
+        }
 
         if (std::invoke(__comp, std::invoke(__proj1, *__first1), std::invoke(__proj2, *__first2)))
         {
-            ::new (::std::addressof(*__result)) _Tp(*__first1);
+            // We should use placement new here because this method really works with raw uninitialized memory
+            _uninitialized_copy_from1(__first1, __result);
             ++__result;
             ++__first1;
+            __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData1Out);
         }
         else
         {
             if (std::invoke(__comp, std::invoke(__proj2, *__first2), std::invoke(__proj1, *__first1)))
             {
-                ::new (::std::addressof(*__result)) _Tp(*__first2);
+                // We should use placement new here because this method really works with raw uninitialized memory
+                _uninitialized_copy_from2(__first2, __result);
                 ++__result;
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eData2Out);
             }
             else
+            {
                 ++__first1;
+                __mask = __set_iterator_mask(__mask, __parallel_set_op_mask::eBoth);
+            }
             ++__first2;
         }
     }
-    return __cc_range(__first2, __last2, __result);
+
+    __mask = __set_iterator_mask_n(__mask, __parallel_set_op_mask::eData2Out, __last2 - __first2);
+    __result = __cc_range(__first2, __last2, __result);
+
+    return {__first1, __last2, __result, __mask};
 }
 
 template <template <typename, typename...> typename _Concrete, typename _ValueType, typename... _Args>
@@ -400,6 +601,46 @@ struct __enumerable_thread_local_storage_base
     std::vector<std::optional<_ValueType>> __thread_specific_storage;
     std::atomic_size_t __num_elements;
     const std::tuple<_Args...> __args;
+};
+
+template <typename _RandomAccessIterator1, typename _RandomAccessIterator2, typename _RandomAccessOutputIterator>
+struct __set_operations_result
+{
+    _RandomAccessIterator1 __in1;
+    _RandomAccessIterator2 __in2;
+    _RandomAccessOutputIterator __it_out;
+
+    // Get reached input1 and output iterators
+    template <typename TResult>
+    TResult
+    __get_reached_in1_out() const
+    {
+        return {__in1, __it_out};
+    }
+
+    // Get reached input1, input2 and output iterators
+    template <typename TResult>
+    TResult
+    __get_reached_in1_in2_out() const
+    {
+        return {__in1, __in2, __it_out};
+    }
+
+    // Get reached output iterator
+    _RandomAccessOutputIterator
+    __get_reached_out() const
+    {
+        return __it_out;
+    }
+
+    __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
+    operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
+                         typename std::iterator_traits<_RandomAccessIterator2>::difference_type,
+                         typename std::iterator_traits<_RandomAccessOutputIterator>::difference_type>
+                  __offsets) const
+    {
+        return {__in1 + std::get<0>(__offsets), __in2 + std::get<1>(__offsets), __it_out + std::get<2>(__offsets)};
+    }
 };
 
 } // namespace __utils
