@@ -95,7 +95,7 @@ To create a policy object, you may use one of the following constructor argument
 
 A kernel name is set with a policy template argument.
 Providing a kernel name for a policy is optional, if your compiler supports implicit
-names for SYCL kernel functions. The |dpcpp_cpp| supports it by default;
+names for SYCL kernel functions. The |dpcpp_compiler| supports it by default;
 for other compilers it may need to be enabled with compilation options such as
 ``-fsycl-unnamed-lambda``. Refer to your compiler documentation for more information.
 

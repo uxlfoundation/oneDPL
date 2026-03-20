@@ -19,9 +19,10 @@
 #define _USE_STD_VECTOR_ALGORITHMS 0
 
 #include "std_ranges_test.h"
-#include <oneapi/dpl/ranges>
 
 #if _ENABLE_STD_RANGES_TESTING
+
+#include <oneapi/dpl/ranges>
 #include <vector>
 
 void test_zip_view_base_op()

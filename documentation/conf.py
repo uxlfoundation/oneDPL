@@ -40,8 +40,8 @@ author = 'Intel'
 release = '2022.11.0'
 
 rst_epilog = """
-.. include:: /variables.txt
-.. include:: /common_cross_document_links.txt
+.. include:: /_auxiliary/variables.txt
+.. include:: /_auxiliary/common_cross_document_links.txt
 """
 
 # -- General configuration ---------------------------------------------------
@@ -114,7 +114,7 @@ html_theme_options = {
     #'navigation_depth': 4  # Depth of the headers shown in the navigation bar
     #'display_version': True,  # Display the docs version
     'repository_url': 'https://github.com/uxlfoundation/oneDPL',
-    'path_to_docs': 'documentation/library_guide',
+    'path_to_docs': 'documentation',
     'use_issues_button': True,
     'use_edit_page_button': True,
     'repository_branch': 'main',

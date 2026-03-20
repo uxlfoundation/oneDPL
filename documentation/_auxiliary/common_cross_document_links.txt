@@ -1,5 +1,6 @@
-.. |onedpl_library_guide| replace:: Intel® oneAPI DPC++ Library Guide
-.. _onedpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-9/overview.html
+.. |onedpl_library_guide| replace:: :doc:`oneAPI DPC++ Library Guide </library_guide/introduction>`
+
+.. |onedpl_requirements| replace:: :ref:`oneDPL System Requirements <library-requirements>`
 
 .. |dpcpp_gsg| replace:: Get Started with the Intel® oneAPI DPC++/C++ Compiler
 .. _dpcpp_gsg: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-2/overview.html

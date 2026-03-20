@@ -13,7 +13,6 @@
 #include <limits>
 #include <cstdint>
 #include <type_traits>
-#include <bit>
 #include <cassert>
 
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
