@@ -112,6 +112,7 @@ struct __write_op_base
     static bool
     __is_in_bounds(const _OutRng& __out_rng, _SizeType __id)
     {
+        static_assert(false);
         if constexpr (_Bounded)
             return __id < oneapi::dpl::__ranges::__size(__out_rng);
         else
