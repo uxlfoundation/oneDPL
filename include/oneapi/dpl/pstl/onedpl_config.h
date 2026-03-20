@@ -346,6 +346,14 @@
 #    define _ONEDPL_STD_RANGES_ALGO_CPP_FUN 0
 #endif
 
+// Hidden friend functions defined in a sibling nested class are given access to the enclosing friend class's
+// other nested classes' private members for most compilers(CWG1699). GCC < 13 and MSVC do not grant this access.
+#if defined(_MSC_VER) || (defined(__GNUC__) && !defined(__clang__) && _ONEDPL_GCC_VERSION < 130100)
+#    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 1
+#else
+#    define _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN 0
+#endif
+
 // -- Configure heterogeneous backends --
 
 #if !defined(ONEDPL_ALLOW_DEFERRED_WAITING)

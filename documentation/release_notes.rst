@@ -163,7 +163,7 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - The `set_intersection`, `set_difference`, `set_symmetric_difference`, and `set_union` algorithms with a device policy
-require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
+  require GPUs with double-precision support on Windows, regardless of the value type of the input sequences.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
@@ -508,7 +508,7 @@ New Features
 ------------
 - Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms residing in
   the ``oneapi::dpl::experimental::kt::esimd`` namespace. These algorithms are first
-  in the family of _kernel templates_ that allow configuring a variety of parameters
+  in the family of *kernel templates* that allow configuring a variety of parameters
   including the number of elements to process by a work item, and the size of a workgroup.
   The algorithms only work with Intel® Data Center GPU Max Series.
 - Added new ``transform_if`` algorithm for applying a transform function conditionally
@@ -524,8 +524,8 @@ New in This Release
   is built with -g, -O0, -O1 compiler options.
 - ``esimd::radix_sort_by_key`` kernel template produces wrong results with the following combinations
   of ``kernel_param`` and types of keys and values:
-    - ``sizeof(key_type) + sizeof(val_type) == 12``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 96``
-    - ``sizeof(key_type) + sizeof(val_type) == 16``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 64``
+  - ``sizeof(key_type) + sizeof(val_type) == 12``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 96``
+  - ``sizeof(key_type) + sizeof(val_type) == 16``, ``kernel_param::workgroup_size == 64``, and ``kernel_param::data_per_workitem == 64``
 
 New in 2022.3.0
 ===============

@@ -429,8 +429,7 @@ class zip_view : public std::ranges::view_interface<zip_view<_Views...>>
       private:
         friend class zip_view;
 
-#    if defined(_MSC_VER)
-        //required for CL compiler, which does not find the friend iterator class
+#    if _ONEDPL_HIDDEN_FRIENDS_SIBLING_ACCESS_BROKEN
       public:
 #    endif
         decltype(auto)

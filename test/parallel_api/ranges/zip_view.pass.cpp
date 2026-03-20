@@ -35,7 +35,7 @@ main()
 
     using namespace oneapi::dpl::experimental::ranges;
 
- #if !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
+#if !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
     run = true;
     {
         constexpr int max_n = 10;
@@ -44,8 +44,12 @@ main()
 
         //the name nano::ranges::views::all is not injected into oneapi::dpl::experimental::ranges namespace
         auto view = __nanorange::nano::views::all(data);
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT
         auto z = zip_view(view, __nanorange::nano::views::all(key));
-
+#else
+        auto key_view = __nanorange::nano::views::all(key);
+        auto z = zip_view(view, key_view);
+#endif
         //check access
         EXPECT_TRUE(std::get<0>(z[2]) == 'g', "wrong effect with zip_view");
 
@@ -74,7 +78,7 @@ main()
         char actual_data = std::get<0>(large_z[i]);
         EXPECT_EQ(expected_data, actual_data, "wrong effect with zip_view bracket operator");
     }
- #endif // !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
+#endif // !(_ONEDPL_CPP20_RANGES_PRESENT && TEST_STD_RANGES_VIEW_CONCEPT_REQUIRES_DEFAULT_INITIALIZABLE)
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
     run = true;
