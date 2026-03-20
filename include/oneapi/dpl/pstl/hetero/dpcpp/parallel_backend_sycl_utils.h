@@ -730,14 +730,22 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else if (__supports_USM_device)
         {
-            auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
-            assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
-            // Avoid default constructor for _T. Since _T is device copyable, copy construction
-            // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
-            // There is no need to destroy it afterwards, as the destructor must have no effect.
-            oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
-            __q_proxy->__q->memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
-            return __space.__v;
+            if (__scratch_buf)
+            {
+                auto __q_proxy = std::get_deleter<__internal::__sycl_usm_free>(__scratch_buf);
+                assert(__q_proxy != nullptr && __q_proxy->__q.has_value());
+                // Avoid default constructor for _T. Since _T is device copyable, copy construction
+                // is equivalent to a bitwise copy and we may treat __space.__v as constructed after the memcpy.
+                // There is no need to destroy it afterwards, as the destructor must have no effect.
+                oneapi::dpl::__internal::__lazy_ctor_storage<_T> __space;
+                __q_proxy->__q->memcpy(&__space.__v, __scratch_buf.get() + __scratch_n + _Idx, sizeof(_T)).wait();
+                return __space.__v;
+            }
+            else
+            {
+                assert(__result_buf);
+                return __result_buf.get()[_Idx];
+            }
         }
         else
         {
