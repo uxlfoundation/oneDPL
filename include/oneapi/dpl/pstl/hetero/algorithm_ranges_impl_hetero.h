@@ -926,11 +926,17 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                 _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    if (oneapi::dpl::__ranges::__empty(__rng3))
-        return {0, 0};
-
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
     const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const auto __n3 = oneapi::dpl::__ranges::__size(__rng3);
+
+    if ((__n1 == 0 && __n2 == 0) || __n3 == 0)
+    {
+        if constexpr (_Bounded)
+            return {0, 0};
+        else
+            return {__n1, __n2};
+    }
 
     //To consider the direct copying pattern call in case just one of sequences is empty.
     if (__n1 == 0)
@@ -957,14 +963,14 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    auto __res = __par_backend_hetero::__parallel_merge<_Bounded>(
+    const auto [__offset1, __offset2] = __par_backend_hetero::__parallel_merge<_Bounded>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
-        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)), __comp, __proj1, __proj2);
+        oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)),
+        __comp, __proj1, __proj2).get();
 
-    auto __val = __res.get();
-    return {__val.first, __val.second};
+    return {__offset1, __offset2};
 }
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
