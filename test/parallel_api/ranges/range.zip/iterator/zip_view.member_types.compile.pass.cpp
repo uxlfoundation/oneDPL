@@ -180,11 +180,7 @@ void test() {
     // value_type of multiple views with different value_type
     dpl_ranges::zip_view v{foos, bars};
     using Iter = decltype(v.begin());
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<Iter::value_type, std::pair<Foo, Bar>>);
-#else
     static_assert(std::is_same_v<Iter::value_type, tuple_type<Foo, Bar>>);
-#endif
   }
 
   #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100
