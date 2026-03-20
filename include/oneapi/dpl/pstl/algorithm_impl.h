@@ -3338,6 +3338,9 @@ struct _DataPart
     bool
     is_output_size_reached(_DifferenceType __output_size) const
     {
+        if (__output_size == 0)
+            return true;
+
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
         //                              V-----------)   V-------)       V-----------)   V-)             V----------)    V----)          V--)            V-)
@@ -3351,7 +3354,6 @@ struct _DataPart
         //                                           |                                                |
         // Positions in result buffer:             __n                                              __n + 1
 
-        assert(__output_size > 0);
         const _DifferenceType __n = __output_size - 1;
 
         return __pos <= __n && __n < __pos + __len;
@@ -4085,7 +4087,8 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
-    if ((__n1 == 0 && __n2 == 0) || __n_out == 0)
+    // If output is empty just return first iterators
+    if (__n_out == 0)
         return {__first1, __first2, __result1};
 
     // {1} {}: parallel copying just first sequence
