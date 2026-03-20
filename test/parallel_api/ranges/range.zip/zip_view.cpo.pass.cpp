@@ -81,11 +81,7 @@ void test() {
         dpl_exp::ranges::zip_view<dpl_exp::ranges::zip_view<SizedRandomAccessView, SizedRandomAccessView>>> decltype(auto) v2 =
         dpl_exp::views::zip(v);
 
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<std::pair<int&, int&>>>);
-#else
     static_assert(std::is_same_v<std::ranges::range_reference_t<decltype(v2)>, tuple_type<tuple_type<int&, int&>>>);
-#endif
   }
 }
 
