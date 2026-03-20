@@ -22,10 +22,14 @@ New Features
   are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
 - Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using device
   policies for radix sortable cases (arithmetic types and ``std::less`` or ``std::greater`` as comparator).
+- Moved ``philox_engine`` to the ``oneapi::dpl`` namespace and fixed incorrect results for instantiations with
+  non-standard ``w`` values and ``std::uint_fast64_t``.
 - Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the
   ``oneapi::dpl::experimental::kt::gpu`` namespace. These algorithms allow configuring the number of elements to
   process by a work item and the size of a workgroup. The implementation has been verified on Intel® Arc B580 Graphics
   and Intel® Data Center GPU Max Series.
+- Added experimental ``ranges::zip_view`` to the oneDPL parallel range APIs. The view can be used with oneDPL parallel
+  range algorithms anc C++20 random access ranges.
 
 Fixed Issues
 ------------
@@ -44,6 +48,25 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
+  output range to have sufficient size to hold all resulting elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 New in 2022.11.0
 ================
