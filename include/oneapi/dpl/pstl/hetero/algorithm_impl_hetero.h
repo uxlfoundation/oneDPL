@@ -1767,11 +1767,12 @@ __pattern_hetero_set_op(__hetero_tag<_BackendTag>, _SetTag __set_tag, _Execution
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf3 = __keep3(__result, __result + __output_size);
 
-    _SizeType __result_size = __par_backend_hetero::__parallel_set_op</*_Bounded*/ false, _SetTag>(
-        _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
-        __buf3.all_view(), __comp, __proj1, __proj2);
+    [[maybe_unused]] const auto [__offset1, __offset2, __offset_out] =
+        __par_backend_hetero::__parallel_set_op</*_Bounded*/ false, _SetTag>(
+            _BackendTag{}, __set_tag, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(),
+            __buf3.all_view(), __comp, __proj1, __proj2);
 
-    return __result + __result_size;
+    return __result + __offset_out;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator1, typename _ForwardIterator2,
