@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Linear Congruential Engine
 
 #ifndef _ONEDPL_LINEAR_CONGRUENTIAL_ENGINE_H
 #define _ONEDPL_LINEAR_CONGRUENTIAL_ENGINE_H
