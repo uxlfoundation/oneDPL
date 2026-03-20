@@ -80,7 +80,7 @@ struct ConstVeryDifferentRange {
 void test() {
   int buffer[] = {1, 2, 3, 4};
   {
-    // 2 views should have pair value_type
+    // 2 views should have 2-tuple value_type
     // random_access_iterator_tag
     dpl_ranges::zip_view v(buffer, buffer);
     using Iter = decltype(v.begin());

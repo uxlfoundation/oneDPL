@@ -68,7 +68,7 @@ int test() {
     using View = dpl_ranges::zip_view<DefaultConstructibleView, DefaultConstructibleView>;
     View v = View(); // the default constructor is not explicit
     assert(v.size() == 3);
-    auto it = v.begin();
+    auto it     = v.begin();
     using Value = tuple_type<const int&, const int&>;
     assert(*it++ == Value(buff[0], buff[0]));
     assert(*it++ == Value(buff[1], buff[1]));

@@ -15,17 +15,8 @@
 
 // friend constexpr bool operator==(const iterator& x, const iterator& y)
 //   requires (equality_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
-// friend constexpr bool operator<(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator>(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator<=(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator>=(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
 // friend constexpr auto operator<=>(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...> &&
-//            (three_way_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
+//   requires all-random-access<Const, Views...>;
 
 #include "support/test_config.h"
 #include "support/utils.h"
