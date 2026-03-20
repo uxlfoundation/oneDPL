@@ -83,11 +83,11 @@ __tuple_for_each_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
     (void(__f(std::get<_Ip>(__t))), ...);
 }
 
-template <typename _F, typename _Tuple, std::size_t... _Ip>
-decltype(auto)
-__tuple_apply_impl(_F __f, _Tuple& __t, std::index_sequence<_Ip...>)
+template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
+void
+__tuples_for_each_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
 {
-    return __f(std::get<_Ip>(__t)...);
+    (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
 }
 
 template <typename _Adaptor, typename _F, typename _Tuple, std::size_t... _Ip>
@@ -104,11 +104,12 @@ __tuple_for_each(_F __f, _Tuple& __t)
     __tuple_for_each_impl(std::move(__f), __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
-template <typename _F, typename _Tuple>
-decltype(auto)
-__tuple_apply(_F __f, _Tuple& __t)
+template <typename _F, typename _Tuple1, typename _Tuple2>
+void
+__tuples_for_each(_F __f, _Tuple1& __t1, _Tuple2& __t2)
 {
-    return __tuple_apply_impl(std::move(__f), __t, std::make_index_sequence<std::tuple_size_v<_Tuple>>());
+    static_assert(std::tuple_size_v<_Tuple1> == std::tuple_size_v<_Tuple2>);
+    __tuples_for_each_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
 }
 
 template <typename _Adaptor, typename _F, typename _Tuple>
@@ -119,19 +120,12 @@ __tuple_apply(_Adaptor __adaptor, _F __f, _Tuple& __t)
                               std::make_index_sequence<std::tuple_size_v<_Tuple>>());
 }
 
-template <typename _F, typename _Tuple1, typename _Tuple2, std::size_t... _Ip>
-void
-__tuples_for_each_impl(_F __f, _Tuple1& __t1, _Tuple2& __t2, std::index_sequence<_Ip...>)
+template <typename _Adaptor, typename _Tuple>
+decltype(auto)
+__tuple_apply(_Adaptor __adaptor, _Tuple& __t)
 {
-    (__f(std::get<_Ip>(__t1), std::get<_Ip>(__t2)), ...);
-}
-
-template <typename _F, typename _Tuple1, typename _Tuple2>
-void
-__tuples_for_each(_F __f, _Tuple1& __t1, _Tuple2& __t2)
-{
-    static_assert(std::tuple_size_v<_Tuple1> == std::tuple_size_v<_Tuple2>);
-    __tuples_for_each_impl(__f, __t1, __t2, std::make_index_sequence<std::tuple_size_v<_Tuple1>>{});
+    auto __identity_func = [](auto&& __item) -> decltype(auto) { return std::forward<decltype(__item)>(__item); };
+    return __tuple_apply(__adaptor, std::move(__identity_func), __t);
 }
 
 template <std::ranges::input_range... _Views>
