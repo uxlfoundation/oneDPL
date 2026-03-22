@@ -2,9 +2,9 @@
 
 ## Introduction
 
-This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. At the time of writing, two implementations have been provided: an initial ESIMD [[1]](#references) implementation designed for Intel's PVC (GPU Series Max) architecture and a subsequent pure SYCL implementation that generalizes the approach to Intel GPUs supporting the forward progress extension [[2]](#references).
+This RFC describes the design and implementation of GPU radix sort algorithms for oneDPL kernel templates. At the time of writing, two implementations have been provided: an initial ESIMD [[1]](#references) implementation designed for Intel's PVC (GPU Series Max) architecture and a subsequent pure SYCL implementation that generalizes the approach to Intel GPUs supporting the SYCL oneAPI forward progress extension [[2]](#references).
 
-Both implementations use the onesweep radix sort algorithm [[3]](#references) with decoupled lookback synchronization [[4]](#references), the current state-of-the-art GPU sort. This algorithmic approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
+Both implementations use the onesweep radix sort algorithm [[3]](#references) with decoupled lookback [[4]](#references), the current state-of-the-art GPU sort. This algorithmic approach addresses the global memory bandwidth bottleneck that typically limits GPU sorting performance by reducing memory traffic compared to traditional multi-pass radix sort algorithms.
 
 The motivation for these implementations was to provide:
 - Competitive performance with state-of-the-art GPU sort
@@ -22,20 +22,22 @@ The pure SYCL implementation defines its functions in the `oneapi::dpl::experime
 
 ```cpp
 namespace oneapi::dpl::experimental::kt::gpu {
-    // In-place sort (range)
-    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysRange>
-    sycl::event radix_sort(sycl::queue q, KeysRange&& keys, KernelParam param = {});
 
-    // In-place sort (iterators)
-    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysIterator>
-    sycl::event radix_sort(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
-                          KernelParam param = {});
+// In-place sort (range)
+template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysRange>
+sycl::event radix_sort(sycl::queue q, KeysRange&& keys, KernelParam param = {});
 
-    // Out-of-place sort (range)
-    template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
-              typename KeysInRange, typename KeysOutRange>
-    sycl::event radix_sort(sycl::queue q, KeysInRange&& keys_in, KeysOutRange&& keys_out,
-                          KernelParam param = {});
+// In-place sort (iterators)
+template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysIterator>
+sycl::event radix_sort(sycl::queue q, KeysIterator keys_first, KeysIterator keys_last,
+                        KernelParam param = {});
+
+// Out-of-place sort (range)
+template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam,
+            typename KeysInRange, typename KeysOutRange>
+sycl::event radix_sort(sycl::queue q, KeysInRange&& keys_in, KeysOutRange&& keys_out,
+                        KernelParam param = {});
+
 }
 ```
 
@@ -140,8 +142,9 @@ Decoupled lookback [[4]](#references) enables work-groups to communicate without
 Tiles may perform an early exit from the decoupled lookback once a lower indexed work-group has found and published its full incoming histogram. Prior to exiting, the tile publishes its own incoming histogram, so high indexed tiles may also early exit.
 
 This mechanism provides two key benefits:
-- Work-groups can continue processing as soon as their immediate dependencies are satisfied without waiting on others
-- No global synchronization points that would stall all work-groups, freeing hardware resources for higher indexed tiles
+- No global synchronization points are present that would stall all work-groups, immediately freeing hardware resources for higher indexed tiles upon tile
+completion
+- Early exit enables the lookback from being bound by the cumulative memory access latencies for all tiles for the last tile index
 
 The lookback operates by having each work-group atomically spin-wait on global memory locations until the previous work-group has written its partial histogram. Work-groups accumulate these partial results to compute their global offsets.
 
@@ -197,7 +200,7 @@ This reduction in global memory access is critical for GPU sort performance, whe
 
 The decoupled lookback protocol requires work-group N to spin-wait for work-group N-1 to publish its results. Without guarantees of concurrent execution, this can lead to deadlock if the hardware scheduler does not ensure that work-group N-1 makes progress while work-group N is waiting.
 
-This is a fundamental challenge for any GPU algorithm that uses inter-work-group synchronization within a single kernel launch as current GPU programming models do not provide any work-group forward progress guarantees with standard launch modes.
+This is a fundamental challenge for any GPU algorithm that uses inter-work-group synchronization within a single kernel launch as current GPU programming models do not provide any work-group forward progress guarantees with standard kernel launch modes.
 
 #### ESIMD Approach
 
