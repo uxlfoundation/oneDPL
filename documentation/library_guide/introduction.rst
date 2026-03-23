@@ -198,6 +198,8 @@ Known Limitations
 * Range-based ``sort`` and ``stable_sort`` algorithms called with device execution policies
   use ``std::swap`` instead of ``std::ranges::iter_swap``.
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
+* Passing rvalue views to ``ranges::zip_view`` is not supported until ``std::ranges::owning_view`` is provided
+  by the C++ standard library implementation being used.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
