@@ -3,8 +3,6 @@
 ..
 .. SPDX-License-Identifier: CC-BY-4.0
 
-.. _oneDPL-section:
-
 ====================
 oneDPL Specification
 ====================
