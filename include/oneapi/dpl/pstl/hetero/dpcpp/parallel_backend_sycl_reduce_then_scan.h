@@ -1195,9 +1195,10 @@ struct __scan_by_seg_op
 
 // *** Main reduce then scan infrastructure ***
 
-// Sub-group communication wrappers that support non-trivially-copyable types.
-// For trivially copyable types, native SYCL sub-group operations are used.
-// For non-trivially-copyable types, shared local memory (SLM) with sub-group barriers is used.
+// Sub-group communication wrappers with SLM fallback.
+// When __comm_slm is nullptr, native SYCL sub-group operations are used (trivially copyable types only).
+// When __comm_slm is non-null, SLM-based communication is used. This path is required for
+// non-trivially-copyable types and preferred for CPU targets where sub-group ops are slow.
 // The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
 // slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size).
 
@@ -1208,18 +1209,18 @@ __shift_group_right(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __s
 {
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        return sycl::shift_group_right(__sub_group, __value, __shift);
+        if (__comm_slm == nullptr)
+            return sycl::shift_group_right(__sub_group, __value, __shift);
     }
-    else
-    {
-        std::uint32_t __local_id = __sub_group.get_local_linear_id();
-        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
-        __comm_slm[__sg_base + __local_id] = __value;
-        sycl::group_barrier(__sub_group);
-        _ValueType __result = __comm_slm[__sg_base + ((__local_id >= __shift) ? __local_id - __shift : __local_id)];
-        sycl::group_barrier(__sub_group);
-        return __result;
-    }
+    // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
+    // preferred (e.g., CPU targets where sub-group ops are slow).
+    std::uint32_t __local_id = __sub_group.get_local_linear_id();
+    std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
+    __comm_slm[__sg_base + __local_id] = __value;
+    sycl::group_barrier(__sub_group);
+    _ValueType __result = __comm_slm[__sg_base + ((__local_id >= __shift) ? __local_id - __shift : __local_id)];
+    sycl::group_barrier(__sub_group);
+    return __result;
 }
 
 template <typename _ValueType, typename _IdType>
@@ -1229,18 +1230,18 @@ __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub
 {
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
-        return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
+        if (__comm_slm == nullptr)
+            return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
     }
-    else
-    {
-        std::uint32_t __local_id = __sub_group.get_local_linear_id();
-        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
-        __comm_slm[__sg_base + __local_id] = __value;
-        sycl::group_barrier(__sub_group);
-        _ValueType __result = __comm_slm[__sg_base + __broadcast_id];
-        sycl::group_barrier(__sub_group);
-        return __result;
-    }
+    // SLM-based fallback: used for non-trivially-copyable types or when SLM communication is
+    // preferred (e.g., CPU targets where sub-group ops are slow).
+    std::uint32_t __local_id = __sub_group.get_local_linear_id();
+    std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
+    __comm_slm[__sg_base + __local_id] = __value;
+    sycl::group_barrier(__sub_group);
+    _ValueType __result = __comm_slm[__sg_base + __broadcast_id];
+    sycl::group_barrier(__sub_group);
+    return __result;
 }
 
 template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
@@ -1541,10 +1542,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
-            // SLM for sub-group communication (shift_group_right / group_broadcast) for non-trivially-copyable types.
-            // For trivially copyable types, native SYCL sub-group ops are used and this SLM is unused.
-            constexpr std::size_t __comm_slm_size =
-                std::is_trivially_copyable_v<_InitValueType> ? 0 : __work_group_size;
+            // SLM for sub-group communication (shift_group_right / group_broadcast).
+            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
+            const std::size_t __comm_slm_size = __use_slm_for_comm ? __work_group_size : 0;
             __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
@@ -1664,6 +1664,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::size_t __n;
+    const bool __use_slm_for_comm;
 
     const _GenReduceInput __gen_reduce_input;
     const _ReduceOp __reduce_op;
@@ -1718,8 +1719,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
-            constexpr std::size_t __comm_slm_size =
-                std::is_trivially_copyable_v<_InitValueType> ? 0 : __work_group_size;
+            // SLM for sub-group communication (shift_group_right / group_broadcast).
+            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
+            const std::size_t __comm_slm_size = __use_slm_for_comm ? __work_group_size : 0;
             __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
@@ -2013,6 +2015,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __num_blocks;
     const std::size_t __n;
+    const bool __use_slm_for_comm;
 
     const _ReduceOp __reduce_op;
     const _GenScanInput __gen_scan_input;
@@ -2021,13 +2024,19 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     _InitType __init;
 };
 
-// Enable reduce-then-scan on GPU devices with fast coordinated subgroup operations.
-// We do not want to run this scan on CPU targets, as they are not performant with this algorithm.
-// The sub-group size is determined at runtime within the kernel via get_max_local_range().
+// Reduce-then-scan is supported on all devices. Non-GPU targets and non-trivially-copyable types
+// use SLM-based sub-group communication instead of native sub-group operations.
+inline bool
+__is_reduce_then_scan_supported(const sycl::queue&)
+{
+    return true;
+}
+
+// Kept for backward compatibility; prefer __is_reduce_then_scan_supported.
 inline bool
 __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 {
-    return __q.get_device().is_gpu();
+    return __is_reduce_then_scan_supported(__q);
 }
 
 // General scan-like algorithm helpers
@@ -2104,6 +2113,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
+    // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
+    // (where native sub-group operations are slow).
+    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__q.get_device().is_gpu();
+
     // Reduce and scan step implementations
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
@@ -2117,6 +2130,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
                                         __n,
+                                        __use_slm_for_comm,
                                         __gen_reduce_input,
                                         __reduce_op,
                                         __init};
@@ -2127,6 +2141,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __max_num_sub_groups_global,
                                     __num_blocks,
                                     __n,
+                                    __use_slm_for_comm,
                                     __reduce_op,
                                     __gen_scan_input,
                                     __scan_input_transform,
