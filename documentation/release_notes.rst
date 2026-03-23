@@ -73,11 +73,6 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   it is required that the provided input and destination iterators are equality comparable.
   Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
   If these conditions are not met, the result of these algorithm calls is undefined.
-- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
-  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
-  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
-  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
-  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 New in 2022.11.0
 ================
