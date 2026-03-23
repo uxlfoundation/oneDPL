@@ -1060,6 +1060,37 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     return {__n1, __n2, __res};
 }
 
+template <bool _Bounded, typename _Range>
+decltype(auto)
+__create_src_data_view(_Range&& __rng)
+{
+    if constexpr (!_Bounded)
+    {
+        return std::forward<_Range>(__rng);
+    }
+    else
+    {
+        using _Index = oneapi::dpl::__internal::__difference_t<_Range>;
+        using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
+
+        const _Index __n = oneapi::dpl::__ranges::__size(__rng);
+
+        oneapi::dpl::__ranges::guard_view<_CountingIterator> __counting_view((_CountingIterator(0), _CountingIterator(__n)));
+        auto __zipped_view = oneapi::dpl::__ranges::make_zip_view(std::forward<_Range>(__rng), std::move(__counting_view));
+
+        return __zipped_view;
+    }
+}
+
+template <bool _Bounded, typename _Range1, typename _Range2, typename _SplitDiagsView>
+auto
+__create_in_in_rng_tmp(_Range1&& __rng1, _Range2&& __rng2, _SplitDiagsView&& __split_diags_view)
+{
+    return oneapi::dpl::__ranges::make_zip_view(__create_src_data_view<_Bounded>(std::forward<_Range1>(__rng1)),
+                                                __create_src_data_view<_Bounded>(std::forward<_Range2>(__rng2)),
+                                                std::forward<_SplitDiagsView>(__split_diags_view));
+}
+
 // balanced path
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
@@ -1078,8 +1109,9 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _ReduceOp = std::plus<_Size>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider,
-                                                                                       _Compare, _Proj1, _Proj2>;
+    using _GenReduceInput =
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded, _SetOperation, _BoundsProvider, _Compare,
+                                                                   _Proj1, _Proj2>;
     using _GenScanInput =
         oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Compare,
                                                                                  _Proj1, _Proj2>;
@@ -1115,27 +1147,39 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     constexpr std::uint32_t __bytes_per_work_item_iter =
         __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __in_in_tmp_rng = oneapi::dpl::__ranges::make_zip_view(
-        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
+    auto __in_in_tmp_rng_phase1 = __create_in_in_rng_tmp</*_Bounded*/false>(
+        std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2),
+        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(
             __temp_diags.get_buffer()));
+
     sycl::event __partition_event;
 
     if (__total_size >= __partition_threshold)
     {
-        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals,
-                                                                                __gen_reduce_input);
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, std::move(__in_in_tmp_rng_phase1),
+                                                                                __num_diagonals, __gen_reduce_input);
     }
 
-    auto __res =
+    auto __in_in_tmp_rng_phase2 = __create_in_in_rng_tmp<false/*_Bounded*/>(
+        std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2),
+        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(
+            __temp_diags.get_buffer()));
+
+    _WriteOp __write_op{};
+
+    auto __output_idx =
         __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
-            __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
-            _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
-            _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+            __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
+            __gen_reduce_input, _ReduceOp{},
+            _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{},
+            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
             /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event)
             .get();
 
-    return {__n1, __n2, __res};
+    // KSATODO this return looks incorrect
+    return {__n1, __n2, __output_idx};
 }
 
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
