@@ -11,9 +11,6 @@ creating efficient heterogeneous applications.
 New in 2022.12.0
 ================
 
-Deprecation Notices
--------------------
-
 Changes to CMake
 -------------------
 - Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
