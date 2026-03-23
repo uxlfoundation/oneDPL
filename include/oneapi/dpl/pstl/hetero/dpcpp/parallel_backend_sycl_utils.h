@@ -22,12 +22,9 @@
 #include <type_traits>
 #include <tuple>
 #include <algorithm>
+#include <functional>
 #include <optional>
 #include <cassert>
-
-#if _ONEDPL_CPP20_RANGES_PRESENT
-#    include <ranges>
-#endif
 
 #include "../../iterator_impl.h"
 
@@ -350,9 +347,9 @@ struct __is_comp_ascending<oneapi::dpl::__internal::__pstl_less>
     static constexpr bool value = true;
 };
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _T>
-struct __is_comp_ascending<std::ranges::less<_T>>
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+template <>
+struct __is_comp_ascending<std::ranges::less>
 {
     static constexpr bool value = true;
 };
@@ -375,9 +372,9 @@ struct __is_comp_descending<oneapi::dpl::__internal::__pstl_greater>
     static constexpr bool value = true;
 };
 
-#if _ONEDPL_CPP20_RANGES_PRESENT
-template <typename _T>
-struct __is_comp_descending<std::ranges::greater<_T>>
+#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 201911L
+template <>
+struct __is_comp_descending<std::ranges::greater>
 {
     static constexpr bool value = true;
 };
