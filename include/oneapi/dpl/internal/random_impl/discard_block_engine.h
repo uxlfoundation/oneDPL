@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Discard Block Engine
 
 #ifndef _ONEDPL_DISCARD_BLOCK_ENGINE_H
 #define _ONEDPL_DISCARD_BLOCK_ENGINE_H

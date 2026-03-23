@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides common utils for random implementation
 
 #ifndef _ONEDPL_RANDOM_COMMON_H
 #define _ONEDPL_RANDOM_COMMON_H
