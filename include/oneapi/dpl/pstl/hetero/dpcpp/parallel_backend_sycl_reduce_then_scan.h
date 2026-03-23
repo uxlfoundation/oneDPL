@@ -1544,8 +1544,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            const std::size_t __comm_slm_size = __use_slm_for_comm ? __work_group_size : 0;
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
@@ -1558,7 +1557,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                _InitValueType* __comm_slm_ptr = __comm_slm_size > 0 ? &__comm_slm[0] : nullptr;
+                _InitValueType* __comm_slm_ptr = __use_slm_for_comm ? &__comm_slm[0] : nullptr;
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1721,8 +1720,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            const std::size_t __comm_slm_size = __use_slm_for_comm ? __work_group_size : 0;
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
@@ -1732,7 +1730,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) {
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-                _InitValueType* __comm_slm_ptr = __comm_slm_size > 0 ? &__comm_slm[0] : nullptr;
+                _InitValueType* __comm_slm_ptr = __use_slm_for_comm ? &__comm_slm[0] : nullptr;
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
