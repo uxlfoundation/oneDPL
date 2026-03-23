@@ -51,7 +51,7 @@ sycl::event radix_sort(sycl::queue q, KeysInRange&& keys_in, KeysOutRange&& keys
 // Out-of-place sort (iterators)
 template <bool IsAscending = true, uint8_t RadixBits = 8, typename KernelParam, typename KeysIterator1,
           typename KeysIterator2>
-sycl::event radix_sort(sycl::queue q, KeysIterator1 keys_first, KeysIterator keys_last,
+sycl::event radix_sort(sycl::queue q, KeysIterator1 keys_first, KeysIterator1 keys_last,
                        KeysIterator2 keys_out_first, KernelParam param = {});
 
 }
@@ -116,7 +116,7 @@ traditional radix sort implementations that use an additional input pass per rad
 key requires 4 stages to complete the sort after an upfront histogram and scan kernel which computes radix bin offsets
 across all stages at once with a single pass over keys.
 
-High-level psuedocode is shown for the onesweep implementation below:
+High-level pseudocode is shown for the onesweep implementation below:
 
 **Histogram kernel** — Computes per-bin counts across all stages in a single pass.
 ```
@@ -136,7 +136,7 @@ onesweep_scan_kernel:
 1.    Perform an in-place exclusive scan for each stage on the global histogram computed in onesweep_histogram_kernel
 ```
 
-**Onesweep reorder kernel** — Reording for each stage. If keysort is used, then no values are processed.
+**Onesweep reorder kernel** — Reordering for each stage. If a keys-only sort is used, then no values are processed.
 ```text
 onesweep_reorder_kernel:
 1.    for each tile assigned to this work-group:
@@ -147,8 +147,8 @@ onesweep_reorder_kernel:
 lookback
 6.        Perform decoupled lookback to compute incoming global offsets per bin. For tile zero use the scanned global
 histogram at the current stage computed by onesweep_scan_kernel
-6.        Locally reorder keys & values for this work-group from registers into SLM
-7.        Scatter keys & values from SLM to global memory using global offsets and local ranks
+7.        Locally reorder keys & values for this work-group from registers into SLM
+8.        Scatter keys & values from SLM to global memory using global offsets and local ranks
 ```
 
 The algorithm processes data in contiguous tiles, where each work-group may handle multiple tiles. Work-groups execute
@@ -379,7 +379,7 @@ exposing a configurable bit-range for the key to enable such usages.
 ## Exit Criteria
 
 The exit criteria for this feature align with the [kernel templates exit
-criteria](../kernel_templates/README.md#exit-criteria) in addition to addressing the above open questions.
+criteria](../README.md#exit-criteria) in addition to addressing the above open questions.
 
 ## References
 
