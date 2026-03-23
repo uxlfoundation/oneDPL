@@ -324,6 +324,106 @@ class counting_iterator
     _Ip __my_counter_;
 };
 
+template <typename _T>
+class constant_iterator
+{
+  public:
+    using difference_type = std::ptrdiff_t;
+    using value_type = _T;
+    using pointer = const _T*;
+    using reference = const _T&;
+    using iterator_category = std::random_access_iterator_tag;
+
+    constexpr constant_iterator() = default;
+    explicit constant_iterator(const _T& __value, difference_type __pos = 0) : __value(__value), __pos(__pos) {}
+
+    constexpr reference operator*() const noexcept { return __value; }
+    constexpr reference operator[](difference_type) const noexcept { return __value; }
+
+    constexpr constant_iterator& operator++() noexcept
+    {
+        ++__pos;
+        return *this;
+    }
+
+    constexpr constant_iterator&
+    operator++(int) noexcept
+    {
+        auto __temp = *this;
+        ++(*this);
+        return __temp;
+    }
+
+    constexpr constant_iterator&
+    operator--() noexcept
+    {
+        --__pos;
+        return *this;
+    }
+
+    constexpr constant_iterator&
+    operator+=(difference_type __n) noexcept
+    {
+        __pos += __n;
+        return *this;
+    }
+
+    constexpr constant_iterator&
+    operator-=(difference_type __n) noexcept
+    {
+        __pos += __n;
+        return *this;
+    }
+    constexpr constant_iterator
+    operator+(difference_type __n) const noexcept
+    {
+        constant_iterator __temp(*this);
+        return __temp += __n;
+    }
+
+    friend constexpr constant_iterator
+    operator+(const constant_iterator& __it, difference_type __n) noexcept
+    {
+        __it += __n;
+        return __it;
+    }
+
+    friend constexpr constant_iterator
+    operator-(const constant_iterator& __it, difference_type __n) noexcept
+    {
+        __it -= __n;
+        return __it;
+    }
+
+    friend constexpr difference_type operator-(const constant_iterator& __lhs, const constant_iterator& __rhs) noexcept
+    {
+        return __lhs.__pos - __rhs.__pos;
+    }
+
+    friend constexpr bool
+    operator==(const constant_iterator& __lhs, const constant_iterator& __rhs) noexcept
+    {
+        return __lhs.__pos == __rhs.__pos;
+    }
+
+    friend constexpr bool
+    operator!=(const constant_iterator& __lhs, const constant_iterator& __rhs) noexcept
+    {
+        return !(__lhs == __rhs);
+    }
+
+    friend constexpr bool
+    operator<(const constant_iterator& __lhs, const constant_iterator& __rhs) noexcept
+    {
+        return __lhs.__pos < __rhs.__pos;
+    }
+
+  private:
+
+    _T __value;
+    difference_type __pos = {};
+};
+
 template <typename... _Types>
 class zip_iterator
 {
