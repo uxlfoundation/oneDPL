@@ -31,8 +31,8 @@ New Features
 ------------
 - ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``, and ``histogram`` algorithms
   are added to the ``<oneapi/dpl/numeric>`` header, and this header is now recommended to use for these algorithms.
-- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using device
-  policies for radix sortable cases (arithmetic types and ``std::less`` or ``std::greater`` as comparator).
+- Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using Radix sort
+  [#fnote1]_ and device policies.
 - Moved ``philox_engine`` to the ``oneapi::dpl`` namespace and fixed incorrect results for instantiations with
   non-predefined word size values and ``std::uint_fast64_t``.
 - Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the
@@ -41,12 +41,9 @@ New Features
   and Intel® Data Center GPU Max Series.
 - Added experimental ``ranges::zip_view`` to the oneDPL parallel range APIs. The view can be used with oneDPL parallel
   range algorithms and C++20 random access ranges.
-- Improved performance of
-  ``all_of``, ``any_of``, ``none_of``, ``find``, ``find_if``, ``find_if_not``, ``equal``,
-  ``reduce``, ``transform_reduce``, ``for_each``, ``transform``, and 20+ other algorithms
-  with ``par`` and ``par_unseq`` execution policies with the OpenMP backend.
-  This improvement is observed when compiling with the Intel® oneAPI DPC++/C++ Compiler and
-  when algorithm input sizes range from 50K to 4M elements.
+- Improved performance of multiple (30+) algorithms with ``par`` and ``par_unseq`` execution policies and data sizes
+  from 50K to 4M elements when built with the OpenMP backend and Intel® oneAPI DPC++/C++ Compiler .
+
 Fixed Issues
 ------------
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
@@ -54,8 +51,8 @@ Fixed Issues
 - Fixed ``ranges::unique_copy`` to allow output ranges of any size.
 - Fixed the default template argument for the new value type in `ranges::replace` and `ranges::replace_if`
   to not use projections.
-- Fixed issue of unnecessary host-side data copies for multiple algorithms when using device policies and host allocated
-  data: ``fill``, ``generate``, ``transform_if``, ``binary_search``, ``lower_bound``, ``upper_bound``,
+- Removed excessive data copying when using device policies and host allocated data with several algorithms:
+  ``fill``, ``generate``, ``transform_if``, ``binary_search``, ``lower_bound``, ``upper_bound``,
   ``histogram``, ``unique_copy``, ``uninitialized_copy``, ``uninitialized_move``, ``uninitialized_fill``,
   ``uninitialized_value_construct``, ``uninitialized_default_construct``, and ``destroy``.
 
