@@ -22,7 +22,7 @@ Changes to CMake
   ``ONEDPL_FPGA_DEVICE`` C++ macro.
   Instead of using ``ONEDPL_DEVICE_TYPE=FPGA_EMU``, define both ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR``
   C++ macros.
-- Removed the ``ONEDPL_FPGA_STATIC_REPORT`` Cmake option. It is equivalent to passing ``-Xshardware``, ``-fintelfpga``
+- Removed the ``ONEDPL_FPGA_STATIC_REPORT`` CMake option. It is equivalent to passing ``-Xshardware``, ``-fintelfpga``
   and ``-fsycl-link`` options to Intel® oneAPI DPC++/C++ Compiler.
 - Removed the ``ONEDPL_USE_AOT_COMPILATION`` and ``ONEDPL_AOT_ARCH`` CMake options. Use the relevant compiler flags to
   control AOT compilation.
@@ -164,7 +164,7 @@ Fixed Issues
 - Fixed an issue with ``PSTL_USE_NONTEMPORAL_STORES`` macro having no effect.
 - Fixed a bug where ``unique`` called with a device policy returned an incorrect result iterator.
 - Fixed a bug in ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``, ``transform_inclusive_scan``,
-  ``exlusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with different
+  ``exclusive_scan_by_segment``, and ``inclusive_scan_by_segment`` algorithms when using device policies with different
   input and output value types.
 - Fixed a bug in return value types of ``minmax_element`` and ``mismatch`` range algorithms.
 - Fixed compile errors in ``set_union`` and ``set_symmetric_difference`` when using device policies
