@@ -13,8 +13,11 @@ New in 2022.12.0
 
 Deprecation Notices
 -------------------
-- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. Use ``ONEAPI_DEVICE_SELECTOR``
-  environment variable or compiler options for device selection instead.
+- Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
+  Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
+  For FPGA configurations: ``ONEDPL_DEVICE_TYPE=FPGA_HW`` is equivalent to defining ``ONEDPL_FPGA_DEVICE`` 
+  C++ macro, and ``ONEDPL_DEVICE_TYPE=FPGA_EMU`` is equivalent to defining both ``ONEDPL_FPGA_DEVICE`` 
+  and ``ONEDPL_FPGA_EMULATOR`` macros.
 
 New Features
 ------------
@@ -29,8 +32,13 @@ New Features
   process by a work item and the size of a workgroup. The implementation has been verified on Intel® Arc B580 Graphics
   and Intel® Data Center GPU Max Series.
 - Added experimental ``ranges::zip_view`` to the oneDPL parallel range APIs. The view can be used with oneDPL parallel
-  range algorithms anc C++20 random access ranges.
-
+  range algorithms and C++20 random access ranges.
+- Improved performance of
+  ``all_of``, ``any_of``, ``none_of``, ``find``, ``find_if``, ``find_if_not``, ``equal``,
+  ``reduce``, ``transform_reduce``, ``for_each``, ``transform``, and 20+ other algorithms
+  with ``par`` and ``par_unseq`` execution policies with the OpenMP backend.
+  This improvement is observed when compiling with the Intel® oneAPI DPC++/C++ Compiler and
+  when algorithm input sizes range from 50K to 4M elements.
 Fixed Issues
 ------------
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer
