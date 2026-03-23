@@ -14,13 +14,17 @@ New in 2022.12.0
 Deprecation Notices
 -------------------
 
-Changes in CMake
+Changes to CMake
 -------------------
 - Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
   Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
   For FPGA configurations: ``ONEDPL_DEVICE_TYPE=FPGA_HW`` is equivalent to defining ``ONEDPL_FPGA_DEVICE`` 
   C++ macro, and ``ONEDPL_DEVICE_TYPE=FPGA_EMU`` is equivalent to defining both ``ONEDPL_FPGA_DEVICE`` 
   and ``ONEDPL_FPGA_EMULATOR`` macros.
+- Removed the ``ONEDPL_FPGA_STATIC_REPORT`` Cmake option. It is equivalent to passing ``-Xshardware``, ``-fintelfpga``
+  and ``-fsycl-link`` options to Intel® oneAPI DPC++/C++ Compiler.
+- Removed the ``ONEDPL_USE_AOT_COMPILATION`` and ``ONEDPL_AOT_ARCH`` CMake options. Use the relevant compiler flags to
+  control AOT compilation.
 
 New Features
 ------------
