@@ -41,6 +41,8 @@ The following differences to the standard serial C++ range algorithms apply:
   rather than ``std::ranges::reverse_copy_result`` and ``std::ranges::rotate_copy_result``, respectively.
   The semantics of the returned value are as specified in
   `P3709R2 <https://isocpp.org/files/papers/P3709R2.html>`_.
+- The return type of ``set_difference`` is ``std::ranges::in_in_out_result`` rather than
+  ``std::ranges::set_difference_result``.
 - ``destroy`` is not marked with ``noexcept``.
 
 Auxiliary Definitions
@@ -899,8 +901,9 @@ Set operations
                std::ranges::sized_range<OutR> &&
                std::mergeable<std::ranges::iterator_t<R1>, std::ranges::iterator_t<R2>,
                               std::ranges::iterator_t<OutR>, Comp, Proj1, Proj2>
-      std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<R1>,
-                                         std::ranges::borrowed_iterator_t<OutR>>
+      std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<R1>,
+                                    std::ranges::borrowed_iterator_t<R2>,
+                                    std::ranges::borrowed_iterator_t<OutR>>
         set_difference (ExecutionPolicy&& pol, R1&& r1, R2&& r2, OutR&& result, Comp comp = {},
                         Proj1 proj1 = {}, Proj2 proj2 = {});
 
