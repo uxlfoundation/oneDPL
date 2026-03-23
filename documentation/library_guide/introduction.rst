@@ -200,6 +200,8 @@ Known Limitations
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 * Passing rvalue views to ``ranges::zip_view`` requires ``std::ranges::owning_view`` support (P2415R2),
   which is available in libstdc++ version 12 and newer, libc++ version 16 and newer, or MSVC STL with C++23 mode.
+  The macro ``_ONEDPL_CPP20_OWNING_VIEW_PRESENT`` is set for these versions and can be used to test for ``owning_view``
+  support.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
