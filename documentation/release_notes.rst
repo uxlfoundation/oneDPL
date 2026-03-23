@@ -13,6 +13,9 @@ New in 2022.12.0
 
 Deprecation Notices
 -------------------
+
+Changes in CMake
+-------------------
 - Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
   Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
   For FPGA configurations: ``ONEDPL_DEVICE_TYPE=FPGA_HW`` is equivalent to defining ``ONEDPL_FPGA_DEVICE`` 
@@ -26,7 +29,7 @@ New Features
 - Improved performance of ``sort``, ``stable_sort``, ``sort_by_key``, and ``stable_sort_by_key`` when using device
   policies for radix sortable cases (arithmetic types and ``std::less`` or ``std::greater`` as comparator).
 - Moved ``philox_engine`` to the ``oneapi::dpl`` namespace and fixed incorrect results for instantiations with
-  non-standard ``w`` values and ``std::uint_fast64_t``.
+  non-predefined word size values and ``std::uint_fast64_t``.
 - Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the
   ``oneapi::dpl::experimental::kt::gpu`` namespace. These algorithms allow configuring the number of elements to
   process by a work item and the size of a workgroup. The implementation has been verified on Intel® Arc B580 Graphics
