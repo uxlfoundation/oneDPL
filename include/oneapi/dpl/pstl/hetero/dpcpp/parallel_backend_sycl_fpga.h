@@ -38,6 +38,9 @@
 
 #include "sycl_traits.h" //SYCL traits specialization for some oneDPL types.
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 namespace oneapi
 {
 namespace dpl
@@ -122,5 +125,7 @@ __parallel_histogram(oneapi::dpl::__internal::__fpga_backend_tag, _ExecutionPoli
 } // namespace __par_backend_hetero
 } // namespace dpl
 } // namespace oneapi
+
+#pragma GCC diagnostic pop
 
 #endif // _ONEDPL_PARALLEL_BACKEND_SYCL_FPGA_H

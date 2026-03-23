@@ -370,6 +370,8 @@
 #if defined(ONEDPL_FPGA_DEVICE)
 #    undef _ONEDPL_FPGA_DEVICE
 #    define _ONEDPL_FPGA_DEVICE ONEDPL_FPGA_DEVICE
+    _ONEDPL_PRAGMA(
+        message("Support for FPGA devices in oneDPL algorithms is deprecated and will be removed in a future release"))
 #endif
 #if defined(ONEDPL_FPGA_EMULATOR)
 #    undef _ONEDPL_FPGA_EMU
