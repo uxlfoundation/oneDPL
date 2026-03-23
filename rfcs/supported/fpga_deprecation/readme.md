@@ -11,7 +11,7 @@ for FPGAs.
 
 Because SYCL kernels for FPGA should be written very differently from those for GPU and CPU
 even for simple algorithms such as `for_each`, oneDPL introduced a separate execution policy type,
-which allows compile-time dispatch of an algorithm to an FPGA-tailored implementation,
+which allows compile-time dispatch of an algorithm to an FPGA-tailored implementation.
 However, that implementation was only developed for the simplest pattern, `parallel_for`
 (see https://github.com/uxlfoundation/oneDPL/blob/main/include/oneapi/dpl/pstl/hetero/dpcpp/parallel_backend_sycl_fpga.h).
 

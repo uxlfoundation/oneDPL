@@ -119,8 +119,8 @@ Macro                              Description
 ---------------------------------- ------------------------------
 ``ONEDPL_USE_PREDEFINED_POLICIES`` This macro enables the use of predefined device policy objects,
                                    such as ``dpcpp_default``. When the macro is not defined (by default)
-                                   or evaluates to non-zero, predefined policies objects can be used.
-                                   When the macro is set to 0, predefined policies objects and the
+                                   or evaluates to non-zero, predefined policy objects can be used.
+                                   When the macro is set to 0, predefined policy objects and the
                                    ``make_device_policy()`` function without arguments are not available.
 ---------------------------------- ------------------------------
 ``ONEDPL_ALLOW_DEFERRED_WAITING``  This macro allows waiting for completion of certain algorithms executed with
