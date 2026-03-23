@@ -1138,6 +1138,31 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     return {__n1, __n2, __res};
 }
 
+template <bool _Bounded, typename _SetTag, typename _Range1, typename _Range2, typename _Range3>
+bool
+__is_limited_output(_SetTag, _Range1&&, _Range2&&, _Range3&&)
+{
+    return false;
+}
+
+template <bool _Bounded, typename _Range1, typename _Range2, typename _Range3>
+bool
+__is_limited_output(oneapi::dpl::unseq_backend::_UnionTag, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result)
+{
+    if constexpr (!_Bounded)
+    {
+        return false;
+    }
+    else
+    {
+        const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
+        const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+        const auto __n3 = oneapi::dpl::__ranges::__size(__result);
+
+        return __n3 < __n1 + __n2;
+    }
+}
+
 template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
@@ -1193,6 +1218,44 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
     return {__n1, __n2, __res};
 }
 
+template <typename _Proj1, typename _Proj2>
+struct _ProjCombiner
+{
+    _Proj1 __proj1;
+    _Proj2 __proj2;
+
+    template <typename _Value>
+    decltype(auto)
+    operator()(_Value&& __val) const
+    {
+        if constexpr (std::invocable<_Proj1, _Value>)
+            return __proj1(std::forward<_Value>(__val));
+
+        else if constexpr (std::invocable<_Proj2, _Value>)
+            return __proj2(std::forward<_Value>(__val));
+
+        else
+            return std::forward<_Value>(__val);
+    }
+};
+
+template <typename _Rng1, typename _Rng2It, typename _Compare, typename _Proj1, typename _Proj2>
+oneapi::dpl::__internal::__difference_t<_Rng1>
+__count_equal_suffix_sorted(_Rng1 __rng1, _Rng2It __rng2_it, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Rng1>;
+
+    auto __first1 = oneapi::dpl::__ranges::__begin(__rng1);
+    auto __last1 = oneapi::dpl::__ranges::__end(__rng1);
+
+    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    if (__n1 == 0)
+        return 0;
+
+    const _Size1 __idx = oneapi::dpl::__internal::__pstl_lower_bound(__rng1, _Size1{0}, __n1, __rng2_it, __comp, __proj1, __proj2);
+    return __n1 - __idx;
+}
+
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
@@ -1210,19 +1273,21 @@ __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q, _Range1&& __rng1,
                       _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
     using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2, _Range3>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
-    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const _CommonSize __n3 = oneapi::dpl::__ranges::__size(__result);
 
     // temporary buffer to store intermediate result
-    const size_t __diff_buff_initial_size = __n2;
-    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_buff(__diff_buff_initial_size);
+    oneapi::dpl::__par_backend_hetero::__buffer<_ValueType> __diff_buff(__n2);
 
     auto __diff_buff_ptr = __diff_buff.get();
     auto __diff_buff_keep1 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::write, /*_IsNoInitRequested=*/true>();
-    auto __diff_buff_rng1 = __diff_buff_keep1(__diff_buff_ptr, __diff_buff_ptr + __diff_buff_initial_size);
+    auto __diff_buff_rng1 = __diff_buff_keep1(__diff_buff_ptr, __diff_buff_ptr + __n2);
 
     //1. Calc difference {2} \ {1}
     const auto [__offset1, __offset2, __n_diff] =
@@ -1234,15 +1299,39 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
     //2. Merge {2} and the difference
     if (__n_diff == 0)
     {
-        const _CommonSize __to_copy = _Bounded ? std::min<_CommonSize>(__n1, oneapi::dpl::__ranges::__size(__result)) : __n1;
+        const _Size1 __to_copy = _Bounded ? std::min<_Size1>(__n1, oneapi::dpl::__ranges::__size(__result)) : __n1;
 
         // merely copy if no elements are in diff
         oneapi::dpl::__par_backend_hetero::__parallel_copy_impl<__set_union_copy_wrapper<_CustomName>>(
             __q, __to_copy, std::forward<_Range1>(__rng1), std::forward<_Range3>(__result))
             .wait();
 
-        // KSATODO the second value 0 in current return looks incorrect
-        return {__to_copy, 0, __to_copy};
+        if (__is_limited_output<_Bounded>(oneapi::dpl::unseq_backend::_UnionTag{}, __rng1, __rng2, __result))
+        {
+            assert(__to_copy >= 1);
+
+            // We should find the proper position in rng2
+            // __rng1: 1, 2, 3, 4, 4, 4, 5, 5, 5, 5, 6, 7, 8, 9, 10, 11
+            // __rng2:          4, 4,    5, 6, 7
+            // __rng3: X, X, X, X, X - size == 5
+            //         1, 2, 3, 4, 4
+            // Pos in __rng2: 2
+
+            // The last copied value from __rng1
+            const auto __it_last_rng1 = oneapi::dpl::__ranges::__begin(__rng1) + __to_copy - 1;
+
+            // Calculate the amount of the same values at the end of copied part of __rng1
+            const _CommonSize __n_eq_tail_rng1 = __count_equal_suffix_sorted(__rng1, __it_last_rng1, __comp, __proj1, __proj1);
+
+            // Find the left/ right bounds in __rng2 for the *__it_last_rng1 value
+            const _Size2 __lb2 = oneapi::dpl::__internal::__pstl_lower_bound(__rng2, _Size2{0}, __n2, __it_last_rng1, __comp, __proj2, __proj1);
+            const _Size2 __ub2 = oneapi::dpl::__internal::__pstl_upper_bound(__rng2, _Size2{0}, __n2, __it_last_rng1, __comp, __proj2, __proj1);
+
+            const _Size1 __n1_processed = __to_copy;
+            const _Size2 __n2_processed = static_cast<_Size2>(__lb2) + std::min<_Size2>(__ub2 - __lb2, __n_eq_tail_rng1);
+
+            return {__n1_processed, __n2_processed, __to_copy};
+        }
     }
     else
     {
@@ -1257,8 +1346,37 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
                 __comp, __proj1, __proj2)
                 .get();
 
-        if (_Bounded)
-            return { __merged_offset1, __merged_offset2, __merged_offset1 + __merged_offset2 };
+        if (__is_limited_output<_Bounded>(oneapi::dpl::unseq_backend::_UnionTag{}, __rng1, __rng2, __result))
+        {
+            // We should find the proper position in rng2
+            // __rng1: 1,    2, 3, 4, 4, 4,    5, 5, 5, 5, 6, 7, 8, 9, 10, 11
+            // __rng2: 1, 1,       4, 4, 4, 4,                                 17, 18
+            // __rng3: 1,          4, 4, 4   - size == 6
+            //         1, 4, 4               - size == 3
+            // Pos in __rng1: 5
+            // Pos in __rng2: 4
+
+            // The last copied value from __result
+            const auto __it_last_result = oneapi::dpl::__ranges::__begin(__result) + (__merged_offset1 +__merged_offset2) - 1;
+
+            // Calculate the amount of the same values at the end of copied part of __rng1
+            // KSATODO which projections we should use here?
+            // - I think __proj1 because we really got value from __rng1
+            //auto __proj_combiner = oneapi::dpl::identity{};
+            _ProjCombiner __proj_combiner{__proj1, __proj2};
+            const _CommonSize __n_eq_tail_res = __count_equal_suffix_sorted(__result, __it_last_result, __comp, __proj_combiner, __proj_combiner);
+
+            // Find the left bounds in __rng1 and __rng2 for the *__it_last_result value
+            const _Size1 __lb1 = oneapi::dpl::__internal::__pstl_lower_bound(__rng1, _Size1{0}, __n1, __it_last_result,
+                                                                             __comp, __proj1, __proj_combiner);
+            const _Size2 __lb2 = oneapi::dpl::__internal::__pstl_lower_bound(__rng2, _Size2{0}, __n2, __it_last_result,
+                                                                             __comp, __proj2, __proj_combiner);
+
+            const _Size1 __n1_processed = __lb1 + __n_eq_tail_res;
+            const _Size2 __n2_processed = __lb2 + __n_eq_tail_res;
+
+            return {__n1_processed, __n2_processed, __merged_offset1 + __merged_offset2};
+        }
     }
 
     return {__n1, __n2, __n1 + __n_diff};
