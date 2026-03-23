@@ -1195,17 +1195,66 @@ struct __scan_by_seg_op
 
 // *** Main reduce then scan infrastructure ***
 
+// Sub-group communication wrappers that support non-trivially-copyable types.
+// For trivially copyable types, native SYCL sub-group operations are used.
+// For non-trivially-copyable types, shared local memory (SLM) with sub-group barriers is used.
+// The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
+// slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size).
+
+template <typename _ValueType>
+_ValueType
+__shift_group_right(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size, _ValueType __value,
+                    std::uint32_t __shift, _ValueType* __comm_slm)
+{
+    if constexpr (std::is_trivially_copyable_v<_ValueType>)
+    {
+        return sycl::shift_group_right(__sub_group, __value, __shift);
+    }
+    else
+    {
+        std::uint32_t __local_id = __sub_group.get_local_linear_id();
+        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
+        __comm_slm[__sg_base + __local_id] = __value;
+        sycl::group_barrier(__sub_group);
+        _ValueType __result = __comm_slm[__sg_base + ((__local_id >= __shift) ? __local_id - __shift : __local_id)];
+        sycl::group_barrier(__sub_group);
+        return __result;
+    }
+}
+
+template <typename _ValueType, typename _IdType>
+_ValueType
+__group_broadcast(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size, _ValueType __value,
+                  _IdType __broadcast_id, _ValueType* __comm_slm)
+{
+    if constexpr (std::is_trivially_copyable_v<_ValueType>)
+    {
+        return sycl::group_broadcast(__sub_group, __value, __broadcast_id);
+    }
+    else
+    {
+        std::uint32_t __local_id = __sub_group.get_local_linear_id();
+        std::uint32_t __sg_base = __sub_group.get_group_linear_id() * __sub_group_size;
+        __comm_slm[__sg_base + __local_id] = __value;
+        sycl::group_barrier(__sub_group);
+        _ValueType __result = __comm_slm[__sg_base + __broadcast_id];
+        sycl::group_barrier(__sub_group);
+        return __result;
+    }
+}
+
 template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
           typename _LazyValueType>
 void
 __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size,
                                   _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id, _ValueType& __value,
-                                  _BinaryOp __binary_op, _LazyValueType& __init_and_carry)
+                                  _BinaryOp __binary_op, _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = sycl::shift_group_right(__sub_group, __value, __shift);
+        _ValueType __partial_carry_in =
+            __shift_group_right(__sub_group, __sub_group_size, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1217,14 +1266,16 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, st
         __value = __binary_op(__init_and_carry.__v, __value);
         if (__sub_group_local_id == 0)
             __old_init.__setup(__init_and_carry.__v);
-        __init_and_carry.__v = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+        __init_and_carry.__v =
+            __group_broadcast(__sub_group, __sub_group_size, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(sycl::group_broadcast(__sub_group, __value, __init_broadcast_id));
+        __init_and_carry.__setup(
+            __group_broadcast(__sub_group, __sub_group_size, __value, __init_broadcast_id, __comm_slm));
     }
 
-    __value = sycl::shift_group_right(__sub_group, __value, 1);
+    __value = __shift_group_right(__sub_group, __sub_group_size, __value, 1, __comm_slm);
     if constexpr (__init_present)
     {
         if (__sub_group_local_id == 0)
@@ -1241,12 +1292,13 @@ template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, type
 void
 __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size,
                                   _MaskOp __mask_fn, _InitBroadcastId __init_broadcast_id, _ValueType& __value,
-                                  _BinaryOp __binary_op, _LazyValueType& __init_and_carry)
+                                  _BinaryOp __binary_op, _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = sycl::shift_group_right(__sub_group, __value, __shift);
+        _ValueType __partial_carry_in =
+            __shift_group_right(__sub_group, __sub_group_size, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1255,11 +1307,13 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, st
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v = sycl::group_broadcast(__sub_group, __value, __init_broadcast_id);
+        __init_and_carry.__v =
+            __group_broadcast(__sub_group, __sub_group_size, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(sycl::group_broadcast(__sub_group, __value, __init_broadcast_id));
+        __init_and_carry.__setup(
+            __group_broadcast(__sub_group, __sub_group_size, __value, __init_broadcast_id, __comm_slm));
     }
     //return by reference __value and __init_and_carry
 }
@@ -1269,55 +1323,59 @@ template <bool __is_inclusive, bool __init_present, typename _MaskOp, typename _
 void
 __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size, _MaskOp __mask_fn,
                         _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                        _LazyValueType& __init_and_carry)
+                        _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
     if constexpr (__is_inclusive)
     {
         __inclusive_sub_group_masked_scan<__init_present>(__sub_group, __sub_group_size, __mask_fn, __init_broadcast_id,
-                                                          __value, __binary_op, __init_and_carry);
+                                                          __value, __binary_op, __init_and_carry, __comm_slm);
     }
     else
     {
         __exclusive_sub_group_masked_scan<__init_present>(__sub_group, __sub_group_size, __mask_fn, __init_broadcast_id,
-                                                          __value, __binary_op, __init_and_carry);
+                                                          __value, __binary_op, __init_and_carry, __comm_slm);
     }
 }
 
 template <bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
 __sub_group_scan(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size, _ValueType& __value,
-                 _BinaryOp __binary_op, _LazyValueType& __init_and_carry)
+                 _BinaryOp __binary_op, _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
     auto __mask_fn = [](auto __sub_group_local_id, auto __offset) { return __sub_group_local_id >= __offset; };
     std::uint8_t __init_broadcast_id = __sub_group_size - 1;
-    __sub_group_masked_scan<__is_inclusive, __init_present>(
-        __sub_group, __sub_group_size, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
+    __sub_group_masked_scan<__is_inclusive, __init_present>(__sub_group, __sub_group_size, __mask_fn,
+                                                            __init_broadcast_id, __value, __binary_op, __init_and_carry,
+                                                            __comm_slm);
 }
 
 template <bool __is_inclusive, bool __init_present, typename _BinaryOp, typename _ValueType, typename _LazyValueType,
           typename _SizeType>
 void
 __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size, _ValueType& __value,
-                         _BinaryOp __binary_op, _LazyValueType& __init_and_carry, _SizeType __elements_to_process)
+                         _BinaryOp __binary_op, _LazyValueType& __init_and_carry, _SizeType __elements_to_process,
+                         _ValueType* __comm_slm)
 {
     auto __mask_fn = [__elements_to_process](auto __sub_group_local_id, auto __offset) {
         return __sub_group_local_id >= __offset && __sub_group_local_id < __elements_to_process;
     };
     std::uint8_t __init_broadcast_id = __elements_to_process - 1;
-    __sub_group_masked_scan<__is_inclusive, __init_present>(
-        __sub_group, __sub_group_size, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
+    __sub_group_masked_scan<__is_inclusive, __init_present>(__sub_group, __sub_group_size, __mask_fn,
+                                                            __init_broadcast_id, __value, __binary_op, __init_and_carry,
+                                                            __comm_slm);
 }
 
 template <bool __is_inclusive, bool __init_present, bool __capture_output, std::uint16_t __max_inputs_per_item,
           typename _GenInput, typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp,
-          typename _LazyValueType, typename _InRng, typename _OutRng>
+          typename _LazyValueType, typename _InRng, typename _OutRng, typename _ScanValueType>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size,
                                _GenInput __gen_input, _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op,
                                _WriteOp __write_op, _LazyValueType& __sub_group_carry, const _InRng& __in_rng,
                                _OutRng& __out_rng, std::size_t __start_id, std::size_t __n,
                                std::uint32_t __iters_per_item, std::size_t __subgroup_start_id,
-                               std::uint32_t __sub_group_id, std::uint32_t __active_subgroups)
+                               std::uint32_t __sub_group_id, std::uint32_t __active_subgroups,
+                               _ScanValueType* __comm_slm)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
 
@@ -1330,7 +1388,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
 
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
         __sub_group_scan<__is_inclusive, __init_present>(__sub_group, __sub_group_size, __scan_input_transform(__v),
-                                                         __binary_op, __sub_group_carry);
+                                                         __binary_op, __sub_group_carry, __comm_slm);
         if constexpr (__capture_output)
         {
             __write_op(__out_rng, __start_id, __v, __temp_data);
@@ -1343,8 +1401,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
-                __sub_group_scan<__is_inclusive, /*__init_present=*/true>(
-                    __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                __sub_group_scan<__is_inclusive, /*__init_present=*/true>(__sub_group, __sub_group_size,
+                                                                          __scan_input_transform(__v), __binary_op,
+                                                                          __sub_group_carry, __comm_slm);
                 if constexpr (__capture_output)
                 {
                     __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
@@ -1358,8 +1417,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
             for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
-                __sub_group_scan<__is_inclusive, /*__init_present=*/true>(
-                    __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                __sub_group_scan<__is_inclusive, /*__init_present=*/true>(__sub_group, __sub_group_size,
+                                                                          __scan_input_transform(__v), __binary_op,
+                                                                          __sub_group_carry, __comm_slm);
                 if constexpr (__capture_output)
                 {
                     __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
@@ -1379,9 +1439,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
                 _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_data);
-                __sub_group_scan_partial<__is_inclusive, __init_present>(__sub_group, __sub_group_size,
-                                                                         __scan_input_transform(__v), __binary_op,
-                                                                         __sub_group_carry, __n - __subgroup_start_id);
+                __sub_group_scan_partial<__is_inclusive, __init_present>(
+                    __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                    __n - __subgroup_start_id, __comm_slm);
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
@@ -1391,8 +1451,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
             else
             {
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-                __sub_group_scan<__is_inclusive, __init_present>(
-                    __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                __sub_group_scan<__is_inclusive, __init_present>(__sub_group, __sub_group_size,
+                                                                 __scan_input_transform(__v), __binary_op,
+                                                                 __sub_group_carry, __comm_slm);
                 if constexpr (__capture_output)
                 {
                     __write_op(__out_rng, __start_id, __v, __temp_data);
@@ -1402,8 +1463,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
                     __v = __gen_input(__in_rng, __local_id, __temp_data);
-                    __sub_group_scan<__is_inclusive, /*__init_present=*/true>(
-                        __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                    __sub_group_scan<__is_inclusive, /*__init_present=*/true>(__sub_group, __sub_group_size,
+                                                                              __scan_input_transform(__v), __binary_op,
+                                                                              __sub_group_carry, __comm_slm);
                     if constexpr (__capture_output)
                     {
                         __write_op(__out_rng, __local_id, __v, __temp_data);
@@ -1415,7 +1477,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, std::
                 __v = __gen_input(__in_rng, __local_id, __temp_data);
                 __sub_group_scan_partial<__is_inclusive, /*__init_present=*/true>(
                     __sub_group, __sub_group_size, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                    __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
+                    __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size), __comm_slm);
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
@@ -1479,6 +1541,11 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
         using _InitValueType = typename _InitType::__value_type;
         return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
+            // SLM for sub-group communication (shift_group_right / group_broadcast) for non-trivially-copyable types.
+            // For trivially copyable types, native SYCL sub-group ops are used and this SLM is unused.
+            constexpr std::size_t __comm_slm_size =
+                std::is_trivially_copyable_v<_InitValueType> ? 0 : __work_group_size;
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
@@ -1491,6 +1558,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                _InitValueType* __comm_slm_ptr = __comm_slm_size > 0 ? &__comm_slm[0] : nullptr;
                 std::size_t __group_id = __ndi.get_group(0);
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1523,7 +1591,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __sub_group_size, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op,
                         nullptr, __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __comm_slm_ptr);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
@@ -1545,7 +1614,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         std::uint32_t __load_id = std::min(std::uint32_t{__sub_group_local_id}, __active_subgroups - 1);
                         _InitValueType __v = __sub_group_partials[__load_id];
                         __sub_group_scan_partial</*__is_inclusive=*/true, /*__init_present=*/false>(
-                            __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry, __active_subgroups);
+                            __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry, __active_subgroups,
+                            __comm_slm_ptr);
                         if (__sub_group_local_id < __active_subgroups)
                             __temp_ptr[__start_id + __sub_group_local_id] = __v;
                     }
@@ -1555,7 +1625,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         // need to pull out first iteration tp avoid identity
                         _InitValueType __v = __sub_group_partials[__reduction_scan_id];
                         __sub_group_scan</*__is_inclusive=*/true, /*__init_present=*/false>(
-                            __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry);
+                            __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr);
                         __temp_ptr[__start_id + __reduction_scan_id] = __v;
                         __reduction_scan_id += __sub_group_size;
 
@@ -1563,7 +1633,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         {
                             __v = __sub_group_partials[__reduction_scan_id];
                             __sub_group_scan</*__is_inclusive=*/true, /*__init_present=*/true>(
-                                __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry);
+                                __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr);
                             __temp_ptr[__start_id + __reduction_scan_id] = __v;
                             __reduction_scan_id += __sub_group_size;
                         }
@@ -1577,7 +1647,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                         __v = __sub_group_partials[__load_id];
                         __sub_group_scan_partial</*__is_inclusive=*/true, /*__init_present=*/true>(
                             __sub_group, __sub_group_size, __v, __reduce_op, __sub_group_carry,
-                            __active_subgroups - ((__iters - 1) * __sub_group_size));
+                            __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_slm_ptr);
                         if (__reduction_scan_id < __sub_group_params.__num_sub_groups_local)
                             __temp_ptr[__start_id + __reduction_scan_id] = __v;
                     }
@@ -1648,6 +1718,9 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
+            constexpr std::size_t __comm_slm_size =
+                std::is_trivially_copyable_v<_InitValueType> ? 0 : __work_group_size;
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__comm_slm_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
@@ -1657,6 +1730,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) {
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
+                _InitValueType* __comm_slm_ptr = __comm_slm_size > 0 ? &__comm_slm[0] : nullptr;
 
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
@@ -1749,7 +1823,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                             __sub_group_scan_partial</*__is_inclusive=*/true,
                                                      /*__init_present=*/false>(__sub_group, __sub_group_size, __value,
                                                                                __reduce_op, __carry_last,
-                                                                               __remaining_elements);
+                                                                               __remaining_elements, __comm_slm_ptr);
                         }
                         else
                         {
@@ -1761,14 +1835,14 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                                 __sub_group_params.__num_sub_groups_local * __sub_group_size;
                             _InitValueType __value = __tmp_ptr[__reduction_id];
                             __sub_group_scan</*__is_inclusive=*/true, /*__init_present=*/false>(
-                                __sub_group, __sub_group_size, __value, __reduce_op, __carry_last);
+                                __sub_group, __sub_group_size, __value, __reduce_op, __carry_last, __comm_slm_ptr);
                             __reduction_id += __reduction_id_increment;
                             // then some number of full iterations
                             for (std::uint32_t __i = 1; __i < __pre_carry_iters - 1; __i++)
                             {
                                 __value = __tmp_ptr[__reduction_id];
                                 __sub_group_scan</*__is_inclusive=*/true, /*__init_present=*/true>(
-                                    __sub_group, __sub_group_size, __value, __reduce_op, __carry_last);
+                                    __sub_group, __sub_group_size, __value, __reduce_op, __carry_last, __comm_slm_ptr);
                                 __reduction_id += __reduction_id_increment;
                             }
 
@@ -1783,7 +1857,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                             __sub_group_scan_partial</*__is_inclusive=*/true,
                                                      /*__init_present=*/true>(__sub_group, __sub_group_size, __value,
                                                                               __reduce_op, __carry_last,
-                                                                              __remaining_elements);
+                                                                              __remaining_elements, __comm_slm_ptr);
                         }
 
                         // steps 3+4) load global carry in from neighbor work-group
@@ -1890,7 +1964,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __sub_group_size, __gen_scan_input, __scan_input_transform, __reduce_op,
                         __write_op, __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __comm_slm_ptr);
                 }
                 else // first group first block, no subgroup carry
                 {
@@ -1899,7 +1974,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                                                    /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __sub_group_size, __gen_scan_input, __scan_input_transform, __reduce_op,
                         __write_op, __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __comm_slm_ptr);
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block

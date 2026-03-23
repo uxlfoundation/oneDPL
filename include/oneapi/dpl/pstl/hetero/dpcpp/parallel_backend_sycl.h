@@ -680,14 +680,12 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     sycl::queue __q_local = __exec.queue();
 
     using _Type = typename _InitType::__value_type;
-    // Reduce-then-scan is dependent on sycl::shift_group_right which requires the underlying type to be trivially
-    // copyable. If this is not met, then we must fallback to the multi pass scan implementation. The single
-    // work-group implementation requires a fundamental type which must also be trivially copyable.
+
+    bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
+
+    // The single work-group implementation requires a fundamental type which must be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
-        bool __use_reduce_then_scan =
-            oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
-
         // TODO: Consider re-implementing single group scan to support types without known identities. This could also
         // allow us to use single wg scan for the last block of reduce-then-scan if it is sufficiently small.
         constexpr bool __can_use_group_scan = unseq_backend::__has_known_identity<_BinaryOperation, _Type>::value;
@@ -711,22 +709,21 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
             }
         }
-        if (__use_reduce_then_scan)
-        {
-            using _GenInput =
-                oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
-                                                                         typename _InitType::__value_type>;
-            using _ScanInputTransform = oneapi::dpl::identity;
-            using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
+    }
+    if (__use_reduce_then_scan)
+    {
+        using _GenInput =
+            oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
+        using _ScanInputTransform = oneapi::dpl::identity;
+        using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
-            _GenInput __gen_transform{__unary_op};
+        _GenInput __gen_transform{__unary_op};
 
-            const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
-            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
-                __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
-                __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
-                /*_IsUniquePattern=*/std::false_type{});
-        }
+        const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
+        return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
+            __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
+            __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
+            /*_IsUniquePattern=*/std::false_type{});
     }
 
     //else use multi pass scan implementation
