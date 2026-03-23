@@ -56,6 +56,7 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
+- ``oneapi::dpl::experimental::kt::gpu::radix_sort_by_key`` may produce correctness issues with RHEL 10 or earlier on Intel® Data Center GPU Max Series when SYCL buffer is passed as input data and no optimization flags are passed to the device compiler.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
