@@ -454,7 +454,7 @@ class _SetOpSourceDataPackUnpack
     {
         _Rng1     __rng1;           // first sequence
         _Rng2     __rng2;           // second sequence
-        _RngDiags __rng_tmp_diag;   // set a temp storage sequence
+        _RngDiags __rng_diags;      // set a temp storage sequence
     };
 
     template <typename _Tuple1, typename _Tuple2, typename _Rng1, typename _Rng2, typename _RngDiags>
@@ -805,7 +805,7 @@ struct __get_bounds_partitioned
         using _SizeType = std::common_type_t<
             std::make_unsigned_t<decltype(__unzipped_src_ranges.__rng1.size())>,
             std::make_unsigned_t<decltype(__unzipped_src_ranges.__rng2.size())>,
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_tmp_diag))>>;
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_diags))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
@@ -813,12 +813,13 @@ struct __get_bounds_partitioned
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
         const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
-                                oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_tmp_diag) - 1);
+                                oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_diags) - 1);
 
-        const auto [begin_rng1, begin_rng2] =
-            __decode_balanced_path_temp_data_no_star(__unzipped_src_ranges.__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
-        const auto [end_rng1, end_rng2] =
-            __decode_balanced_path_temp_data_no_star(__unzipped_src_ranges.__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+        const auto [begin_rng1, begin_rng2] = __decode_balanced_path_temp_data_no_star(
+            __unzipped_src_ranges.__rng_diags, __wg_begin_idx, __diagonal_spacing);
+        const auto [end_rng1, end_rng2] = __decode_balanced_path_temp_data_no_star(
+            __unzipped_src_ranges.__rng_diags, __wg_end_idx, __diagonal_spacing);
+
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
     std::uint16_t __diagonal_spacing;
@@ -957,8 +958,7 @@ struct __gen_set_balanced_path
         // Use sign bit to represent star offset. Temp storage is a signed type equal to the difference_type of the
         // input iterator range. The index will fit into the positive portion of the type, so the sign may be used to
         // indicate the star offset.
-        __unzipped_src_ranges.__rng_tmp_diag[__id] =
-            oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos, __star);
+        __unzipped_src_ranges.__rng_diags[__id] = oneapi::dpl::__par_backend_hetero::__encode_balanced_path_temp_data(__rng1_balanced_pos, __star);
 
         return std::make_tuple(__rng1_balanced_pos, __rng2_balanced_pos, __star);
     }
@@ -996,8 +996,7 @@ struct __gen_set_balanced_path
         if (!__is_partitioned)
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
-            auto [__idx_rng1, __idx_rng2, __local_star] =
-                calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
+            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
@@ -1013,8 +1012,7 @@ struct __gen_set_balanced_path
         }
         else // if we are at the start of a tile, we can decode the balanced path from the existing temporary data
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] =
-                __decode_balanced_path_temp_data(__unzipped_src_ranges.__rng_tmp_diag, __id, __diagonal_spacing);
+            auto [__idx_rng1, __idx_rng2, __local_star] = __decode_balanced_path_temp_data(__unzipped_src_ranges.__rng_diags, __id, __diagonal_spacing);
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
@@ -1056,13 +1054,13 @@ struct __gen_set_op_from_known_balanced_path
         // dereferencing is dangerous
         auto __unzipped_src_ranges = _SetOpSourceDataPackUnpack::__unpack<_Bounded>(__tuple);
 
-        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__unzipped_src_ranges.__rng1), decltype(__unzipped_src_ranges.__rng2), decltype(__unzipped_src_ranges.__rng_tmp_diag)>;
-        _SizeType __i_elem = __id * __diagonal_spacing;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__unzipped_src_ranges.__rng1), decltype(__unzipped_src_ranges.__rng2), decltype(__unzipped_src_ranges.__rng_diags)>;
+
+        const _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng1) + oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
 
-        auto [__rng1_idx, __rng2_idx, __star_offset] =
-            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__unzipped_src_ranges.__rng_tmp_diag, __id, __diagonal_spacing);
+        auto [__rng1_idx, __rng2_idx, __star_offset] = oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__unzipped_src_ranges.__rng_diags, __id, __diagonal_spacing);
 
         std::uint16_t __eles_to_process = static_cast<std::uint16_t>(std::min(
             static_cast<_SizeType>(__diagonal_spacing - __star_offset),
