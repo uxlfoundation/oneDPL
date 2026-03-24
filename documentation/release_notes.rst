@@ -11,6 +11,12 @@ creating efficient heterogeneous applications.
 New in the next release
 =======================
 
+Deprecation Notice
+------------------
+Support for FPGA devices in oneDPL algorithms, the corresponding execution policies ``fpga_policy`` and ``dpcpp_fpga``,
+the ``make_fpga_policy`` function, and the enabling macros ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR``
+are deprecated and will be removed in a future release.
+
 Fixed Issues
 ------------
 - Fixed validation of minimal requirements for range-based algorithms. They require clang 16 and newer

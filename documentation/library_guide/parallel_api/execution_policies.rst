@@ -26,9 +26,9 @@ Policy Name / Type     Description
 ---------------------- -----------------------------------------------------
 ``dpcpp_default``      The device policy for data parallel execution on the default SYCL device.
 ---------------------- -----------------------------------------------------
-``fpga_policy``        The class template to create policies for execution on FPGA devices.
+``fpga_policy``        (Deprecated) The class template to create policies for execution on FPGA devices.
 ---------------------- -----------------------------------------------------
-``dpcpp_fpga``         The device policy for data parallel execution on a SYCL FPGA device.
+``dpcpp_fpga``         (Deprecated) The device policy for data parallel execution on a SYCL FPGA device.
 ====================== =====================================================
 
 The implementation is based on Parallel STL from the
@@ -141,6 +141,8 @@ and ``using namespace sycl;`` directives when referring to policy classes and fu
 
 Use the FPGA Policy
 ===================
+
+.. Warning:: FPGA device policies are deprecated and will be removed in a future release.
 
 The ``fpga_policy`` class is a device policy tailored to achieve
 better performance of parallel algorithms on FPGA hardware devices.

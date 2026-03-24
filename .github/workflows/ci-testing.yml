@@ -247,7 +247,7 @@ jobs:
           fi
 
           if [[ "${{ matrix.device_type }}" == "FPGA_EMU" ]]; then
-            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
+            EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=deprecated-declarations -DONEDPL_FPGA_DEVICE -DONEDPL_FPGA_EMULATOR"
           fi
 
           cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
