@@ -39,7 +39,7 @@ New Features
 - Added experimental ``ranges::zip_view`` to the oneDPL parallel range APIs. The view can be used with oneDPL parallel
   range algorithms and C++20 random access ranges.
 - Improved performance of multiple (30+) algorithms with ``par`` and ``par_unseq`` execution policies and data sizes
-  from 50K to 4M elements when built with the OpenMP backend and Intel® oneAPI DPC++/C++ Compiler .
+  from 50K to 4M elements when built with the OpenMP backend and Intel® oneAPI DPC++/C++ Compiler.
 
 Fixed Issues
 ------------
@@ -58,7 +58,9 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
-- ``oneapi::dpl::experimental::kt::gpu::radix_sort_by_key`` may produce correctness issues with RHEL 10 or earlier on Intel® Data Center GPU Max Series when SYCL buffer is passed as input data and no optimization flags are passed to the device compiler.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
