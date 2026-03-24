@@ -49,7 +49,6 @@ Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
-- ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
   Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
   to the device compiler.
@@ -58,6 +57,7 @@ Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
 
+- ``ranges::unique_copy`` with the output size smaller than the input size may lose performance on GPU devices.
 - ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
   output range to have sufficient size to hold all resulting elements.
 - ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
