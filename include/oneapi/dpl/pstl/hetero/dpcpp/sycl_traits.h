@@ -486,7 +486,7 @@ struct __gen_set_balanced_path;
 template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
@@ -638,10 +638,10 @@ struct sycl::is_device_copyable<
 
 // Submitters that capture member variables via *this into the kernel lambda must have device copyable specializations
 // if their members may not be trivially copyable.
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, __max_inputs_per_item,
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, _Bounded, __max_inputs_per_item,
     __is_inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType, _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenReduceInput, _ReduceOp, _InitType>
 {

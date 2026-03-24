@@ -1760,17 +1760,18 @@ class __reduce_then_scan_reduce_kernel;
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _GenReduceInput, typename _ReduceOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
-                                                    _GenReduceInput, _ReduceOp, _InitType,
+struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __is_inclusive,
+                                                    __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
+
     // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
     // input buffer
     template <typename _InRng, typename _TmpStorageAcc>
@@ -2277,9 +2278,10 @@ __calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uin
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng, typename _OutRng,
-          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
+template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
+          typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
+          typename _IsUniquePattern>
 __future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
@@ -2335,9 +2337,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
     // Reduce and scan step implementations
-    using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
-                                                     _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
+    using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
+                                                                          __is_unique_pattern_v, _GenReduceInput,
+                                                                          _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp,
                                                    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,

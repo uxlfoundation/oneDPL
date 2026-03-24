@@ -756,7 +756,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             _GenInput __gen_transform{__unary_op};
 
             const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
-            return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
+            return __parallel_transform_reduce_then_scan<_Bounded, sizeof(typename _InitType::__value_type),
+                                                         _CustomName>(
                 __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
                 __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
                 /*_IsUniquePattern=*/std::false_type{});
@@ -800,7 +801,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
-    return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
+    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
@@ -921,8 +922,8 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
     std::size_t __n = oneapi::dpl::__ranges::__size(__keys);
     // __gen_red_by_seg_scan_input requires that __n > 1
     assert(__n > 1);
-    return __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>),
-                                                 _CustomName>(
+    return __parallel_transform_reduce_then_scan<
+        _Bounded, sizeof(oneapi::dpl::__internal::tuple<std::size_t, _ValueType>), _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         oneapi::dpl::__ranges::make_zip_view(std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values)),
         _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{__binary_pred, __n},
@@ -1046,16 +1047,19 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n1);
 
-    auto __res = __parallel_transform_reduce_then_scan<sizeof(oneapi::dpl::__internal::__value_t<_Range1>), _CustomName>(
-        __q, __n1,
-        oneapi::dpl::__ranges::make_zip_view(
-            std::forward<_Range1>(__rng1),
-            std::forward<_Range2>(__rng2),
-            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer())),
-        std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
-        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}).get();
+    auto __res =
+        __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
+                                              _CustomName>(
+            __q, __n1,
+            oneapi::dpl::__ranges::make_zip_view(
+                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                    __mask_buf.get_buffer())),
+            std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
+            _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+            _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{})
+            .get();
 
     return {__n1, __n2, __res};
 }
@@ -1129,7 +1133,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     _WriteOp __write_op{};
 
     auto __output_idx =
-        __parallel_transform_reduce_then_scan<__bytes_per_work_item_iter, _CustomName>(
+        __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
             __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
             __gen_reduce_input_phase2, _ReduceOp{},
             _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{},
@@ -2454,8 +2458,10 @@ __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, 
     // __no_init_value to the transform scan call. This is because init handling must occur on a per-segment basis
     // and functions differently than the typical scan init which is only applied once in a single location.
     oneapi::dpl::unseq_backend::__no_init_value<_PackedFlagValueType> __placeholder_no_init{};
+
     using _WriteOp = __write_scan_by_seg<__is_inclusive, _InitType, _BinaryOperator, _Bounded>;
-    return __parallel_transform_reduce_then_scan<sizeof(_PackedFlagValueType), _CustomName>(
+
+    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_PackedFlagValueType), _CustomName>(
         __q, __n, oneapi::dpl::__ranges::make_zip_view(std::forward<_Range1>(__keys), std::forward<_Range2>(__values)),
         std::forward<_Range3>(__out_values), _GenReduceInput{__binary_pred}, _ReduceOp{__binary_op}, _GenScanInput{},
         _ScanInputTransform{}, _WriteOp{__init, __binary_op}, __placeholder_no_init,
