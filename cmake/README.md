@@ -56,6 +56,27 @@ oneDPL, use standard CMake means such as `CMAKE_CXX_FLAGS` to pass relevant opti
 If you are not using the oneAPI DPC++ compiler, then please refer to your SYCL compiler's documentation regarding
 support of this feature.
 
+## Using oneDPL with FPGA devices with the oneAPI DPC++ compiler
+
+oneDPL provides macros to enable FPGA-tailored policies and algorithms.
+Define them to target an FPGA hardware or emulator:
+
+```cmake
+# Hardware
+target_compile_definitions(foo PRIVATE ONEDPL_FPGA_DEVICE)
+
+# Emulator
+target_compile_definitions(foo PRIVATE ONEDPL_FPGA_DEVICE ONEDPL_FPGA_EMULATOR)
+```
+
+Pass the compiler options relevant to your target, which are described in the
+[Targeting Multiple Platforms](https://www.intel.com/content/www/us/en/docs/oneapi-fpga-add-on/developer-guide/2025-0/targeting-multiple-platforms.html)
+chapter of the Intel® oneAPI DPC++/C++ Compiler Handbook for FPGAs.
+
+**NOTE**: The oneAPI DPC++/C++ Compiler has dropped FPGA support.
+In oneDPL, FPGA-tailored policies and algorithms are deprecated,
+but they can still be used with older oneAPI DPC++/C++ Compiler versions.
+
 ## How to use oneDPL from CMake
 ### Using oneDPL source files
 
@@ -115,7 +136,7 @@ Use `ONEDPL_PAR_BACKEND` variable before the invocation of `find_package(oneDPL 
 ### Using oneDPL package on Windows
 On Windows, CMake requires some workarounds to use icx[-cl] successfully.  A CMake package has been provided 'oneDPLWindowsIntelLLVM' to apply these required workarounds.
 Some workarounds are provided for icpx, but it is not fully supported on Windows at this time.  We also recommend updating to the most recent version of CMake, as they are actively improving support for Intel compilers (https://gitlab.kitware.com/cmake/cmake/-/issues/24314).
-To enable the workarounds, please add `find_package(oneDPLWindowsIntelLLVM)` to your cmake file before you call `project()`.  If using oneDPL from source files, you must add oneDPL's cmake directory to your `CMAKE_PREFIX_PATH` to allow CMake to find `oneDPLWindowsIntelLLVM`. 
+To enable the workarounds, please add `find_package(oneDPLWindowsIntelLLVM)` to your cmake file before you call `project()`.  If using oneDPL from source files, you must add oneDPL's cmake directory to your `CMAKE_PREFIX_PATH` to allow CMake to find `oneDPLWindowsIntelLLVM`.
 
 For example:
 
