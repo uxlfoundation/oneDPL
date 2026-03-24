@@ -1527,35 +1527,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     _GenReduceInput, _ReduceOp, _InitType,
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
-    // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
-    // input buffer
-    template <typename _InRng, typename _TmpStorageAcc>
-    sycl::event
-    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
-               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num) const
-    {
-        using _InitValueType = typename _InitType::__value_type;
-        return __q.submit([&, this](sycl::handler& __cgh) {
-            __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
-            // SLM for sub-group communication (shift_group_right / group_broadcast).
-            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
-            __cgh.depends_on(__prior_event);
-            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
-            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
-                __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(
-                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
-                    if (!__use_slm_for_comm)
-                        __reduce_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __in_rng,
-                                                   __inputs_remaining, __block_num);
-                    else
-                        __reduce_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __in_rng,
-                                                    __inputs_remaining, __block_num);
-                });
-        });
-    }
 
     template <bool __use_subgroup_ops, typename _TmpStorageAcc, typename _InRng>
     void
@@ -1666,6 +1637,35 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             __sub_group_carry.__destroy();
         }
     }
+    // Step 1 - SubGroupReduce is expected to perform sub-group reductions to global memory
+    // input buffer
+    template <typename _InRng, typename _TmpStorageAcc>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng,
+               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
+               const std::size_t __inputs_remaining, const std::size_t __block_num) const
+    {
+        using _InitValueType = typename _InitType::__value_type;
+        return __q.submit([&, this](sycl::handler& __cgh) {
+            __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
+            // SLM for sub-group communication (shift_group_right / group_broadcast).
+            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
+            __cgh.depends_on(__prior_event);
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
+            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
+                __cgh, __dpl_sycl::__no_init{});
+            __cgh.parallel_for<_KernelName...>(
+                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
+                    if (!__use_slm_for_comm)
+                        __reduce_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __in_rng,
+                                                   __inputs_remaining, __block_num);
+                    else
+                        __reduce_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __in_rng,
+                                                    __inputs_remaining, __block_num);
+                });
+        });
+    }
 
     // Constant parameters throughout all blocks
     const std::uint32_t __max_num_work_groups;
@@ -1707,48 +1707,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                           const std::size_t __num_sub_groups_global) const
     {
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
-    }
-
-    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    sycl::event
-    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
-               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
-               const std::size_t __inputs_remaining, const std::size_t __block_num) const
-    {
-        std::size_t __num_remaining = __n - __block_num * __max_block_size;
-        // for unique patterns, the first element is always copied to the output, so we need to skip it
-        if constexpr (__is_unique_pattern_v)
-        {
-            assert(__num_remaining > 0);
-            __num_remaining -= 1;
-        }
-        std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-        return __q.submit([&, this](sycl::handler& __cgh) {
-            // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
-            //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
-            //   1 element for the accumulated block-local carry-in from previous groups in the block
-            __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
-            // SLM for sub-group communication (shift_group_right / group_broadcast).
-            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
-            __cgh.depends_on(__prior_event);
-            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
-            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
-            auto __res_acc =
-                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
-
-            __cgh.parallel_for<_KernelName...>(
-                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
-                    if (!__use_slm_for_comm)
-                        __scan_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __res_acc,
-                                                 __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
-                                                 __block_num);
-                    else
-                        __scan_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __res_acc,
-                                                  __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
-                                                  __block_num);
-                });
-        });
     }
 
     template <bool __use_subgroup_ops, typename _TmpStorageAcc, typename _ResStorageAcc, typename _InRng, typename _OutRng>
@@ -2020,6 +1978,48 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             }
         }
         __sub_group_carry.__destroy();
+    }
+
+    template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
+    sycl::event
+    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
+               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
+               const std::size_t __inputs_remaining, const std::size_t __block_num) const
+    {
+        std::size_t __num_remaining = __n - __block_num * __max_block_size;
+        // for unique patterns, the first element is always copied to the output, so we need to skip it
+        if constexpr (__is_unique_pattern_v)
+        {
+            assert(__num_remaining > 0);
+            __num_remaining -= 1;
+        }
+        std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
+        return __q.submit([&, this](sycl::handler& __cgh) {
+            // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
+            //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
+            //   1 element for the accumulated block-local carry-in from previous groups in the block
+            __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
+            // SLM for sub-group communication (shift_group_right / group_broadcast).
+            // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
+            __cgh.depends_on(__prior_event);
+            oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
+            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
+            auto __res_acc =
+                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+
+            __cgh.parallel_for<_KernelName...>(
+                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
+                    if (!__use_slm_for_comm)
+                        __scan_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __res_acc,
+                                                 __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
+                                                 __block_num);
+                    else
+                        __scan_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __temp_acc, __res_acc,
+                                                  __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
+                                                  __block_num);
+                });
+        });
     }
 
     const std::uint32_t __max_num_work_groups;
