@@ -1097,7 +1097,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _TemporaryType = std::remove_const_t<std::make_signed_t<decltype(__n1)>>;
 
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
-    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __split_diags_buf(__num_diagonals);
 
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
 
@@ -1113,8 +1113,10 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     constexpr std::uint32_t __bytes_per_work_item_iter = __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __in_in_tmp_rng_phase1 = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
-    auto __in_in_tmp_rng_phase2 = _SetOpSourceDataPackUnpack::__pack<_Bounded          >(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
+    auto __split_diags_view = oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__split_diags_buf.get_buffer());
+
+    auto __in_in_tmp_rng_phase1 = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(__rng1, __rng2, __split_diags_view);
+    auto __in_in_tmp_rng_phase2 = _SetOpSourceDataPackUnpack::__pack<_Bounded          >(__rng1, __rng2, __split_diags_view);
 
     sycl::event __partition_event;
 
