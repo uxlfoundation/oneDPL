@@ -1,4 +1,4 @@
-# SYCL & ESIMD GPU Radix Sort Kernel Templates
+# GPU Radix Sort Kernel Templates
 
 ## Introduction
 
