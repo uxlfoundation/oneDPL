@@ -126,7 +126,7 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value,
 
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202604L`` or a greater value, the following random access adapter is provided:
 
-* ``zip_view``
+* ``oneapi::dpl::experimental::ranges::zip_view``
 
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
