@@ -180,8 +180,9 @@ template <std::int32_t __offset, typename _Assign, bool _Bounded>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
+
     template <typename _OutRng, typename _SizeType, typename _ValueType>
-    void
+    bool
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -194,9 +195,19 @@ struct __write_to_id_if
         {
             const auto __out_idx = std::get<0>(__v) - 1 + __offset;                                                                                                                        
 
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            if constexpr (!_Bounded)
+            {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
+            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            {
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
         }
+
+        return false;
     }
 
     _Assign __assign;
@@ -209,8 +220,9 @@ template <typename _Assign, bool _Bounded>
 struct __write_to_id_if_else
 {
     using _TempData = __noop_temp_data;
+
     template <typename _OutRng, typename _SizeType, typename _ValueType>
-    void
+    bool
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -223,17 +235,36 @@ struct __write_to_id_if_else
         {
             const auto __out_idx = std::get<0>(__v) - 1;
 
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            if constexpr (!_Bounded)
+            {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
+            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            {
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
         }
         else
         {
             const auto __out_idx = __id - std::get<0>(__v);
 
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            if constexpr (!_Bounded)
+            {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
+            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+            {
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
+                return true;
+            }
         }
+
+        return false;
     }
+
     _Assign __assign;
 };
 
@@ -245,7 +276,7 @@ struct __write_red_by_seg
     using _TempData = __noop_temp_data;
 
     template <typename _OutRng, typename _Tup>
-    void
+    bool
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
     {
         using std::get;
@@ -272,16 +303,25 @@ struct __write_red_by_seg
 
         if (__is_seg_end)
         {
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_values, __out_idx))
-                __out_values[__out_idx] = __current_value;
+            if constexpr (_Bounded)
+            {
+                if (!__write_op_base<_Bounded>::__is_in_bounds(__out_values, __out_idx))
+                    return false;
+
+                if (__id != __n - 1)
+                    if (!__write_op_base<_Bounded>::__is_in_bounds(__out_keys, __out_idx + 1))
+                        return false;
+            }
+
+            __out_values[__out_idx] = __current_value;
 
             if (__id != __n - 1)
-            {
-                if (__write_op_base<_Bounded>::__is_in_bounds(__out_keys, __out_idx + 1))
-                    __out_keys[__out_idx + 1] = __next_key;
-            }
+                __out_keys[__out_idx + 1] = __next_key;
         }
+
+        return true;
     }
+
     _BinaryPred __binary_pred;
     const std::size_t __n;
 };
@@ -295,7 +335,7 @@ struct __write_scan_by_seg
     _BinaryOp __binary_op;
 
     template <typename _OutRng, typename _ValueType>
-    void
+    bool
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         using std::get;
@@ -312,8 +352,16 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
                 "inclusive_scan_by_segment must not have an initial element");
 
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+            if constexpr (!_Bounded)
+            {
                 __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+                return true;
+            }
+            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+            {
+                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+                return true;
+            }
         }
         else
         {
@@ -321,11 +369,23 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
 
-            if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+            if constexpr (!_Bounded)
+            {
                 __out_rng[__id] = get<1>(__v)
-                                  ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                                  : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+                                    ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                                    : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+                return true;
+            }
+            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+            {
+                __out_rng[__id] = get<1>(__v)
+                                    ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                                    : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+                return true;
+            }
         }
+
+        return false;
     }
 };
 
@@ -337,7 +397,7 @@ template <typename _Assign, bool _Bounded>
 struct __write_multiple_to_id
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    void
+    bool
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -365,12 +425,19 @@ struct __write_multiple_to_id
                 }
                 else
                 {
+                    // KSATODO remove debug code
                     [[maybe_unused]] auto [__val, __idx1, __idx2] = __temp_data.get_and_destroy(__i);
                     __idx1 = *std::addressof(__idx1);
                     __idx2 = *std::addressof(__idx2);
+
+                    // KSATODO we should save indexes into __temp_data for caller side
+
+                    return false;
                 }
             }
         }
+
+        return true;
     }
 
     _Assign __assign;
