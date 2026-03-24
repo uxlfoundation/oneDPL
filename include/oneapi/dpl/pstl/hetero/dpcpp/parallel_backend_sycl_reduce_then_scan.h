@@ -478,61 +478,23 @@ class _SetOpSourceDataPackUnpack
         }
         else
         {
-            // the __tuple type is:
-            // const oneapi::dpl::__internal::tuple<
-            //      oneapi::dpl::__ranges::zip_view<
-            //          std::ranges::subrange<test_std_ranges::A *>,
-            //          oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            //      >,
-            //      oneapi::dpl::__ranges::zip_view<
-            //          std::ranges::subrange<test_std_ranges::B *>,
-            //          oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            //      >,
-            //      oneapi::dpl::__ranges::all_view<long long, sycl::access::mode::write>
-            // > &
-
-            // The _PackedRange1 is:
-            // oneapi::dpl::__ranges::zip_view<
-            //      std::ranges::subrange<test_std_ranges::A *>,
-            //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            // >
             using _PackedRange1 = std::decay_t<decltype(std::get<0>(__tuple))>;
 
-            // The _PackedRange1Tuple is:
-            // oneapi::dpl::__internal::tuple<
-            //      std::ranges::subrange<test_std_ranges::A *>,
-            //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            // >
             using _PackedRange1Tuple = decltype(std::declval<_PackedRange1>().base());
-
-            // The _PackedRange2 is:
-            // oneapi::dpl::__ranges::zip_view<
-            //      std::ranges::subrange<test_std_ranges::B *>,
-            //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            // >
             using _PackedRange2 = std::decay_t<decltype(std::get<1>(__tuple))>;
 
-            // The _PackedRange2Tuple is:
-            // oneapi::dpl::__internal::tuple<
-            //      std::ranges::subrange<test_std_ranges::B *>,
-            //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
-            // >
             using _PackedRange2Tuple = decltype(std::declval<_PackedRange2>().base());
 
-            // The _RngDiags is:
-            // oneapi::dpl::__ranges::all_view<long long, sycl::access::mode::write>
             using _RngDiags = std::decay_t<decltype(std::get<2>(__tuple))>;
 
             auto __internal_tuple1 = std::get<0>(__tuple).base();
             static_assert(std::is_same_v<_PackedRange1Tuple, decltype(__internal_tuple1)>, "Unexpected type for unpacked range 1 tuple");
 
-            // The __rng1 type is std::ranges::subrange<test_std_ranges::A *>
             auto __rng1 = std::get<0>(__internal_tuple1); // first sequence
 
             auto __internal_tuple2 = std::get<1>(__tuple).base();
             static_assert(std::is_same_v<_PackedRange2Tuple, decltype(__internal_tuple2)>, "Unexpected type for unpacked range 2 tuple");
 
-            // The __rng2 type is std::ranges::subrange<test_std_ranges::B *>
             auto __rng2 = std::get<0>(__internal_tuple2); // second sequence
 
             return _UnpackedSourceZippedRangesBounded<
