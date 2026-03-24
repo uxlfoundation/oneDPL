@@ -95,9 +95,17 @@ struct __temp_data_array</*_Bounded*/ true, elements, _Size1, _Size2, _ValueT>
         return {__data[__idx].__v, __indexes1[__idx], __indexes2[__idx]};
     }
 
+    void
+    set_first_out_of_bounds_src_idx(_Size1 __idx1, _Size2 __idx2)
+    {
+        __first_oob_src_idx = std::make_tuple(__idx1, __idx2);
+    }
+
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
     std::array<_Size1, elements> __indexes1;
     std::array<_Size2, elements> __indexes2;
+
+    std::optional<std::tuple<_Size1, _Size2>> __first_oob_src_idx;
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
@@ -107,6 +115,12 @@ struct __noop_temp_data
     template <typename _Size1, typename _Size2, typename _ValueT>
     void
     set(std::uint16_t, _Size1, _Size2, const _ValueT&) const
+    {
+    }
+
+    template <typename _Size1, typename _Size2>
+    void
+    set_first_out_of_bounds_src_idx(_Size1, _Size2)
     {
     }
 };
@@ -425,13 +439,8 @@ struct __write_multiple_to_id
                 }
                 else
                 {
-                    // KSATODO remove debug code
                     [[maybe_unused]] auto [__val, __idx1, __idx2] = __temp_data.get_and_destroy(__i);
-                    __idx1 = *std::addressof(__idx1);
-                    __idx2 = *std::addressof(__idx2);
-
-                    // KSATODO we should save indexes into __temp_data for caller side
-
+                    __temp_data.set_first_out_of_bounds_src_idx(__idx1, __idx2);
                     return false;
                 }
             }
@@ -1147,6 +1156,7 @@ template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _Com
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
+
     template <typename _InRng, typename _IndexT>
     std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
@@ -1585,7 +1595,6 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     _TempData __temp_data{};
     if (__is_full_thread)
     {
-
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
