@@ -1561,7 +1561,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         using _InitValueType = typename _InitType::__value_type;
-        return __q.submit([&, this](sycl::handler& __cgh) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
+        return __q.submit([&, this](sycl::handler& __cgh) {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
@@ -1570,7 +1570,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
 
@@ -1733,7 +1733,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __num_remaining -= 1;
         }
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-        return __q.submit([&, this](sycl::handler& __cgh) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
+        return __q.submit([&, this](sycl::handler& __cgh) {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
@@ -1747,7 +1747,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             auto __res_acc =
                 __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
 
-            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) {
+            __cgh.parallel_for<_KernelName...>(__nd_range, [=, *this](sycl::nd_item<1> __ndi) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
                 _InitValueType* __comm_slm_ptr = __use_slm_for_comm ? &__comm_slm[0] : nullptr;
