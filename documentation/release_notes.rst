@@ -15,8 +15,8 @@ Changes to CMake
 -------------------
 - Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
   Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
-- Removed the ``ONEDPL_USE_AOT_COMPILATION``, ``ONEDPL_AOT_ARCH``, and ``ONEDPL_FPGA_STATIC_REPORT`` CMake options.
-  Use the appropriate compiler flags to control ahead-of-time compilation.
+- Removed the ``ONEDPL_USE_AOT_COMPILATION``, ``ONEDPL_AOT_ARCH``, and ``ONEDPL_FPGA_STATIC_REPORT`` CMake options.
+  Use the appropriate compiler flags to control ahead-of-time compilation.
 
 New Features
 ------------
