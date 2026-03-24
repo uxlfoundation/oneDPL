@@ -61,7 +61,8 @@ The `radix_sort_by_key` overloads follow the same pattern, accepting additional 
 ESIMD variants are available under `oneapi::dpl::experimental::kt::gpu::esimd` with identical signatures.
 
 Template parameters control sort order (`IsAscending`), radix bit width (`RadixBits`), and work-group configuration
-(via `KernelParam`). All functions return a `sycl::event` for asynchronous execution.
+(via `KernelParam`). All functions return a `sycl::event` to the last kernel submission within the implementation.
+The returned event or underlying queue must be waited on to guarantee algorithm completion.
 
 Unified dispatch logic in `radix_sort_dispatchers.h` and `radix_sort_submitters.h` selects the appropriate
 implementation and optimization path based on the input size and available hardware features.
@@ -88,16 +89,16 @@ namespace kt = oneapi::dpl::experimental::kt;
 sycl::queue q;
 constexpr std::size_t n = 1'000'000;
 
-// SYCL variant: work-group size 1024, 12 elements per work-item
+// SYCL variant
 {
-    constexpr kt::kernel_param</*data_per_workitem=*/12, /*workgroup_size=*/1024> param;
+    constexpr kt::kernel_param</*data_per_workitem=*/10, /*workgroup_size=*/512> param;
     uint32_t* keys = sycl::malloc_device<uint32_t>(n, q);
     // ... initialize keys ...
     kt::gpu::radix_sort(q, keys, keys + n, param).wait();
     sycl::free(keys, q);
 }
 
-// ESIMD variant on PVC: work-group size 64, 96 elements per work-item
+// ESIMD variant (PVC only)
 {
     constexpr kt::kernel_param</*data_per_workitem=*/96, /*workgroup_size=*/64> param;
     uint32_t* keys = sycl::malloc_device<uint32_t>(n, q);
@@ -137,7 +138,7 @@ onesweep_scan_kernel:
 ```
 
 **Onesweep reorder kernel** — Reordering for each stage. If a keys-only sort is used, then no values are processed.
-```text
+```
 onesweep_reorder_kernel:
 1.    for each tile assigned to this work-group:
 2.        Load keys & values from global memory to registers for this tile
@@ -254,7 +255,6 @@ formal forward progress guarantee. On PVC, cache bypass global memory reads / wr
 during the lookback. Empirical testing across a range of input sizes, key types, and work-group configurations was used
 to verify correctness and the absence of hangs.
 
-
 This approach is inherently architecture-specific: the scheduling behavior that prevents deadlock on PVC is not
 guaranteed by the SYCL programming model and may not hold on other architectures. Any extension to new hardware would
 require similar empirical validation.
@@ -273,10 +273,10 @@ auto get(syclex::properties_tag) const
 }
 ```
 
-This extension property guarantees that work-groups within the kernel launch execute concurrently and make independent
-forward progress allowing producer / consumer relations between work-groups with atomic busy waits. This is the only
+This extension guarantees that work-groups within the kernel launch execute concurrently and make independent
+forward progress, allowing producer / consumer relations between work-groups via atomic busy waits. This is the only
 approach that provides a formal hardware safety guarantee across different vendors where the property is supported.
-With this launch mode only a small number of work-groups may be launched, so the onesweep kernel is modified to have
+With this launch mode only a limited number of work-groups may be launched, so the onesweep kernel is modified to have
 each work-group process multiple tiles strided by the grid size.
 
 The forward progress extension provides a principled solution that is supported by the oneAPI DPC++ compiler and
@@ -356,17 +356,18 @@ work-groups once it begins executing
 In addition to the open questions for kernel templates in general, the following areas remain open for future
 investigation and development:
 
-**Radix bit width:** The current implementations use an 8-bit radix (256 bins). Exploring support for other radix
-widths (e.g., 4 or 6 bits) could improve performance for different key distributions and hardware characteristics.
-Larger radix widths reduce the number of stages but increase SLM and register file usage.
+**Radix bit width:** Despite being parameterized, the current implementations require an 8-bit radix (256 bins).
+Exploring support for other radix widths (e.g., 4 or 6 bits) could improve performance for certain use cases or
+hardware. Larger radix widths reduce the number of stages but increase SLM and register file usage.
 
 **Single work-group kernel template:** The single work-group optimization is currently embedded within the dispatch
 logic for ESIMD radix sort. Providing a separate kernel template API specifically for single work-group sorting would
 enable explicit control and specialization for small-data use cases.
 
-**Large buffer sizes:** The current implementations use bit masks that limit input sizes to 2^30 elements
-(approximately 1 billion elements for 4-byte keys). Extending support to larger inputs would require addressing the
-mask limitations in the offset calculations and histogram data structures.
+**Large buffer sizes:** The current implementations use bit packing in decoupled lookback that limit input sizes to
+2^30 elements (approximately 1 billion elements for 4-byte keys). Extending support to larger inputs would require
+addressing the mask limitations in the offset calculations and histogram data structures along with supporting 64-bit
+histogram counters (32-bit is currently used).
 
 **Work-group size flexibility:** The SYCL implementation currently supports work-group sizes of 512 and 1024.
 Supporting more work-group size configurations (e.g. multiples of 128) would enable flexible tuning for different
