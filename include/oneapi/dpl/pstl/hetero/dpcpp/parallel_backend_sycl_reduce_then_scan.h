@@ -1561,7 +1561,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         using _InitValueType = typename _InitType::__value_type;
-        return __q.submit([&, this](sycl::handler& __cgh) {
+        return __q.submit([&, this](sycl::handler& __cgh) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
@@ -1733,7 +1733,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __num_remaining -= 1;
         }
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-        return __q.submit([&, this](sycl::handler& __cgh) {
+        return __q.submit([&, this](sycl::handler& __cgh) [[ _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32) ]] {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
