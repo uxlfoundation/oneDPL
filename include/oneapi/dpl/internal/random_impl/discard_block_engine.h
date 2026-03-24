@@ -238,7 +238,7 @@ class discard_block_engine
         if (__random_nums >= _N)
             return operator()();
 
-        result_type __part_vec(0);
+        result_type __part_vec;
 
         for (unsigned int __i = 0; __i < __random_nums; ++__i)
         {

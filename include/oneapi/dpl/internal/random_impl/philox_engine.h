@@ -293,7 +293,7 @@ class philox_engine
         if (__random_nums >= _N)
             return operator()();
 
-        result_type __loc_result(0);
+        result_type __loc_result;
         for (int __elm_count = 0; __elm_count < __random_nums; ++__elm_count)
         {
             ++__state.__idx;

@@ -225,7 +225,7 @@ class subtract_with_carry_engine
     ::std::enable_if_t<(_N > 0), result_type>
     result_portion_internal(unsigned int __random_nums)
     {
-        result_type __part_vec(0);
+        result_type __part_vec;
 
         if (__random_nums >= _N)
             return operator()();
