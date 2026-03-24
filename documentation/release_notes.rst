@@ -15,14 +15,8 @@ Changes to CMake
 -------------------
 - Removed the ``ONEDPL_DEVICE_TYPE`` and ``ONEDPL_DEVICE_BACKEND`` CMake options. 
   Use ``ONEAPI_DEVICE_SELECTOR`` environment variable or compiler options for device selection instead.
-  In addition, for FPGA configurations, instead of using ``ONEDPL_DEVICE_TYPE=FPGA_HW``, define the
-  ``ONEDPL_FPGA_DEVICE`` C++ macro.
-  Instead of using ``ONEDPL_DEVICE_TYPE=FPGA_EMU``, define both ``ONEDPL_FPGA_DEVICE`` and ``ONEDPL_FPGA_EMULATOR``
-  C++ macros.
-- Removed the ``ONEDPL_FPGA_STATIC_REPORT`` CMake option. It is equivalent to passing ``-Xshardware``, ``-fintelfpga``
-  and ``-fsycl-link`` options to Intel® oneAPI DPC++/C++ Compiler.
-- Removed the ``ONEDPL_USE_AOT_COMPILATION`` and ``ONEDPL_AOT_ARCH`` CMake options. Use the relevant compiler flags to
-  control AOT compilation.
+- Removed the ``ONEDPL_USE_AOT_COMPILATION``, ``ONEDPL_AOT_ARCH``, and ``ONEDPL_FPGA_STATIC_REPORT`` CMake options.
+  Use the appropriate compiler flags to control ahead-of-time compilation.
 
 New Features
 ------------
@@ -32,12 +26,10 @@ New Features
   [#fnote1]_ and device policies.
 - Moved ``philox_engine`` to the ``oneapi::dpl`` namespace and fixed incorrect results for instantiations with
   non-predefined word size values and ``std::uint_fast64_t``.
-- Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the
-  ``oneapi::dpl::experimental::kt::gpu`` namespace. These algorithms allow configuring the number of elements to
-  process by a work item and the size of a workgroup. The implementation has been verified on Intel® Arc B580 Graphics
-  and Intel® Data Center GPU Max Series.
-- Added experimental ``ranges::zip_view`` to the oneDPL parallel range APIs. The view can be used with oneDPL parallel
-  range algorithms and C++20 random access ranges.
+- Added experimental ``radix_sort`` and ``radix_sort_by_key`` algorithms in the ``oneapi::dpl::experimental::kt::gpu``
+  namespace. The implementation has been verified on Intel® Arc B580 Graphics and Intel® Data Center GPU Max Series.
+- The ``experimental::ranges::zip_view`` range adaptor can now be used with the oneDPL parallel range algorithms
+  and C++20 random access ranges.
 - Improved performance of multiple (30+) algorithms with ``par`` and ``par_unseq`` execution policies and data sizes
   from 50K to 4M elements when built with the OpenMP backend and Intel® oneAPI DPC++/C++ Compiler.
 
