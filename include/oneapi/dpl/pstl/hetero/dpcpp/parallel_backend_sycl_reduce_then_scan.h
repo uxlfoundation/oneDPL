@@ -1244,13 +1244,15 @@ __group_broadcast(const __dpl_sycl::__sub_group& __sub_group, _ValueType __value
     return __result;
 }
 
-// Compile-time-constant scan loop enabling unrolling. Called from the fast-path dispatch below.
-template <std::uint8_t __sub_group_size, typename _MaskOp, typename _BinaryOp, typename _ValueType>
+template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
+          typename _LazyValueType>
 void
-__sub_group_scan_unrolled_loop(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn, _ValueType& __value,
-                               _BinaryOp __binary_op, _ValueType* __comm_slm)
+__exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
+                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
+                                  _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
-    const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+    std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+    const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
@@ -1260,47 +1262,6 @@ __sub_group_scan_unrolled_loop(const __dpl_sycl::__sub_group& __sub_group, _Mask
             __value = __binary_op(__partial_carry_in, __value);
         }
     }
-}
-
-// Runtime scan loop fallback for uncommon sub-group sizes.
-template <typename _MaskOp, typename _BinaryOp, typename _ValueType>
-void
-__sub_group_scan_runtime_loop(const __dpl_sycl::__sub_group& __sub_group, std::uint8_t __sub_group_size,
-                              _MaskOp __mask_fn, _ValueType& __value, _BinaryOp __binary_op, _ValueType* __comm_slm)
-{
-    const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-    for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
-    {
-        _ValueType __partial_carry_in = __shift_group_right(__sub_group, __value, __shift, __comm_slm);
-        if (__mask_fn(__sub_group_local_id, __shift))
-        {
-            __value = __binary_op(__partial_carry_in, __value);
-        }
-    }
-}
-
-// Dispatch to compile-time-unrolled loop for known sub-group sizes, runtime fallback otherwise.
-template <typename _MaskOp, typename _BinaryOp, typename _ValueType>
-void
-__sub_group_scan_loop_dispatch(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn, _ValueType& __value,
-                               _BinaryOp __binary_op, _ValueType* __comm_slm)
-{
-    const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-    if (__sub_group_size == 32)
-        __sub_group_scan_unrolled_loop<32>(__sub_group, __mask_fn, __value, __binary_op, __comm_slm);
-    else
-        __sub_group_scan_runtime_loop(__sub_group, __sub_group_size, __mask_fn, __value, __binary_op, __comm_slm);
-}
-
-template <bool __init_present, typename _MaskOp, typename _InitBroadcastId, typename _BinaryOp, typename _ValueType,
-          typename _LazyValueType>
-void
-__exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
-                                  _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
-                                  _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
-{
-    std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-    __sub_group_scan_loop_dispatch(__sub_group, __mask_fn, __value, __binary_op, __comm_slm);
     _LazyValueType __old_init;
     if constexpr (__init_present)
     {
@@ -1334,7 +1295,16 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
                                   _LazyValueType& __init_and_carry, _ValueType* __comm_slm)
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-    __sub_group_scan_loop_dispatch(__sub_group, __mask_fn, __value, __binary_op, __comm_slm);
+    const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
+    _ONEDPL_PRAGMA_UNROLL
+    for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
+    {
+        _ValueType __partial_carry_in = __shift_group_right(__sub_group, __value, __shift, __comm_slm);
+        if (__mask_fn(__sub_group_local_id, __shift))
+        {
+            __value = __binary_op(__partial_carry_in, __value);
+        }
+    }
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
