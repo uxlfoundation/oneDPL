@@ -685,18 +685,17 @@ struct __set_generic_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2) const
     {
-
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
-        bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
-        bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
+        const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
+        const bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
 
         if (!__can_reach_rng1_end && !__can_reach_rng2_end)
         {
             while (__idx < __num_eles_min)
             {
                 // no bounds checking
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, false>(
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ false>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
                     __proj2);
             }
@@ -706,7 +705,7 @@ struct __set_generic_operation
             while (__idx < __num_eles_min)
             {
                 //bounds check all
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, true>(
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
                     __proj2);
             }
