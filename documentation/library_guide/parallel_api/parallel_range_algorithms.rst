@@ -122,6 +122,12 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value,
 * ``uninitialized_move``
 * ``uninitialized_fill``
 
+.. _range-algorithms-202604L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202604L`` or a greater value, the following random access adapter is provided:
+
+* ``zip_view``
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
