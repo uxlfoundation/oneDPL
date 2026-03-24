@@ -80,7 +80,7 @@ struct ConstVeryDifferentRange {
 void test() {
   int buffer[] = {1, 2, 3, 4};
   {
-    // 2 views should have pair value_type
+    // 2 views should have 2-tuple value_type
     // random_access_iterator_tag
     dpl_ranges::zip_view v(buffer, buffer);
     using Iter = decltype(v.begin());
@@ -88,11 +88,7 @@ void test() {
     static_assert(std::is_same_v<Iter::iterator_concept, std::random_access_iterator_tag>);
     static_assert(std::is_same_v<Iter::iterator_category, std::input_iterator_tag>);
     static_assert(std::is_same_v<Iter::difference_type, std::ptrdiff_t>);
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<Iter::value_type, std::pair<int, int>>);
-#else
     static_assert(std::is_same_v<Iter::value_type, tuple_type<int, int>>);
-#endif
     static_assert(HasIterCategory<Iter>);
   }
 
@@ -139,11 +135,7 @@ void test() {
     static_assert(std::is_same_v<Iter::iterator_concept, std::random_access_iterator_tag>);
     static_assert(std::is_same_v<Iter::iterator_category, std::input_iterator_tag>);
     static_assert(std::is_same_v<Iter::difference_type, std::ptrdiff_t>);
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<Iter::value_type, std::pair<int, std::pair<int, int>>>);
-#else
     static_assert(std::is_same_v<Iter::value_type, tuple_type<int, tuple_type<int, int>>>);
-#endif
     static_assert(HasIterCategory<Iter>);
   }
 
@@ -188,11 +180,7 @@ void test() {
     // value_type of multiple views with different value_type
     dpl_ranges::zip_view v{foos, bars};
     using Iter = decltype(v.begin());
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<Iter::value_type, std::pair<Foo, Bar>>);
-#else
     static_assert(std::is_same_v<Iter::value_type, tuple_type<Foo, Bar>>);
-#endif
   }
 
   #if __GNUC__ && _ONEDPL_GCC_VERSION >= 120100

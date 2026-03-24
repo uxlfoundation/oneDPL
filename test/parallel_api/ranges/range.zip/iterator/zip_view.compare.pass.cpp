@@ -15,17 +15,8 @@
 
 // friend constexpr bool operator==(const iterator& x, const iterator& y)
 //   requires (equality_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
-// friend constexpr bool operator<(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator>(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator<=(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
-// friend constexpr bool operator>=(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...>;
 // friend constexpr auto operator<=>(const iterator& x, const iterator& y)
-//   requires all-random-access<Const, Views...> &&
-//            (three_way_comparable<iterator_t<maybe-const<Const, Views>>> && ...);
+//   requires all-random-access<Const, Views...>;
 
 #include "support/test_config.h"
 #include "support/utils.h"
@@ -178,12 +169,7 @@ void test() {
     using Subrange = std::ranges::subrange<It>;
     static_assert(!std::three_way_comparable<It>);
     using R = dpl_ranges::zip_view<Subrange, Subrange>;
-#ifdef _LIBCPP_VERSION
-    // libc++ hasn't implemented LWG-3692 "zip_view::iterator's operator<=> is overconstrained"
-    static_assert(!std::three_way_comparable<std::ranges::iterator_t<R>>);
-#else
     static_assert(std::three_way_comparable<std::ranges::iterator_t<R>>);
-#endif
 
     int a[] = {1, 2, 3, 4};
     int b[] = {5, 6, 7, 8, 9};

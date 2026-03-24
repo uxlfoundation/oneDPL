@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Uniform Real Distribution
 
 #ifndef _ONEDPL_UNIFORM_REAL_DISTRIBUTION_H
 #define _ONEDPL_UNIFORM_REAL_DISTRIBUTION_H
