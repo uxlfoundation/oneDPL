@@ -432,7 +432,40 @@ struct __gen_unique_mask
     _BinaryPredicate __pred;
 };
 
+////////////////////////////////////////////////////////////////////////////////
 //__parallel_set_reduce_then_scan_set_a_write
+
+template <bool _Bounded, typename _Range>
+decltype(auto)
+__create_src_data_view(_Range&& __rng)
+{
+    if constexpr (!_Bounded)
+    {
+        return std::forward<_Range>(__rng);
+    }
+    else
+    {
+        using _Index = oneapi::dpl::__internal::__difference_t<_Range>;
+        using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
+
+        auto __zipped_view = oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range>(__rng),
+            oneapi::dpl::__ranges::guard_view<_CountingIterator>(
+                _CountingIterator(0),
+                oneapi::dpl::__ranges::__size(__rng)));
+
+        return __zipped_view;
+    }
+}
+
+template <bool _Bounded, typename _Range1, typename _Range2, typename _SplitDiagsView>
+auto
+__create_in_in_rng_tmp(_Range1&& __rng1, _Range2&& __rng2, _SplitDiagsView&& __split_diags_view)
+{
+    return oneapi::dpl::__ranges::make_zip_view(__create_src_data_view<_Bounded>(std::forward<_Range1>(__rng1)),
+                                                __create_src_data_view<_Bounded>(std::forward<_Range2>(__rng2)),
+                                                std::forward<_SplitDiagsView>(__split_diags_view));
+}
 
 template <typename _Rng1, typename _Rng2, typename _RngDiags>
 struct _UnpackedSourceZippedRangesUnbounded
@@ -442,16 +475,11 @@ struct _UnpackedSourceZippedRangesUnbounded
     _RngDiags __rng_tmp_diag;   // set a temp storage sequence
 };
 
-template <typename _Tuple1, typename _Rng1, typename _Tuple2, typename _Rng2, typename _RngDiags>
-struct _UnpackedSourceZippedRangesBounded
+template <typename _Tuple1, typename _Tuple2, typename _Rng1, typename _Rng2, typename _RngDiags>
+struct _UnpackedSourceZippedRangesBounded : _UnpackedSourceZippedRangesUnbounded<_Rng1, _Rng2, _RngDiags>
 {
     _Tuple1 __tuple1;           // Tuple for zipped view contained first sequence and etc.
-    _Rng1 __rng1;               // first sequence
-
     _Tuple2 __tuple2;           // Tuple for zipped view contained second sequence and etc.
-    _Rng2 __rng2;               // second sequence
-
-    _RngDiags __rng_tmp_diag;   // set a temp storage sequence
 };
 
 template <bool _Bounded, typename _InRngTuple>
@@ -468,24 +496,70 @@ __unpack_source_zipped_range(const _InRngTuple& __tuple)
     }
     else
     {
-        //decltype(__tuple)::dummy;
+        // the __tuple type is:
+        // const oneapi::dpl::__internal::tuple<
+        //      oneapi::dpl::__ranges::zip_view<
+        //          std::ranges::subrange<test_std_ranges::A *>,
+        //          oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        //      >,
+        //      oneapi::dpl::__ranges::zip_view<
+        //          std::ranges::subrange<test_std_ranges::B *>,
+        //          oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        //      >,
+        //      oneapi::dpl::__ranges::all_view<long long, sycl::access::mode::write>
+        // > &
 
-        using _Tuple1 = std::tuple<std::decay_t<decltype(std::get<0>(__tuple))>>;
-        using _Tuple2 = std::tuple<std::decay_t<decltype(std::get<1>(__tuple))>>;
+        // The _PackedRange1 is:
+        // oneapi::dpl::__ranges::zip_view<
+        //      std::ranges::subrange<test_std_ranges::A *>,
+        //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        // >
+        using _PackedRange1 = std::decay_t<decltype(std::get<0>(__tuple))>;
+
+        // The _PackedRange1Tuple is:
+        // oneapi::dpl::__internal::tuple<
+        //      std::ranges::subrange<test_std_ranges::A *>,
+        //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        // >
+        using _PackedRange1Tuple = decltype(std::declval<_PackedRange1>().base());
+
+        // The _PackedRange2 is:
+        // oneapi::dpl::__ranges::zip_view<
+        //      std::ranges::subrange<test_std_ranges::B *>,
+        //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        // >
+        using _PackedRange2 = std::decay_t<decltype(std::get<1>(__tuple))>;
+
+        // The _PackedRange2Tuple is:
+        // oneapi::dpl::__internal::tuple<
+        //      std::ranges::subrange<test_std_ranges::B *>,
+        //      oneapi::dpl::__ranges::guard_view<oneapi::dpl::counting_iterator<long long>>
+        // >
+        using _PackedRange2Tuple = decltype(std::declval<_PackedRange2>().base());
+
+        // The _RngDiags is:
+        // oneapi::dpl::__ranges::all_view<long long, sycl::access::mode::write>
         using _RngDiags = std::decay_t<decltype(std::get<2>(__tuple))>;
 
-        using _Rng1 = std::decay_t<decltype(std::get<0>(std::declval<_Tuple1>()))>;
-        using _Rng2 = std::decay_t<decltype(std::get<0>(std::declval<_Tuple2>()))>;
+        auto __internal_tuple1 = std::get<0>(__tuple).base();
+        static_assert(std::is_same_v<_PackedRange1Tuple, decltype(__internal_tuple1)>, "Unexpected type for unpacked range 1 tuple");
 
-        _Tuple1 __tuple1 = std::make_tuple(std::get<0>(__tuple));
-        _Tuple2 __tuple2 = std::make_tuple(std::get<1>(__tuple));
+        // The __rng1 type is std::ranges::subrange<test_std_ranges::A *>
+        auto __rng1 = std::get<0>(__internal_tuple1); // first sequence
 
-        return _UnpackedSourceZippedRangesBounded<_Tuple1, _Rng1, _Tuple2, _Rng2, _RngDiags>{
-            __tuple1,
-            std::get<0>(__tuple1),
-            __tuple2,
-            std::get<0>(__tuple2),
-            std::get<2>(__tuple)};
+        auto __internal_tuple2 = std::get<1>(__tuple).base();
+        static_assert(std::is_same_v<_PackedRange2Tuple, decltype(__internal_tuple2)>, "Unexpected type for unpacked range 2 tuple");
+
+        // The __rng2 type is std::ranges::subrange<test_std_ranges::B *>
+        auto __rng2 = std::get<0>(__internal_tuple2); // second sequence
+
+        return _UnpackedSourceZippedRangesBounded<
+            _PackedRange1Tuple, _PackedRange2Tuple,
+            decltype(__rng1), decltype(__rng2), _RngDiags>{
+            {__rng1, __rng2, std::get<2>(__tuple)},
+            __internal_tuple1,
+            __internal_tuple2,
+        };
     }
 }
 
@@ -748,6 +822,7 @@ __encode_balanced_path_temp_data(const _IdxT __rng1_idx, const bool __star)
     return __signed_idx * (signed_t{1} - signed_t{2} * signed_t{__star});
 }
 
+template <bool _Bounded>
 struct __get_bounds_partitioned
 {
     template <typename _Rng, typename _IndexT>
@@ -757,12 +832,12 @@ struct __get_bounds_partitioned
         // Get source tuple
         auto&& __tuple = __in_rng.base();
 
-        auto __rng_tmp_diag = std::get<2>(__tuple); // set a temp storage sequence
+        auto __unzipped_src_ranges = __unpack_source_zipped_range<_Bounded>(__tuple);
 
         using _SizeType = std::common_type_t<
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<0>(__in_rng.base())))>,
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(std::get<1>(__in_rng.base())))>,
-            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__rng_tmp_diag))>>;
+            std::make_unsigned_t<decltype(__unzipped_src_ranges.__rng1.size())>,
+            std::make_unsigned_t<decltype(__unzipped_src_ranges.__rng2.size())>,
+            std::make_unsigned_t<decltype(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_tmp_diag))>>;
 
         // Establish bounds of ranges for the tile from sparse partitioning pass kernel
 
@@ -770,12 +845,12 @@ struct __get_bounds_partitioned
         const _SizeType __wg_begin_idx = (__id / __tile_size) * __tile_size;
         const _SizeType __signed_tile_size = static_cast<_SizeType>(__tile_size);
         const _SizeType __wg_end_idx = std::min<_SizeType>(((__id / __signed_tile_size) + 1) * __signed_tile_size,
-                                                           oneapi::dpl::__ranges::__size(__rng_tmp_diag) - 1);
+                                oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng_tmp_diag) - 1);
 
         const auto [begin_rng1, begin_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
+            __decode_balanced_path_temp_data_no_star(__unzipped_src_ranges.__rng_tmp_diag, __wg_begin_idx, __diagonal_spacing);
         const auto [end_rng1, end_rng2] =
-            __decode_balanced_path_temp_data_no_star(__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
+            __decode_balanced_path_temp_data_no_star(__unzipped_src_ranges.__rng_tmp_diag, __wg_end_idx, __diagonal_spacing);
         return std::make_tuple(_SizeType{begin_rng1}, _SizeType{end_rng1}, _SizeType{begin_rng2}, _SizeType{end_rng2});
     }
     std::uint16_t __diagonal_spacing;
@@ -783,6 +858,7 @@ struct __get_bounds_partitioned
     std::size_t __partition_threshold;
 };
 
+template <bool _Bounded>
 struct __get_bounds_simple
 {
     template <typename _Rng, typename _IndexT>
@@ -792,13 +868,12 @@ struct __get_bounds_simple
         // Get source tuple
         auto&& __tuple = __in_rng.base();
 
-        const auto __rng1 = std::get<0>(__tuple); // first sequence
-        const auto __rng2 = std::get<1>(__tuple); // second sequence
+        auto __unzipped_src_ranges = __unpack_source_zipped_range<_Bounded>(__tuple);
 
-        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2)>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__unzipped_src_ranges.__rng1), decltype(__unzipped_src_ranges.__rng2)>;
 
-        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1)),
-                               _SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng2)));
+        return std::make_tuple(_SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng1)),
+                               _SizeType{0}, static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng2)));
     }
 };
 
@@ -925,7 +1000,7 @@ struct __gen_set_balanced_path
     void
     __calc_partition_bounds(const _InRng& __in_rng, _IndexT __id) const
     {
-        calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
+        calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple</*_Bounded*/ false>{});
     }
 
     // Entry point for reduce then scan reduce input
@@ -938,7 +1013,7 @@ struct __gen_set_balanced_path
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        auto __unzipped_src_ranges = __unpack_source_zipped_range</*_Bounded*/ false>(__tuple);
+        auto __unzipped_src_ranges = __unpack_source_zipped_range<_Bounded>(__tuple);
 
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
@@ -954,7 +1029,7 @@ struct __gen_set_balanced_path
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
             auto [__idx_rng1, __idx_rng2, __local_star] =
-                calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple{});
+                calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
             __rng1_balanced_pos = __idx_rng1;
             __rng2_balanced_pos = __idx_rng2;
             __star = __local_star;
@@ -998,7 +1073,7 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
@@ -1011,28 +1086,23 @@ struct __gen_set_op_from_known_balanced_path
 
         // First we must extract individual sequences from zip iterator because they may not have the same length,
         // dereferencing is dangerous
-        const auto __rng1 = std::get<0>(__tuple); // first sequence
-        const auto __rng2 = std::get<1>(__tuple); // second sequence
+        auto __unzipped_src_ranges = __unpack_source_zipped_range<_Bounded>(__tuple);
 
-        // set a temp storage sequence, star value in sign bit
-        const auto __rng1_temp_diag = std::get<2>(__tuple);
-
-        using _SizeType =
-            oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
+        using _SizeType = oneapi::dpl::__ranges::__common_size_t<decltype(__unzipped_src_ranges.__rng1), decltype(__unzipped_src_ranges.__rng2), decltype(__unzipped_src_ranges.__rng_tmp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
-        if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
+        if (__i_elem >= oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng1) + oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng2))
             return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
+
         auto [__rng1_idx, __rng2_idx, __star_offset] =
-            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
-                                                                                __diagonal_spacing);
+            oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__unzipped_src_ranges.__rng_tmp_diag, __id, __diagonal_spacing);
 
-        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
-            std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
-                     static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
-                                            oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
+        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(std::min(
+            static_cast<_SizeType>(__diagonal_spacing - __star_offset),
+            static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng1) +
+                                   oneapi::dpl::__ranges::__size(__unzipped_src_ranges.__rng2) - __i_elem + 1)));
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
-                                               __comp, __proj1, __proj2);
+        std::uint16_t __count = __set_op_count(__unzipped_src_ranges.__rng1, __unzipped_src_ranges.__rng2, __rng1_idx,
+                                               __rng2_idx, __eles_to_process, __output_data, __comp, __proj1, __proj2);
 
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
