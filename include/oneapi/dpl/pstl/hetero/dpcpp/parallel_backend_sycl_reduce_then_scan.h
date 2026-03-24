@@ -157,7 +157,6 @@ struct __write_op_base
     static bool
     __is_in_bounds(const _OutRng& __out_rng, _SizeType __id)
     {
-        //static_assert(false);
         if constexpr (_Bounded)
             return __id < oneapi::dpl::__ranges::__size(__out_rng);
         else
@@ -173,8 +172,8 @@ struct __simple_write_to_id
     using _TempData = __noop_temp_data;
 
     template <typename _OutRng, typename _ValueType>
-    void
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&)
+    bool
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -182,8 +181,19 @@ struct __simple_write_to_id
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+
+        if constexpr (!_Bounded)
+        {
             __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+            return true;
+        }
+        else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
+        {
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+            return true;
+        }
+
+        return false;
     }
 };
 
