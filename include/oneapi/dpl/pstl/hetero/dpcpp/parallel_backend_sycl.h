@@ -1069,13 +1069,16 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 {
     constexpr std::uint16_t __diagonal_spacing = 32;
 
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+    using _Size3 = oneapi::dpl::__internal::__difference_t<_Range3>;
+
     using _SetOperation = __get_set_operation<_SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
     using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
-    using _TempData = __temp_data_array<__diagonal_spacing, _OutValueT>;
-    using _Size = oneapi::dpl::__internal::__difference_t<_Range3>;
-    using _ReduceOp = std::plus<_Size>;
+    using _TempData = __temp_data_array<_Bounded, __diagonal_spacing, _OutValueT, _Size1, _Size2>;
+    using _ReduceOp = std::plus<_Size3>;
     using _BoundsProviderPhase1 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned</*_Bounded*/ false>;
     using _BoundsProviderPhase2 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned<_Bounded>;
 
@@ -1130,7 +1133,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
             __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
             __gen_reduce_input_phase2, _ReduceOp{},
             _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{},
-            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
             /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event)
             .get();
 

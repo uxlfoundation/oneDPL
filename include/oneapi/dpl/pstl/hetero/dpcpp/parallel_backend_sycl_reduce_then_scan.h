@@ -24,6 +24,7 @@
 #include <utility>
 #include <cmath>
 #include <cassert>
+#include <array>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -46,36 +47,66 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
+template <bool _Bounded, std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
+struct __temp_data_array;
+
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT>
-struct __temp_data_array
+template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
+struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
 {
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, const _ValueT2& __ele)
+    set(std::uint16_t __idx, _Size1, _Size2, const _ValueT2& __ele)
     {
         __data[__idx].__setup(__ele);
     }
 
-    _ValueT
+    std::tuple<_ValueT, _Size1, _Size2>
     get_and_destroy(std::uint16_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return __data[__idx].__v;
+        return {__data[__idx].__v,  _Size1{}, _Size2{}};
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
+};
+
+// Temporary data structure which is used to store results to registers during a reduce then scan operation.
+template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
+struct __temp_data_array</*_Bounded*/ true, elements, _Size1, _Size2, _ValueT>
+{
+    template <typename _ValueT2>
+    void
+    set(std::uint16_t __idx, _Size1 __idx1, _Size2 __idx2, const _ValueT2& __ele)
+    {
+        __data[__idx].__setup(__ele);
+        __indexes1[__idx] = __idx1;
+        __indexes2[__idx] = __idx2;
+    }
+
+    std::tuple<_ValueT, _Size1, _Size2>
+    get_and_destroy(std::uint16_t __idx)
+    {
+        // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
+        // it leaves scope.
+        oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
+        return {__data[__idx].__v, __indexes1[__idx], __indexes2[__idx]};
+    }
+
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
+    std::array<_Size1, elements> __indexes1;
+    std::array<_Size2, elements> __indexes2;
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    template <typename _ValueT>
+    template <typename _Size1, typename _Size2, typename _ValueT>
     void
-    set(std::uint16_t, const _ValueT&) const
+    set(std::uint16_t, _Size1, _Size2, const _ValueT&) const
     {
     }
 };
@@ -312,24 +343,32 @@ struct __write_multiple_to_id
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
+        using _SourceDataType = std::conditional_t<!_Bounded, decltype(__temp_data.get_and_destroy(0)),
+                                                   decltype(std::get<0>(__temp_data.get_and_destroy(0)))>;
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__temp_data.get_and_destroy(0))>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<_SourceDataType>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         const std::size_t __n = std::get<1>(__v);
         const std::size_t __base_idx = std::get<0>(__v) - __n;
 
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
-            //if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __base_idx + __i))
-            bool __in_bounds = __write_op_base<_Bounded>::__is_in_bounds(__out_rng, __base_idx + __i);
-            if (__in_bounds)
+            if constexpr (!_Bounded)
             {
                 __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)), __out_rng[__base_idx + __i]);
             }
             else
             {
-                __in_bounds = __in_bounds;
-                __in_bounds = *std::addressof(__in_bounds);
+                if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __base_idx + __i))
+                {
+                    __assign(static_cast<_ConvertedTupleType>(std::get<0>(__temp_data.get_and_destroy(__i))), __out_rng[__base_idx + __i]);                    
+                }
+                else
+                {
+                    [[maybe_unused]] auto [__val, __idx1, __idx2] = __temp_data.get_and_destroy(__i);
+                    __idx1 = *std::addressof(__idx1);
+                    __idx2 = *std::addressof(__idx2);
+                }
             }
         }
     }
@@ -615,7 +654,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < oneapi::dpl::__ranges::__size(__in_rng2) && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
-                    __temp_out.set(__count, __in_rng2[__idx2]);
+                    __temp_out.set(__count, __idx1, __idx2, __in_rng2[__idx2]);
                     ++__count;
                 }
             }
@@ -629,7 +668,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < oneapi::dpl::__ranges::__size(__in_rng1) && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __temp_out.set(__count, __in_rng1[__idx1]);
+                    __temp_out.set(__count, __idx1, __idx2, __in_rng1[__idx1]);
                     ++__count;
                 }
             }
@@ -644,7 +683,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetA)
         {
-            __temp_out.set(__count, __ele_rng1);
+            __temp_out.set(__count, __idx1, __idx2, __ele_rng1);
             ++__count;
         }
         ++__idx1;
@@ -654,7 +693,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetB)
         {
-            __temp_out.set(__count, __ele_rng2);
+            __temp_out.set(__count, __idx1, __idx2, __ele_rng2);
             ++__count;
         }
         ++__idx2;
@@ -664,7 +703,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyMatch)
         {
-            __temp_out.set(__count, __ele_rng1);
+            __temp_out.set(__count, __idx1, __idx2, __ele_rng1);
             ++__count;
         }
         ++__idx1;
