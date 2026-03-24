@@ -1113,8 +1113,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     constexpr std::uint32_t __bytes_per_work_item_iter = __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __in_in_tmp_rng_phase1 = __create_in_in_rng_tmp</*_Bounded*/ false>(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
-    auto __in_in_tmp_rng_phase2 = __create_in_in_rng_tmp<_Bounded          >(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
+    auto __in_in_tmp_rng_phase1 = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
+    auto __in_in_tmp_rng_phase2 = _SetOpSourceDataPackUnpack::__pack<_Bounded          >(__rng1, __rng2, oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__temp_diags.get_buffer()));
 
     sycl::event __partition_event;
 
