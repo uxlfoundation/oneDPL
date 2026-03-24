@@ -50,6 +50,7 @@ Macro                              Macro values and the functionality
                                    * ``202409L`` - see :ref:`available algorithms <range-algorithms-202409L>`.
                                    * ``202505L`` - see :ref:`available algorithms <range-algorithms-202505L>`.
                                    * ``202509L`` - see :ref:`available algorithms <range-algorithms-202509L>`.
+                                   * ``202604L`` - see :ref:`available algorithms <range-algorithms-202604L>`.
 ================================== ===============================================
 
 Additional Macros
