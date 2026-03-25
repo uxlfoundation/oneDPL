@@ -118,7 +118,7 @@ struct __noop_temp_data
 {
     template <typename _Size1, typename _Size2, typename _ValueArg>
     void
-    set(std::uint16_t, _Size1, _Size2, _ValueArg&&) const
+    set(std::uint16_t, _ValueArg&&, _Size1, _Size2)
     {
     }
 
