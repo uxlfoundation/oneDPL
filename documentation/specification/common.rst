@@ -6,7 +6,7 @@
 General Information
 -------------------
 
-This section describes the most general functionality of |dpl_full_name| (oneDPL)
+This section describes the most general functionality of |onedpl_long| (oneDPL)
 such as namespaces, versioning, etc.
 
 Namespaces

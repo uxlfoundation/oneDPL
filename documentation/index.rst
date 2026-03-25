@@ -11,4 +11,11 @@ oneAPI DPC++ Library Documentation
    get_started/release_notes.rst
    get_started/onedpl_gsg.rst
 
+.. toctree::
+   :maxdepth: 2
+   :titlesonly:
+   :caption: Specification
+   
+   specification/index.rst
+
 .. include:: library_guide/guide_toc.rst
