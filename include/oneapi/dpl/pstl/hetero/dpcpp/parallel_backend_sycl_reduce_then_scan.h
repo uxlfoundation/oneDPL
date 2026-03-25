@@ -54,6 +54,8 @@ struct __temp_data_array;
 template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
 struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
 {
+    using _ValueType = _ValueT;
+
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, _Size1, _Size2, const _ValueT2& __ele)
@@ -77,6 +79,8 @@ struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
 template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
 struct __temp_data_array</*_Bounded*/ true, elements, _Size1, _Size2, _ValueT>
 {
+    using _ValueType = _ValueT;
+
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, _Size1 __idx1, _Size2 __idx2, const _ValueT2& __ele)
