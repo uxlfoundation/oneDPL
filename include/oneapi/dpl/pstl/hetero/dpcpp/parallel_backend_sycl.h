@@ -1021,7 +1021,7 @@ using __parallel_rng_set_op_return_t = std::tuple<oneapi::dpl::__internal::__dif
                                                   oneapi::dpl::__internal::__difference_t<_Range3>>;
 
 // This function is currently unused, but may be utilized for small sizes sets at some point in the future.
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
@@ -1048,7 +1048,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n1);
 
     auto __res =
-        __parallel_transform_reduce_then_scan</*_Bounded*/ false, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
+        __parallel_transform_reduce_then_scan<_Bounded, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
                                               _CustomName>(
             __q, __n1,
             oneapi::dpl::__ranges::make_zip_view(
@@ -1373,7 +1373,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
     static_assert(!_Bounded, "Only unbounded variants are supported.");
 
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
             oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
@@ -1392,7 +1392,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThen
     static_assert(!_Bounded, "Only unbounded variants are supported.");
 
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
