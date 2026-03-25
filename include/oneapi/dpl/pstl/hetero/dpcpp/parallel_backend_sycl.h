@@ -694,8 +694,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             // Next power of 2 greater than or equal to __n
             std::size_t __n_uniform = oneapi::dpl::__internal::__dpl_bit_ceil(__n);
 
-            // Empirically found values for reduce-then-scan and multi pass scan implementation for single wg cutoff
-            std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
+            // GPU: reduce-then-scan is efficient for moderate-sized inputs, so the single-group cutoff is low.
+            // CPU: kernel launch overhead dominates, so prefer the single-group path for larger inputs.
+            std::size_t __single_group_upper_limit = __q_local.get_device().is_gpu() ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
