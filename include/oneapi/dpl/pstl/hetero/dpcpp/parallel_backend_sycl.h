@@ -1200,7 +1200,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
     return {__n1, __n2, __res};
 }
 
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue&, _Range1&&, _Range2&&, _Range3&&, _Compare, _Proj1, _Proj2);
@@ -1398,6 +1398,9 @@ template <typename _CustomName>
 struct reduce_then_scan_wrapper;
 
 template <typename _CustomName>
+struct reduce_then_scan_wrapper_bounded;
+
+template <typename _CustomName>
 struct scan_then_propagate_wrapper;
 
 template <typename _CustomName>
@@ -1442,50 +1445,44 @@ struct __check_use_write_a_alg
 // Selects the right implementation of set based on the size and platform
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
-std::enable_if_t<!_Bounded, __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>>
+__parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    //can we use reduce then scan?
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
+    if constexpr (!_Bounded)
     {
-        if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
+        //can we use reduce then scan?
+        if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
         {
-            // use reduce then scan with set_a write
-            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
-                __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
-                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
-        }
+            if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
+            {
+                // use reduce then scan with set_a write
+                return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
+                    __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
+                    std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+            }
 
-        return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper<_CustomName>>(
-                   __set_tag, __q,
-                   std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
-                  __comp, __proj1, __proj2);
+            return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper<_CustomName>>(
+                       __set_tag, __q,
+                       std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
+                      __comp, __proj1, __proj2);
+        }
+        else
+        {
+            return __set_write_a_only_op<scan_then_propagate_wrapper<_CustomName>>(
+                __set_tag, /*use_reduce_then_scan=*/std::false_type{}, __q,
+                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
+                __comp, __proj1, __proj2);
+        }
     }
     else
     {
-        return __set_write_a_only_op<scan_then_propagate_wrapper<_CustomName>>(
-            __set_tag, /*use_reduce_then_scan=*/std::false_type{}, __q,
-            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
-            __comp, __proj1, __proj2);
+        // KSATODO required to check which performance profit we lost if we don't use __set_write_a_only_op in this case
+        // KSATODO should we use reduce_then_scan_wrapper or reduce_then_scan_wrapper_bounded here?
+        return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper_bounded<_CustomName>>(
+            __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     }
-}
-
-template <typename _CustomName>
-struct reduce_then_scan_wrapper_bounded;
-
-// Selects the right implementation of set based on the size and platform
-template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
-std::enable_if_t<_Bounded, __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>>
-__set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-              _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
-{
-    // KSATODO required to check which performance profit we lost if we don't use __set_write_a_only_op in this case
-    // KSATODO should we use reduce_then_scan_wrapper or reduce_then_scan_wrapper_bounded here?
-    return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper_bounded<_CustomName>>(
-        __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
