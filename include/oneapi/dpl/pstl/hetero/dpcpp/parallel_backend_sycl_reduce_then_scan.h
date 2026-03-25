@@ -730,9 +730,6 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                                   _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1,
                                   _Proj2 __proj2)
 {
-    using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
-    using _ValueTypeRng2 = typename oneapi::dpl::__internal::__value_t<_InRng2>;
-
     if constexpr (_CheckBounds)
     {
         if (__idx1 == oneapi::dpl::__ranges::__size(__in_rng1))
@@ -765,13 +762,13 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
         }
     }
 
-    const _ValueTypeRng1& __ele_rng1 = __in_rng1[__idx1];
-    const _ValueTypeRng2& __ele_rng2 = __in_rng2[__idx2];
+    auto&& __ele_rng1 = __in_rng1[__idx1];
+    auto&& __ele_rng2 = __in_rng2[__idx2];
     if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
     {
         if constexpr (_CopyDiffSetA)
         {
-            __temp_out.set(__count, __ele_rng1, __idx1, __idx2);
+            __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
@@ -781,7 +778,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetB)
         {
-            __temp_out.set(__count, __ele_rng2, __idx1, __idx2);
+            __temp_out.set(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2), __idx1, __idx2);
             ++__count;
         }
         ++__idx2;
@@ -791,7 +788,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyMatch)
         {
-            __temp_out.set(__count, __ele_rng1, __idx1, __idx2);
+            __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
