@@ -43,6 +43,8 @@ The following differences to the standard serial C++ range algorithms apply:
   `P3709R2 <https://isocpp.org/files/papers/P3709R2.html>`_.
 - The return type of ``set_difference`` is ``std::ranges::in_in_out_result`` rather than
   ``std::ranges::set_difference_result``.
+- ``set_intersection`` might return the "last" iterator for only one, and not necessarily both, of the input ranges
+  (see below for more information).
 - ``destroy`` is not marked with ``noexcept``.
 
 Auxiliary Definitions
@@ -924,6 +926,15 @@ Set operations
                                  Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});
 
   }
+
+.. note::
+   Unlike the respective serial algorithm in ``std::ranges``, ``set_intersection`` is not guaranteed to return
+   both iterators to the ends of the input ranges, even if there is enough space in the output range.
+   It only holds for the range which last element is ordered before the last element of the other range.
+   For the other range, the returned iterator points to the first element ordered after the last element
+   of the fully processed range.
+   
+   The same semantics applies to ``set_difference`` for its second input range.
 
 Partition operations
 ++++++++++++++++++++
