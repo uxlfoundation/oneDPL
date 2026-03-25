@@ -243,13 +243,13 @@ __parallel_copy_impl(sycl::queue& __q, _Index __count, _Range1&& __rng1, _Range2
 //------------------------------------------------------------------------
 
 // Please see the comment above __parallel_for_small_submitter for optional kernel name explanation
-template <typename _CustomName, typename _PropagateScanName>
+template <bool _Bounded, typename _CustomName, typename _PropagateScanName>
 struct __parallel_scan_submitter;
 
 // Even if this class submits three kernel optional name is allowed to be only for one of them
 // because for two others we have to provide the name to get the reliable work group size
-template <typename _CustomName, typename... _PropagateScanName>
-struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
+template <bool _Bounded, typename _CustomName, typename... _PropagateScanName>
+struct __parallel_scan_submitter<_Bounded, _CustomName, __internal::__optional_kernel_name<_PropagateScanName...>>
 {
     template <typename _Range1, typename _Range2, typename _InitType, typename _LocalScan, typename _GroupScan,
               typename _GlobalScan, typename _Apex>
@@ -257,6 +257,8 @@ struct __parallel_scan_submitter<_CustomName, __internal::__optional_kernel_name
     operator()(sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _InitType __init, _LocalScan __local_scan,
                _GroupScan __group_scan, _GlobalScan __global_scan, _Apex __apex) const
     {
+        // KSATODO required to support _Bounded in this struct __parallel_scan_submitter::operator()
+
         using _Type = typename _InitType::__value_type;
         using _LocalScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
             __scan_local_kernel, _CustomName, _Range1, _Range2, _Type, _LocalScan, _GroupScan, _GlobalScan>;
@@ -680,8 +682,8 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     }
 }
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _InitType, typename _LocalScan,
-          typename _GroupScan, typename _GlobalScan, typename _Apex>
+template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _InitType,
+          typename _LocalScan, typename _GroupScan, typename _GlobalScan, typename _Apex>
 std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& __out_rng, _InitType __init,
                                _LocalScan __local_scan, _GroupScan __group_scan, _GlobalScan __global_scan,
@@ -690,8 +692,9 @@ __parallel_transform_scan_base(sycl::queue& __q, _Range1&& __in_rng, _Range2&& _
     using _PropagateKernel =
         oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__scan_propagate_kernel<_CustomName>>;
 
-    return __parallel_scan_submitter<_CustomName, _PropagateKernel>()(__q, std::forward<_Range1>(__in_rng),
-        std::forward<_Range2>(__out_rng), __init, __local_scan, __group_scan, __global_scan, __apex);
+    return __parallel_scan_submitter<_Bounded, _CustomName, _PropagateKernel>()(
+        __q, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init, __local_scan, __group_scan,
+        __global_scan, __apex);
 }
 
 template <typename _Type>
@@ -774,7 +777,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     _NoAssign __ignore_op;
     _Unchanged __read_op;
 
-    auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
+    auto&& [__event, __payload] = __parallel_transform_scan_base<_Bounded, _CustomName>(
         __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
         // local scan
         unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged, _InitType>{
@@ -808,7 +811,7 @@ __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& 
         /*_Inclusive=*/std::true_type{}, __is_unique_pattern);
 }
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
+template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _IndexPred,
           typename _CopyByMaskOp>
 std::tuple<sycl::event, __combined_storage<_Size>>
 __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size __n, _IndexPred __pred,
@@ -831,7 +834,7 @@ __parallel_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n);
 
-    return __parallel_transform_scan_base<_CustomName>(
+    return __parallel_transform_scan_base<_Bounded, _CustomName>(
         __q,
         oneapi::dpl::__ranges::zip_view(
             __in_rng, oneapi::dpl::__ranges::all_view<int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -884,7 +887,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     }
     else
     {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+        auto&& [__event, __payload] = __parallel_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred},
             unseq_backend::__copy_by_mask<_Assign, 1>{_Assign{}});
@@ -955,7 +958,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     }
     else
     {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+        auto&& [__event, __payload] = __parallel_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
@@ -1000,7 +1003,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     }
     else
     {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
+        auto&& [__event, __payload] = __parallel_scan_copy<_Bounded, _CustomName>(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n,
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__copy_by_mask<_Assign, 1>{__assign});
 
@@ -1145,12 +1148,11 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     return {__n1, __n2, __output_idx};
 }
 
-template <typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
+template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
           typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
-__parallel_set_scan(_SetTag, sycl::queue& __q,
-                    _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
-                    _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
+__parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp,
+                    _Proj1 __proj1, _Proj2 __proj2)
 {
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
@@ -1176,7 +1178,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q,
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
-    auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_CustomName>(
+    auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_Bounded, _CustomName>(
         __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1377,9 +1379,9 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
             oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
-        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_IntersectionTag{}, __q,
-                                                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        return __parallel_set_scan<_Bounded, _CustomName>(oneapi::dpl::unseq_backend::_IntersectionTag{}, __q,
+                                                          std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                          std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
 template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
@@ -1396,9 +1398,9 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThen
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
-        return __parallel_set_scan<_CustomName>(oneapi::dpl::unseq_backend::_DifferenceTag{}, __q,
-                                                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        return __parallel_set_scan<_Bounded, _CustomName>(oneapi::dpl::unseq_backend::_DifferenceTag{}, __q,
+                                                          std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                                                          std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
 template <typename _CustomName>
