@@ -2097,12 +2097,18 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
-    const bool __is_gpu = __q.get_device().is_gpu();
-
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 8192);
+    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, 1024);
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
+    // TODO: Investigate potentially basing this on some scale of the number of compute units. 128 work-groups has been
+    // found to be reasonable number for most devices.
+    constexpr std::uint32_t __num_work_groups = 128;
+    // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
+    const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
+    const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
+    const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
+    const std::uint32_t __max_inputs_per_block = __max_inputs_per_work_group * __num_work_groups;
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
     {
@@ -2112,21 +2118,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
-
-    // GPU: 128 work-groups is empirically a good balance.
-    // CPU: use enough work-groups to cover the entire input in a single block, avoiding extra
-    //      kernel-launch overhead.  Each block requires 2 kernel launches (reduce + scan), so
-    //      minimizing blocks is critical for CPU where launch overhead dominates.
-    const std::uint32_t __max_inputs_per_work_group = __work_group_size * __max_inputs_per_item;
-    const std::uint32_t __num_work_groups =
-        __is_gpu ? 128
-                 : std::max(std::uint32_t{1}, static_cast<std::uint32_t>(oneapi::dpl::__internal::__dpl_ceiling_div(
-                                                  __inputs_remaining, std::size_t{__max_inputs_per_work_group})));
-
-    // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
-    const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
-    const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
-    const std::uint32_t __max_inputs_per_block = __max_inputs_per_work_group * __num_work_groups;
     std::uint32_t __inputs_per_item =
         __inputs_remaining >= __max_inputs_per_block
             ? __max_inputs_per_item
@@ -2142,7 +2133,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
     // (where native sub-group operations are slow).
-    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__is_gpu;
+    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__q.get_device().is_gpu();
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
@@ -2175,8 +2166,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __write_op,
                                     __init};
 
-    // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and
-    // second kernel for accelerators with sufficiently large L2 / L3 caches.
+    // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
+    // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
         std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
@@ -2186,8 +2177,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
-        // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to
-        //    global memory.
+        // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                            __inputs_remaining, __b);
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
