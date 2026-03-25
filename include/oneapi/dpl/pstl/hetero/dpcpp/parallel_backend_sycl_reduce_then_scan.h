@@ -56,11 +56,11 @@ struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Size1, _Size2>
 {
     using _ValueType = _ValueT;
 
-    template <typename _ValueT2>
+    template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _Size1, _Size2, const _ValueT2& __ele)
+    set(std::uint16_t __idx, _ValueArg&& __value, _Size1, _Size2)
     {
-        __data[__idx].__setup(__ele);
+        __data[__idx].__setup(std::forward<_ValueArg>(__value));
     }
 
     _ValueT
@@ -81,11 +81,11 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Size1, _Size2>
 {
     using _ValueType = _ValueT;
 
-    template <typename _ValueT2>
+    template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _Size1 __idx1, _Size2 __idx2, const _ValueT2& __ele)
+    set(std::uint16_t __idx, _ValueArg&& __value, _Size1 __idx1, _Size2 __idx2)
     {
-        __data[__idx].__setup(__ele);
+        __data[__idx].__setup(std::forward<_ValueArg>(__value));
         __indexes1[__idx] = __idx1;
         __indexes2[__idx] = __idx2;
     }
@@ -116,9 +116,9 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Size1, _Size2>
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    template <typename _Size1, typename _Size2, typename _ValueT>
+    template <typename _Size1, typename _Size2, typename _ValueArg>
     void
-    set(std::uint16_t, _Size1, _Size2, const _ValueT&) const
+    set(std::uint16_t, _Size1, _Size2, _ValueArg&&) const
     {
     }
 
