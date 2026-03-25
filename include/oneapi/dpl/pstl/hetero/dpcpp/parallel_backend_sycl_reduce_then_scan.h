@@ -47,12 +47,12 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
-template <bool _Bounded, std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
+template <bool _Bounded, std::uint16_t elements, typename _ValueT, typename _Size1, typename _Size2>
 struct __temp_data_array;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
-struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
+template <std::uint16_t elements, typename _ValueT, typename _Size1, typename _Size2>
+struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Size1, _Size2>
 {
     using _ValueType = _ValueT;
 
@@ -76,8 +76,8 @@ struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
 };
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _Size1, typename _Size2, typename _ValueT>
-struct __temp_data_array</*_Bounded*/ true, elements, _Size1, _Size2, _ValueT>
+template <std::uint16_t elements, typename _ValueT, typename _Size1, typename _Size2>
+struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Size1, _Size2>
 {
     using _ValueType = _ValueT;
 
@@ -742,7 +742,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < oneapi::dpl::__ranges::__size(__in_rng2) && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
-                    __temp_out.set(__count, __idx1, __idx2, __in_rng2[__idx2]);
+                    __temp_out.set(__count, __in_rng2[__idx2], __idx1, __idx2);
                     ++__count;
                 }
             }
@@ -756,7 +756,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < oneapi::dpl::__ranges::__size(__in_rng1) && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __temp_out.set(__count, __idx1, __idx2, __in_rng1[__idx1]);
+                    __temp_out.set(__count, __in_rng1[__idx1], __idx1, __idx2);
                     ++__count;
                 }
             }
@@ -771,7 +771,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetA)
         {
-            __temp_out.set(__count, __idx1, __idx2, __ele_rng1);
+            __temp_out.set(__count, __ele_rng1, __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
@@ -781,7 +781,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetB)
         {
-            __temp_out.set(__count, __idx1, __idx2, __ele_rng2);
+            __temp_out.set(__count, __ele_rng2, __idx1, __idx2);
             ++__count;
         }
         ++__idx2;
@@ -791,7 +791,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyMatch)
         {
-            __temp_out.set(__count, __idx1, __idx2, __ele_rng1);
+            __temp_out.set(__count, __ele_rng1, __idx1, __idx2);
             ++__count;
         }
         ++__idx1;
