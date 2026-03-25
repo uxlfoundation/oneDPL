@@ -200,6 +200,13 @@ Known Limitations
 * Range-based ``sort`` and ``stable_sort`` algorithms called with device execution policies
   use ``std::swap`` instead of ``std::ranges::iter_swap``.
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
+* Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
+  This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
+- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+  ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
+  with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
+  with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
+  To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable

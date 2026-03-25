@@ -760,6 +760,8 @@ __select_backend(const execution::device_policy<_KernelName>&, _Ranges&&...)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 //TODO required correct implementation of this __ranges::__select_backend()
 // 1. There is still not RA ranges checks
 // 2. Obviously, a return tag is not necessarily oneapi::dpl::__internal::__hetero_tag
@@ -769,6 +771,7 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 {
     return {};
 }
+#pragma GCC diagnostic pop
 #endif
 
 } // namespace __ranges
