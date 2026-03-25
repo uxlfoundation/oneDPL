@@ -431,10 +431,8 @@ struct __write_multiple_to_id
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
-        using _SourceDataType = std::conditional_t<!_Bounded, decltype(__temp_data.get_and_destroy(0)),
-                                                   decltype(std::get<0>(__temp_data.get_and_destroy(0)))>;
         using _ConvertedTupleType =
-            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<_SourceDataType>,
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<typename _TempData::_ValueType>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         const std::size_t __n = std::get<1>(__v);
         const std::size_t __base_idx = std::get<0>(__v) - __n;
