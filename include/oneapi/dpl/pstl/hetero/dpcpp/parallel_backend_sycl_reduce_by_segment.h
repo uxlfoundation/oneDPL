@@ -84,13 +84,17 @@ using _SegReduceWgPhase = __seg_reduce_wg_kernel<_Name...>;
 template <typename... _Name>
 using _SegReducePrefixPhase = __seg_reduce_prefix_kernel<_Name...>;
 
-template <typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
+template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
 oneapi::dpl::__internal::__difference_t<_Range3>
 __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                                          _Range3&& __out_keys, _Range4&& __out_values,
                                                          _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
+    // KSATODO required to implement _Bounded version if this __parallel_reduce_by_segment_fallback_has_known_identity()
+
+    static_assert(false);
+
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
     using _SegReduceOffsetKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
@@ -458,7 +462,7 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     sycl::queue __q_local = __exec.queue();
 
-    return __parallel_reduce_by_segment_fallback_has_known_identity<__CustomName>(
+    return __parallel_reduce_by_segment_fallback_has_known_identity<_Bounded, __CustomName>(
         __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
         std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
 }
