@@ -1543,7 +1543,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
         __reduce_then_scan_sub_group_params __sub_group_params(
             __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
-        _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? &__comm_slm[0] : nullptr;
+        _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
         std::size_t __group_id = __ndi.get_group(0);
         std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
         std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1720,7 +1720,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     {
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
         const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-        _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? &__comm_slm[0] : nullptr;
+        _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
 
         __reduce_then_scan_sub_group_params __sub_group_params(
             __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
