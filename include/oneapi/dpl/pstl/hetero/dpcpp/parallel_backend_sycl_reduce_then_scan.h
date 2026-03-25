@@ -63,13 +63,13 @@ struct __temp_data_array</*_Bounded*/ false, elements, _Size1, _Size2, _ValueT>
         __data[__idx].__setup(__ele);
     }
 
-    std::tuple<_ValueT, _Size1, _Size2>
+    _ValueT
     get_and_destroy(std::uint16_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return {__data[__idx].__v,  _Size1{}, _Size2{}};
+        return {__data[__idx].__v};
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
