@@ -1211,12 +1211,14 @@ struct __set_union_merge_wrapper;
 template <typename _CustomName>
 struct __set_union_copy_wrapper;
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan, sycl::queue& __q, _Range1&& __rng1,
                       _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
+    static_assert(!_Bounded, "Only unbounded variants are supported.");
+
     using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2, _Range3>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
@@ -1233,7 +1235,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 
     //1. Calc difference {2} \ {1}
     const auto [__offset1, __offset2, __n_diff] =
-        oneapi::dpl::__par_backend_hetero::__set_op_impl</*_Bounded*/ false, _CustomName>(
+        oneapi::dpl::__par_backend_hetero::__set_op_impl<_Bounded, _CustomName>(
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __diff_buff_rng1.all_view(), __comp,
             __proj2, __proj1);
 
@@ -1252,8 +1254,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
         auto __diff_buff_rng2 = __diff_buff_keep2(__diff_buff_ptr, __diff_buff_ptr + __n_diff);
 
         const auto [__merged_offset1, __merged_offset2] =
-            oneapi::dpl::__par_backend_hetero::__parallel_merge_impl</*_Bounded*/ false,
-                                                                     __set_union_merge_wrapper<_CustomName>>(
+            oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<_Bounded, __set_union_merge_wrapper<_CustomName>>(
                 __q, std::forward<_Range1>(__rng1), __diff_buff_rng2.all_view(), std::forward<_Range3>(__result),
                 __comp, __proj1, __proj2)
                 .get();
@@ -1274,13 +1275,15 @@ struct __set_symmetric_difference_copy1_wrapper;
 template <typename _CustomName>
 struct __set_symmetric_difference_copy2_wrapper;
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
+    static_assert(!_Bounded, "Only unbounded variants are supported.");
+
     using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2, _Range3>;
 
     using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
@@ -1360,13 +1363,15 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
     return { __merged_offset1, __merged_offset2, __n_diff_1  + __n_diff_2};
 }
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
+    static_assert(!_Bounded, "Only unbounded variants are supported.");
+
     if constexpr (_UseReduceThenScan::value)
         return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
             oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
@@ -1377,13 +1382,15 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
                                                 std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
-template <typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2, typename _Range3,
-          typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
+          typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
 __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThenScan, sycl::queue& __q,
                       _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                       _Proj2 __proj2)
 {
+    static_assert(!_Bounded, "Only unbounded variants are supported.");
+
     if constexpr (_UseReduceThenScan::value)
         return __parallel_set_reduce_then_scan_set_a_write<_CustomName>(
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
@@ -1457,7 +1464,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
             if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
             {
                 // use reduce then scan with set_a write
-                return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
+                return __set_write_a_only_op<_Bounded, set_a_write_wrapper<_CustomName>>(
                     __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
                     std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
             }
@@ -1469,7 +1476,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
         }
         else
         {
-            return __set_write_a_only_op<scan_then_propagate_wrapper<_CustomName>>(
+            return __set_write_a_only_op<_Bounded, scan_then_propagate_wrapper<_CustomName>>(
                 __set_tag, /*use_reduce_then_scan=*/std::false_type{}, __q,
                 std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2), std::forward<_Range3>(__result),
                 __comp, __proj1, __proj2);
