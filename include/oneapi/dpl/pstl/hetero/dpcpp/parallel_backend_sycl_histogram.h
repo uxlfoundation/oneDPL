@@ -221,38 +221,50 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
         const ::std::size_t __n = __input.size();
         const ::std::uint8_t __num_bins = __bins.size();
         using _local_histogram_type = ::std::uint32_t;
-        using _private_histogram_type = ::std::uint16_t;
         using _histogram_index_type = ::std::int8_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
         ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
+        const std::uint32_t __max_num_sub_groups = __work_group_size / 4; // minimum SG size is 4
         ::std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __q.submit([&](auto& __h) {
             __h.depends_on(__init_event);
             auto _device_copyable_func = __binhash_manager.prepare_device_binhash(__h);
             oneapi::dpl::__ranges::__require_access(__h, __input, __bins);
-            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(sycl::range(__num_bins), __h);
+            // Per-sub-group SLM histogram copies to reduce atomic contention while avoiding
+            // private histogram registers that force large GRF mode and halve occupancy.
+            __dpl_sycl::__local_accessor<_local_histogram_type> __local_histogram(
+                sycl::range(__max_num_sub_groups * __num_bins), __h);
             __dpl_sycl::__local_accessor<_extra_memory_type> __extra_SLM(sycl::range(__extra_SLM_elements), __h);
             __h.template parallel_for<_KernelName...>(
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
+                    constexpr auto _atomic_address_space = sycl::access::address_space::local_space;
                     const ::std::size_t __self_lidx = __self_item.get_local_id(0);
                     const ::std::size_t __wgroup_idx = __self_item.get_group(0);
                     const ::std::size_t __seg_start = __work_group_size * __iters_per_work_item * __wgroup_idx;
                     auto __SLM_binhash = __make_SLM_binhash(_device_copyable_func, __extra_SLM, __self_item);
-                    __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
-                    _private_histogram_type __histogram[__bins_per_work_item] = {0};
+                    __dpl_sycl::__sub_group __sg = __self_item.get_sub_group();
+                    const std::uint32_t __sg_id = __sg.get_group_linear_id();
+                    const std::uint32_t __num_sub_groups = __sg.get_group_linear_range();
+                    const std::uint32_t __sg_offset = __sg_id * __num_bins;
 
+                    // Clear per-sub-group SLM histogram copies
+                    __clear_wglocal_histograms(__local_histogram, 0, __max_num_sub_groups * __num_bins, __self_item);
+
+                    // Main accumulation loop: SLM atomics to per-sub-group copy.
+                    // No private histogram array → low GRF pressure → small GRF mode → full occupancy.
+                    // Contention: only ~sg_size work-items per SLM copy (~32 atomics/bin vs 1024).
                     if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                     {
                         _ONEDPL_PRAGMA_UNROLL
                         for (::std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
-                            __accum_local_register_iter<_histogram_index_type>(
-                                __input[__seg_start + __idx * __work_group_size + __self_lidx], __histogram,
-                                __SLM_binhash);
+                            __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                                __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
+                                __sg_offset, __SLM_binhash);
                         }
                     }
                     else
@@ -263,23 +275,27 @@ struct __histogram_general_registers_local_reduction_submitter<__iters_per_work_
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_register_iter<_histogram_index_type>(__input[__val_idx], __histogram,
-                                                                                   __SLM_binhash);
+                                __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                                    __input[__val_idx], __local_histogram, __sg_offset, __SLM_binhash);
                             }
                         }
                     }
 
-                    for (_histogram_index_type __k = 0; __k < __num_bins; ++__k)
-                    {
-                        __dpl_sycl::__atomic_ref<_local_histogram_type, sycl::access::address_space::local_space>
-                            __local_bin(__local_histogram[__k]);
-                        __local_bin += __histogram[__k];
-                    }
-
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    __reduce_out_histograms<_bin_type, ::std::uint8_t>(__local_histogram, 0, __bins, __num_bins,
-                                                                       __self_item);
+                    // Merge per-sub-group histograms directly to global output.
+                    // Each of the first num_bins work-items sums one bin across all sub-group copies.
+                    if (__self_lidx < __num_bins)
+                    {
+                        _local_histogram_type __merged = 0;
+                        for (std::uint32_t __s = 0; __s < __num_sub_groups; ++__s)
+                        {
+                            __merged += __local_histogram[__s * __num_bins + __self_lidx];
+                        }
+                        __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
+                            __bins[__self_lidx]);
+                        __global_bin += __merged;
+                    }
                 });
         });
     }
