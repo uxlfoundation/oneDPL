@@ -66,7 +66,7 @@ Parameters
 | ``binary_op``                                  | A function object that is applied to the elements of the input.     |
 |                                                |                                                                     |
 +------------------------------------------------+---------------------------------------------------------------------+
-| ``param``                                      | A :doc:`kernel_param <kernel_configuration>` object.                |
+| ``param``                                      | A :doc:`kernel_param <../kernel_configuration>` object.             |
 |                                                |                                                                     |
 +------------------------------------------------+---------------------------------------------------------------------+
 
@@ -141,7 +141,7 @@ inclusive_scan Example
 
    1 3 4 7 8 10
 
-.. _scan-memory-requirements:
+.. _sycl-scan-memory-requirements:
 
 -------------------
 Memory Requirements
@@ -219,7 +219,7 @@ The initial configuration may be selected according to these high-level guidelin
 .. warning::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
-   Make sure that :ref:`Memory requirements <scan-memory-requirements>` are satisfied.
+   Make sure that :ref:`Memory requirements <sycl-scan-memory-requirements>` are satisfied.
 
 .. [#fnote1] Merrill, D., Garland, M.: Single-pass Parallel Prefix Scan with Decoupled Look-back. Technical Report NVR-2016-002, NVIDIA (2016)
 .. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
