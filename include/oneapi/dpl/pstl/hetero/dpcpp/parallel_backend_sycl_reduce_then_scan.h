@@ -130,6 +130,7 @@ struct __simple_write_to_id
 template <std::int32_t __offset, typename _Assign>
 struct __write_to_id_if
 {
+    static constexpr std::int32_t __output_offset = __offset;
     using _TempData = __noop_temp_data;
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     void
@@ -278,6 +279,44 @@ struct __write_multiple_to_id
     }
     _Assign __assign;
 };
+
+// *** SLM Write Coalescing for Compacting Writes ***
+
+// Trait: does this write op benefit from SLM write coalescing?
+// Default is false; specialized to true for compacting write ops like __write_to_id_if.
+template <typename _WriteOp>
+struct __write_op_needs_coalescing : std::false_type
+{
+};
+
+template <std::int32_t __offset, typename _Assign>
+struct __write_op_needs_coalescing<__write_to_id_if<__offset, _Assign>> : std::true_type
+{
+};
+
+// No-op flush context for callers that do not use SLM write coalescing
+// (reduce kernel with __capture_output=false, non-compacting write ops like __simple_write_to_id).
+struct __no_flush_context
+{
+};
+
+// SLM flush context for compacting write operations.
+// Each sub-group owns a contiguous chunk of SLM of size sub_group_size for buffering compacted output elements.
+// Between stride iterations, valid elements are written to SLM, then flushed as coalesced writes to global memory.
+template <typename _ElementType>
+struct __slm_flush_context
+{
+    sycl::nd_item<1> __ndi;
+    const __dpl_sycl::__local_accessor<_ElementType>& __slm;
+    std::uint32_t __sg_base; // __sub_group_id * __sub_group_size
+};
+
+template <typename _Ctx>
+inline constexpr bool __use_slm_coalescing_v = !std::is_same_v<std::decay_t<_Ctx>, __no_flush_context>;
+
+// Maximum element size (in bytes) for which SLM write coalescing is enabled.
+// With max work-group size of 1024, this caps SLM buffer at 16 KB.
+inline constexpr std::size_t __slm_coalescing_max_elem_size = 16;
 
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
 
@@ -1313,116 +1352,262 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 
 template <std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _FlushContext>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                std::size_t __start_id, std::size_t __n, std::uint32_t __iters_per_item,
                                std::size_t __subgroup_start_id, std::uint32_t __sub_group_id,
-                               std::uint32_t __active_subgroups)
+                               std::uint32_t __active_subgroups, _FlushContext& __flush_ctx)
 {
     using _GenInputType = std::invoke_result_t<_GenInput, _InRng, std::size_t, typename _GenInput::TempData&>;
 
-    bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
-    bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
-    using _TempData = typename _GenInput::TempData;
-    _TempData __temp_data{};
-    if (__is_full_thread)
+    if constexpr (__capture_output && __use_slm_coalescing_v<_FlushContext>)
     {
+        // SLM write coalescing path: buffer compacted writes to SLM per sub-group, then flush as coalesced writes.
+        // All sub-groups (including inactive ones) iterate __iters_per_item times to synchronize on work-group
+        // barriers.
+        using _CarryValueType = typename std::decay_t<_LazyValueType>::__value_type;
+        using _TempData = typename _GenInput::TempData;
+        _TempData __temp_data{};
+        const std::uint8_t __sub_group_local_id = __start_id - __subgroup_start_id;
 
-        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
-                                                                           __binary_op, __sub_group_carry);
-        if constexpr (__capture_output)
+        // Determine how many valid strides this sub-group has (0 for inactive sub-groups)
+        const bool __is_active = __sub_group_id < __active_subgroups;
+        const bool __is_full_thread = __is_active && (__subgroup_start_id + __iters_per_item * __sub_group_size <= __n);
+        std::uint32_t __my_iters = 0;
+        std::uint32_t __last_iter_elems = __sub_group_size;
+        if (__is_active)
         {
-            __write_op(__out_rng, __start_id, __v, __temp_data);
+            if (__is_full_thread)
+            {
+                __my_iters = __iters_per_item;
+            }
+            else
+            {
+                __my_iters = oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
+                // Check if last stride is partial
+                std::size_t __last_stride_start = __subgroup_start_id + (__my_iters - 1) * __sub_group_size;
+                if (__last_stride_start + __sub_group_size > __n)
+                    __last_iter_elems = __n - __last_stride_start;
+            }
         }
 
-        if (__is_full_block)
+        // Track the carry value at the start of each stride for SLM index computation.
+        // For __init_present=false on the first stride, carry_before is 0 (no prior accumulated count).
+        _CarryValueType __carry_before{};
+        if constexpr (__init_present)
         {
-            // For full block and full thread, we can unroll the loop
-            _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
+            if (__is_active)
+                __carry_before = __sub_group_carry.__v;
+        }
+
+        // Type alias for converting input elements to the output range's type (handles oneDPL/std tuple conversion)
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::tuple_element_t<2, _GenInputType>,
+                                                               std::decay_t<decltype(__out_rng[__start_id])>>::__type;
+
+        // --- First stride (uses __init_present template parameter) ---
+        if (__is_active && __my_iters > 0)
+        {
+            std::size_t __read_id = (__start_id < __n) ? __start_id : __n - 1;
+            _GenInputType __v = __gen_input(__in_rng, __read_id, __temp_data);
+
+            if (__my_iters == 1 && __last_iter_elems < __sub_group_size)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
-                __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __last_iter_elems);
+            }
+            else
+            {
+                __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
+            }
+
+            // Write matching element to SLM at compacted local index
+            if (std::get<1>(__v) && __start_id < __n)
+            {
+                auto __slm_idx =
+                    __flush_ctx.__sg_base + static_cast<std::uint32_t>(std::get<0>(__v) - __carry_before) - 1;
+                __flush_ctx.__slm[__slm_idx] = static_cast<_ConvertedTupleType>(std::get<2>(__v));
+            }
+        }
+
+        std::uint32_t __count = 0;
+        if (__is_active && __my_iters > 0)
+            __count = static_cast<std::uint32_t>(__sub_group_carry.__v - __carry_before);
+
+        // Barrier 1: ensure all SLM writes from all sub-groups are visible
+        __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+        // Flush: each lane reads one contiguous element from SLM and writes to global memory
+        if (__is_active && __sub_group_local_id < __count)
+        {
+            __write_op.__assign(
+                static_cast<_ConvertedTupleType>(__flush_ctx.__slm[__flush_ctx.__sg_base + __sub_group_local_id]),
+                __out_rng[__carry_before + _WriteOp::__output_offset + __sub_group_local_id]);
+        }
+
+        // Barrier 2: ensure flush is complete before SLM is reused in next stride
+        __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+        if (__is_active && __my_iters > 0)
+            __carry_before = __sub_group_carry.__v;
+
+        // --- Remaining strides (all use __init_present=true since carry is now established) ---
+        for (std::uint32_t __j = 1; __j < __iters_per_item; ++__j)
+        {
+            if (__is_active && __j < __my_iters)
+            {
+                std::size_t __elem_offset = __start_id + __j * __sub_group_size;
+                std::size_t __read_id = (__elem_offset < __n) ? __elem_offset : __n - 1;
+                _GenInputType __v = __gen_input(__in_rng, __read_id, __temp_data);
+
+                bool __is_last_partial = (__j == __my_iters - 1) && (__last_iter_elems < __sub_group_size);
+                if (__is_last_partial)
                 {
-                    __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
+                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __last_iter_elems);
+                }
+                else
+                {
+                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                }
+
+                // Write matching element to SLM
+                if (std::get<1>(__v) && __elem_offset < __n)
+                {
+                    auto __slm_idx =
+                        __flush_ctx.__sg_base + static_cast<std::uint32_t>(std::get<0>(__v) - __carry_before) - 1;
+                    __flush_ctx.__slm[__slm_idx] = static_cast<_ConvertedTupleType>(std::get<2>(__v));
+                }
+            }
+
+            std::uint32_t __stride_count = 0;
+            if (__is_active && __j < __my_iters)
+                __stride_count = static_cast<std::uint32_t>(__sub_group_carry.__v - __carry_before);
+
+            __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+            if (__is_active && __sub_group_local_id < __stride_count)
+            {
+                __write_op.__assign(
+                    static_cast<_ConvertedTupleType>(__flush_ctx.__slm[__flush_ctx.__sg_base + __sub_group_local_id]),
+                    __out_rng[__carry_before + _WriteOp::__output_offset + __sub_group_local_id]);
+            }
+
+            __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+            if (__is_active && __j < __my_iters)
+                __carry_before = __sub_group_carry.__v;
+        }
+    }
+    else
+    {
+        // Original code path: direct writes without SLM coalescing.
+        // Used for non-compacting write ops (__simple_write_to_id) and the reduce kernel (__capture_output=false).
+        bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
+        bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
+        using _TempData = typename _GenInput::TempData;
+        _TempData __temp_data{};
+        if (__is_full_thread)
+        {
+
+            _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+            __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
+                                                                               __binary_op, __sub_group_carry);
+            if constexpr (__capture_output)
+            {
+                __write_op(__out_rng, __start_id, __v, __temp_data);
+            }
+
+            if (__is_full_block)
+            {
+                // For full block and full thread, we can unroll the loop
+                _ONEDPL_PRAGMA_UNROLL
+                for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
+                {
+                    __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                    if constexpr (__capture_output)
+                    {
+                        __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
+                    }
+                }
+            }
+            else
+            {
+                // For full thread but not full block, we can't unroll the loop, but we
+                // can proceed without special casing for partial subgroups.
+                for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
+                {
+                    __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                    if constexpr (__capture_output)
+                    {
+                        __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
+                    }
                 }
             }
         }
         else
         {
-            // For full thread but not full block, we can't unroll the loop, but we
-            // can proceed without special casing for partial subgroups.
-            for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
+            // For partial thread, we need to handle the partial subgroup at the end of the range
+            if (__sub_group_id < __active_subgroups)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
-                __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
-                {
-                    __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
-                }
-            }
-        }
-    }
-    else
-    {
-        // For partial thread, we need to handle the partial subgroup at the end of the range
-        if (__sub_group_id < __active_subgroups)
-        {
-            std::uint32_t __iters =
-                oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
+                std::uint32_t __iters =
+                    oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
 
-            if (__iters == 1)
-            {
-                std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_data);
-                __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                    __n - __subgroup_start_id);
-                if constexpr (__capture_output)
+                if (__iters == 1)
                 {
-                    if (__start_id < __n)
-                        __write_op(__out_rng, __start_id, __v, __temp_data);
+                    std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
+                    _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_data);
+                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                        __n - __subgroup_start_id);
+                    if constexpr (__capture_output)
+                    {
+                        if (__start_id < __n)
+                            __write_op(__out_rng, __start_id, __v, __temp_data);
+                    }
                 }
-            }
-            else
-            {
-                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-                __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
+                else
                 {
-                    __write_op(__out_rng, __start_id, __v, __temp_data);
-                }
-
-                for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
-                {
-                    std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id, __temp_data);
-                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                    _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+                    __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     if constexpr (__capture_output)
                     {
-                        __write_op(__out_rng, __local_id, __v, __temp_data);
+                        __write_op(__out_rng, __start_id, __v, __temp_data);
                     }
-                }
 
-                std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
-                std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id, __temp_data);
-                __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                    __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
-                if constexpr (__capture_output)
-                {
-                    if (__offset < __n)
-                        __write_op(__out_rng, __offset, __v, __temp_data);
+                    for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
+                    {
+                        std::size_t __local_id = __start_id + __j * __sub_group_size;
+                        __v = __gen_input(__in_rng, __local_id, __temp_data);
+                        __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                            __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
+                        if constexpr (__capture_output)
+                        {
+                            __write_op(__out_rng, __local_id, __v, __temp_data);
+                        }
+                    }
+
+                    std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
+                    std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
+                    __v = __gen_input(__in_rng, __local_id, __temp_data);
+                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                        __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
+                    if constexpr (__capture_output)
+                    {
+                        if (__offset < __n)
+                            __write_op(__out_rng, __offset, __v, __temp_data);
+                    }
                 }
             }
         }
@@ -1559,12 +1744,14 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 {
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
+                    __no_flush_context __no_flush{};
                     __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __no_flush);
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
@@ -1641,17 +1828,17 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
     _InitType __init;
 };
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _KernelName>
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_slm_coalescing, typename _CoalescingElemType, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
-          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
-                                                  _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                  __internal::__optional_kernel_name<_KernelName...>>
+template <std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
+          bool __use_slm_coalescing, typename _CoalescingElemType, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename... _KernelName>
+struct __parallel_reduce_then_scan_scan_submitter<
+    __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v, __use_slm_coalescing, _CoalescingElemType, _ReduceOp,
+    _GenScanInput, _ScanInputTransform, _WriteOp, _InitType, __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
@@ -1690,6 +1877,11 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
+            // SLM buffer for write coalescing: one element per work-item for staging compacted output.
+            // When coalescing is disabled, allocate a minimal 1-element dummy (never accessed).
+            using _SlmElemType = std::conditional_t<__use_slm_coalescing, _CoalescingElemType, char>;
+            __dpl_sycl::__local_accessor<_SlmElemType> __coalescing_slm(__use_slm_coalescing ? __work_group_size : 1,
+                                                                        __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
@@ -1925,23 +2117,42 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                if (__sub_group_carry_initialized)
+                // Construct the appropriate flush context and call __scan_through_elements_helper.
+                // The lambda abstracts over flush context type so the two __init_present paths aren't
+                // duplicated for each context type.
+                auto __do_scan_with_flush = [&](auto& __flush_ctx) {
+                    if (__sub_group_carry_initialized)
+                    {
+                        __scan_through_elements_helper<__sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/true,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups, __flush_ctx);
+                    }
+                    else // first group first block, no subgroup carry
+                    {
+                        __scan_through_elements_helper<__sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/false,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups, __flush_ctx);
+                    }
+                };
+
+                if constexpr (__use_slm_coalescing)
                 {
-                    __scan_through_elements_helper<__sub_group_size, __is_inclusive,
-                                                   /*__init_present=*/true,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups);
+                    __slm_flush_context<_SlmElemType> __flush_ctx{
+                        __ndi, __coalescing_slm, static_cast<std::uint32_t>(__sub_group_id) * __sub_group_size};
+                    __do_scan_with_flush(__flush_ctx);
                 }
-                else // first group first block, no subgroup carry
+                else
                 {
-                    __scan_through_elements_helper<__sub_group_size, __is_inclusive,
-                                                   /*__init_present=*/false,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups);
+                    __no_flush_context __flush_ctx{};
+                    __do_scan_with_flush(__flush_ctx);
                 }
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
@@ -2066,14 +2277,21 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
+    // Determine whether to use SLM write coalescing for compacting write operations.
+    // Enabled when the write op is a compacting write (e.g., __write_to_id_if) and the output element size
+    // is small enough to fit in SLM (max 16 bytes per element with WG size up to 1024 = 16 KB SLM buffer).
+    using _OutElemType = oneapi::dpl::__internal::__value_t<std::decay_t<_OutRng>>;
+    constexpr bool __use_slm_write_coalescing =
+        __write_op_needs_coalescing<_WriteOp>::value && (sizeof(_OutElemType) <= __slm_coalescing_max_elem_size);
+
     // Reduce and scan step implementations
     using _ReduceSubmitter =
         __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                      _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp,
-                                                   _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _ScanKernel>;
+        __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
+                                                   __use_slm_write_coalescing, _OutElemType, _ReduceOp, _GenScanInput,
+                                                   _ScanInputTransform, _WriteOp, _InitType, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
