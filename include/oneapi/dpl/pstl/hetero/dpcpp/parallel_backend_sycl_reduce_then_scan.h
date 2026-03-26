@@ -1924,20 +1924,30 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
-template <typename _InRng>
-struct __scan_rng_sizes_payload
+template <typename... _InRng>
+struct __scan_stop_pos_type;
+
+template <typename _Range>
+struct __scan_stop_pos_type<_Range>
 {
-    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_InRng>()));
+    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_Range>()));
 };
 
 template <typename... _Ranges>
-struct __scan_rng_sizes_payload<oneapi::dpl::ranges::__internal::zip_view<_Ranges...>>
+struct __scan_stop_pos_type<oneapi::dpl::__ranges::zip_view<_Ranges...>>
 {
     using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
 };
 
-template <typename _InRng>
-using __parallel_reduce_then_scan_stop_pos_storage_t = __result_storage<typename __scan_rng_sizes_payload<_InRng>::_Type>;
+template <typename _Range, typename... _Ranges>
+struct __scan_stop_pos_type<_Range, _Ranges...>
+{
+    using _Type = std::tuple<typename __scan_stop_pos_type<_Range>::_Type,
+                             typename __scan_stop_pos_type<_Ranges>::_Type...>;
+};
+
+template <typename... _InRng>
+using __scan_stop_pos_storage_t = __result_storage<typename __scan_stop_pos_type<_InRng...>::_Type>;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
