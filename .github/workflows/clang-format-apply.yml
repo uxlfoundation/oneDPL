@@ -4,10 +4,7 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+permissions: read-all
 
 jobs:
   apply-clang-format:
@@ -19,6 +16,9 @@ jobs:
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) ||
         github.event.comment.user.login == github.event.issue.user.login
       )
+    permissions:
+      contents: write
+      issues: write
     runs-on: ubuntu-latest
     concurrency:
       group: clang-format-pr-${{ github.event.issue.number }}
