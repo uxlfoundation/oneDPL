@@ -1237,7 +1237,7 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 
     //1. Calc difference {2} \ {1}
     const auto [__offset1, __offset2, __n_diff] =
-        oneapi::dpl::__par_backend_hetero::__set_op_impl<_Bounded, _CustomName>(
+        oneapi::dpl::__par_backend_hetero::__set_op_impl</*_Bounded*/ false, _CustomName>(
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, __rng2, __rng1, __diff_buff_rng1.all_view(), __comp,
             __proj2, __proj1);
 
@@ -1255,11 +1255,12 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
         auto __diff_buff_keep2 = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
         auto __diff_buff_rng2 = __diff_buff_keep2(__diff_buff_ptr, __diff_buff_ptr + __n_diff);
 
-        const auto [__merged_offset1, __merged_offset2] =
-            oneapi::dpl::__par_backend_hetero::__parallel_merge_impl<_Bounded, __set_union_merge_wrapper<_CustomName>>(
-                __q, std::forward<_Range1>(__rng1), __diff_buff_rng2.all_view(), std::forward<_Range3>(__result),
-                __comp, __proj1, __proj2)
-                .get();
+        //const auto [__merged_offset1, __merged_offset2] =
+        oneapi::dpl::__par_backend_hetero::__parallel_merge_impl</*_Bounded*/ false,
+                                                                 __set_union_merge_wrapper<_CustomName>>(
+            __q, std::forward<_Range1>(__rng1), __diff_buff_rng2.all_view(), std::forward<_Range3>(__result), __comp,
+            __proj1, __proj2)
+            .wait();
     }
 
     return {__n1, __n2, __n1 + __n_diff};
@@ -1375,13 +1376,13 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_IntersectionTag, _UseReduceTh
     static_assert(!_Bounded, "Only unbounded variants are supported.");
 
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write</*_Bounded*/ false, _CustomName>(
             oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
-        return __parallel_set_scan<_Bounded, _CustomName>(oneapi::dpl::unseq_backend::_IntersectionTag{}, __q,
-                                                          std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                          std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        return __parallel_set_scan</*_Bounded*/ false, _CustomName>(
+            oneapi::dpl::unseq_backend::_IntersectionTag{}, __q, std::forward<_Range1>(__rng1),
+            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
 template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
@@ -1394,13 +1395,13 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_DifferenceTag, _UseReduceThen
     static_assert(!_Bounded, "Only unbounded variants are supported.");
 
     if constexpr (_UseReduceThenScan::value)
-        return __parallel_set_reduce_then_scan_set_a_write<_Bounded, _CustomName>(
+        return __parallel_set_reduce_then_scan_set_a_write</*_Bounded*/ false, _CustomName>(
             oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
             std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     else
-        return __parallel_set_scan<_Bounded, _CustomName>(oneapi::dpl::unseq_backend::_DifferenceTag{}, __q,
-                                                          std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                                                          std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+        return __parallel_set_scan</*_Bounded*/ false, _CustomName>(
+            oneapi::dpl::unseq_backend::_DifferenceTag{}, __q, std::forward<_Range1>(__rng1),
+            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
 }
 
 template <typename _CustomName>
