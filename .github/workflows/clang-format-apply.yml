@@ -18,6 +18,7 @@ jobs:
       )
     permissions:
       contents: write
+      pull-requests: read
       issues: write
     runs-on: ubuntu-latest
     concurrency:
