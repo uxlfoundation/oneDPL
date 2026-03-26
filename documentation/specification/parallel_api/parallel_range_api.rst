@@ -928,13 +928,15 @@ Set operations
   }
 
 .. note::
-   Unlike the respective serial algorithm in ``std::ranges``, ``set_intersection`` is not guaranteed to return
-   both iterators to the ends of the input ranges, even if there is enough space in the output range.
-   It only holds for the range which last element is ordered before the last element of the other range.
-   For the other range, the returned iterator points to the first element ordered after the last element
-   of the fully processed range.
+   Unlike the respective serial algorithm in ``std::ranges``, ``set_intersection`` does not guarantee to return
+   iterators to the ends of both ``r1`` and ``r2``, even if there is enough space in ``result``.
+
+   The returned values are as if they were obtained by a serial algorithm that iterates over both ranges
+   comparing their elements according to ``comp``, ``proj1``, and ``proj2``, advancing the iterator that pointed
+   to the element ordered before the other one, advancing both iterators if neither of the elements is ordered before
+   the other, and stopping when any or both of the iterators reach the end of the respective ranges.
    
-   The same semantics applies to ``set_difference`` for its second input range.
+   The same semantics applies to ``set_difference``, except that the algorithm stops when reaching the end of ``r1``.
 
 Partition operations
 ++++++++++++++++++++
