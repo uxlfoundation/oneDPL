@@ -9,8 +9,8 @@ This document lists releases of the oneDPL specification.
 
 See also `oneAPI Specification Releases <https://oneapi-spec.uxlfoundation.org/>`_.
 
-The latest revision
--------------------
+Latest Revision
+---------------
 
 .. list-table::
   :widths: 25 75
@@ -26,7 +26,7 @@ The latest revision
       - Added customizable ``is_indirectly_device_accessible`` trait for iterators
       - Added Philox random number generation engine
 
-Earlier revisions
+Earlier Revisions
 -----------------
 
 .. list-table::
@@ -55,3 +55,12 @@ Earlier revisions
       - Clarified requirements for binary search algorithms
   * - 1.0 rev 3 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.0-rev-3/>`__)
     - - The initial release
+
+Source Code
+-----------
+
+The specification source code is maintained in the
+`oneDPL repository <https://github.com/uxlfoundation/oneDPL/tree/main/documentation/specification>`__.
+For the versions prior to and including 1.5-provisional revision 1, it was located in the `oneAPI specification repository
+<https://github.com/uxlfoundation/oneAPI-spec/tree/main/source/elements/oneDPL/source>`__, from where
+the snapshot with the commit ID 0d9d8e99 has been copied.
