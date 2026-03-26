@@ -1139,7 +1139,8 @@ Known Issues and Limitations
   for double precision.
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-   ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less`` or ``std::greater``, otherwise Merge sort.
+  ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less``, ``std::greater``,
+  ``std::ranges::less``, or ``std::ranges::greater``, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/introduction.html#restrictions.
