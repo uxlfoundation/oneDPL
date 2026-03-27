@@ -1,8 +1,6 @@
 Execution Policies
 ##################
 
-According to `the oneAPI specification
-<https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/index.html>`_,
 |onedpl_long| (|onedpl_short|) provides execution policies semantically aligned with the C++ standard,
 referred to as *standard-aligned* or *host execution policies*, as well as *device execution policies*
 to run data parallel computations on heterogeneous systems.

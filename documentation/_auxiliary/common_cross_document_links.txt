@@ -2,6 +2,9 @@
 
 .. |onedpl_requirements| replace:: :ref:`oneDPL System Requirements <library-requirements>`
 
+.. |onedpl_specification| replace:: the oneDPL Specification
+.. _onedpl_specification: https://uxlfoundation.github.io/oneDPL/specification/index.html
+
 .. |dpcpp_gsg| replace:: Get Started with the Intel® oneAPI DPC++/C++ Compiler
 .. _dpcpp_gsg: https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/get-started-guide/2025-2/overview.html
 

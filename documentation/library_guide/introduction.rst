@@ -1,8 +1,7 @@
 |onedpl_long| Introduction
 #######################################
 
-The |onedpl_long| (|onedpl_short|) is implemented in accordance with the `oneDPL
-Specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/index.html>`_.
+The |onedpl_long| (|onedpl_short|) is implemented in accordance with |onedpl_specification|_.
 
 To support heterogeneity, |onedpl_short| uses `SYCL <https://registry.khronos.org/SYCL/>`_.
 More information about SYCL can be found in the `SYCL Specification`_.
