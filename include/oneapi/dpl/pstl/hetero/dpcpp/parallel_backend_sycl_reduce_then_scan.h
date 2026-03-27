@@ -300,15 +300,20 @@ struct __no_flush_context
 {
 };
 
-// SLM flush context for compacting write operations.
-// Each sub-group owns a contiguous chunk of SLM of size sub_group_size for buffering compacted output elements.
-// Between stride iterations, valid elements are written to SLM, then flushed as coalesced writes to global memory.
-template <typename _ElementType>
+// SLM flush context for compacting write operations with WG-wide coalescing.
+// All sub-groups advance together through input in WG-wide strides. After each stride,
+// matches from all sub-groups are packed into a shared SLM buffer and flushed to global
+// memory by all wg_size work-items, producing maximally coalesced writes.
+template <typename _ElementType, typename _CarryType>
 struct __slm_flush_context
 {
     sycl::nd_item<1> __ndi;
-    const __dpl_sycl::__local_accessor<_ElementType>& __slm;
-    std::uint32_t __sg_base; // __sub_group_id * __sub_group_size
+    const __dpl_sycl::__local_accessor<_ElementType>& __slm;    // wg_size elements for output coalescing
+    const __dpl_sycl::__local_accessor<_CarryType>& __partials; // reused for per-stride mini prefix scan
+    std::uint32_t __wg_local_id;                                // work-item's local ID within the work-group
+    std::uint32_t __wg_size;                                    // number of work-items in the work-group
+    std::uint32_t __num_sub_groups_local;                       // number of sub-groups in the work-group
+    std::size_t __group_start_id;                               // start of this WG's input range
 };
 
 template <typename _Ctx>
@@ -1365,144 +1370,168 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     if constexpr (__capture_output && __use_slm_coalescing_v<_FlushContext>)
     {
-        // SLM write coalescing path: buffer compacted writes to SLM per sub-group, then flush as coalesced writes.
-        // All sub-groups (including inactive ones) iterate __iters_per_item times to synchronize on work-group
-        // barriers.
+        // WG-wide stride coalescing path.
+        // All sub-groups advance together through input in WG-wide strides of wg_size elements
+        // (iterations_per_slmflush = 1, so each SG processes sg_size elements per stride).
+        // After each stride, a mini intra-WG prefix scan of per-SG match counts determines
+        // each SG's offset within the stride's output. Matches are packed into shared SLM,
+        // then all wg_size work-items flush SLM to global memory for maximally coalesced writes.
+        //
+        // 4 barriers per stride: (1) after SG deltas written to SLM, (2) after mini prefix scan
+        // written back to SLM, (3) after matches written to SLM, (4) after flush to global.
+
         using _CarryValueType = typename std::decay_t<_LazyValueType>::__value_type;
         using _TempData = typename _GenInput::TempData;
         _TempData __temp_data{};
-        const std::uint8_t __sub_group_local_id = __start_id - __subgroup_start_id;
+        const std::uint8_t __sub_group_local_id = __flush_ctx.__wg_local_id - __sub_group_id * __sub_group_size;
+        const std::uint32_t __num_sub_groups = __flush_ctx.__num_sub_groups_local;
+        const std::uint32_t __wg_size = __flush_ctx.__wg_size;
 
-        // Determine how many valid strides this sub-group has (0 for inactive sub-groups)
-        const bool __is_active = __sub_group_id < __active_subgroups;
-        const bool __is_full_thread = __is_active && (__subgroup_start_id + __iters_per_item * __sub_group_size <= __n);
-        std::uint32_t __my_iters = 0;
-        std::uint32_t __last_iter_elems = __sub_group_size;
-        if (__is_active)
-        {
-            if (__is_full_thread)
-            {
-                __my_iters = __iters_per_item;
-            }
-            else
-            {
-                __my_iters = oneapi::dpl::__internal::__dpl_ceiling_div(__n - __subgroup_start_id, __sub_group_size);
-                // Check if last stride is partial
-                std::size_t __last_stride_start = __subgroup_start_id + (__my_iters - 1) * __sub_group_size;
-                if (__last_stride_start + __sub_group_size > __n)
-                    __last_iter_elems = __n - __last_stride_start;
-            }
-        }
-
-        // Track the carry value at the start of each stride for SLM index computation.
-        // For __init_present=false on the first stride, carry_before is 0 (no prior accumulated count).
-        _CarryValueType __carry_before{};
-        if constexpr (__init_present)
-        {
-            if (__is_active)
-                __carry_before = __sub_group_carry.__v;
-        }
-
-        // Type alias for converting input elements to the output range's type (handles oneDPL/std tuple conversion)
+        // Type alias for converting input elements to the output range's type
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::tuple_element_t<2, _GenInputType>,
                                                                std::decay_t<decltype(__out_rng[__start_id])>>::__type;
 
-        // --- First stride (uses __init_present template parameter) ---
-        if (__is_active && __my_iters > 0)
+        // Total number of WG-wide strides = iterations_per_workitem (since iterations_per_slmflush = 1)
+        const std::uint32_t __num_strides = __iters_per_item;
+
+        // __global_carry tracks the cumulative output position across all strides for this WG.
+        // It starts from the inter-WG carry (already in __sub_group_carry for all SGs).
+        // In coalescing mode, all SGs receive the same carry-in from the scan kernel,
+        // so no gating on __active_subgroups is needed.
+        _CarryValueType __global_carry{};
+        if constexpr (__init_present)
         {
-            std::size_t __read_id = (__start_id < __n) ? __start_id : __n - 1;
-            _GenInputType __v = __gen_input(__in_rng, __read_id, __temp_data);
-
-            if (__my_iters == 1 && __last_iter_elems < __sub_group_size)
-            {
-                __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __last_iter_elems);
-            }
-            else
-            {
-                __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
-                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-            }
-
-            // Write matching element to SLM at compacted local index
-            if (std::get<1>(__v) && __start_id < __n)
-            {
-                auto __slm_idx =
-                    __flush_ctx.__sg_base + static_cast<std::uint32_t>(std::get<0>(__v) - __carry_before) - 1;
-                __flush_ctx.__slm[__slm_idx] = static_cast<_ConvertedTupleType>(std::get<2>(__v));
-            }
+            __global_carry = __sub_group_carry.__v;
         }
 
-        std::uint32_t __count = 0;
-        if (__is_active && __my_iters > 0)
-            __count = static_cast<std::uint32_t>(__sub_group_carry.__v - __carry_before);
-
-        // Barrier 1: ensure all SLM writes from all sub-groups are visible
-        __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
-
-        // Flush: each lane reads one contiguous element from SLM and writes to global memory
-        if (__is_active && __sub_group_local_id < __count)
-        {
-            __write_op.__assign(
-                static_cast<_ConvertedTupleType>(__flush_ctx.__slm[__flush_ctx.__sg_base + __sub_group_local_id]),
-                __out_rng[__carry_before + _WriteOp::__output_offset + __sub_group_local_id]);
-        }
-
-        // Barrier 2: ensure flush is complete before SLM is reused in next stride
-        __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
-
-        if (__is_active && __my_iters > 0)
-            __carry_before = __sub_group_carry.__v;
-
-        // --- Remaining strides (all use __init_present=true since carry is now established) ---
-        for (std::uint32_t __j = 1; __j < __iters_per_item; ++__j)
-        {
-            if (__is_active && __j < __my_iters)
+        // Mini prefix scan lambda: SG0 reads per-SG deltas from __partials SLM,
+        // computes inclusive prefix scan, writes back. After this, __partials[sg_id]
+        // contains the exclusive prefix (offset) for that SG within this stride.
+        auto __do_mini_prefix_scan = [&]() {
+            if (__sub_group_id == 0 && __sub_group_local_id == 0)
             {
-                std::size_t __elem_offset = __start_id + __j * __sub_group_size;
-                std::size_t __read_id = (__elem_offset < __n) ? __elem_offset : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __read_id, __temp_data);
-
-                bool __is_last_partial = (__j == __my_iters - 1) && (__last_iter_elems < __sub_group_size);
-                if (__is_last_partial)
+                _CarryValueType __running{};
+                for (std::uint32_t __s = 0; __s < __num_sub_groups; ++__s)
                 {
-                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __last_iter_elems);
+                    _CarryValueType __delta = __flush_ctx.__partials[__s];
+                    __flush_ctx.__partials[__s] = __running; // exclusive prefix
+                    __running = __running + __delta;
+                }
+                // Store total matches this stride at index __num_sub_groups
+                __flush_ctx.__partials[__num_sub_groups] = __running;
+            }
+        };
+
+        // Lambda for one stride, parameterized on init_present (compile-time bool).
+        auto __do_stride = [&](auto __init_present_tag, std::uint32_t __stride_idx) {
+            constexpr bool __stride_init_present = decltype(__init_present_tag)::value;
+
+            // Compute WG-wide stride input position for this sub-group
+            const std::size_t __group_start = __flush_ctx.__group_start_id;
+            const std::size_t __stride_base = __group_start + static_cast<std::size_t>(__stride_idx) * __wg_size;
+            const std::size_t __sg_start = __stride_base + static_cast<std::size_t>(__sub_group_id) * __sub_group_size;
+            const std::size_t __elem_id = __sg_start + __sub_group_local_id;
+
+            // Determine if this SG has valid elements in this stride
+            const bool __sg_active = __sg_start < __n;
+            const bool __elem_valid = __elem_id < __n;
+            const std::uint32_t __active_elems_this_sg =
+                __sg_active ? static_cast<std::uint32_t>(
+                                  sycl::min(static_cast<std::size_t>(__sub_group_size), __n - __sg_start))
+                            : 0;
+
+            // Step 1: Each active SG scans its sg_size elements from WG-wide stride position.
+            // Reset sub_group_carry to the WG-level global carry so each SG starts scanning
+            // from the same point (the mini prefix scan determines each SG's output offset).
+            _CarryValueType __carry_before_scan = __global_carry;
+            if constexpr (__stride_init_present)
+                __sub_group_carry.__v = __global_carry;
+            _GenInputType __v{};
+            if (__sg_active)
+            {
+                std::size_t __read_id = __elem_valid ? __elem_id : __n - 1;
+                __v = __gen_input(__in_rng, __read_id, __temp_data);
+
+                if (__active_elems_this_sg < __sub_group_size)
+                {
+                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, __stride_init_present>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                        __active_elems_this_sg);
                 }
                 else
                 {
-                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                    __sub_group_scan<__sub_group_size, __is_inclusive, __stride_init_present>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 }
-
-                // Write matching element to SLM
-                if (std::get<1>(__v) && __elem_offset < __n)
-                {
-                    auto __slm_idx =
-                        __flush_ctx.__sg_base + static_cast<std::uint32_t>(std::get<0>(__v) - __carry_before) - 1;
-                    __flush_ctx.__slm[__slm_idx] = static_cast<_ConvertedTupleType>(std::get<2>(__v));
-                }
             }
 
-            std::uint32_t __stride_count = 0;
-            if (__is_active && __j < __my_iters)
-                __stride_count = static_cast<std::uint32_t>(__sub_group_carry.__v - __carry_before);
+            // Compute this SG's match count (delta) for this stride
+            _CarryValueType __sg_delta{};
+            if (__sg_active)
+                __sg_delta = __sub_group_carry.__v - __carry_before_scan;
 
+            // Write SG delta to SLM partials (last lane of each SG writes).
+            // For inactive SGs, __sg_delta is 0 (default initialized).
+            if (__sub_group_local_id == __sub_group_size - 1)
+                __flush_ctx.__partials[__sub_group_id] = __sg_delta;
+
+            // Barrier 1: ensure all SG deltas visible in SLM
             __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
 
-            if (__is_active && __sub_group_local_id < __stride_count)
+            // Mini prefix scan by SG0 lane 0
+            __do_mini_prefix_scan();
+
+            // Barrier 2: ensure prefix scan results visible to all SGs
+            __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+            // Read this SG's exclusive prefix (offset within stride's output)
+            _CarryValueType __intra_prefix{};
+            if (__sg_active)
+                __intra_prefix = __flush_ctx.__partials[__sub_group_id];
+            // Read total matches this stride
+            _CarryValueType __total_this_stride = __flush_ctx.__partials[__num_sub_groups];
+
+            // Step 2: Write matching elements to shared SLM buffer
+            // SLM index = intra_prefix + (scan_position_within_sg - 1)
+            // where scan_position_within_sg = inclusive_scan_value - carry_before_scan
+            if (__sg_active && std::get<1>(__v) && __elem_valid)
             {
-                __write_op.__assign(
-                    static_cast<_ConvertedTupleType>(__flush_ctx.__slm[__flush_ctx.__sg_base + __sub_group_local_id]),
-                    __out_rng[__carry_before + _WriteOp::__output_offset + __sub_group_local_id]);
+                auto __scan_pos_in_sg = static_cast<std::uint32_t>(std::get<0>(__v) - __carry_before_scan);
+                auto __slm_idx = static_cast<std::uint32_t>(__intra_prefix) + __scan_pos_in_sg - 1;
+                __flush_ctx.__slm[__slm_idx] = static_cast<_ConvertedTupleType>(std::get<2>(__v));
             }
 
+            // Barrier 3: ensure all matches written to SLM
             __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
 
-            if (__is_active && __j < __my_iters)
-                __carry_before = __sub_group_carry.__v;
-        }
+            // Step 3: WG-wide coalesced flush from SLM to global output
+            auto __total_u32 = static_cast<std::uint32_t>(__total_this_stride);
+            if (__flush_ctx.__wg_local_id < __total_u32)
+            {
+                __write_op.__assign(static_cast<_ConvertedTupleType>(__flush_ctx.__slm[__flush_ctx.__wg_local_id]),
+                                    __out_rng[__global_carry + _WriteOp::__output_offset + __flush_ctx.__wg_local_id]);
+            }
+
+            // Barrier 4: ensure flush complete before SLM reuse
+            __dpl_sycl::__group_barrier(__flush_ctx.__ndi);
+
+            // Advance global carry
+            __global_carry = __global_carry + __total_this_stride;
+        };
+
+        // First stride uses the caller's __init_present
+        if (__num_strides > 0)
+            __do_stride(std::bool_constant<__init_present>{}, 0);
+
+        // Remaining strides always have init present (carry established)
+        for (std::uint32_t __j = 1; __j < __num_strides; ++__j)
+            __do_stride(std::true_type{}, __j);
+
+        // Set carry to final global_carry for the caller's carry-out logic.
+        // Use __setup (placement new) because inactive SGs with __init_present=false
+        // may not have had __sub_group_carry initialized.
+        __sub_group_carry.__setup(__global_carry);
     }
     else
     {
@@ -2050,65 +2079,117 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
                 // Get inter-work group and adjusted for intra-work group prefix
                 bool __sub_group_carry_initialized = true;
-                if (__block_num == 0)
+
+                if constexpr (__use_slm_coalescing)
                 {
-                    if (__sub_group_id > 0)
+                    // Coalescing mode: all sub-groups receive the same inter-WG carry.
+                    // Intra-WG distribution is handled by mini prefix scan in the helper.
+                    if (__block_num == 0)
                     {
-                        _InitValueType __value =
-                            __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
-                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
-                        __sub_group_carry.__setup(__value);
-                    }
-                    else if (__group_id > 0)
-                    {
-                        _InitValueType __value = __sub_group_partials[__active_subgroups];
-                        oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
-                        __sub_group_carry.__setup(__value);
-                    }
-                    else // zeroth block, group and subgroup
-                    {
-                        if constexpr (__is_unique_pattern_v)
+                        if (__group_id > 0)
                         {
-                            if (__sub_group_local_id == 0)
+                            _InitValueType __value = __sub_group_partials[__active_subgroups];
+                            oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value,
+                                                                                            __reduce_op);
+                            __sub_group_carry.__setup(__value);
+                        }
+                        else // first group, first block
+                        {
+                            if constexpr (__is_unique_pattern_v)
                             {
-                                // For unique patterns, always copy the 0th element to the output
-                                __write_op.__assign(__in_rng[0], __out_rng[0]);
+                                if (__sub_group_local_id == 0 && __sub_group_id == 0)
+                                    __write_op.__assign(__in_rng[0], __out_rng[0]);
+                            }
+                            if constexpr (std::is_same_v<_InitType,
+                                                         oneapi::dpl::unseq_backend::__no_init_value<_InitValueType>>)
+                            {
+                                __sub_group_carry_initialized = false;
+                            }
+                            else
+                            {
+                                __sub_group_carry.__setup(__init.__value);
                             }
                         }
-
-                        if constexpr (std::is_same_v<_InitType,
-                                                     oneapi::dpl::unseq_backend::__no_init_value<_InitValueType>>)
+                    }
+                    else // block > 0
+                    {
+                        if (__group_id > 0)
                         {
-                            // This is the only case where we still don't have a carry in.  No init value, 0th block,
-                            // group, and subgroup. This changes the final scan through elements below.
-                            __sub_group_carry_initialized = false;
+                            __sub_group_carry.__setup(
+                                __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr,
+                                                                 __sub_group_params.__num_sub_groups_global),
+                                            __sub_group_partials[__active_subgroups]));
                         }
                         else
                         {
-                            __sub_group_carry.__setup(__init.__value);
+                            __sub_group_carry.__setup(__get_block_carry_in(__block_num, __tmp_ptr,
+                                                                           __sub_group_params.__num_sub_groups_global));
                         }
                     }
+                    // Barrier: __sub_group_partials SLM is reused for mini prefix scan in the helper
+                    __dpl_sycl::__group_barrier(__ndi);
                 }
                 else
                 {
-                    if (__sub_group_id > 0)
+                    // Non-coalescing: each sub-group gets its own carry-in from prefix-scanned reduce partials
+                    if (__block_num == 0)
                     {
-                        _InitValueType __value =
-                            __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
-                        __sub_group_carry.__setup(__reduce_op(
-                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global),
-                            __value));
-                    }
-                    else if (__group_id > 0)
-                    {
-                        __sub_group_carry.__setup(__reduce_op(
-                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global),
-                            __sub_group_partials[__active_subgroups]));
+                        if (__sub_group_id > 0)
+                        {
+                            _InitValueType __value =
+                                __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
+                            oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value,
+                                                                                            __reduce_op);
+                            __sub_group_carry.__setup(__value);
+                        }
+                        else if (__group_id > 0)
+                        {
+                            _InitValueType __value = __sub_group_partials[__active_subgroups];
+                            oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value,
+                                                                                            __reduce_op);
+                            __sub_group_carry.__setup(__value);
+                        }
+                        else
+                        {
+                            if constexpr (__is_unique_pattern_v)
+                            {
+                                if (__sub_group_local_id == 0)
+                                    __write_op.__assign(__in_rng[0], __out_rng[0]);
+                            }
+                            if constexpr (std::is_same_v<_InitType,
+                                                         oneapi::dpl::unseq_backend::__no_init_value<_InitValueType>>)
+                            {
+                                __sub_group_carry_initialized = false;
+                            }
+                            else
+                            {
+                                __sub_group_carry.__setup(__init.__value);
+                            }
+                        }
                     }
                     else
                     {
-                        __sub_group_carry.__setup(
-                            __get_block_carry_in(__block_num, __tmp_ptr, __sub_group_params.__num_sub_groups_global));
+                        if (__sub_group_id > 0)
+                        {
+                            _InitValueType __value =
+                                __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
+                            __sub_group_carry.__setup(
+                                __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr,
+                                                                 __sub_group_params.__num_sub_groups_global),
+                                            __value));
+                        }
+                        else if (__group_id > 0)
+                        {
+                            __sub_group_carry.__setup(
+                                __reduce_op(__get_block_carry_in(__block_num, __tmp_ptr,
+                                                                 __sub_group_params.__num_sub_groups_global),
+                                            __sub_group_partials[__active_subgroups]));
+                        }
+                        else
+                        {
+                            __sub_group_carry.__setup(__get_block_carry_in(__block_num, __tmp_ptr,
+                                                                           __sub_group_params.__num_sub_groups_global));
+                        }
                     }
                 }
 
@@ -2118,8 +2199,6 @@ struct __parallel_reduce_then_scan_scan_submitter<
                 std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 // Construct the appropriate flush context and call __scan_through_elements_helper.
-                // The lambda abstracts over flush context type so the two __init_present paths aren't
-                // duplicated for each context type.
                 auto __do_scan_with_flush = [&](auto& __flush_ctx) {
                     if (__sub_group_carry_initialized)
                     {
@@ -2131,7 +2210,7 @@ struct __parallel_reduce_then_scan_scan_submitter<
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
                             __active_subgroups, __flush_ctx);
                     }
-                    else // first group first block, no subgroup carry
+                    else
                     {
                         __scan_through_elements_helper<__sub_group_size, __is_inclusive,
                                                        /*__init_present=*/false,
@@ -2145,8 +2224,12 @@ struct __parallel_reduce_then_scan_scan_submitter<
 
                 if constexpr (__use_slm_coalescing)
                 {
-                    __slm_flush_context<_SlmElemType> __flush_ctx{
-                        __ndi, __coalescing_slm, static_cast<std::uint32_t>(__sub_group_id) * __sub_group_size};
+                    std::uint32_t __wg_local_id = __ndi.get_local_id(0);
+                    std::uint32_t __wg_size_local = __ndi.get_local_range(0);
+                    __slm_flush_context<_SlmElemType, _InitValueType> __flush_ctx{
+                        __ndi,           __coalescing_slm, __sub_group_partials,
+                        __wg_local_id,   __wg_size_local,  __sub_group_params.__num_sub_groups_local,
+                        __group_start_id};
                     __do_scan_with_flush(__flush_ctx);
                 }
                 else
