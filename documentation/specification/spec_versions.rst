@@ -18,7 +18,7 @@ Latest Revision
 
   * - Revision
     - Changes
-  * - 1.5-provisional rev 1 (`HTML <index.rst>`__)
+  * - 1.5-provisional rev 1 (:doc:`HTML <index>`)
     - - Added 56 more parallel range algorithms
       - Aligned parallel range algorithms with the C++26 standardization proposals
       - Require segmented and histogram algorithms to be defined in ``<oneapi/dpl/numeric>``
@@ -35,25 +35,25 @@ Earlier Revisions
 
   * - Revision
     - Changes
-  * - 1.4 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.4-rev-1/>`__)
+  * - 1.4 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.4-rev-1/elements/onedpl/source/>`__)
     - - Added a specification version macro
       - Added requirements for oneDPL header files
       - Added new algorithms: ``transform_if``, ``sort_by_key``, ``stable_sort_by_key``, ``histogram``
       - Added parallel range algorithms: 22 new algorithms in namespace ``oneapi::dpl::ranges``
       - Clarified the semantics and requirements of execution policies, iterators, and buffer wrappers
       - Improved C++ standard compliance of random number generators
-  * - 1.3 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.3-rev-1/>`__)
+  * - 1.3 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.3-rev-1/elements/onedpl/source/>`__)
     - - Added ``sycl::vec`` support to random number generators and distributions
-  * - 1.2 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.2-rev-1/>`__)
+  * - 1.2 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.2-rev-1/elements/onedpl/source/>`__)
     - - Added ``namespace dpl`` alias
       - Added random number generation APIs
       - Added ``base()`` method to iterator adaptors
       - Explicitly specified the standard-aligned execution policies
       - Clarified data handling with device execution policies
-  * - 1.1 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.1-rev-1/>`__)
+  * - 1.1 rev 1 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.1-rev-1/elements/onedpl/source/>`__)
     - - Removed a separate namespace for C++ standard library APIs
       - Clarified requirements for binary search algorithms
-  * - 1.0 rev 3 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.0-rev-3/>`__)
+  * - 1.0 rev 3 (`HTML <https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.0-rev-3/elements/onedpl/source/>`__)
     - - The initial release
 
 Source Code

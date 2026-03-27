@@ -16,7 +16,7 @@ oneAPI DPC++ Library Documentation
    :titlesonly:
    :caption: oneDPL Specification
    
-   The latest revision <specification/index.rst>
-   Version history <specification/spec_versions.rst>
+   Latest Revision <specification/index.rst>
+   Version History <specification/spec_versions.rst>
 
 .. include:: library_guide/guide_toc.rst
