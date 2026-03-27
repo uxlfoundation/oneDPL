@@ -32,9 +32,8 @@ Additionally, to use |onedpl_short| and other Base Kit components on non-Intel G
 `oneAPI for NVIDIA® GPUs plugin <https://developer.codeplay.com/products/oneapi/nvidia/home/>`_ or the
 `oneAPI for AMD GPUs plugin <https://developer.codeplay.com/products/oneapi/amd/home/>`_.
 
-See the |onedpl_requirements|
-for details on the compiler support required to compile applications using |onedpl_short| on CPU using OpenMP* or Intel®
-oneAPI Threading Building Blocks (oneTBB).
+See the |onedpl_requirements| for details on the compiler support required to compile applications using |onedpl_short|
+on CPU using OpenMP* or |onetbb_long|.
 
 To use Parallel API, include the corresponding header files in your source code.
 
