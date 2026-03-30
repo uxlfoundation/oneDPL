@@ -24,13 +24,13 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
              typename KernelParam, typename Iterator1, typename Iterator2>
    sycl::event
    radix_sort_by_key (sycl::queue q, Iterator1 keys_first, Iterator1 keys_last,
-                      Iterator2 values_first, KernelParam param); // (1)
+                      Iterator2 values_first, KernelParam param = {}); // (1)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename KeysRng, typename ValuesRng>
    sycl::event
    radix_sort_by_key (sycl::queue q, KeysRng&& keys,
-                      ValuesRng&& values, KernelParam param); // (2)
+                      ValuesRng&& values, KernelParam param = {}); // (2)
 
 
    // Sort out-of-place
@@ -42,7 +42,7 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    radix_sort_by_key (sycl::queue q, KeysIterator1 keys_first,
                       KeysIterator1 keys_last, ValuesIterator1 values_first,
                       KeysIterator2 keys_out_first, ValuesIterator2 values_out_first,
-                      KernelParam param); // (3)
+                      KernelParam param = {}); // (3)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename KeysRng1, typename ValuesRng1,
@@ -50,7 +50,7 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    sycl::event
    radix_sort_by_key (sycl::queue q, KeysRng1&& keys, ValuesRng1&& values,
                       KeysRng2&& keys_out, ValuesRng2&& values_out,
-                      KernelParam param); // (4)
+                      KernelParam param = {}); // (4)
    }
 
 .. note::
@@ -94,7 +94,6 @@ Parameters
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
 | ``param``                                     | A :doc:`kernel_param <../kernel_configuration>` object.             |
-|                                               | Its ``data_per_workitem`` must be a positive multiple of 32.        |
 |                                               |                                                                     |
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
@@ -335,7 +334,10 @@ The initial configuration may be selected according to these high-level guidelin
    Increasing ``param.data_per_workitem`` should usually be preferred to increasing ``param.workgroup_size``,
    to avoid extra synchronization overhead within a work-group.
 
-- When the number of elements to sort ``N`` is less than 1M, utilizing all available
+- For the SYCL implementation, a ``param.workgroup_size`` of ``512`` empirically yields better general
+  performance compared to ``1024``.
+
+- When the number of elements to sort ``N`` is less than ~1M, utilizing all available
   compute cores is key for better performance. Allow creating enough work chunks to feed all
   X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
 
@@ -347,6 +349,12 @@ The initial configuration may be selected according to these high-level guidelin
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <sycl-radix-sort-by-key-memory-requirements>` are satisfied.
+
+.. warning::
+
+   While increasing ``param.data_per_workitem`` generally improves performance by reducing
+   synchronization overhead, excessively large values can cause register spills to memory,
+   significantly harming performance. Monitor register usage when tuning this parameter.
 
 .. note::
 

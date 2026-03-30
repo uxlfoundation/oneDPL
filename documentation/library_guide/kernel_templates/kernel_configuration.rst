@@ -40,13 +40,40 @@ Static Member Constants
 +------------------------------------------------------+---------------------+----------------------------------------+
 
 
+Parameter Semantics
+-------------------
+
+The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantly between
+:doc:`ESIMD-based <esimd_main>` and SYCL-based kernel templates due to their underlying execution models:
+
+**ESIMD (Explicit SIMD) Kernel Templates:**
+
+- ``data_per_workitem``: The number of data elements processed by a single **hardware thread**,
+  which issues explicit SIMD (vector) operations. The hardware thread processes these elements
+  using SIMD instructions with an implementation-defined vector length.
+
+- ``workgroup_size``: The number of **hardware threads** in a work-group. Each hardware thread
+  executes SIMD operations independently.
+
+- **Total parallelism**: ``workgroup_size`` hardware threads, each processing ``data_per_workitem``
+  elements via explicit SIMD operations.
+
+**SYCL Kernel Templates:**
+
+- ``data_per_workitem``: The number of data elements processed sequentially by a single **SIMD lane**
+  (work-item in SYCL terminology). Each SIMD lane executes scalar operations on its assigned elements.
+
+- ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. SIMD lanes within
+  a sub-group execute in lockstep on a single hardware thread.
+
+- **Total parallelism**: ``workgroup_size`` SIMD lanes, each processing ``data_per_workitem``
+  elements sequentially.
+
 .. note::
 
-   The ``data_per_workitem`` parameter has a special meaning in :doc:`ESIMD-based kernel templates <esimd_main>`.
-   Usually, each work-item processes ``data_per_workitem`` input elements sequentially.
-   However, work-items in ESIMD-based kernel templates perform vectorization,
-   so the sequential work is ``data_per_workitem / vector_length`` elements, where ``vector_length``
-   is an implementation-defined vectorization factor.
+   In summary, for the same configuration values, ESIMD kernels utilize explicit vectorization
+   within each hardware thread, while SYCL kernels rely on implicit vectorization across work-items
+   that are grouped into sub-groups by the compiler and runtime.
 
 
 Member Types

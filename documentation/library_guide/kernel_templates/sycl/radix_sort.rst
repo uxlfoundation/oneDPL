@@ -24,13 +24,12 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename KernelParam, typename Iterator>
    sycl::event
    radix_sort (sycl::queue q, Iterator first, Iterator last,
-               KernelParam param); // (1)
+               KernelParam param = {}); // (1)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range>
    sycl::event
-   radix_sort (sycl::queue q, Range&& r, KernelParam param); // (2)
-
+   radix_sort (sycl::queue q, Range&& r, KernelParam param = {}); // (2)
 
    // Sort out-of-place
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
@@ -38,17 +37,17 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename Iterator2>
    sycl::event
    radix_sort (sycl::queue q, Iterator1 first, Iterator1 last,
-               Iterator2 first_out, KernelParam param); // (3)
+               Iterator2 first_out, KernelParam param = {}); // (3)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range1, typename Range2>
    sycl::event
    radix_sort (sycl::queue q, Range1&& r, Range2&& r_out,
-               KernelParam param); // (4)
+               KernelParam param = {}); // (4)
    }
 
 .. note::
-   The ``radix_sort`` is currently available only for Intel Arc B580 and Intel GPU series max,
+   The ``radix_sort`` is currently available only for Intel Arc B580 and Intel GPU Max Series, 
    and requires Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater.
 
 Template Parameters
@@ -88,7 +87,6 @@ Parameters
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
 | ``param``                                     | A :doc:`kernel_param <../kernel_configuration>` object.             |
-|                                               | Its ``data_per_workitem`` must be a positive multiple of 32.        |
 |                                               |                                                                     |
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
@@ -239,11 +237,6 @@ For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `512`, 
 Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
 ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
-.. note::
-
-   If the number of elements to sort does not exceed ``param.data_per_workitem * param.workgroup_size``,
-   ``radix_sort`` is executed by a single work-group and does not use any global memory.
-
 ..
    The estimation above is not very precise and it seems it is not necessary for the global memory.
    The C coefficient base is actually 0.53 instead of 1.
@@ -285,16 +278,10 @@ Recommended Settings for Best Performance
 The general advice is to choose kernel parameters based on performance measurements and profiling information.
 The initial configuration may be selected according to these high-level guidelines:
 
-..
-   TODO: add this part when param.workgroup_size supports more than one value:
-   Increasing ``param.data_per_workitem`` should usually be preferred to increasing ``param.workgroup_size``,
-   to avoid extra synchronization overhead within a work-group.
+- For the SYCL implementation, a ``param.workgroup_size`` of ``512`` empirically yields better general
+  performance compared to ``1024``.
 
-- When the number of elements to sort (N) is small (~16K or less) and the algorithm is ``radix_sort``,
-  generally sorting is done more efficiently by a single work-group.
-  Increase the ``param`` values to make ``N <= param.data_per_workitem * param.workgroup_size``.
-
-- When the number of elements to sort ``N`` is between 16K and 1M, utilizing all available
+- When the number of elements to sort ``N`` is less than ~1M, utilizing all available
   compute cores is key for better performance. Allow creating enough work chunks to feed all
   X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
 
@@ -306,6 +293,12 @@ The initial configuration may be selected according to these high-level guidelin
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
+
+.. warning::
+
+   While increasing ``param.data_per_workitem`` generally improves performance by reducing
+   synchronization overhead, excessively large values can cause register spills to memory,
+   significantly harming performance. Monitor register usage when tuning this parameter.
 
 .. note::
 

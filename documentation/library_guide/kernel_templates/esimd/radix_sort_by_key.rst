@@ -24,13 +24,13 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
              typename KernelParam, typename Iterator1, typename Iterator2>
    sycl::event
    radix_sort_by_key (sycl::queue q, Iterator1 keys_first, Iterator1 keys_last,
-                      Iterator2 values_first, KernelParam param); // (1)
+                      Iterator2 values_first, KernelParam param = {}); // (1)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename KeysRng, typename ValuesRng>
    sycl::event
    radix_sort_by_key (sycl::queue q, KeysRng&& keys,
-                      ValuesRng&& values, KernelParam param); // (2)
+                      ValuesRng&& values, KernelParam param = {}); // (2)
 
 
    // Sort out-of-place
@@ -42,7 +42,7 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    radix_sort_by_key (sycl::queue q, KeysIterator1 keys_first,
                       KeysIterator1 keys_last, ValuesIterator1 values_first,
                       KeysIterator2 keys_out_first, ValuesIterator2 values_out_first,
-                      KernelParam param); // (3)
+                      KernelParam param = {}); // (3)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename KeysRng1, typename ValuesRng1,
@@ -50,7 +50,7 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    sycl::event
    radix_sort_by_key (sycl::queue q, KeysRng1&& keys, ValuesRng1&& values,
                       KeysRng2&& keys_out, ValuesRng2&& values_out,
-                      KernelParam param); // (4)
+                      KernelParam param = {}); // (4)
    }
 
 .. note::
@@ -347,6 +347,12 @@ The initial configuration may be selected according to these high-level guidelin
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <radix-sort-by-key-memory-requirements>` are satisfied.
+
+.. warning::
+
+   While increasing ``param.data_per_workitem`` generally improves performance by reducing
+   synchronization overhead, excessively large values can cause register spills to memory,
+   significantly harming performance. Monitor register usage when tuning this parameter.
 
 .. note::
 

@@ -24,12 +24,12 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename KernelParam, typename Iterator>
    sycl::event
    radix_sort (sycl::queue q, Iterator first, Iterator last,
-               KernelParam param); // (1)
+               KernelParam param = {}); // (1)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range>
    sycl::event
-   radix_sort (sycl::queue q, Range&& r, KernelParam param); // (2)
+   radix_sort (sycl::queue q, Range&& r, KernelParam param = {}); // (2)
 
 
    // Sort out-of-place
@@ -38,13 +38,13 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename Iterator2>
    sycl::event
    radix_sort (sycl::queue q, Iterator1 first, Iterator1 last,
-               Iterator2 first_out, KernelParam param); // (3)
+               Iterator2 first_out, KernelParam param = {}); // (3)
 
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
              typename KernelParam, typename Range1, typename Range2>
    sycl::event
    radix_sort (sycl::queue q, Range1&& r, Range2&& r_out,
-               KernelParam param); // (4)
+               KernelParam param = {}); // (4)
    }
 
 .. note::
@@ -306,6 +306,12 @@ The initial configuration may be selected according to these high-level guidelin
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
+
+.. warning::
+
+   While increasing ``param.data_per_workitem`` generally improves performance by reducing
+   synchronization overhead, excessively large values can cause register spills to memory,
+   significantly harming performance. Monitor register usage when tuning this parameter.
 
 .. note::
 
