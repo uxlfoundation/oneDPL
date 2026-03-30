@@ -16,6 +16,9 @@
 #ifndef _ONEDPL_UNIFORM_INT_DISTRIBUTION_H
 #define _ONEDPL_UNIFORM_INT_DISTRIBUTION_H
 
+#include "random_common.h"
+#include "uniform_real_distribution.h"
+
 namespace oneapi
 {
 namespace dpl
