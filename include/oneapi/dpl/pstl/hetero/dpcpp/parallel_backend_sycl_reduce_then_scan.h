@@ -2135,7 +2135,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
     // (where native sub-group operations are slow).
-    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__q.get_device().is_gpu();
+    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType>;
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
