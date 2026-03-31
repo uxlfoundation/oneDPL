@@ -54,7 +54,7 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    }
 
 .. note::
-   The ``radix_sort_by_key`` is currently available only for Intel Arc B580 and Intel GPU series max,
+   The ``radix_sort_by_key`` is currently available only for Intel Arc B580 and Intel GPU Max Series,
    and requires Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater.
 
 Template Parameters
@@ -108,7 +108,7 @@ Parameters
 
    Current limitations:
 
-   - Number of elements to sort must not exceed `2^30`.
+   - Number of elements to sort must not exceed 2\ :sup:`30`.
    - ``RadixBits`` can only be `8`.
    - ``param.workgroup_size`` can be `512` or `1024`.
 
@@ -273,25 +273,15 @@ Global Memory Requirements
 Global memory is used for copying the input sequence(s) and storing internal data such as radix value counters.
 The used amount depends on many parameters; below is an upper bound approximation:
 
-   N\ :sub:`keys` + N\ :sub:`values` + C * N\ :sub:`keys`
+   N\ :sub:`keys` + N\ :sub:`values` + C * N
 
 where the sequence with keys takes N\ :sub:`keys` space, the sequence with values takes N\ :sub:`values` space,
-and the additional space is C * N\ :sub:`keys`.
+C is a constant, and N is the number of elements.
 
 The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
-For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `512`, and ``RadixBits`` to `8`,
-`C` approximately equals to `0.125`.
-Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
-``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
+Its value may be computed as:
 
-..
-   The estimation above is not very precise and it seems it is not necessary for the global memory.
-   The C coefficient base is actually 0.53 instead of 1.
-   An increment of RadixBits multiplies C by the factor of ~1.5 on average.
-
-   Additionally, C exceeds 1 for radix_sort_by_key,
-   when N is small and the global histogram takes more space than the sequences.
-   This space is small, single WG implementation will be added, therefore this is neglected.
+   C = 4\ :sup:`RadixBits` / (``param.data_per_workitem`` * ``param.workgroup_size``)
 
 Local Memory Requirements
 -------------------------
@@ -305,20 +295,20 @@ The used amount depends on many parameters; below is an upper bound approximatio
 where N\ :sub:`keys_per_workgroup` and N\ :sub:`values_per_workgroup` are the amounts of memory
 to store keys and values, respectively. `C` is some additional space for storing internal data.
 
-N\ :sub:`keys_per_workgroup` equals to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``,
-N\ :sub:`values_per_workgroup` equals to ``sizeof(value_type) * param.data_per_workitem * param.workgroup_size``,
+N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``,
+N\ :sub:`values_per_workgroup` is equal to ``sizeof(value_type) * param.data_per_workitem * param.workgroup_size``,
 `C` does not exceed `4KB`.
 
 ..
    C as 4KB stands on these points:
-   1) Extra space is needed to store a histogram to distribute keys. It's size is 4 * (2^RadixBits).
+   1) Extra space is needed to store a histogram to distribute keys. Its size is 4 * (2^RadixBits).
    The estimation is correct for RadixBits 9 (2KB) and smaller. Support of larger RadixBits is not expected.
-   1) N_keys + N_values is rounded up at 2KB border (temporarily as a workaround for a GPU driver bug).
+   2) The group histogram and global incoming offsets add a small fixed overhead.
 
 ..
    The estimation assumes that reordering keys/pairs takes more space than ranking keys.
-   The ranking takes approximatelly "2 * workgroup_size * (2^RadixBits)" bytes.
-   It suprpasses Intel Data Center GPU Max SLM capacity in only marginal cases,
+   The ranking takes approximately "(workgroup_size / sub_group_size) * (2^RadixBits) * sizeof(uint16_t)" bytes.
+   It surpasses Intel Data Center GPU / BMG Max SLM capacity in only marginal cases,
    e.g., when RadixBits is 10 and workgroup_size is 64, or when RadixBits is 9 and workgroup_size is 128.
    It is ignored as an unrealistic case.
 
@@ -329,19 +319,11 @@ Recommended Settings for Best Performance
 The general advice is to choose kernel parameters based on performance measurements and profiling information.
 The initial configuration may be selected according to these high-level guidelines:
 
-..
-   TODO: add this part when param.workgroup_size supports more than one value:
-   Increasing ``param.data_per_workitem`` should usually be preferred to increasing ``param.workgroup_size``,
-   to avoid extra synchronization overhead within a work-group.
-
-- For the SYCL implementation, a ``param.workgroup_size`` of ``512`` empirically yields better general
-  performance compared to ``1024``.
-
-- When the number of elements to sort ``N`` is less than ~1M, utilizing all available
+- When the number of elements to sort ``N`` is small (e.g., less than ~1M), utilizing all available
   compute cores is key for better performance. Allow creating enough work chunks to feed all
   X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
 
-- When the number of elements to sort is large (more than ~1M), maximizing the number of elements
+- When the number of elements to sort is large (e.g., more than ~1M), maximizing the number of elements
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
@@ -352,15 +334,8 @@ The initial configuration may be selected according to these high-level guidelin
 
 .. warning::
 
-   While increasing ``param.data_per_workitem`` generally improves performance by reducing
-   synchronization overhead, excessively large values can cause register spills to memory,
-   significantly harming performance. Monitor register usage when tuning this parameter.
-
-.. note::
-
-   ``param.workgroup_size`` can be set to `512` or `1024`. Adjust ``param.data_per_workitem``
-   accordingly to tune the performance for your specific use case.
-
+   Maximizing ``param.data_per_workitem`` generally improves performance as long as private memory usage does not exceed available register capacity.
+   Large performance drops with an increase to ``param.data_per_workitem`` is indicative of register spillage and profiling tools may be used to analyze this behavior.
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
 .. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide

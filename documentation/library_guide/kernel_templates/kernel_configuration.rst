@@ -48,9 +48,9 @@ The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantl
 
 **ESIMD (Explicit SIMD) Kernel Templates:**
 
-- ``data_per_workitem``: The number of data elements processed by a single **hardware thread**,
-  which issues explicit SIMD (vector) operations. The hardware thread processes these elements
-  using SIMD instructions with an implementation-defined vector length.
+- ``data_per_workitem``: The number of data elements processed by a single **hardware thread**
+  (work-item in ESIMD terminology), which issues explicit vector operations. The hardware thread
+  processes these elements using SIMD instructions with an implementation-defined vector length.
 
 - ``workgroup_size``: The number of **hardware threads** in a work-group. Each hardware thread
   executes SIMD operations independently.
@@ -61,7 +61,8 @@ The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantl
 **SYCL Kernel Templates:**
 
 - ``data_per_workitem``: The number of data elements processed sequentially by a single **SIMD lane**
-  (work-item in SYCL terminology). Each SIMD lane executes scalar operations on its assigned elements.
+  (work-item in SYCL terminology). Each SIMD lane executes scalar operations on its assigned elements
+  which are implicitly vectorized by the compiler.
 
 - ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. SIMD lanes within
   a sub-group execute in lockstep on a single hardware thread.
