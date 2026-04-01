@@ -454,12 +454,15 @@ struct __write_multiple_to_id
             }
             else
             {
-                if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __base_idx + __i))
+                const std::size_t __out_idx = __base_idx + __i;
+
+                if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
                 {
-                    __assign(static_cast<_ConvertedTupleType>(std::get<0>(__temp_data.get_and_destroy(__i))), __out_rng[__base_idx + __i]);                    
+                    __assign(static_cast<_ConvertedTupleType>(std::get<0>(__temp_data.get_and_destroy(__i))), __out_rng[__out_idx]);                    
                 }
-                else
+                else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx - 1))
                 {
+                    // We are on the first OOB index, so we set the first out of bounds source index in temp data to be used by future work items that also go out of bounds
                     [[maybe_unused]] auto [__val, __idxs] = __temp_data.get_and_destroy(__i);
                     __temp_data.set_first_oob_src_idx(__idxs);
                     return false;
