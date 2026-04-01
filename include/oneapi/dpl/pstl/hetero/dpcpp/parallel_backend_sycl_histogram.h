@@ -152,8 +152,8 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
     __dpl_sycl::__group_barrier(__self_item, __fence_space);
 }
 
-template <sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor,
-          typename _OffsetT, typename _BinFunc>
+template <sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor, typename _OffsetT,
+          typename _BinFunc>
 void
 __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_local_histogram, const _OffsetT& __offset,
                            _BinFunc __func)
@@ -262,8 +262,8 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
                             std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(
-                                    __input[__val_idx], __local_histogram, __sg_offset, __SLM_binhash);
+                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram,
+                                                                                  __sg_offset, __SLM_binhash);
                             }
                         }
                     }
@@ -354,8 +354,8 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                         for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
                             std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_atomic_address_space>(
-                                __input[__val_idx], __local_histogram, 0, __SLM_binhash);
+                            __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram, 0,
+                                                                              __SLM_binhash);
                         }
                     }
                     else
@@ -366,15 +366,15 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                             std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(
-                                    __input[__val_idx], __local_histogram, 0, __SLM_binhash);
+                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __local_histogram,
+                                                                                  0, __SLM_binhash);
                             }
                         }
                     }
                     __dpl_sycl::__group_barrier(__self_item);
 
                     __reduce_out_histograms<_bin_type, std::uint16_t>(__local_histogram, 0, __bins, __num_bins,
-                                                                        __self_item);
+                                                                      __self_item);
                 });
         });
     }
@@ -461,9 +461,9 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_atomic_address_space>(
-                                    __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins,
-                                    _device_copyable_func);
+                                __accum_local_atomics_iter<_atomic_address_space>(__input[__val_idx], __hacc_private,
+                                                                                  __wgroup_idx * __num_bins,
+                                                                                  _device_copyable_func);
                             }
                         }
                     }
