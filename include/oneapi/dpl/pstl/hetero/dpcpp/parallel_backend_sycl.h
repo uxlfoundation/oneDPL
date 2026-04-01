@@ -505,9 +505,11 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
                         __out_rng[__idx] = __lacc[__idx];
                     }
 
-                    // Save processed data size
+                    // Save position after the last processed element in output
                     if (__global_id == 0)
+                    {
                         __res_acc.__data()[0] = __n;
+                    }
                 });
         });
 
