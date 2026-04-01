@@ -283,16 +283,17 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
                     __dpl_sycl::__group_barrier(__self_item);
 
                     // Merge SLM histogram copies directly to global output.
-                    // Each of the first num_bins work-items sums one bin across all copies.
-                    if (__self_lidx < __num_bins)
+                    // Iterate over bins in a strided fashion so all bins are covered,
+                    // even when __num_bins exceeds the work-group size.
+                    for (std::uint16_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
                     {
                         _local_histogram_type __merged = 0;
                         for (std::uint32_t __s = 0; __s < __num_slm_copies; ++__s)
                         {
-                            __merged += __local_histogram[__s * __num_bins + __self_lidx];
+                            __merged += __local_histogram[__s * __num_bins + __bin];
                         }
                         __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
-                            __bins[__self_lidx]);
+                            __bins[__bin]);
                         __global_bin += __merged;
                     }
                 });
