@@ -168,10 +168,10 @@ struct __write_op_base
 {
     template <typename _OutRng, typename _SizeType>
     static bool
-    __is_in_bounds(const _OutRng& __out_rng, _SizeType __id)
+    __is_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx)
     {
         if constexpr (_Bounded)
-            return __id < oneapi::dpl::__ranges::__size(__out_rng);
+            return __out_idx < oneapi::dpl::__ranges::__size(__out_rng);
         else
             return true;
     }
