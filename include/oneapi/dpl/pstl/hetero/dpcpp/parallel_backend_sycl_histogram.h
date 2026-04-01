@@ -512,18 +512,18 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     using _local_histogram_type = std::uint32_t;
     using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-    const auto __num_bins = __bins.size();
+    const std::uint32_t __num_bins = __bins.size();
     // Limit the maximum work-group size for better performance. Empirically found value.
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
-    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
+    std::size_t __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
 
     // Compute number of SLM histogram copies: one per assumed sub-group, based on device's minimum
     // sub-group size (floored to 16 to avoid over-allocating on devices reporting very small sizes).
-    const auto __min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
-    const auto __assumed_sg_size = std::max(std::size_t(16), __min_sg_size);
+    const std::uint32_t __min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
+    const std::uint32_t __assumed_sg_size = std::max(std::uint32_t(16), __min_sg_size);
     const std::uint32_t __num_slm_copies =
-        std::max(2u, __work_group_size / static_cast<std::uint16_t>(__assumed_sg_size));
+        std::max<std::uint32_t>(2, static_cast<std::uint32_t>(__work_group_size) / __assumed_sg_size);
     const std::size_t __slm_replicated_size =
         __num_slm_copies * __num_bins * sizeof(_local_histogram_type) +
         __binhash_manager.get_required_SLM_elements() * sizeof(_extra_memory_type);
