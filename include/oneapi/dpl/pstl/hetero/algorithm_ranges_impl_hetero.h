@@ -1140,7 +1140,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1 + __n1, __result + __idx};
+        return {__first1 + __idx, __result + __idx};
     }
 
     [[maybe_unused]] const auto [__offset1, __offset2, __offset_out] =
