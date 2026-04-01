@@ -103,13 +103,13 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     }
 
     void
-    set_first_out_of_bounds_src_idx(_TupleOfSizes __sizes)
+    set_first_oob_src_idx(_TupleOfSizes __sizes)
     {
         __first_oob_src_idx_opt = __sizes;
     }
 
     bool
-    get_first_out_of_bounds_src_idx(_TupleOfSizes& __sizes) const
+    get_first_oob_src_idx(_TupleOfSizes& __sizes) const
     {
         __sizes = __first_oob_src_idx_opt.value_or(__sizes);
         return __first_oob_src_idx_opt.has_value();
@@ -133,7 +133,7 @@ struct __noop_temp_data
 
     template <typename... _Sizes>
     void
-    set_first_out_of_bounds_src_idx(std::tuple<_Sizes...>)
+    set_first_oob_src_idx(std::tuple<_Sizes...>)
     {
     }
 };
@@ -461,7 +461,7 @@ struct __write_multiple_to_id
                 else
                 {
                     [[maybe_unused]] auto [__val, __idxs] = __temp_data.get_and_destroy(__i);
-                    __temp_data.set_first_out_of_bounds_src_idx(__idxs);
+                    __temp_data.set_first_oob_src_idx(__idxs);
                     return false;
                 }
             }
@@ -2290,7 +2290,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
                             typename __temp_data_array_t::_TupleOfSizes __oob_indexes{};
-                            if (std::get<1>(__scan_res).get_first_out_of_bounds_src_idx(__oob_indexes))
+                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__oob_indexes))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 std::get<0>(__tmp) = std::get<0>(__oob_indexes);
