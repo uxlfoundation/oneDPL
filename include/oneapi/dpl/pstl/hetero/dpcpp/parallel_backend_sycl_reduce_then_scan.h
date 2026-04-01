@@ -105,20 +105,20 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     void
     set_first_out_of_bounds_src_idx(_TupleOfSizes __sizes)
     {
-        __first_oob_src_idx = __sizes;
+        __first_oob_src_idx_opt = __sizes;
     }
 
     bool
     get_first_out_of_bounds_src_idx(_TupleOfSizes& __sizes) const
     {
-        __sizes = __first_oob_src_idx.value_or(__sizes);
-        return __first_oob_src_idx.has_value();
+        __sizes = __first_oob_src_idx_opt.value_or(__sizes);
+        return __first_oob_src_idx_opt.has_value();
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
     std::array<_TupleOfSizes, elements> __indexes;
 
-    std::optional<_TupleOfSizes> __first_oob_src_idx;
+    std::optional<_TupleOfSizes> __first_oob_src_idx_opt;
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
