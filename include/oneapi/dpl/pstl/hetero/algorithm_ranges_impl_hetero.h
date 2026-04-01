@@ -1056,7 +1056,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1, __first2 + __n2, __result + __idx};
+        return {__first1, __first2 + __idx, __result + __idx};
     }
 
     //{2} is empty
@@ -1070,7 +1070,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
-        return {__first1 + __n1, __first2, __result + __idx};
+        return {__first1 + __idx, __first2, __result + __idx};
     }
 
     const auto [__offset1, __offset2, __offset_out] =
