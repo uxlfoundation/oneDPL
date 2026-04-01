@@ -319,28 +319,28 @@ struct __gen_mask
 };
 
 // Wrapper for a mask generator, converting the mask generator to a counting operation.
-template <typename _GenMask>
+template <typename _GenMask, typename _RetType>
 struct __gen_count_mask
 {
     using TempData = __noop_temp_data;
-    template <typename _InRng, typename _SizeType>
-    _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    template <typename _InRng>
+    _RetType
+    operator()(_InRng&& __in_rng, _RetType __id, TempData&) const
     {
-        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
+        return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _RetType{1} : _RetType{0};
     }
     _GenMask __gen_mask;
 };
 
 // A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
 // specified index.
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
+template <typename _GenMask, typename _RetType, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
     using TempData = __noop_temp_data;
-    template <typename _InRng, typename _SizeType>
+    template <typename _InRng>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _RetType __id, TempData&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -349,7 +349,7 @@ struct __gen_expand_count_mask
         using _ElementType = oneapi::dpl::__internal::__value_t<decltype(__transformed_input)>;
         _ElementType ele = __transformed_input[__id];
         bool mask = __gen_mask(std::forward<_InRng>(__in_rng), __id);
-        return std::tuple(mask ? _SizeType{1} : _SizeType{0}, mask, ele);
+        return std::tuple(mask ? _RetType{1} : _RetType{0}, mask, ele);
     }
     _GenMask __gen_mask;
     _RangeTransform __rng_transform;
