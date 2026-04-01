@@ -530,10 +530,10 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     // Use SLM-replicated path when replicated histograms fit within a quarter of local memory
     // (leaving room for concurrent work-groups to preserve occupancy) and there is enough input
-    // to amortize the extra clear + merge overhead (more segments than SLM copies).
+    // to amortize the extra clear + merge overhead.
     const std::size_t __n = __input.size();
     if (__slm_replicated_size <= static_cast<std::size_t>(__local_mem_size) / 4 &&
-        __n > __work_group_size * __iters_per_work_item * __num_slm_copies)
+        __n > __work_group_size * __iters_per_work_item / 2)
     {
         return __future(__histogram_general_repl_local_reduction<_CustomName, __iters_per_work_item>(
             __q, __init_event, __work_group_size, __num_slm_copies, std::forward<_Range1>(__input),
