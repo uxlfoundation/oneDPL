@@ -3337,10 +3337,9 @@ struct _DataPart
     }
 
     bool
-    is_output_size_reached(_DifferenceType __output_size) const
+    is_output_size_reached(_DifferenceType __n_out) const
     {
-        if (__output_size == 0)
-            return true;
+        const _DifferenceType __n_out_idx = std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
 
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
@@ -3353,11 +3352,9 @@ struct _DataPart
         // Result buffer:    [.......................)................................................X.............................
         //                                           ^                                                ^
         //                                           |                                                |
-        // Positions in result buffer:             __n                                              __n + 1
+        // Positions in result buffer:             __n_out_idx                                      __n_out_idx + 1
 
-        const _DifferenceType __n = __output_size - 1;
-
-        return __pos <= __n && __n < __pos + __len;
+        return __pos <= __n_out_idx && __n_out_idx < __pos + __len;
     }
 };
 
