@@ -351,5 +351,5 @@ The initial configuration may be selected according to these high-level guidelin
 .. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
    <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2024-0/intel-xe-gpu-architecture.html#XE-CORE>`_.
    Check the number of cores in the device specification, such as `Intel Arc B580 specification
-   <https://www.intel.com/content/www/us/en/products/sku/256144/intel-arc-b580-graphics-12gb/specifications.html>`_.
+   <https://www.intel.com/content/www/us/en/products/sku/241598/intel-arc-b580-graphics/specifications.html>`_.
 

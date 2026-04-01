@@ -39,12 +39,8 @@ Static Member Constants
 |                                                      |                     | a work-group.                          |
 +------------------------------------------------------+---------------------+----------------------------------------+
 
-
-Parameter Semantics
--------------------
-
 The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantly between
-:doc:`ESIMD-based <esimd_main>` and SYCL-based kernel templates due to their underlying execution models:
+:doc:`ESIMD-based <esimd_main>` and :doc:`SYCL-based <sycl_main>` kernel templates due to their underlying execution models:
 
 **ESIMD (Explicit SIMD) Kernel Templates:**
 
@@ -53,28 +49,24 @@ The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantl
   processes these elements using SIMD instructions with an implementation-defined vector length.
 
 - ``workgroup_size``: The number of **hardware threads** in a work-group. Each hardware thread
-  executes SIMD operations independently.
-
-- **Total parallelism**: ``workgroup_size`` hardware threads, each processing ``data_per_workitem``
-  elements via explicit SIMD operations.
+  executes scalar and SIMD operations independently.
 
 **SYCL Kernel Templates:**
 
-- ``data_per_workitem``: The number of data elements processed sequentially by a single **SIMD lane**
-  (work-item in SYCL terminology). Each SIMD lane executes scalar operations on its assigned elements
-  which are implicitly vectorized by the compiler.
+- ``data_per_workitem``: The number of data elements processed by a single **SIMD lane**
+  (work-item in SYCL terminology) within a hardware thread. Operations performed by each work-item are
+  implicitly vectorized by the compiler.
 
-- ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. SIMD lanes within
-  a sub-group execute in lockstep on a single hardware thread.
-
-- **Total parallelism**: ``workgroup_size`` SIMD lanes, each processing ``data_per_workitem``
-  elements sequentially.
+- ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. Work-items corresponding
+  to the same hardware thread are grouped into a sub-group which executes in lockstep.
 
 .. note::
 
-   In summary, for the same configuration values, ESIMD kernels utilize explicit vectorization
-   within each hardware thread, while SYCL kernels rely on implicit vectorization across work-items
-   that are grouped into sub-groups by the compiler and runtime.
+   As a rough guideline, dividing ESIMD ``data_per_workitem`` by 32 approximates the SYCL
+   ``data_per_workitem``, and multiplying ESIMD ``workgroup_size`` by 32 approximates the SYCL
+   ``workgroup_size`` for current kernel template implementations. However, configurations from one model may
+   not directly map to the other, and optimal parameters should be determined through performance testing for each
+   model.
 
 
 Member Types
