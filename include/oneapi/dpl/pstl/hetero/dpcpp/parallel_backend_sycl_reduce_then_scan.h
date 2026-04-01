@@ -2036,7 +2036,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);    // KSATODO should create only when _Bounded is true
 
-        // KSATODO required to save real source bounds into __result inside submitter
+        const _InitValueType __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
         sycl::event __event = __q.submit([&, this](sycl::handler& __cgh) {
 
@@ -2339,6 +2339,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         else
                         {
                             __res_ptr[0] = __sub_group_carry.__v;
+                        }
+                        
+                        // For scan patterns with bounds checking, we need to ensure that the final value does not exceed the output size,
+                        // as it may be used for the return value of the scan.
+                        if constexpr (_Bounded)
+                        {
+                            __res_ptr[0] = std::min(__res_ptr[0], __n_out);
                         }
                     }
                     else
