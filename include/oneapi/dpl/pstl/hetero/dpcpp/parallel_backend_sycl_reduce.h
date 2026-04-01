@@ -279,18 +279,18 @@ __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _S
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
 
-    __combined_storage<_Tp> __scratch_container{__q, __n_groups, 1};
+    __combined_storage<_Tp> __result{__q, __n_groups, 1};
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
             __q, __n, __work_group_size, __iters_per_work_item_device_kernel, __reduce_op, __transform_op,
-            __scratch_container, std::forward<_Ranges>(__rngs)...);
+            __result, std::forward<_Ranges>(__rngs)...);
 
     // __n_groups preliminary results from the device kernel.
     return __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative, _VecSize,
                                                                    _ReduceWorkGroupKernel>()(
         __q, __reduce_event, __n_groups, __work_group_size, __iters_per_work_item_work_group_kernel, __reduce_op,
-        __init, std::move(__scratch_container));
+        __init, std::move(__result));
 }
 
 // General implementation using a tree reduction
