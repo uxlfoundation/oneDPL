@@ -227,14 +227,20 @@ Global Memory Requirements
 Global memory is used for copying the input sequence(s) and storing internal data such as radix value counters.
 The used amount depends on many parameters; below is an upper bound approximation:
 
-   N\ :sub:`keys` + C * N
+   N\ :sub:`keys` + C * N\ :sub:`keys`
 
-where the sequence with keys takes N\ :sub:`keys` space, C is a constant, and N is the number of keys.
+where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
 The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
-Its value may be computed as:
+For ``param.data_per_workitem`` set to `10`, ``param.workgroup_size`` to `512`, and ``RadixBits`` to `8`,
+`C` is typically less than `1`.
+Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
+``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
-   C = 4\ :sup:`RadixBits` / (``param.data_per_workitem`` * ``param.workgroup_size``)
+..
+   The estimation above is not very precise and it seems it is not necessary for the global memory.
+   The C coefficient varies with parameters and decreases as the product of data_per_workitem and workgroup_size increases.
+   An increment of RadixBits multiplies C by the factor of ~1.5 on average.
 
 Local Memory Requirements
 -------------------------
