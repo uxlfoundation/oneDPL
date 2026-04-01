@@ -2267,14 +2267,18 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                     if constexpr (_Bounded)
                     {
-                        // KSAOTODO How to work with it?
-                        //__scan_res;
-
-                        if (std::get<0>(__scan_res))
+                        using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
+                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            assert(false);
-                            // oneapi::dpl::__par_backend_hetero::__noop_temp_data
-                            //decltype(std::get<1>(__scan_res))::dummy;
+                            typename __temp_data_array_t::_TupleOfSizes __oob_indexes{};
+                            if (std::get<1>(__scan_res).get_first_out_of_bounds_src_idx(__oob_indexes))
+                            {
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
+                                std::get<0>(__tmp) = std::get<0>(__oob_indexes);
+                                std::get<1>(__tmp) = std::get<1>(__oob_indexes);
+
+                                *__src_stop_pos_acc.__data() = __tmp;
+                            }
                         }
                     }
                 }
@@ -2289,14 +2293,18 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                     if constexpr (_Bounded)
                     {
-                        // KSAOTODO How to work with it?
-                        //__scan_res;
-
-                        if (std::get<0>(__scan_res))
+                        using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
+                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            assert(false);
-                            // oneapi::dpl::__par_backend_hetero::__noop_temp_data
-                            //decltype(std::get<1>(__scan_res))::dummy;
+                            typename __temp_data_array_t::_TupleOfSizes __oob_indexes{};
+                            if (std::get<1>(__scan_res).get_first_out_of_bounds_src_idx(__oob_indexes))
+                            {
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
+                                std::get<0>(__tmp) = std::get<0>(__oob_indexes);
+                                std::get<1>(__tmp) = std::get<1>(__oob_indexes);
+
+                                *__src_stop_pos_acc.__data() = __tmp;
+                            }
                         }
                     }
                 }
