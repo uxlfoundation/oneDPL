@@ -2283,15 +2283,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                if (__sub_group_carry_initialized)
-                {
-                    auto __scan_res = __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                                     /*__init_present=*/true,
-                                                                     /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups);
-
+                auto __process_scan_result = [&]([[maybe_unused]] const auto& __scan_res) {
                     if constexpr (_Bounded)
                     {
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
@@ -2303,37 +2295,33 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 std::get<0>(__tmp) = std::get<0>(__oob_indexes);
                                 std::get<1>(__tmp) = std::get<1>(__oob_indexes);
-
-                                *__src_stop_pos_acc.__data() = __tmp;
+                                *__stop_pos_acc.__data() = __tmp;
                             }
                         }
                     }
+                };
+
+                if (__sub_group_carry_initialized)
+                {
+                    __process_scan_result(
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/true,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups));
                 }
                 else // first group first block, no subgroup carry
                 {
-                    auto __scan_res = __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                                     /*__init_present=*/false,
-                                                                     /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
-                        __subgroup_start_id, __sub_group_id, __active_subgroups);
-
-                    if constexpr (_Bounded)
-                    {
-                        using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
-                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
-                        {
-                            typename __temp_data_array_t::_TupleOfSizes __oob_indexes{};
-                            if (std::get<1>(__scan_res).get_first_out_of_bounds_src_idx(__oob_indexes))
-                            {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                                std::get<0>(__tmp) = std::get<0>(__oob_indexes);
-                                std::get<1>(__tmp) = std::get<1>(__oob_indexes);
-
-                                *__src_stop_pos_acc.__data() = __tmp;
-                            }
-                        }
-                    }
+                    __process_scan_result(
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                       /*__init_present=*/false,
+                                                       /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups));
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
@@ -2364,7 +2352,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             });
         });
 
-        return {std::move(__event), std::move(__src_stop_pos_result)};
+        return {std::move(__event), std::move(__stop_pos_payload)};
     }
 
     const std::uint32_t __max_num_work_groups;
@@ -2439,7 +2427,7 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern>
-std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>            // KSATODO __scan_stop_pos_storage_t should be used in return type only when _Bounded is true
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,         // KSATODO check calling chains+
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
@@ -2493,7 +2481,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
-    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);
+    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);   // KSATODO should create only when _Bounded is true + probably not required here because it's returned from scan submitter
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
