@@ -509,7 +509,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     // sub-group size (floored to 16 to avoid over-allocating on devices reporting very small sizes).
     const std::uint32_t __assumed_sg_size =
 #if _ONEDPL_USE_SUB_GROUPS
-        std::max(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
+        std::max<std::uint32_t>(std::uint32_t(16), oneapi::dpl::__internal::__min_sub_group_size(__q));
 #else
         //if we dont have access to subgroups, use a reasonable default for a fixed level of replication.
         16;
