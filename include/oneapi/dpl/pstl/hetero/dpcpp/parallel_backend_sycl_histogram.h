@@ -152,25 +152,14 @@ __clear_wglocal_histograms(const _HistAccessor& __local_histogram, const _Offset
     __dpl_sycl::__group_barrier(__self_item, __fence_space);
 }
 
-template <typename _BinIdxType, typename _ValueType, typename _HistReg, typename _BinFunc>
-void
-__accum_local_register_iter(const _ValueType& __x, _HistReg* __histogram, _BinFunc __func)
-{
-    _BinIdxType c = __func.get_bin(__x);
-    if (c >= 0)
-    {
-        ++__histogram[c];
-    }
-}
-
-template <typename _BinIdxType, sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor,
+template <sycl::access::address_space _AddressSpace, typename _ValueType, typename _HistAccessor,
           typename _OffsetT, typename _BinFunc>
 void
 __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_local_histogram, const _OffsetT& __offset,
                            _BinFunc __func)
 {
     using _histo_value_type = typename _HistAccessor::value_type;
-    _BinIdxType __c = __func.get_bin(__x);
+    std::int32_t __c = __func.get_bin(__x);
     if (__c >= 0)
     {
         __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(__wg_local_histogram[__offset + __c]);
@@ -222,7 +211,6 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
         const std::size_t __n = __input.size();
         const std::uint16_t __num_bins = __bins.size();
         using _local_histogram_type = std::uint32_t;
-        using _histogram_index_type = std::int16_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
@@ -261,7 +249,7 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
                         _ONEDPL_PRAGMA_UNROLL
                         for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
-                            __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                            __accum_local_atomics_iter<_atomic_address_space>(
                                 __input[__seg_start + __idx * __work_group_size + __self_lidx], __local_histogram,
                                 __sg_offset, __SLM_binhash);
                         }
@@ -274,7 +262,7 @@ struct __histogram_general_repl_local_reduction_submitter<__iters_per_work_item,
                             std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                                __accum_local_atomics_iter<_atomic_address_space>(
                                     __input[__val_idx], __local_histogram, __sg_offset, __SLM_binhash);
                             }
                         }
@@ -321,10 +309,10 @@ __histogram_general_repl_local_reduction(sycl::queue& __q, const sycl::event& __
         std::forward<_Range2>(__bins), __binhash_manager);
 }
 
-template <::std::uint16_t __iters_per_work_item, typename _KernelName>
+template <std::uint16_t __iters_per_work_item, typename _KernelName>
 struct __histogram_general_local_atomics_submitter;
 
-template <::std::uint16_t __iters_per_work_item, typename... _KernelName>
+template <std::uint16_t __iters_per_work_item, typename... _KernelName>
 struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                                                    __internal::__optional_kernel_name<_KernelName...>>
 {
@@ -333,15 +321,14 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
     operator()(sycl::queue& __q, const sycl::event& __init_event, std::uint16_t __work_group_size, _Range1&& __input,
                _Range2&& __bins, const _BinHashMgr& __binhash_manager)
     {
-        using _local_histogram_type = ::std::uint32_t;
+        using _local_histogram_type = std::uint32_t;
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
-        using _histogram_index_type = ::std::int16_t;
         using _extra_memory_type = typename _BinHashMgr::_extra_memory_type;
 
-        ::std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
-        const ::std::size_t __n = __input.size();
-        const ::std::size_t __num_bins = __bins.size();
-        ::std::size_t __segments =
+        std::size_t __extra_SLM_elements = __binhash_manager.get_required_SLM_elements();
+        const std::size_t __n = __input.size();
+        const std::size_t __num_bins = __bins.size();
+        std::size_t __segments =
             oneapi::dpl::__internal::__dpl_ceiling_div(__n, __work_group_size * __iters_per_work_item);
         return __q.submit([&](auto& __h) {
             __h.depends_on(__init_event);
@@ -354,9 +341,9 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                 sycl::nd_range<1>(__segments * __work_group_size, __work_group_size),
                 [=](sycl::nd_item<1> __self_item) {
                     constexpr auto _atomic_address_space = sycl::access::address_space::local_space;
-                    const ::std::size_t __self_lidx = __self_item.get_local_id(0);
-                    const ::std::uint32_t __wgroup_idx = __self_item.get_group(0);
-                    const ::std::size_t __seg_start = __work_group_size * __wgroup_idx * __iters_per_work_item;
+                    const std::size_t __self_lidx = __self_item.get_local_id(0);
+                    const std::uint32_t __wgroup_idx = __self_item.get_group(0);
+                    const std::size_t __seg_start = __work_group_size * __wgroup_idx * __iters_per_work_item;
                     auto __SLM_binhash = __make_SLM_binhash(_device_copyable_func, __extra_SLM, __self_item);
 
                     __clear_wglocal_histograms(__local_histogram, 0, __num_bins, __self_item);
@@ -364,29 +351,29 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                     if (__seg_start + __work_group_size * __iters_per_work_item < __n)
                     {
                         _ONEDPL_PRAGMA_UNROLL
-                        for (::std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                            __accum_local_atomics_iter<_atomic_address_space>(
                                 __input[__val_idx], __local_histogram, 0, __SLM_binhash);
                         }
                     }
                     else
                     {
                         _ONEDPL_PRAGMA_UNROLL
-                        for (::std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
+                        for (std::uint8_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
-                            ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
+                            std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                                __accum_local_atomics_iter<_atomic_address_space>(
                                     __input[__val_idx], __local_histogram, 0, __SLM_binhash);
                             }
                         }
                     }
                     __dpl_sycl::__group_barrier(__self_item);
 
-                    __reduce_out_histograms<_bin_type, ::std::uint16_t>(__local_histogram, 0, __bins, __num_bins,
+                    __reduce_out_histograms<_bin_type, std::uint16_t>(__local_histogram, 0, __bins, __num_bins,
                                                                         __self_item);
                 });
         });
@@ -427,7 +414,6 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
         const ::std::size_t __n = __input.size();
         const ::std::size_t __num_bins = __bins.size();
         using _bin_type = oneapi::dpl::__internal::__value_t<_Range2>;
-        using _histogram_index_type = ::std::int32_t;
 
         const std::uint64_t __global_mem_size = __q.get_device().get_info<sycl::info::device::global_mem_size>();
         const std::uint64_t __max_groups =
@@ -464,7 +450,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                         for (::std::size_t __idx = 0; __idx < __iters_per_work_item; ++__idx)
                         {
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
-                            __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                            __accum_local_atomics_iter<_atomic_address_space>(
                                 __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins, _device_copyable_func);
                         }
                     }
@@ -475,7 +461,7 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                             ::std::size_t __val_idx = __seg_start + __idx * __work_group_size + __self_lidx;
                             if (__val_idx < __n)
                             {
-                                __accum_local_atomics_iter<_histogram_index_type, _atomic_address_space>(
+                                __accum_local_atomics_iter<_atomic_address_space>(
                                     __input[__val_idx], __hacc_private, __wgroup_idx * __num_bins,
                                     _device_copyable_func);
                             }
