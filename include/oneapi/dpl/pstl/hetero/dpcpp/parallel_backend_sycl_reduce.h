@@ -134,13 +134,13 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         auto __reduce_pattern = unseq_backend::reduce_over_group<_ReduceOp, _Tp>{__reduce_op};
         const bool __is_full = __n == __work_group_size * __iters_per_work_item;
 
-        __combined_storage<_Tp> __scratch_container{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+        __combined_storage<_Tp> __result{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
 
         sycl::event __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
 
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
 
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
@@ -154,7 +154,7 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
                 });
         });
 
-        return {std::move(__reduce_event), std::move(__scratch_container)};
+        return {std::move(__reduce_event), std::move(__result)};
     }
 }; // struct __parallel_transform_reduce_small_submitter
 
