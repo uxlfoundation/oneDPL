@@ -2000,8 +2000,26 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
+    struct _no_accessor_type
+    {
+    };
+
+    auto
+    __get_stop_pos_accessor(sycl::handler& __cgh, auto& __stop_pos_payload) const
+    {
+        if constexpr (_Bounded)
+        {
+            // By using this sycl::read_write option we implements source data initialization under this accessor
+            return __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
+        }
+        else
+        {
+            return _no_accessor_type{};
+        }
+    };
+
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>
+    std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>      // KSATODO the type of return value should depends of _Bounded state
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
@@ -2016,7 +2034,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        __scan_stop_pos_storage_t<_InRng> __src_stop_pos_result{__q, 1};
+        __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);    // KSATODO should create only when _Bounded is true
 
         // KSATODO required to save real source bounds into __result inside submitter
 
@@ -2034,12 +2052,21 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
             auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
 
-            // Using required properties based on _Bounded state to not spend time to init when it's not needed due we are in unbounded mode
-            auto __src_stop_pos_acc = __get_accessor(sycl::write_only, __src_stop_pos_result, __cgh,
-                                                     _Bounded ? sycl::property_list{} : __dpl_sycl::__no_init{});
+            auto __stop_pos_acc = __get_stop_pos_accessor(__cgh, __stop_pos_payload);
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
+
+                // Initialize stop positions from the first item
+                if constexpr (_Bounded)
+                {
+                    const std::size_t __global_id = __ndi.get_global_linear_id();
+                    if (__global_id == 0)
+                    {
+                        *__stop_pos_acc.__data() = {};
+                    }
+                }
+
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
