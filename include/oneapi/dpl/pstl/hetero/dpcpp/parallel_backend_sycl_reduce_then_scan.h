@@ -2042,21 +2042,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     _InitType __init;
 };
 
-// Reduce-then-scan is supported on all devices. Non-GPU targets and non-trivially-copyable types
-// use SLM-based sub-group communication instead of native sub-group operations.
-inline bool
-__is_reduce_then_scan_supported(const sycl::queue&)
-{
-    return true;
-}
-
-// Kept for backward compatibility; prefer __is_reduce_then_scan_supported.
-inline bool
-__is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
-{
-    return __is_reduce_then_scan_supported(__q);
-}
-
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
