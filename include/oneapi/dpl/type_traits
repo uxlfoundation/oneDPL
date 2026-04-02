@@ -209,12 +209,12 @@ using ::std::negation;
 using ::std::rank_v;
 using ::std::void_t;
 
-#if _ONEDPL___cplusplus < 202002L
+#if _ONEDPL___cplusplus <= 201703L
 using ::std::is_literal_type;   // Deprecated in C++17, removed in C++20
 using ::std::is_literal_type_v; // Deprecated in C++17, removed in C++20
 using ::std::result_of;         // Deprecated in C++17, removed in C++20
 using ::std::result_of_t;       // Deprecated in C++17, removed in C++20
-#endif                          // _ONEDPL___cplusplus < 202002L
+#endif                          // _ONEDPL___cplusplus <= 201703L
 } // namespace dpl
 } // namespace oneapi
 
