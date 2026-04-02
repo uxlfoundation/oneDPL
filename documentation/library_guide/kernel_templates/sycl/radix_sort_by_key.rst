@@ -54,8 +54,9 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
    }
 
 .. note::
-   The ``radix_sort_by_key`` is currently available only for Intel Arc B580 and Intel GPU Max Series,
-   and requires Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater.
+   ``radix_sort_by_key`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
+   Level-Zero must be used.
 
 Template Parameters
 --------------------
