@@ -229,13 +229,11 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
                                                                __internal::__optional_kernel_name<_KernelName...>>
 {
     template <typename _Size, typename _ReduceOp, typename _InitType>
-    __future<sycl::event, __result_and_scratch_storage<_Tp>>
+    std::tuple<sycl::event, __combined_storage<_Tp>>
     operator()(sycl::queue& __q, const sycl::event& __reduce_event, const _Size __n, const _Size __work_group_size,
                const _Size __iters_per_work_item, _ReduceOp __reduce_op, _InitType __init,
-               __result_and_scratch_storage<_Tp>&& __scratch_container) const
+               __combined_storage<_Tp>&& __scratch_container) const
     {
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
-
         using unseq_backend::__unchanged;
         auto __transform_pattern = unseq_backend::transform_reduce<_ReduceOp, __unchanged, _Tp, _Commutative, _VecSize>{
                                        __reduce_op, __unchanged{}};
@@ -246,22 +244,21 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
         auto __event = __q.submit([&, __n](sycl::handler& __cgh) {
             __cgh.depends_on(__reduce_event);
 
-            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
-            auto __res_acc =
-                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::read_only, __scratch_container, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__work_group_size), __cgh);
 
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) {
-                    auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                    auto __res_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, __n);
                     __work_group_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full, __transform_pattern,
-                                                    __reduce_pattern, __init, __temp_local, __res_ptr, __temp_ptr);
+                                                    __reduce_pattern, __init, __temp_local, __res_acc.__data(),
+                                                    __temp_acc.__data());
                 });
         });
 
-        return __future{std::move(__event), std::move(__scratch_container)};
+        return {std::move(__event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_work_group_kernel_submitter
 
