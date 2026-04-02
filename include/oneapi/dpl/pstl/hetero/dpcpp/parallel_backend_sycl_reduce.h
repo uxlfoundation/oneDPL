@@ -505,9 +505,11 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _Exec
 
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
-    return __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
-        __q_local, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op, __init,
-        std::forward<_Ranges>(__rngs)...);
+    auto&& [__event, __payload] =
+        __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
+            __q_local, __n, __work_group_size_long, __max_iters_per_work_item, __reduce_op, __transform_op, __init,
+            std::forward<_Ranges>(__rngs)...);
+    return __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
 }
 
 } // namespace __par_backend_hetero
