@@ -163,19 +163,23 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <bool _Bounded>
-struct __write_op_base
+
+template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner>
+bool
+__save_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign)
 {
-    template <typename _OutRng, typename _SizeType>
-    static bool
-    __is_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx)
+    if constexpr (!_Bounded)
     {
-        if constexpr (_Bounded)
-            return __out_idx < oneapi::dpl::__ranges::__size(__out_rng);
-        else
-            return true;
+        __assign();
+        return true;
     }
-};
+    else
+    {
+        const bool __result = __out_idx < oneapi::dpl::__ranges::__size(__out_rng);
+        __result ? __assign() : void();
+        return __result;
+    }
+}
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
@@ -195,18 +199,7 @@ struct __simple_write_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
-        if constexpr (!_Bounded)
-        {
-            __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
-            return true;
-        }
-        else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
-        {
-            __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
-            return true;
-        }
-
-        return false;
+        return __save_if_in_bounds<_Bounded>(__out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); });
     }
 };
 
@@ -228,23 +221,10 @@ struct __write_to_id_if
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (std::get<1>(__v))
-        {
-            const auto __out_idx = std::get<0>(__v) - 1 + __offset;                                                                                                                        
 
-            if constexpr (!_Bounded)
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-        }
-
-        return false;
+        return !std::get<1>(__v) ||
+               __save_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1 + __offset,
+                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]); });
     }
 
     _Assign __assign;
@@ -268,38 +248,12 @@ struct __write_to_id_if_else
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
-        if (std::get<1>(__v))
-        {
-            const auto __out_idx = std::get<0>(__v) - 1;
 
-            if constexpr (!_Bounded)
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-        }
-        else
-        {
-            const auto __out_idx = __id - std::get<0>(__v);
-
-            if constexpr (!_Bounded)
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
-            {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx]);
-                return true;
-            }
-        }
-
-        return false;
+        return std::get<1>(__v)
+            ? __save_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1,
+                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1])); })
+            : __save_if_in_bounds<_Bounded>(__out_rng, __id - std::get<0>(__v),
+                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)])); });
     }
 
     _Assign __assign;
@@ -335,25 +289,22 @@ struct __write_red_by_seg
         // API requires that the first key in a segment is output and is important for when keys in a segment might not
         // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
         // segments process.
-        if (__id == 0 && __write_op_base<_Bounded>::__is_in_bounds(__out_keys, 0))
-            __out_keys[0] = __current_key;
+        if (__id == 0)
+        {
+            if (!__save_if_in_bounds<_Bounded>(__out_keys, 0, [&]() { __out_keys[0] = __current_key; }))
+                return false;
+        }
 
         if (__is_seg_end)
         {
-            if constexpr (_Bounded)
-            {
-                if (!__write_op_base<_Bounded>::__is_in_bounds(__out_values, __out_idx))
-                    return false;
-
-                if (__id != __n - 1)
-                    if (!__write_op_base<_Bounded>::__is_in_bounds(__out_keys, __out_idx + 1))
-                        return false;
-            }
-
-            __out_values[__out_idx] = __current_value;
+            if (!__save_if_in_bounds<_Bounded>(__out_values, __out_idx, [&]() { __out_values[__out_idx] = __current_value; }))
+                return false;
 
             if (__id != __n - 1)
-                __out_keys[__out_idx + 1] = __next_key;
+            {
+                if (!__save_if_in_bounds<_Bounded>(__out_values, __out_idx + 1, [&]() { __out_values[__out_idx + 1] = __next_key; }))
+                    return false;
+            }
         }
 
         return true;
@@ -389,16 +340,8 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
                 "inclusive_scan_by_segment must not have an initial element");
 
-            if constexpr (!_Bounded)
-            {
-                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
-                return true;
-            }
-            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
-            {
-                __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
-                return true;
-            }
+            return __save_if_in_bounds<_Bounded>(
+                __out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v))); });
         }
         else
         {
@@ -406,23 +349,13 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
 
-            if constexpr (!_Bounded)
-            {
-                __out_rng[__id] = get<1>(__v)
-                                    ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                                    : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
-                return true;
-            }
-            else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __id))
-            {
-                __out_rng[__id] = get<1>(__v)
-                                    ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                                    : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
-                return true;
-            }
+            return __save_if_in_bounds<_Bounded>(__out_rng, __id, [&]() {
+                __out_rng[__id] =
+                    get<1>(__v)
+                        ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                        : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+            });
         }
-
-        return false;
     }
 };
 
@@ -446,6 +379,8 @@ struct __write_multiple_to_id
         const std::size_t __n = std::get<1>(__v);
         const std::size_t __base_idx = std::get<0>(__v) - __n;
 
+        [[maybe_unused]] const auto __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
+
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
             if constexpr (!_Bounded)
@@ -456,15 +391,21 @@ struct __write_multiple_to_id
             {
                 const std::size_t __out_idx = __base_idx + __i;
 
-                if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx))
+                auto __saved_tmp_data = __temp_data.get_and_destroy(__i);
+
+                if (!__save_if_in_bounds<_Bounded>(__out_rng, __out_idx, [&]() {
+                        __assign(static_cast<_ConvertedTupleType>(std::get<0>(__saved_tmp_data)), __out_rng[__out_idx]);
+                    }))
                 {
-                    __assign(static_cast<_ConvertedTupleType>(std::get<0>(__temp_data.get_and_destroy(__i))), __out_rng[__out_idx]);                    
-                }
-                else if (__write_op_base<_Bounded>::__is_in_bounds(__out_rng, __out_idx - 1))
-                {
-                    // We are on the first OOB index, so we set the first out of bounds source index in temp data to be used by future work items that also go out of bounds
-                    [[maybe_unused]] auto [__val, __idxs] = __temp_data.get_and_destroy(__i);
-                    __temp_data.set_first_oob_src_idx(__idxs);
+                    if (__out_idx == __out_rng_size)
+                    {
+                        __temp_data.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
+                    }
+
+                    // Destroy all remaining initialized elements to avoid resource leak
+                    for (++__i; __i < __n; ++__i)
+                        __temp_data.get_and_destroy(__i);
+
                     return false;
                 }
             }
