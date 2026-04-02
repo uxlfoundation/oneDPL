@@ -71,7 +71,7 @@ struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return {__data[__idx].__v};
+        return std::move(__data[__idx].__v);
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
@@ -99,7 +99,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return {__data[__idx].__v, __indexes[__idx]};
+        return {std::move(__data[__idx].__v), __indexes[__idx]};
     }
 
     void
