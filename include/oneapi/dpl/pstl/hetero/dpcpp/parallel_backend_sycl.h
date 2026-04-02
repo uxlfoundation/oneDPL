@@ -2581,14 +2581,15 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
     {
         using _ScanInitType = oneapi::dpl::__internal::__value_t<decltype(oneapi::dpl::__ranges::zip_view(
             std::forward<_Range2>(__values), __mask_view))>;
-        __parallel_transform_scan<_Bounded>(
+
+        [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] = __parallel_transform_scan<_Bounded>(
             oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range2>(__values), __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
             oneapi::dpl::identity{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
             oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
-            /*_Inclusive*/ std::true_type{})
-            .wait();
+            /*_Inclusive*/ std::true_type{});
+        __event.wait_and_throw();
     }
     else
     {
