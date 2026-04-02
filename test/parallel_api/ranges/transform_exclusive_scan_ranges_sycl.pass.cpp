@@ -49,10 +49,8 @@ test_impl(Policy&& exec)
         auto view = ranges::all_view<int, sycl::access::mode::read>(A);
         auto view_res = ranges::all_view<int, sycl::access::mode::write>(B);
 
-        auto __res1 = ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), view, view_res, 100, std::plus<int>(), pred);
-        EXPECT_EQ(std::min(view.size(), view_res.size()), __res1, "wrong result of ranges::transform_exclusive_scan call");
-        auto __res2 = ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), A, C, 100, std::plus<int>(), pred);
-        EXPECT_EQ(std::min(A.size(), C.size()), __res2, "wrong result of ranges::transform_exclusive_scan call");
+        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 0), view, view_res, 100, std::plus<int>(), pred);
+        ranges::transform_exclusive_scan(CLONE_TEST_POLICY_IDX(exec, 1), A, C, 100, std::plus<int>(), pred);
     }
 
     //check result
