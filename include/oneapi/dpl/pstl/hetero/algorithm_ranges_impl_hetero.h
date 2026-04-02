@@ -975,19 +975,14 @@ std::ranges::merge_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::bo
 __pattern_merge_ranges(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                        _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_R1, _R2, _OutRange>;
+    const auto [__merged_offset1, __merged_offset2] =
+        oneapi::dpl::__internal::__ranges::__pattern_merge</*_Bounded*/ true>(
+            __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
+            oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r),
+            __comp, __proj1, __proj2);
 
-    const _CommonSize __n_1 = oneapi::dpl::__ranges::__size(__r1);
-    const _CommonSize __n_2 = oneapi::dpl::__ranges::__size(__r2);
-    const _CommonSize __n_out = std::min<_CommonSize>(__n_1 + __n_2, oneapi::dpl::__ranges::__size(__out_r));
-
-    const std::pair __res = oneapi::dpl::__internal::__ranges::__pattern_merge</*_Bounded*/ true>(
-        __tag, std::forward<_ExecutionPolicy>(__exec), oneapi::dpl::__ranges::views::all_read(__r1),
-        oneapi::dpl::__ranges::views::all_read(__r2), oneapi::dpl::__ranges::views::all_write(__out_r), __comp, __proj1,
-        __proj2);
-
-    return {std::ranges::begin(__r1) + __res.first, std::ranges::begin(__r2) + __res.second,
-            std::ranges::begin(__out_r) + __n_out};
+    return {std::ranges::begin(__r1) + __merged_offset1, std::ranges::begin(__r2) + __merged_offset2,
+            std::ranges::begin(__out_r) + __merged_offset1 + __merged_offset2};
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
