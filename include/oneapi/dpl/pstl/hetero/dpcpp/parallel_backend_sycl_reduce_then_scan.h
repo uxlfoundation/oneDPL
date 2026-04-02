@@ -1990,7 +1990,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    std::tuple<sycl::event, __parallel_reduce_then_scan_stop_pos_storage_t<_InRng>>
+    std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
@@ -2005,18 +2005,27 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        __parallel_reduce_then_scan_stop_pos_storage_t<_InRng> __result(__q, 1);
+        __scan_stop_pos_storage_t<_InRng> __src_stop_pos_result{__q, 1};
+
+        // KSATODO required to save real source bounds into __result inside submitter
 
         sycl::event __event = __q.submit([&, this](sycl::handler& __cgh) {
+
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
+
             __cgh.depends_on(__prior_event);
+
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
-            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
-            auto __res_acc =
-                __scratch_container.template __get_result_acc<sycl::access_mode::write>(__cgh, __dpl_sycl::__no_init{});
+
+            auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh);
+            auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
+
+            // Using required properties based on _Bounded state to not spend time to init when it's not needed due we are in unbounded mode
+            auto __src_stop_pos_acc = __get_accessor(sycl::write_only, __src_stop_pos_result, __cgh,
+                                                     _Bounded ? sycl::property_list{} : __dpl_sycl::__no_init{});
 
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
@@ -2030,8 +2039,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     __inputs_in_block,
                     __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local);
 
-                _InitValueType* const __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                _InitValueType* const __res_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
+                _InitValueType* const __tmp_ptr = __temp_acc.__data();
+                _InitValueType* const __res_ptr = __res_acc.__data();
 
                 const std::uint32_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -2238,22 +2247,49 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 if (__sub_group_carry_initialized)
                 {
-                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                   /*__init_present=*/true,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                    auto __scan_res = __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                                     /*__init_present=*/true,
+                                                                     /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups);
+
+                    if constexpr (_Bounded)
+                    {
+                        // KSAOTODO How to work with it?
+                        //__scan_res;
+
+                        if (std::get<0>(__scan_res))
+                        {
+                            assert(false);
+                            // oneapi::dpl::__par_backend_hetero::__noop_temp_data
+                            //decltype(std::get<1>(__scan_res))::dummy;
+                        }
+                    }
                 }
                 else // first group first block, no subgroup carry
                 {
-                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                   /*__init_present=*/false,
-                                                   /*__capture_output=*/true, __max_inputs_per_item>(
+                    auto __scan_res = __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                                     /*__init_present=*/false,
+                                                                     /*__capture_output=*/true, __max_inputs_per_item>(
                         __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
                         __sub_group_carry, __in_rng, __out_rng, __start_id, __n, __sub_group_params.__inputs_per_item,
                         __subgroup_start_id, __sub_group_id, __active_subgroups);
+
+                    if constexpr (_Bounded)
+                    {
+                        // KSAOTODO How to work with it?
+                        //__scan_res;
+
+                        if (std::get<0>(__scan_res))
+                        {
+                            assert(false);
+                            // oneapi::dpl::__par_backend_hetero::__noop_temp_data
+                            //decltype(std::get<1>(__scan_res))::dummy;
+                        }
+                    }
                 }
+
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
                 // to write out the last carry out for either the return value or the next block
                 if (__sub_group_local_id == 0 && (__active_groups == __group_id + 1) &&
@@ -2282,7 +2318,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             });
         });
 
-        return {std::move(__event), std::move(__result)};
+        return {std::move(__event), std::move(__src_stop_pos_result)};
     }
 
     const std::uint32_t __max_num_work_groups;
