@@ -1050,7 +1050,6 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 {
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
     const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
-    const auto __n_out = oneapi::dpl::__ranges::__size(__result);
 
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare, _Proj1, _Proj2>;
@@ -1068,7 +1067,6 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n1);
 
-    auto __mask_view = oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer());
     auto __packed_src_view = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(
         std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
         oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
@@ -1274,7 +1272,6 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_UnionTag, _UseReduceThenScan,
 {
     static_assert(!_Bounded, "Only unbounded variants are supported.");
 
-    using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2, _Range3>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
@@ -1339,8 +1336,6 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
                       _Proj2 __proj2)
 {
     static_assert(!_Bounded, "Only unbounded variants are supported.");
-
-    using _CommonSize = oneapi::dpl::__ranges::__common_size_t<_Range1, _Range2, _Range3>;
 
     using _ValueType1 = oneapi::dpl::__internal::__value_t<_Range1>;
     using _ValueType2 = oneapi::dpl::__internal::__value_t<_Range2>;

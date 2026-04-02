@@ -1120,7 +1120,6 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     const auto __first1 = std::ranges::begin(__r1);
-    const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__r1);

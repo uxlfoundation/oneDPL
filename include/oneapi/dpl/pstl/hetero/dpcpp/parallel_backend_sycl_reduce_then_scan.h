@@ -1915,7 +1915,7 @@ template <typename... _InRng>
 using __scan_stop_pos_t = typename __scan_stop_pos_type<std::decay_t<_InRng>...>::_Type;
 
 template <typename... _Ranges>
-class __create_scan_stop_pos_initial_value
+class __scan_stop_pos_initial_value
 {
     template <typename _T>
     struct _is_tuple : std::false_type
@@ -1931,8 +1931,8 @@ class __create_scan_stop_pos_initial_value
     static constexpr bool _is_tuple_v = _is_tuple<std::decay_t<_T>>::value;
 
     template <typename _T>
-    auto
-    __convert_field(_T&& __t) const
+    static auto
+    __convert_field(_T&& __t)
     {
         using _TDecayed = std::decay_t<_T>;
 
@@ -1951,19 +1951,19 @@ class __create_scan_stop_pos_initial_value
     }
 
     template <typename... _Types>
-    auto
-    __convert_fields(std::tuple<_Types...>&& __tup) const
+    static auto
+    __convert_fields(std::tuple<_Types...>&& __tup)
     {
         return std::apply(
-            [this](auto&&... __args) {
+            [](auto&&... __args) {
                 return std::make_tuple(__convert_field(std::forward<decltype(__args)>(__args))...);
             },
             std::forward<decltype(__tup)>(__tup));
     }
 
     template <typename _TValue>
-    std::enable_if_t<std::is_arithmetic_v<std::decay_t<_TValue>>, std::decay_t<_TValue>>
-    __convert_fields(_TValue&& __value) const
+    static std::enable_if_t<std::is_arithmetic_v<std::decay_t<_TValue>>, std::decay_t<_TValue>>
+    __convert_fields(_TValue&& __value)
     {
         using _TDecayed = std::decay_t<_TValue>;
 
@@ -1972,8 +1972,8 @@ class __create_scan_stop_pos_initial_value
 
   public:
 
-    __scan_stop_pos_t<_Ranges...>
-    operator()() const
+    static __scan_stop_pos_t<_Ranges...>
+    create()
     {
         return __convert_fields(__scan_stop_pos_t<_Ranges...>{});
     }
@@ -2028,7 +2028,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         {
             return _no_accessor_type{};
         }
-    };
+    }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>      // KSATODO the type of return value should depends of _Bounded state
@@ -2075,7 +2075,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     const std::size_t __global_id = __ndi.get_global_linear_id();
                     if (__global_id == 0)
                     {
-                        *__stop_pos_acc.__data() = __create_scan_stop_pos_initial_value<_InRng>{}();
+                        *__stop_pos_acc.__data() = __scan_stop_pos_initial_value<_InRng>::create();
                     }
                 }
 

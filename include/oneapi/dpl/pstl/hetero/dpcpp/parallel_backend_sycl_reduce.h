@@ -189,7 +189,6 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
                _ReduceOp __reduce_op, _TransformOp __transform_op,
                __combined_storage<_Tp>& __scratch_container, _Ranges&&... __rngs) const
     {
-        using __scratch_container_t = std::decay_t<decltype(__scratch_container)>;
         auto __transform_pattern =
             unseq_backend::transform_reduce<_ReduceOp, _TransformOp, _Tp, _Commutative, _VecSize>{__reduce_op,
                                                                                                   __transform_op};
