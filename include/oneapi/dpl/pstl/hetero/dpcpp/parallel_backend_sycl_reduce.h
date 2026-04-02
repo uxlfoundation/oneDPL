@@ -264,7 +264,7 @@ struct __parallel_transform_reduce_work_group_kernel_submitter<_Tp, _Commutative
 
 template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_t _VecSize, typename _Size,
           typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-__future<sycl::event, __result_and_scratch_storage<_Tp>>
+std::tuple<sycl::event, __combined_storage<_Tp>>
 __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _Size __work_group_size,
                                      const _Size __iters_per_work_item_device_kernel,
                                      const _Size __iters_per_work_item_work_group_kernel, _ReduceOp __reduce_op,
@@ -278,7 +278,8 @@ __parallel_transform_reduce_mid_impl(sycl::queue& __q, const _Size __n, const _S
     // number of buffer elements processed within workgroup
     const _Size __size_per_work_group = __iters_per_work_item_device_kernel * __work_group_size;
     const _Size __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
-    __result_and_scratch_storage<_Tp> __scratch_container{__q, __n_groups};
+
+    __combined_storage<_Tp> __scratch_container{__q, __n_groups, 1};
 
     sycl::event __reduce_event =
         __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _VecSize, _ReduceDeviceKernel>()(
