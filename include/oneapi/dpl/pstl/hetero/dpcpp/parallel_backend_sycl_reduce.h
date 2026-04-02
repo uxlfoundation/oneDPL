@@ -298,7 +298,7 @@ template <typename _CustomName, typename _Tp, typename _Commutative, std::uint8_
 struct __parallel_transform_reduce_impl
 {
     template <typename _Size, typename _ReduceOp, typename _TransformOp, typename _InitType, typename... _Ranges>
-    static __future<sycl::event, __result_and_scratch_storage<_Tp>>
+    static std::tuple<sycl::event, __combined_storage<_Tp>>
     submit(sycl::queue& __q, _Size __n, _Size __work_group_size, const _Size __iters_per_work_item,
            _ReduceOp __reduce_op, _TransformOp __transform_op, _InitType __init, _Ranges&&... __rngs)
     {
@@ -324,8 +324,7 @@ struct __parallel_transform_reduce_impl
 
         // Create temporary global buffers to store temporary values
         const std::size_t __n_scratch = 2 * __n_groups;
-        using __result_and_scratch_storage_t = __result_and_scratch_storage<_Tp>;
-        __result_and_scratch_storage_t __scratch_container{__q, __n_scratch};
+        __combined_storage<_Tp> __scratch_container(__q, __n_scratch, 1);
 
         // __is_first == true. Reduce over each work_group
         // __is_first == false. Reduce between work groups
@@ -341,10 +340,8 @@ struct __parallel_transform_reduce_impl
         {
             __reduce_event = __q.submit([&, __is_first, __offset_1, __offset_2, __n, __n_groups](sycl::handler& __cgh) {
                 __cgh.depends_on(__reduce_event);
-                auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(
-                    __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
-                auto __res_acc = __scratch_container.template __get_result_acc<sycl::access_mode::write>(
-                    __cgh, __dpl_sycl::__no_init{});
+                auto __temp_acc = __get_accessor(sycl::read_write, __scratch_container, __cgh, __is_first ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{});
+                auto __res_acc = __get_result_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{});
 
                 // get an access to data under SYCL buffer
                 oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
@@ -360,9 +357,9 @@ struct __parallel_transform_reduce_impl
                     sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size),
                                       sycl::range<1>(__work_group_size)),
                     [=](sycl::nd_item<1> __item) {
-                        auto __temp_ptr = __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                        auto __res_ptr =
-                            __result_and_scratch_storage_t::__get_usm_or_buffer_accessor_ptr(__res_acc, 2 * __n_groups);
+                        auto __temp_ptr = __temp_acc.__data();
+                        auto __res_ptr = __res_acc.__data();
+
                         auto __local_idx = __item.get_local_id(0);
                         auto __group_idx = __item.get_group(0);
                         // 1. Initialization (transform part). Fill local memory
@@ -403,7 +400,7 @@ struct __parallel_transform_reduce_impl
             __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __size_per_work_group);
         } while (__n > 1);
 
-        return __future{std::move(__reduce_event), std::move(__scratch_container)};
+        return {std::move(__reduce_event), std::move(__scratch_container)};
     }
 }; // struct __parallel_transform_reduce_impl
 
