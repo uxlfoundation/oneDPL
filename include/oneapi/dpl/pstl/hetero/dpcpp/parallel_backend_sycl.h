@@ -797,7 +797,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
-std::tuple<sycl::event, __result_and_scratch_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>
+std::tuple<sycl::event, __combined_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,                                // KSATODO check calling chains+
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
