@@ -2653,15 +2653,18 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     if constexpr (std::is_trivially_copyable_v<_ValueType>)
     {
         sycl::queue __q_local = __exec.queue();
+
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
-            __parallel_scan_by_segment_reduce_then_scan<_Bounded, _CustomName, __is_inclusive>(
-                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-                std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
-                .wait();
+            [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] =
+                __parallel_scan_by_segment_reduce_then_scan<_Bounded, _CustomName, __is_inclusive>(
+                    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                    std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init);
+            __event.wait_and_throw();
             return;
         }
     }
+
     // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
     // reduce-then-scan and needs to avoid duplicate kernel names.
     __parallel_scan_by_segment_fallback<_Bounded, _CustomName, __is_inclusive>(
