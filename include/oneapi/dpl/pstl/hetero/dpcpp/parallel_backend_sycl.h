@@ -795,10 +795,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
 }
 
-template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
-          typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<_Size>>
-__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
+template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
+          typename _WriteOp, typename _IsUniquePattern>
+std::tuple<sycl::event, __result_and_scratch_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>
+__parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,                                // KSATODO check calling chains+
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
