@@ -187,7 +187,7 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
     sycl::event
     operator()(sycl::queue& __q, const _Size __n, const _Size __work_group_size, const _Size __iters_per_work_item,
                _ReduceOp __reduce_op, _TransformOp __transform_op,
-               __result_and_scratch_storage<_Tp>& __scratch_container, _Ranges&&... __rngs) const
+               __combined_storage<_Tp>& __scratch_container, _Ranges&&... __rngs) const
     {
         using __scratch_container_t = std::decay_t<decltype(__scratch_container)>;
         auto __transform_pattern =
@@ -204,14 +204,14 @@ struct __parallel_transform_reduce_device_kernel_submitter<_Tp, _Commutative, _V
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
             std::size_t __local_mem_size = __reduce_pattern.local_mem_req(__work_group_size);
             __dpl_sycl::__local_accessor<_Tp> __temp_local(sycl::range<1>(__local_mem_size), __cgh);
-            auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
-                __cgh, __dpl_sycl::__no_init{});
+            auto __temp_acc = __get_accessor(sycl::write_only, __scratch_container, __cgh, __dpl_sycl::__no_init{}); 
+
             __cgh.parallel_for<_KernelName...>(
                 sycl::nd_range<1>(sycl::range<1>(__n_groups * __work_group_size), sycl::range<1>(__work_group_size)),
                 [=](sycl::nd_item<1> __item) {
-                    auto __temp_ptr = __scratch_container_t::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                     __device_reduce_kernel<_Tp>(__item, __n, __iters_per_work_item, __is_full, __n_groups,
-                                                __transform_pattern, __reduce_pattern, __temp_local, __temp_ptr,
+                                                __transform_pattern, __reduce_pattern, __temp_local,
+                                                __temp_acc.__data(),
                                                 __rngs...);
                 });
         });
