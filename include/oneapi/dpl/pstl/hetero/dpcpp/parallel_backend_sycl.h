@@ -620,7 +620,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-std::tuple<sycl::event, __result_storage<typename _InitType::__value_type>>
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, std::size_t __n,
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
