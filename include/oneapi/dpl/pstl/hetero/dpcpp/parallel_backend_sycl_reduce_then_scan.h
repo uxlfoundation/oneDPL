@@ -1970,7 +1970,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    sycl::event
+    std::tuple<sycl::event, __parallel_reduce_then_scan_stop_pos_storage_t<_InRng>>
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
@@ -1982,8 +1982,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             assert(__num_remaining > 0);
             __num_remaining -= 1;
         }
+
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
-        return __q.submit([&, this](sycl::handler& __cgh) {
+
+        __parallel_reduce_then_scan_stop_pos_storage_t<_InRng> __result(__q, 1);
+
+        sycl::event __event = __q.submit([&, this](sycl::handler& __cgh) {
             // We need __num_sub_groups_local + 1 temporary SLM locations to store intermediate results:
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
@@ -2257,6 +2261,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 __sub_group_carry.__destroy();
             });
         });
+
+        return {std::move(__event), std::move(__result)};
     }
 
     const std::uint32_t __max_num_work_groups;
