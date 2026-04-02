@@ -1924,6 +1924,18 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
     _InitType __init;
 };
 
+template <typename _InRng>
+struct __scan_rng_sizes_payload
+{
+    using _Type = decltype(oneapi::dpl::__ranges::__size(std::declval<_InRng>()));
+};
+
+template <typename... _Ranges>
+struct __scan_rng_sizes_payload<oneapi::dpl::ranges::__internal::zip_view<_Ranges...>>
+{
+    using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
+};
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _KernelName>
