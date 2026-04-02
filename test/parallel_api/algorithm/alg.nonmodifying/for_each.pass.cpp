@@ -25,6 +25,14 @@
 #define FOR_EACH_N
 #endif
 
+ #if defined(_MSC_VER)
+  #pragma message("_MSVC_LANG=" _ONEDPL_STRINGIFY(_MSVC_LANG))          
+  #pragma message("__cplusplus=" _ONEDPL_STRINGIFY(__cplusplus))        
+  #pragma message("_ONEDPL___cplusplus="                                
+  _ONEDPL_STRINGIFY(_ONEDPL___cplusplus))                               
+  #endif                                                                
+            
+
 using namespace TestUtils;
 
 template <typename Type>
