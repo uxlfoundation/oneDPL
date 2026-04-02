@@ -14,8 +14,9 @@ oneAPI DPC++ Library Documentation
 .. toctree::
    :maxdepth: 2
    :titlesonly:
-   :caption: Specification
+   :caption: oneDPL Specification
    
-   specification/index.rst
+   Latest Revision <specification/index.rst>
+   Version History <specification/spec_versions.rst>
 
 .. include:: library_guide/guide_toc.rst
