@@ -445,7 +445,7 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1,
+                                  _SizeType& __idx, _SizeType& __count, const _Compare __comp, _Proj1 __proj1,
                                   _Proj2 __proj2)
 {
     using _ValueTypeRng1 = typename oneapi::dpl::__internal::__value_t<_InRng1>;
@@ -525,13 +525,13 @@ struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
               typename _Proj1, typename _Proj2>
-    std::uint16_t
+    _SizeType
     operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2) const
     {
 
-        std::uint16_t __count = 0;
+        _SizeType __count = 0;
         _SizeType __idx = 0;
         bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
         bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
@@ -692,7 +692,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2, typename _RetType>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -815,7 +815,7 @@ struct __gen_set_balanced_path
 
     // Entry point for reduce then scan reduce input
     template <typename _InRng, typename _IndexT>
-    std::uint16_t
+    _RetType
     operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
     {
         // Get source tuple
@@ -868,9 +868,8 @@ struct __gen_set_balanced_path
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
                          _IndexT{__id * __diagonal_spacing - 1});
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
+        return __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
                                                __eles_to_process, __temp_data, __comp, __proj1, __proj2);
-        return __count;
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
@@ -883,12 +882,12 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2, typename _RetType>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
     template <typename _InRng, typename _IndexT>
-    std::tuple<std::uint32_t, std::uint16_t>
+    std::tuple<_RetType, _RetType>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
     {
         // Get source tuple
@@ -906,20 +905,20 @@ struct __gen_set_op_from_known_balanced_path
             oneapi::dpl::__ranges::__common_size_t<decltype(__rng1), decltype(__rng2), decltype(__rng1_temp_diag)>;
         _SizeType __i_elem = __id * __diagonal_spacing;
         if (__i_elem >= oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2))
-            return std::make_tuple(std::uint32_t{0}, std::uint16_t{0});
+            return std::make_tuple(_RetType{0}, _RetType{0});
         auto [__rng1_idx, __rng2_idx, __star_offset] =
             oneapi::dpl::__par_backend_hetero::__decode_balanced_path_temp_data(__rng1_temp_diag, __id,
                                                                                 __diagonal_spacing);
 
-        std::uint16_t __eles_to_process = static_cast<std::uint16_t>(
+        _RetType __eles_to_process = static_cast<_RetType>(
             std::min(static_cast<_SizeType>(__diagonal_spacing - __star_offset),
                      static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__rng1) +
                                             oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
-        std::uint16_t __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
+        _RetType __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
                                                __comp, __proj1, __proj2);
 
-        return std::make_tuple(std::uint32_t{__count}, __count);
+        return std::make_tuple(__count, __count);
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
