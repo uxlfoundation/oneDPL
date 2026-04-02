@@ -1066,21 +1066,39 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n1);
 
-    auto __res =
+    auto __mask_view = oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(__mask_buf.get_buffer());
+    auto __packed_src_view = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(
+        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+            __mask_buf.get_buffer()));
+
+    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
         __parallel_transform_reduce_then_scan<_Bounded, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
                                               _CustomName>(
-            __q, __n1,
-            oneapi::dpl::__ranges::make_zip_view(
-                std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-                    __mask_buf.get_buffer())),
-            std::forward<_Range3>(__result), _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
+            __q, __n1, std::move(__packed_src_view), std::forward<_Range3>(__result),
+            _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
             _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
             _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{})
-            .get();
+            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 
-    return {__n1, __n2, __res};
+    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+    auto __res = __f.get();
+
+    if constexpr (!_Bounded)
+    {
+        return {__n1, __n2, __res};
+    }
+    else
+    {
+        typename decltype(__stop_pos_payload)::_ValueType __stop_pos{};
+        __stop_pos_payload.__copy_result(&__stop_pos, 1);
+
+        auto [__n1_stop, __n2_stop] = __stop_pos;
+        __n1_stop = __n1_stop == 0 ? __n1 : __n1_stop;
+        __n2_stop = __n2_stop == 0 ? __n2 : __n2_stop;
+
+        return {__n1_stop, __n2_stop, __res};
+    }
 }
 
 // balanced path
