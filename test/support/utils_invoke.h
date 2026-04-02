@@ -132,17 +132,16 @@ get_dpcpp_test_policy()
 {
     using _NewKernelName = TestUtils::new_kernel_name<PolicyName, call_id>;
 
-    const auto& __arg = get_test_queue();
-
-//#    if TEST_USE_PREDEFINED_POLICIES
-//#        if ONEDPL_FPGA_DEVICE
-//        oneapi::dpl::execution::dpcpp_fpga;
-//#        else
-//        oneapi::dpl::execution::dpcpp_default;
-//#        endif // ONEDPL_FPGA_DEVICE
-//#    else
-//        get_test_queue();
-//#    endif // TEST_USE_PREDEFINED_POLICIES
+    const auto& __arg =
+#    if TEST_USE_PREDEFINED_POLICIES
+#        if ONEDPL_FPGA_DEVICE
+        oneapi::dpl::execution::dpcpp_fpga;
+#        else
+        oneapi::dpl::execution::dpcpp_default;
+#        endif // ONEDPL_FPGA_DEVICE
+#    else
+        get_test_queue();
+#    endif // TEST_USE_PREDEFINED_POLICIES
 
     try
     {

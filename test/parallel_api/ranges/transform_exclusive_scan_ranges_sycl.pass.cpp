@@ -13,8 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define _ONEDPL_DEBUG_SYCL 1
-
 #include "support/test_config.h"
 
 #include <oneapi/dpl/execution>
