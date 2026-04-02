@@ -946,7 +946,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
-std::tuple<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>,
+std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>,
            __scan_stop_pos_storage_t<_Range1>>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,        // KSATODO check calling chains+
                           _Range2&& __result, _UnaryPredicate __pred)
@@ -973,7 +973,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
-        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+        return {std::move(__event), std::move(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
     }
 }
 
