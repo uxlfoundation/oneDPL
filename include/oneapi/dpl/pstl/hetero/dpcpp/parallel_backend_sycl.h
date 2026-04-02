@@ -1194,8 +1194,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         auto __n1_stop = std::get<0>(__stop_positions);
         auto __n2_stop = std::get<1>(__stop_positions);
 
-        __n1_stop = __n1_stop == 0 ? __n1 : __n1_stop;
-        __n2_stop = __n2_stop == 0 ? __n2 : __n2_stop;
+        __n1_stop = __n1_stop == std::numeric_limits<decltype(__n1_stop)>::max() ? __n1 : __n1_stop;
+        __n2_stop = __n2_stop == std::numeric_limits<decltype(__n2_stop)>::max() ? __n2 : __n2_stop;
 
         return {__n1_stop, __n2_stop, __res};
     }
