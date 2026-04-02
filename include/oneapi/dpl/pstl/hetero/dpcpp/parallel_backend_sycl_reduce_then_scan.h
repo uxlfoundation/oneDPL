@@ -1936,6 +1936,9 @@ struct __scan_rng_sizes_payload<oneapi::dpl::ranges::__internal::zip_view<_Range
     using _Type = std::tuple<decltype(oneapi::dpl::__ranges::__size(std::declval<_Ranges>()))...>;
 };
 
+template <typename _InRng>
+using __parallel_reduce_then_scan_stop_pos_storage_t = __result_storage<typename __scan_rng_sizes_payload<_InRng>::_Type>;
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _KernelName>
