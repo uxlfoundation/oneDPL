@@ -2404,6 +2404,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __write_op,
                                     __init};
 
+    __parallel_reduce_then_scan_stop_pos_storage_t<_InRng> __stop_pos_storage(__q, 1);
+
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -2420,7 +2422,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
+        std::tie(__prior_event, __stop_pos_storage) = __scan_submitter(
+            __q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
