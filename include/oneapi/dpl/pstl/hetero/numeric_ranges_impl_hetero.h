@@ -93,14 +93,19 @@ oneapi::dpl::__internal::__difference_t<_Range2>
 __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                               _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op, _Inclusive)
 {
-    oneapi::dpl::__internal::__difference_t<_Range2> __n = oneapi::dpl::__ranges::__size(__rng1);
-    if (__n == 0)
+    oneapi::dpl::__internal::__difference_t<_Range2> __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    if (__n1 == 0)
         return 0;
 
-    return oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
-               _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-               std::forward<_Range2>(__rng2), __n, __unary_op, __init, __binary_op, _Inclusive{})
-        .get();
+    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
+        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
+            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+            std::forward<_Range2>(__rng2), __n1, __unary_op, __init, __binary_op, _Inclusive{});
+
+    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+    auto __res = __f.get();
+
+    return __res;
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
