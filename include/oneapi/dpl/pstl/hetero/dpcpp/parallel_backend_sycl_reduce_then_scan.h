@@ -2393,8 +2393,8 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>
+__parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,         // KSATODO check calling chains+
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
                                       _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
@@ -2445,7 +2445,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
-    __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
+    __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
+
+    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
@@ -2476,8 +2478,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __write_op,
                                     __init};
 
-    __parallel_reduce_then_scan_stop_pos_storage_t<_InRng> __stop_pos_storage(__q, 1);
-
     // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
@@ -2494,7 +2494,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        std::tie(__prior_event, __stop_pos_storage) = __scan_submitter(
+        std::tie(__prior_event, __stop_pos_payload) = __scan_submitter(
             __q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
@@ -2505,7 +2505,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                                              __work_group_size);
         }
     }
-    return __future{std::move(__prior_event), std::move(__result_and_scratch)};
+
+    return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
