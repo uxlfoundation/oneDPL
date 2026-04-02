@@ -1169,17 +1169,34 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     _WriteOp __write_op{};
 
-    auto __output_idx =
+    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
         __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
             __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
             __gen_reduce_input_phase2, _ReduceOp{},
             _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{},
             __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
-            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event)
-            .get();
+            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 
-    // KSATODO this return looks incorrect
-    return {__n1, __n2, __output_idx};
+    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+    auto __res = __f.get();
+
+    if constexpr (!_Bounded)
+    {
+        return {__n1, __n2, __res};
+    }
+    else
+    {
+        typename decltype(__stop_pos_payload)::_ValueType __stop_positions{};
+        __stop_pos_payload.__copy_result(&__stop_positions, 1);
+
+        auto __n1_stop = std::get<0>(__stop_positions);
+        auto __n2_stop = std::get<1>(__stop_positions);
+
+        __n1_stop = __n1_stop == 0 ? __n1 : __n1_stop;
+        __n2_stop = __n2_stop == 0 ? __n2 : __n2_stop;
+
+        return {__n1_stop, __n2_stop, __res};
+    }
 }
 
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
