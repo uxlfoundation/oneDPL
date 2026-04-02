@@ -1246,7 +1246,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 
-    auto __f = __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
+    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
     auto __res = __f.get();
 
     // KSATODO this return looks incorrect
