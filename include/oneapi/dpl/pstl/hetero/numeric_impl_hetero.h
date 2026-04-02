@@ -171,10 +171,11 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
-            _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
-            _Inclusive{})
-            .wait();
+        [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] =
+            oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
+                _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
+                _Inclusive{});
+        __event.wait_and_throw();
 
         // Move data from temporary buffer into results
         oneapi::dpl::__internal::__pattern_walk2_brick(
