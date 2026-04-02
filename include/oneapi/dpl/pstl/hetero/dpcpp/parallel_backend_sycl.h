@@ -2495,9 +2495,11 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 template <bool _Bounded, typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2,
           typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-__future<sycl::event, __result_and_scratch_storage<
-                          oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
-__parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
+std::tuple<
+    sycl::event,
+    __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>,
+    __scan_stop_pos_storage_t<_Range1, _Range2>>
+__parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,         // KSATODO check calling chains+
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)
 {
