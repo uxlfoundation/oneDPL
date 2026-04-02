@@ -883,9 +883,14 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, _Bounded>;
 
-        _Size __stop_out = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
-            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{}).get();
+        [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
+            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+                __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+                _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
+
+        auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+        _Size __stop_out = __f.get();
+
         __ret = {__stop_out, __n};
     }
     else
