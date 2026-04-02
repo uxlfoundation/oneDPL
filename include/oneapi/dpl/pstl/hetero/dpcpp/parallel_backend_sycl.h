@@ -946,8 +946,9 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
-__future<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
-__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
+std::tuple<sycl::event, __result_and_scratch_storage<oneapi::dpl::__internal::__difference_t<_Range1>>,
+           __scan_stop_pos_storage_t<_Range1>>
+__parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,        // KSATODO check calling chains+
                           _Range2&& __result, _UnaryPredicate __pred)
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
@@ -1006,9 +1007,14 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign, _Bounded>;
 
-        _Size __stop_out = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
-            _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{}).get();
+        [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
+            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+                __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
+                _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
+
+        auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+        _Size __stop_out = __f.get();
+
         __ret = {__stop_out, __n};
     }
     else
