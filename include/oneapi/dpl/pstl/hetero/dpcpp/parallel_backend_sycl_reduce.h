@@ -494,11 +494,15 @@ __parallel_transform_reduce(oneapi::dpl::__internal::__device_backend_tag, _Exec
             oneapi::dpl::__internal::__dpl_ceiling_div(__n_groups, __work_group_size_short);
         __iters_per_work_item_work_group_kernel =
             __adjust_iters_per_work_item<__vector_size>(__iters_per_work_item_work_group_kernel);
-        return __parallel_transform_reduce_mid_impl<_CustomName, _Tp, _Commutative, __vector_size>(
-            __q_local, __n_short, __work_group_size_short, __iters_per_work_item_device_kernel,
-            __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op, __init,
-            std::forward<_Ranges>(__rngs)...);
+
+        auto&& [__event, __payload] =
+            __parallel_transform_reduce_mid_impl<_CustomName, _Tp, _Commutative, __vector_size>(
+                __q_local, __n_short, __work_group_size_short, __iters_per_work_item_device_kernel,
+                __iters_per_work_item_work_group_kernel, __reduce_op, __transform_op, __init,
+                std::forward<_Ranges>(__rngs)...);
+        return __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
     }
+
     // Otherwise use a recursive tree reduction with __max_iters_per_work_item __iters_per_work_item.
     const auto __work_group_size_long = static_cast<_Size>(__work_group_size);
     return __parallel_transform_reduce_impl<_CustomName, _Tp, _Commutative, __vector_size>::submit(
