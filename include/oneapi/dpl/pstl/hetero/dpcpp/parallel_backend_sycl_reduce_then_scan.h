@@ -1957,7 +1957,7 @@ struct __scan_stop_pos_type<_Range, _Ranges...>
 };
 
 template <typename... _InRng>
-using __scan_stop_pos_storage_t = __result_storage<typename __scan_stop_pos_type<_InRng...>::_Type>;
+using __scan_stop_pos_storage_t = __result_storage<typename __scan_stop_pos_type<std::decay_t<_InRng>...>::_Type>;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
