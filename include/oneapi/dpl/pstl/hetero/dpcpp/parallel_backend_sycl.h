@@ -711,8 +711,8 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
-__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,
+std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_Range1>>
+__parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,         // KSATODO check calling chains+
                           _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op, _InitType __init,
                           _BinaryOperation __binary_op, _Inclusive)
 {
@@ -745,7 +745,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                     __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
                     __init, __binary_op, _Inclusive{});
 
-                return __future(std::move(__event), __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
+                //__combined_storage<typename _InitType::__value_type> _p1(__move_state_from(__payload));
+                //__scan_stop_pos_storage_t<_Range1> _p2 = __scan_stop_pos_storage_t<_Range1>{__q_local, 1};
+                return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
             }
         }
         if (__use_reduce_then_scan)
@@ -789,7 +791,8 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         // global scan
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
         /*apex*/ __ignore_op);
-    return __future(std::move(__event), __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
+
+    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
 }
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
