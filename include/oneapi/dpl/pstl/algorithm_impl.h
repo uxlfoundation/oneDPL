@@ -3288,9 +3288,8 @@ constexpr bool
 __is_set_algo_cutoff_exceeded(Size size)
 {
     // 1000 is chosen as a cut-off value based on benchmarking source data sizes
-    //constexpr Size __set_algo_cut_off = 1000;
-    //return size > __set_algo_cut_off;
-    return true;
+    constexpr Size __set_algo_cut_off = 1000;
+    return size > __set_algo_cut_off;
 }
 
 // _ReachedOffset - describes reached offset in input range
