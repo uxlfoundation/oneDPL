@@ -2363,6 +2363,22 @@ __calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uin
                                    __num_work_groups * __work_group_size);
 }
 
+template <bool _Bounded, typename _InRng, typename _InitType>
+struct __parallel_transform_reduce_then_scan_return_t;
+
+template <typename _InRng, typename _InitType>
+struct __parallel_transform_reduce_then_scan_return_t</*_Bounded*/ false, _InRng, _InitType>
+{
+    using _Type = std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>;
+};
+
+template <typename _InRng, typename _InitType>
+struct __parallel_transform_reduce_then_scan_return_t</*_Bounded*/ true, _InRng, _InitType>
+{
+    using _Type = std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>,
+                             __scan_stop_pos_storage_t<_InRng>>;
+};
+
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
