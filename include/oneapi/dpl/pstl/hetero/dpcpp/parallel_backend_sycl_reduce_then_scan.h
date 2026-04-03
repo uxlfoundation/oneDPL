@@ -692,7 +692,7 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _Compare, typename _Proj1, typename _Proj2, typename _RetType>
+template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -882,7 +882,7 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2, typename _RetType>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
