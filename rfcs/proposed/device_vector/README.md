@@ -200,6 +200,40 @@ public:
 } // namespace oneapi::dpl
 ```
 
+### Usage Examples
+
+```cpp
+#include <oneapi/dpl/device_vector>
+#include <oneapi/dpl/algorithm>
+#include <oneapi/dpl/execution>
+#include <sycl/sycl.hpp>
+
+// Basic construction and algorithm use
+sycl::queue q;
+oneapi::dpl::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
+
+// Fill from host data
+std::vector<float> host_data(1024, 3.14f);
+oneapi::dpl::device_vector<float> d_vec2(host_data.begin(), host_data.end(), q);
+
+// Use with oneDPL algorithms -- iterators work directly
+auto policy = oneapi::dpl::execution::make_device_policy(q);
+std::sort(policy, d_vec2.begin(), d_vec2.end());
+
+// Host-side element access via proxy reference (synchronous, slow)
+float val = d_vec2[0];       // device-to-host transfer
+d_vec2[0] = 42.0f;           // host-to-device transfer
+
+// Extract raw pointer for use in SYCL kernels
+float* raw = d_vec2.data().get();  // or similar accessor
+q.parallel_for(sycl::range<1>(1024), [=](sycl::id<1> i) {
+    raw[i] *= 2.0f;
+}).wait();
+
+// Copy back to host
+std::vector<float> result = static_cast<std::vector<float>>(d_vec2);
+```
+
 ### Helper Types
 
 A `device_vector` requires several supporting types (see comparison below):
