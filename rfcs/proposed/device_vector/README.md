@@ -127,7 +127,7 @@ discussion.*
 ### Strawman API
 
 ```cpp
-namespace oneapi::dpl {
+namespace oneapi::dpl::experimental {
 
 template <typename T, typename Allocator = /* see below */>
 class device_vector {
@@ -197,7 +197,7 @@ public:
     // insert, erase, assign ...
 };
 
-} // namespace oneapi::dpl
+} // namespace oneapi::dpl::experimental
 ```
 
 ### Usage Examples
@@ -210,11 +210,11 @@ public:
 
 // Basic construction and algorithm use
 sycl::queue q;
-oneapi::dpl::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
+oneapi::dpl::experimental::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
 
 // Fill from host data
 std::vector<float> host_data(1024, 3.14f);
-oneapi::dpl::device_vector<float> d_vec2(host_data.begin(), host_data.end(), q);
+oneapi::dpl::experimental::device_vector<float> d_vec2(host_data.begin(), host_data.end(), q);
 
 // Use with oneDPL algorithms -- iterators work directly
 auto policy = oneapi::dpl::execution::make_device_policy(q);
