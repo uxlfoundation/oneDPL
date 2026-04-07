@@ -1328,8 +1328,8 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     //return by reference __value and __init_and_carry
 }
 
-template <bool __use_subgroup_ops, bool __is_inclusive, bool __init_present, typename _MaskOp, typename _InitBroadcastId,
-          typename _BinaryOp, typename _ValueType, typename _LazyValueType>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __init_present, typename _MaskOp,
+          typename _InitBroadcastId, typename _BinaryOp, typename _ValueType, typename _LazyValueType>
 void
 __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __mask_fn,
                         _InitBroadcastId __init_broadcast_id, _ValueType& __value, _BinaryOp __binary_op,
@@ -1337,13 +1337,13 @@ __sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _MaskOp __ma
 {
     if constexpr (__is_inclusive)
     {
-        __inclusive_sub_group_masked_scan<__use_subgroup_ops, __init_present>(__sub_group, __mask_fn, __init_broadcast_id, __value,
-                                                                   __binary_op, __init_and_carry, __comm_slm);
+        __inclusive_sub_group_masked_scan<__use_subgroup_ops, __init_present>(
+            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
     else
     {
-        __exclusive_sub_group_masked_scan<__use_subgroup_ops, __init_present>(__sub_group, __mask_fn, __init_broadcast_id, __value,
-                                                                   __binary_op, __init_and_carry, __comm_slm);
+        __exclusive_sub_group_masked_scan<__use_subgroup_ops, __init_present>(
+            __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry, __comm_slm);
     }
 }
 
@@ -1395,8 +1395,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     {
 
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-        __sub_group_scan<__use_subgroup_ops, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v), __binary_op,
-                                                                  __sub_group_carry, __comm_slm);
+        __sub_group_scan<__use_subgroup_ops, __is_inclusive, __init_present>(
+            __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
         if constexpr (__capture_output)
         {
             __write_op(__out_rng, __start_id, __v, __temp_data);
@@ -1457,8 +1457,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             else
             {
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
-                __sub_group_scan<__use_subgroup_ops, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
-                                                                          __binary_op, __sub_group_carry, __comm_slm);
+                __sub_group_scan<__use_subgroup_ops, __is_inclusive, __init_present>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry, __comm_slm);
                 if constexpr (__capture_output)
                 {
                     __write_op(__out_rng, __start_id, __v, __temp_data);

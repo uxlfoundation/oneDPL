@@ -877,8 +877,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
-    using _WriteOp =
-        oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
     sycl::queue __q_local = __exec.queue();
 
@@ -887,7 +886,6 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
     return __parallel_reduce_then_scan_copy<_CustomName>(
         __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
         /*_IsUniquePattern=*/std::false_type{});
-
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
@@ -1344,8 +1342,8 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
     else
     {
         return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
-                    __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-                    std::forward<_Range3>(__result), __comp, __proj1, __proj2)
+                   __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+                   std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
     }
 }
@@ -2275,8 +2273,8 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
     auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-        std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+        std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
     // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
     // past-the-end iterator pair of segmented reduction.
     return std::get<0>(__res.get()) + 1;
@@ -2444,8 +2442,8 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 
     sycl::queue __q_local = __exec.queue();
     __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
-        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-        std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+        __binary_pred, __binary_op, __init)
         .wait();
 }
 
