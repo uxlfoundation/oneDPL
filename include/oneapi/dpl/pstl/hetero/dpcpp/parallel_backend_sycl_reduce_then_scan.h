@@ -803,6 +803,9 @@ struct __set_generic_operation
         }
         else
         {
+            const auto __idx1_prev = __idx1;
+            const auto __idx2_prev = __idx2;
+
             while (__idx < __num_eles_min)
             {
                 //bounds check all
@@ -813,7 +816,7 @@ struct __set_generic_operation
 
             if constexpr (_Bounded)
             {
-                if (__count > 0)
+                if (__idx1_prev != __idx1 || __idx2_prev != __idx2)
                 {
                     __temp_out.set_final_src_idx(_TupleOfSizes{__idx1, __idx2});
                 }
