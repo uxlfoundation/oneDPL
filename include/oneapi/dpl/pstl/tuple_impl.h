@@ -687,6 +687,21 @@ struct __get_tuple_type<oneapi::dpl::__internal::tuple<_Ts...>, _Other>
     using __type = typename oneapi::dpl::__internal::tuple<_Ts...>::tuple_type;
 };
 
+template <typename _Dst, typename _Src, std::size_t... _I>
+void __tuple_copy_prefix_impl(_Dst& __dst, const _Src& __src, std::index_sequence<_I...>)
+{
+    ((std::get<_I>(__dst) = std::get<_I>(__src)), ...);
+}
+
+template <typename _Dst, typename _Src>
+void
+__tuple_copy_prefix(_Dst& __dst, const _Src& __src)
+{
+    constexpr std::size_t _N = std::tuple_size_v<_Src>;
+    static_assert(_N <= std::tuple_size_v<_Dst>, "Source tuple cannot be larger than destination tuple");
+    __tuple_copy_prefix_impl(__dst, __src, std::make_index_sequence<_N>());
+} 
+
 template <typename Size>
 struct AddIndexes
 {
