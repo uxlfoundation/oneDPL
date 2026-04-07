@@ -341,7 +341,7 @@ struct __cooperative_lookback
             // recomputed the prefix using partial values
             if (__is_full_ballot_bits)
             {
-                oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size,
+                oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<
                     /*__is_inclusive*/ true,
                     /*__init_present*/ decltype(__is_initialized)::value>(
                     __subgroup, __tile_value, __binary_op, __running, __lowest_item_with_full + 1,

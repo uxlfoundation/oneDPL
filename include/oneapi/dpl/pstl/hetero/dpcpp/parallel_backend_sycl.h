@@ -681,8 +681,6 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     using _Type = typename _InitType::__value_type;
 
-    const bool __use_reduce_then_scan = oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local);
-
     // The single work-group implementation requires a fundamental type which must be trivially copyable.
     if constexpr (std::is_trivially_copyable_v<_Type>)
     {
@@ -696,7 +694,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
             // GPU: reduce-then-scan is efficient for moderate-sized inputs, so the single-group cutoff is low.
             // CPU: kernel launch overhead dominates, so prefer the single-group path for larger inputs.
-            std::size_t __single_group_upper_limit = __use_reduce_then_scan ? 2048 : 16384;
+            std::size_t __single_group_upper_limit = __q_local.get_device().is_gpu() ? 2048 : 16384;
             if (__group_scan_fits_in_slm<_Type>(__q_local, __n, __n_uniform, __single_group_upper_limit))
             {
                 auto __event = __parallel_transform_scan_single_group<_CustomName>(
@@ -711,47 +709,17 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
             }
         }
     }
-
-    if (__use_reduce_then_scan)
+    //reduce_then_scan implementation
     {
         using _GenInput =
             oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
         using _ScanInputTransform = oneapi::dpl::identity;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
-        _GenInput __gen_transform{__unary_op};
-
-        const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
         return __parallel_transform_reduce_then_scan<sizeof(typename _InitType::__value_type), _CustomName>(
             __q_local, __n, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __gen_transform,
             __binary_op, __gen_transform, _ScanInputTransform{}, _WriteOp{}, __init, _Inclusive{},
             /*_IsUniquePattern=*/std::false_type{});
-    }
-    else // use multi pass scan implementation
-    {
-        using _Assigner = unseq_backend::__scan_assigner;
-        using _NoAssign = unseq_backend::__scan_ignore;
-        using _UnaryFunctor = unseq_backend::walk_n<_UnaryOperation>;
-        using _Unchanged = unseq_backend::__unchanged;
-
-        _Assigner __assign_op;
-        _NoAssign __ignore_op;
-        _Unchanged __read_op;
-
-        auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
-            __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
-            // local scan
-            unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged,
-                                  _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
-                                             __read_op},
-            // scan between groups
-            unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _Unchanged, _NoAssign, _Assigner,
-                                  _Unchanged, unseq_backend::__no_init_value<_Type>>{
-                __binary_op, __read_op, __ignore_op, __assign_op, __read_op},
-            // global scan
-            unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
-            /*apex*/ __ignore_op);
-        return __future(std::move(__event), __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
     }
 }
 
@@ -837,7 +805,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
     }
-    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    else if (__n_out >= __n)
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
@@ -905,28 +873,16 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
 {
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
+    using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
     sycl::queue __q_local = __exec.queue();
 
     _Size1 __n = oneapi::dpl::__ranges::__size(__rng);
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
-    {
-        using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_UnaryPredicate>;
-        using _WriteOp =
-            oneapi::dpl::__par_backend_hetero::__write_to_id_if_else<oneapi::dpl::__internal::__pstl_assign>;
 
-        return __parallel_reduce_then_scan_copy<_CustomName>(
-            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
-            /*_IsUniquePattern=*/std::false_type{});
-    }
-    else
-    {
-        auto&& [__event, __payload] = __parallel_scan_copy<_CustomName>(
-            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
-            oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
-
-        return __future(std::move(__event), __result_and_scratch_storage<_Size1>(__move_state_from(__payload)));
-    }
+    return __parallel_reduce_then_scan_copy<_CustomName>(
+        __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred}, _WriteOp{},
+        /*_IsUniquePattern=*/std::false_type{});
 }
 
 template <typename _ExecutionPolicy, typename _InRng, typename _OutRng, typename _Size, typename _Pred,
@@ -953,7 +909,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
             oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
     }
-    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
+    else if (__n_out >= __n)
     // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
@@ -1373,26 +1329,19 @@ std::size_t
 __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result,
               _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    //can we use reduce then scan?
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q))
+    if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
     {
-        if (__check_use_write_a_alg{}(__set_tag, __rng1, __rng2))
-        {
-            // use reduce then scan with set_a write
-            return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
-                __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
-                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
-        }
+        // use reduce then scan with set_a write
+        return __set_write_a_only_op<set_a_write_wrapper<_CustomName>>(
+            __set_tag, /*use_reduce_then_scan=*/std::true_type{}, __q, std::forward<_Range1>(__rng1),
+            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+    }
+    else
+    {
         return __parallel_set_write_a_b_op<reduce_then_scan_wrapper<_CustomName>>(
                    __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
                    std::forward<_Range3>(__result), __comp, __proj1, __proj2)
             .get();
-    }
-    else
-    {
-        return __set_write_a_only_op<scan_then_propagate_wrapper<_CustomName>>(
-            __set_tag, /*use_reduce_then_scan=*/std::false_type{}, __q, std::forward<_Range1>(__rng1),
-            std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp, __proj1, __proj2);
     }
 }
 
@@ -2320,15 +2269,12 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
     using __val_type = oneapi::dpl::__internal::__value_t<_Range2>;
     // Prior to icpx 2025.0, the reduce-then-scan path performs poorly and should be avoided.
 #if !defined(__INTEL_LLVM_COMPILER) || __INTEL_LLVM_COMPILER >= 20250000
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
-    {
-        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
-            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-            std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
-        // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
-        // past-the-end iterator pair of segmented reduction.
-        return std::get<0>(__res.get()) + 1;
-    }
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_CustomName>(
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_keys),
+        std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+    // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
+    // past-the-end iterator pair of segmented reduction.
+    return std::get<0>(__res.get()) + 1;
 #endif
     return __parallel_reduce_by_segment_fallback(
         oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
@@ -2492,23 +2438,10 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     assert(oneapi::dpl::__ranges::__size(__keys) > 0);
 
     sycl::queue __q_local = __exec.queue();
-    if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
-    {
-        __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
-            __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-            std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init)
-            .wait();
-        return;
-    }
-    // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
-    // reduce-then-scan and needs to avoid duplicate kernel names.
-    __parallel_scan_by_segment_fallback<_CustomName, __is_inclusive>(
-        oneapi::dpl::__internal::__device_backend_tag{},
-        oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_fallback>(
-            std::forward<_ExecutionPolicy>(__exec)),
-        std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
-        __binary_pred, __binary_op, __init,
-        oneapi::dpl::unseq_backend::__has_known_identity<_BinaryOperator, _ValueType>{});
+    __parallel_scan_by_segment_reduce_then_scan<_CustomName, __is_inclusive>(
+        __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values), std::forward<_Range3>(__out_values),
+        __binary_pred, __binary_op, __init)
+        .wait();
 }
 
 } // namespace __par_backend_hetero
