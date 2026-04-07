@@ -87,10 +87,10 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
 
     template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, _TupleOfSizes __sizes)
+    set(std::uint16_t __idx, _ValueArg&& __value, _TupleOfSizes __idxs)
     {
         __data[__idx].__setup(std::forward<_ValueArg>(__value));
-        __indexes[__idx] = __sizes;
+        __indexes[__idx] = __idxs;
     }
 
     std::tuple<_ValueT, _TupleOfSizes>
@@ -103,15 +103,15 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     }
 
     void
-    set_first_oob_src_idx(_TupleOfSizes __sizes)
+    set_first_oob_src_idx(_TupleOfSizes __idxs)
     {
-        __first_oob_src_idx_opt = __sizes;
+        __first_oob_src_idx_opt = __idxs;
     }
 
     bool
-    get_first_oob_src_idx(_TupleOfSizes& __sizes) const
+    get_first_oob_src_idx(_TupleOfSizes& __idxs) const
     {
-        __sizes = __first_oob_src_idx_opt.value_or(__sizes);
+        __idxs = __first_oob_src_idx_opt.value_or(__idxs);
         return __first_oob_src_idx_opt.has_value();
     }
 
