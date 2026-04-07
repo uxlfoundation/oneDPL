@@ -783,6 +783,8 @@ struct __set_generic_operation
                const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
                _Proj2 __proj2) const
     {
+        using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
+
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
         const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
@@ -807,7 +809,16 @@ struct __set_generic_operation
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
                     __proj2);
             }
+
+            if constexpr (_Bounded)
+            {
+                if (__count > 0)
+                {
+                    __temp_out.set_final_src_idx(_TupleOfSizes{__idx1, __idx2});
+                }
+            }
         }
+
         return __count;
     }
 };
@@ -2324,14 +2335,15 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            typename __temp_data_array_t::_TupleOfSizes __oob_indexes{};
-                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__oob_indexes))
-                            {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                                std::get<0>(__tmp) = std::get<0>(__oob_indexes);
-                                std::get<1>(__tmp) = std::get<1>(__oob_indexes);
-                                *__stop_pos_acc.__data() = __tmp;
-                            }
+                            typename __temp_data_array_t::_TupleOfSizes __stop_indexes{};
+                            if (!std::get<1>(__scan_res).get_first_oob_src_idx(__stop_indexes))
+                                __stop_indexes = std::get<1>(__scan_res).get_final_src_idx();
+
+                            typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
+                            std::get<0>(__tmp) = std::get<0>(__stop_indexes);
+                            std::get<1>(__tmp) = std::get<1>(__stop_indexes);
+
+                            *__stop_pos_acc.__data() = __tmp;
                         }
                     }
                 };
