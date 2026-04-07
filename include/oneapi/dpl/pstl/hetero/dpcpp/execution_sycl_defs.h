@@ -123,7 +123,8 @@ class alignas(sycl::queue) __queue_holder
 inline sycl::queue
 __get_default_queue()
 {
-    static sycl::queue __q;
+    //static sycl::queue __q;
+    static sycl::queue __q{sycl::cpu_selector_v};
     return __q;
 }
 
