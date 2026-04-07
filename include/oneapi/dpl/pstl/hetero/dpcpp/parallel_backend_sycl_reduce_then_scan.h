@@ -105,13 +105,14 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     void
     set_final_src_idx(const _TupleOfSizes& __idxs)
     {
-        __final_src_idx = __idxs;
+        __final_src_idx_opt = __idxs;
     }
 
-    _TupleOfSizes
-    get_final_src_idx() const
+    bool
+    get_final_src_idx(_TupleOfSizes& __idxs) const
     {
-        return __final_src_idx;
+        __idxs = __final_src_idx_opt.value_or(__idxs);
+        return __final_src_idx_opt.has_value();
     }
 
     void
@@ -131,7 +132,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     std::array<_TupleOfSizes, elements> __indexes;
 
     std::optional<_TupleOfSizes> __first_oob_src_idx_opt;
-    _TupleOfSizes __final_src_idx = {};
+    std::optional<_TupleOfSizes> __final_src_idx_opt;
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
@@ -2336,14 +2337,16 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
                             typename __temp_data_array_t::_TupleOfSizes __stop_indexes{};
-                            if (!std::get<1>(__scan_res).get_first_oob_src_idx(__stop_indexes))
-                                __stop_indexes = std::get<1>(__scan_res).get_final_src_idx();
+                            // 1. Get first OOB position
+                            // 2. If no OOB position, get final position
+                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__stop_indexes)
+                                || std::get<1>(__scan_res).get_final_src_idx(__stop_indexes))
+                            {
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
+                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __stop_indexes);
 
-                            typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                            std::get<0>(__tmp) = std::get<0>(__stop_indexes);
-                            std::get<1>(__tmp) = std::get<1>(__stop_indexes);
-
-                            *__stop_pos_acc.__data() = __tmp;
+                                *__stop_pos_acc.__data() = __tmp;
+                            }
                         }
                     }
                 };
