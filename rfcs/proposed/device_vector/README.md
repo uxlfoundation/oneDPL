@@ -45,17 +45,40 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Backend Dispatch** | Tag-based (`device_system_tag`) | Execution policy-based (oneDPL) | Direct SYCL calls | Direct OpenCL calls |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported |
 
-### 2. Required Helper Classes
+### 2. Key Helper Types
 
-| Helper Type | Thrust | SYCLomatic | Distributed Ranges | Boost.Compute |
-|---|---|---|---|---|
-| **Proxy reference** | `device_reference<T>` -- inherits CRTP `thrust::reference<T, device_ptr<T>, device_reference<T>>`. Provides all compound assignment, increment/decrement operators. | `device_reference<T>` -- external class. Used as `reference` typedef. | `device_ref<T>` -- constrained to `trivially_copyable` types. Minimal: only `operator T()`, `operator=`. No compound assignment. | `detail::buffer_value<T>` -- proxy that reads/writes via OpenCL buffer commands. |
-| **Device pointer** | `device_ptr<T>` -- inherits CRTP `thrust::pointer<T, device_system_tag, ...>`. Wraps raw `T*`. `device_pointer_cast()` factory. Carries `device_system_tag` for backend dispatch. | `device_pointer<T>` -- external class. Used as `pointer` typedef. | `device_ptr<T>` -- random access iterator over raw `T*`. `get_raw_pointer()` accessor. Constrained to `trivially_copyable`. | N/A (uses `buffer_iterator<T>` instead) |
-| **Device iterator** | Pointer *is* the iterator (via CRTP pointer base) | `device_iterator<T>` -- separate class | Pointer *is* the iterator (`device_ptr<T>` models random access iterator) | `buffer_iterator<T>` -- random access iterator wrapping buffer + index |
-| **Allocator** | `device_allocator<T>` (wraps `cudaMalloc`/`cudaFree`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | `device_allocator<T, Alignment>` (wraps `sycl::malloc_device`) | `buffer_allocator<T>` (allocates OpenCL `cl::Buffer` objects) |
-| **Allocator traits helper** | None (uses standard `allocator_traits`) | `device_allocator_traits<Alloc>` -- detects `__has_construct`/`__has_destroy`, dispatches to serial or parallel construction | None (uses standard `allocator_traits`) | None |
-| **System/dispatch tag** | `device_system_tag` | N/A (uses execution policies) | N/A | N/A (always OpenCL) |
-| **Additional** | `detail::vector_base<T,Alloc>` (shared with `host_vector`) | `dpct::internal::is_iterator` (SFINAE trait) | `dr::sp::vector<T,Alloc>` (base class, reusable for other vector types) | Explicit `command_queue` stored as member; `get_buffer()` for raw `cl::Buffer` access |
+#### Proxy Reference
+
+Every implementation needs a proxy reference type to mediate host-side
+access to elements that live in device memory. Thrust provides the most
+full-featured version: `device_reference<T>` inherits a CRTP base and
+supports all compound assignment and increment/decrement operators, making
+it behave as close to a real `T&` as possible. SYCLomatic takes a similar
+approach with its own `device_reference<T>`. Distributed Ranges goes
+minimal -- `device_ref<T>` only provides `operator T()` and `operator=`,
+with no compound assignment, and constrains `T` to trivially copyable
+types. Boost.Compute's `buffer_value<T>` is comparable, proxying reads
+and writes through OpenCL buffer commands.
+
+#### Device Pointer
+
+A device pointer wraps a raw device-side `T*` and provides pointer
+semantics on the host. Thrust's `device_ptr<T>` inherits a CRTP pointer
+base, carries a `device_system_tag` for backend dispatch, and offers a
+`device_pointer_cast()` factory. SYCLomatic has a standalone
+`device_pointer<T>`. Distributed Ranges uses `device_ptr<T>` which wraps
+a raw pointer with a `get_raw_pointer()` accessor, again constrained to
+trivially copyable types. Boost.Compute has no separate device pointer
+type -- its `buffer_iterator` fills both roles.
+
+#### Device Iterator
+
+The device iterator is what algorithms operate on. In Thrust and
+Distributed Ranges, the device pointer *is* the iterator -- `device_ptr`
+models random access iterator directly, so no separate type is needed.
+SYCLomatic introduces a distinct `device_iterator<T>` class. Boost.Compute
+uses `buffer_iterator<T>`, a random access iterator that wraps a buffer
+plus an index offset.
 
 ### Summary of Key Differences
 
