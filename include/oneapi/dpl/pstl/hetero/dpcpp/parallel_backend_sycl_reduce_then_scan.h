@@ -2014,6 +2014,13 @@ class __scan_stop_pos_initial_value
     }
 };
 
+enum class _StopPosPayloadIndexes
+{
+    eFinalPos = 0,  // Source stop position
+    eOOBPos = 1,    // Source first OOB position
+    eLast
+};
+
 template <typename... _InRng>
 using __scan_stop_pos_storage_t = __result_storage<__scan_stop_pos_t<_InRng...>>;
 
@@ -2081,7 +2088,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);    // KSATODO should create only when _Bounded is true
+        __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, (std::size_t)_StopPosPayloadIndexes::eLast);    // KSATODO should create only when _Bounded is true
 
         const _InitValueType __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
@@ -2110,7 +2117,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     const std::size_t __global_id = __ndi.get_global_linear_id();
                     if (__global_id == 0)
                     {
-                        *__stop_pos_acc.__data() = __scan_stop_pos_initial_value<_InRng>::create();
+                        auto __stop_pos_ptr = __stop_pos_acc.__data();
+                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = __scan_stop_pos_initial_value<_InRng>::create();
+                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos_initial_value<_InRng>::create();
                     }
                 }
 
@@ -2336,16 +2345,24 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            typename __temp_data_array_t::_TupleOfSizes __stop_indexes{};
-                            // 1. Get first OOB position
-                            // 2. If no OOB position, get final position
-                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__stop_indexes)
-                                || std::get<1>(__scan_res).get_final_src_idx(__stop_indexes))
+                            auto __stop_pos_ptr = __stop_pos_acc.__data();
+
+                            typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
+                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__first_oob_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __stop_indexes);
+                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __first_oob_pos);
 
-                                *__stop_pos_acc.__data() = __tmp;
+                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __tmp;
+                            }
+
+                            typename __temp_data_array_t::_TupleOfSizes __final_pos{};
+                            if (std::get<1>(__scan_res).get_final_src_idx(__final_pos))
+                            {
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
+                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __final_pos);
+
+                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = __tmp;
                             }
                         }
                     }
@@ -2538,7 +2555,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
-    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, 1);   // KSATODO should create only when _Bounded is true + probably not required here because it's returned from scan submitter
+    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, (std::size_t)_StopPosPayloadIndexes::eLast);   // KSATODO should create only when _Bounded is true + probably not required here because it's returned from scan submitter
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,

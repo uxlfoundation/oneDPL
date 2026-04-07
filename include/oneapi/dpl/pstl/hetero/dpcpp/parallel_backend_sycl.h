@@ -747,9 +747,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                     __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
                     __init, __binary_op, _Inclusive{});
 
-                //__combined_storage<typename _InitType::__value_type> _p1(__move_state_from(__payload));
-                //__scan_stop_pos_storage_t<_Range1> _p2 = __scan_stop_pos_storage_t<_Range1>{__q_local, 1};
-                return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
+                return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
             }
         }
         if (__use_reduce_then_scan)
@@ -794,7 +792,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
         /*apex*/ __ignore_op);
 
-    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
+    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
 }
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
@@ -974,7 +972,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
-        return {std::move(__event), std::move(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, 1)};
+        return {std::move(__event), std::move(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
     }
 }
 
@@ -1034,6 +1032,15 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
+template <typename _Size>
+_Size
+__settled_or(_Size __size, _Size __default)
+{
+    using _SizeUnsigned = std::make_unsigned_t<_Size>;
+
+    return static_cast<_SizeUnsigned>(__size) == std::numeric_limits<_SizeUnsigned>::max() ? __default : __size;
+}
+
 template <typename _Range1, typename _Range2, typename _Range3>
 using __parallel_rng_set_op_return_t = std::tuple<oneapi::dpl::__internal::__difference_t<_Range1>,
                                                   oneapi::dpl::__internal::__difference_t<_Range2>,
@@ -1046,8 +1053,11 @@ __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
 __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng2,
                                             _Range3&& __result, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+
+    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare, _Proj1, _Proj2>;
@@ -1087,17 +1097,22 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     }
     else
     {
-        using _StoPosPayload = decltype(std::get<2>(__res));
-        using _StoPos = typename _StoPosPayload::_ValueType;
+        using _StopPosPayload = std::decay_t<decltype(std::get<2>(__res))>;
+        using _StopPos = typename _StopPosPayload::_ValueType;
 
-        _StoPos __stop_pos{};
+        auto& __stop_pos_payload = std::get<2>(__res);
 
-        auto __stop_pos_payload = std::get<2>(__res);
-        __stop_pos_payload.__copy_result(&__stop_pos, 1);
+        _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
+        __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
 
-        auto [__n1_stop, __n2_stop] = __stop_pos;
-        __n1_stop = __n1_stop == 0 ? __n1 : __n1_stop;
-        __n2_stop = __n2_stop == 0 ? __n2 : __n2_stop;
+        const _StopPos& __final_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
+        const _StopPos& __oob_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eOOBPos];
+
+        _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
+        _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
+
+        __n1_stop = __settled_or(__n1_stop, __n1);
+        __n2_stop = __settled_or(__n2_stop, __n2);
 
         return {__n1_stop, __n2_stop, __output_res};
     }
@@ -1187,22 +1202,22 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     }
     else
     {
-        // Wait for the event before accessing the stop positions, as they are written to in the kernel and may not be ready until the kernel finishes.
-        std::get<0>(__res).wait_and_throw();
-
         using _StopPosPayload = std::decay_t<decltype(std::get<2>(__res))>;
         using _StopPos = typename _StopPosPayload::_ValueType;
 
-        _StopPos __stop_positions{};
-        
-        auto __stop_pos_payload = std::move(std::get<2>(__res));
-        __stop_pos_payload.__copy_result(&__stop_positions, 1);
+        auto& __stop_pos_payload = std::get<2>(__res);
 
-        auto __n1_stop = std::get<0>(__stop_positions);
-        auto __n2_stop = std::get<1>(__stop_positions);
+        _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
+        __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
 
-        __n1_stop = __n1_stop == std::numeric_limits<decltype(__n1_stop)>::max() ? __n1 : __n1_stop;
-        __n2_stop = __n2_stop == std::numeric_limits<decltype(__n2_stop)>::max() ? __n2 : __n2_stop;
+        const _StopPos& __final_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
+        const _StopPos& __oob_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eOOBPos];
+
+        _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
+        _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
+
+        __n1_stop = __settled_or(__n1_stop, __n1);
+        __n2_stop = __settled_or(__n2_stop, __n2);
 
         return {__n1_stop, __n2_stop, __output_res};
     }
