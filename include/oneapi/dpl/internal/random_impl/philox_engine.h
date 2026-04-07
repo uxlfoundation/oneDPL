@@ -29,27 +29,27 @@ namespace oneapi
 namespace dpl
 {
 
-template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
-          oneapi::dpl::internal::element_type_t<_UIntType>... _consts>
+template <typename _UIntType, std::size_t _W, std::size_t _N, std::size_t _R,
+          oneapi::dpl::internal::element_type_t<_UIntType>... _Consts>
 class philox_engine;
 
-template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-std::basic_ostream<__CharT, __Traits>&
-operator<<(std::basic_ostream<__CharT, __Traits>&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+std::basic_ostream<_CharT, _Traits>&
+operator<<(std::basic_ostream<_CharT, _Traits>&, const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
-template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
+template <typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
 const sycl::stream&
-operator<<(const sycl::stream&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+operator<<(const sycl::stream&, const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
-template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-std::basic_istream<__CharT, __Traits>&
-operator>>(std::basic_istream<__CharT, __Traits>&, philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+std::basic_istream<_CharT, _Traits>&
+operator>>(std::basic_istream<_CharT, _Traits>&, philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
-template <typename _UIntType, std::size_t _w, std::size_t _n, std::size_t _r,
-          oneapi::dpl::internal::element_type_t<_UIntType>... _consts>
+template <typename _UIntType, std::size_t _W, std::size_t _N, std::size_t _R,
+          oneapi::dpl::internal::element_type_t<_UIntType>... _Consts>
 class philox_engine
 {
   public:
@@ -59,41 +59,41 @@ class philox_engine
 
   private:
     /* The size of the consts arrays */
-    static constexpr std::size_t __array_size = _n / 2;
+    static constexpr std::size_t __array_size = _N / 2;
 
     /* Methods for unpacking variadic of constants into two arrays */
     template <std::size_t... _Is>
     static constexpr auto
-    get_even_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    _get_even_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
     {
         return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2]...};
     }
     template <std::size_t... _Is>
     static constexpr auto
-    get_odd_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    _get_odd_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
     {
         return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + 1]...};
     }
 
   public:
     /* Engine characteristics */
-    static constexpr std::size_t word_size = _w;
-    static constexpr std::size_t word_count = _n;
-    static constexpr std::size_t round_count = _r;
+    static constexpr std::size_t word_size = _W;
+    static constexpr std::size_t word_count = _N;
+    static constexpr std::size_t round_count = _R;
 
-    static_assert(_n == 2 || _n == 4, "parameter n must be 2 or 4");
-    static_assert(sizeof...(_consts) == _n, "the amount of consts must be equal to n");
-    static_assert(_r > 0, "parameter r must be more than 0");
-    static_assert(_w > 0 && _w <= std::numeric_limits<scalar_type>::digits,
+    static_assert(_N == 2 || _N == 4, "parameter n must be 2 or 4");
+    static_assert(sizeof...(_Consts) == _N, "the amount of consts must be equal to n");
+    static_assert(_R > 0, "parameter r must be more than 0");
+    static_assert(_W > 0 && _W <= std::numeric_limits<scalar_type>::digits,
                   "parameter w must satisfy 0 < w < std::numeric_limits<UIntType>::digits");
     static_assert(std::numeric_limits<scalar_type>::digits <= 64,
                   "size of the scalar UIntType (in case of sycl::vec<T, N> the size of T) must be less than 64 bits");
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
     static constexpr std::array<scalar_type, __array_size> multipliers =
-        get_even_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        _get_even_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
     static constexpr std::array<scalar_type, __array_size> round_consts =
-        get_odd_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        _get_odd_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
 
     static constexpr scalar_type
     min()
@@ -105,7 +105,7 @@ class philox_engine
     max()
     {
         // equals to 2^w - 1
-        return in_mask;
+        return __in_mask;
     }
 
     static constexpr scalar_type default_seed = 20111115u;
@@ -119,7 +119,7 @@ class philox_engine
     void
     seed(scalar_type __seed = default_seed)
     {
-        seed_internal(__seed & in_mask);
+        _seed_internal(__seed & __in_mask);
     }
 
     /* Set the state to arbitrary position */
@@ -129,108 +129,109 @@ class philox_engine
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
             // all counters are set in reverse order
-            state_.X[word_count - __i - 1] = __counter[__i] & in_mask;
+            __state.__x[word_count - __i - 1] = __counter[__i] & __in_mask;
         }
-        state_.idx = word_count - 1;
+        __state.__idx = word_count - 1;
     }
 
     /* Generating functions */
     result_type
     operator()()
     {
-        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>();
+        return _generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>();
     }
 
     /* operator () overload for result portion generation */
     result_type
     operator()(unsigned int __random_nums)
     {
-        return generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>(__random_nums);
+        return _generate_internal<oneapi::dpl::internal::type_traits_t<result_type>::num_elems>(__random_nums);
     }
 
     /* Shift the counter only forward relative to its current position */
     void
     discard(unsigned long long __z)
     {
-        discard_internal(__z);
+        _discard_internal(__z);
     }
 
     /* Equality operators */
     friend bool
-    operator==(const philox_engine& __x, const philox_engine& __y)
+    operator==(const philox_engine& __eng1, const philox_engine& __eng2)
     {
-        return (std::equal(__x.state_.X.begin(), __x.state_.X.end(), __y.state_.X.begin()) &&
-                std::equal(__x.state_.K.begin(), __x.state_.K.end(), __y.state_.K.begin()) &&
-                std::equal(__x.state_.Y.begin(), __x.state_.Y.end(), __y.state_.Y.begin()) &&
-                __x.state_.idx == __y.state_.idx);
+        return (std::equal(__eng1.__state.__x.begin(), __eng1.__state.__x.end(), __eng2.__state.__x.begin()) &&
+                std::equal(__eng1.__state.__k.begin(), __eng1.__state.__k.end(), __eng2.__state.__k.begin()) &&
+                std::equal(__eng1.__state.__y.begin(), __eng1.__state.__y.end(), __eng2.__state.__y.begin()) &&
+                __eng1.__state.__idx == __eng2.__state.__idx);
     }
 
     friend bool
-    operator!=(const philox_engine& __x, const philox_engine& __y)
+    operator!=(const philox_engine& __eng1, const philox_engine& __eng2)
     {
-        return !(__x == __y);
+        return !(__eng1 == __eng2);
     }
 
     /* Inserters and extractors */
-    template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n,
-              std::size_t __r, oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-    friend std::basic_ostream<__CharT, __Traits>&
-    operator<<(std::basic_ostream<__CharT, __Traits>&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+    template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+              oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+    friend std::basic_ostream<_CharT, _Traits>&
+    operator<<(std::basic_ostream<_CharT, _Traits>&, const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
-    template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-              oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
+    template <typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+              oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
     friend const sycl::stream&
-    operator<<(const sycl::stream&, const philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+    operator<<(const sycl::stream&, const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
-    template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n,
-              std::size_t __r, oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-    friend std::basic_istream<__CharT, __Traits>&
-    operator>>(std::basic_istream<__CharT, __Traits>&, philox_engine<__UIntType, __w, __n, __r, __consts...>&);
+    template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+              oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+    friend std::basic_istream<_CharT, _Traits>&
+    operator>>(std::basic_istream<_CharT, _Traits>&, philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>&);
 
   private:
     /* Internal generator state */
-    struct state
+    struct __state_type
     {
-        std::array<scalar_type, word_count> X;     // counters
-        std::array<scalar_type, word_count / 2> K; // keys
-        std::array<scalar_type, word_count> Y;     // results
-        scalar_type idx;                           // index
-    } state_;
+        std::array<scalar_type, word_count> __x;     // counters
+        std::array<scalar_type, word_count / 2> __k; // keys
+        std::array<scalar_type, word_count> __y;     // results
+        scalar_type __idx;                           // index
+    } __state;
 
-    /* __word_mask<_W> - scalar_type with the low _W bits set */
-    template <std::size_t _W, typename = std::enable_if_t<_W != 0>>
-    static constexpr scalar_type __word_mask = ~scalar_type(0) >> (std::numeric_limits<scalar_type>::digits - _W);
+    /* __word_mask<_WordSize> - scalar_type with the low _WordSize bits set */
+    template <std::size_t _WordSize, typename = std::enable_if_t<_WordSize != 0>>
+    static constexpr scalar_type __word_mask = ~scalar_type(0) >>
+                                               (std::numeric_limits<scalar_type>::digits - _WordSize);
 
     /* Processing mask */
-    static constexpr auto in_mask = __word_mask<word_size>;
+    static constexpr auto __in_mask = __word_mask<word_size>;
 
     void
-    seed_internal(scalar_type __seed)
+    _seed_internal(scalar_type __seed)
     {
         // set to zero counters and results
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            state_.X[__i] = 0;
-            state_.Y[__i] = 0;
+            __state.__x[__i] = 0;
+            __state.__y[__i] = 0;
         }
         // 0th key element is set as seed, others are 0
-        state_.K[0] = __seed & in_mask;
+        __state.__k[0] = __seed & __in_mask;
         for (std::size_t __i = 1; __i < (word_count / 2); ++__i)
         {
-            state_.K[__i] = 0;
+            __state.__k[__i] = 0;
         }
 
-        state_.idx = word_count - 1;
+        __state.__idx = word_count - 1;
     }
 
     /* Increment counter by 1 */
     void
-    increase_counter_internal()
+    _increase_counter_internal()
     {
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            state_.X[__i] = (state_.X[__i] + 1) & in_mask;
-            if (state_.X[__i])
+            __state.__x[__i] = (__state.__x[__i] + 1) & __in_mask;
+            if (__state.__x[__i])
             {
                 return;
             }
@@ -239,19 +240,19 @@ class philox_engine
 
     /* Increment counter by an arbitrary __z */
     void
-    increase_counter_internal(unsigned long long __z)
+    _increase_counter_internal(unsigned long long __z)
     {
         unsigned long long __carry = 0;
         unsigned long long __ctr_inc = __z;
 
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            scalar_type __initial_x = state_.X[__i];
-            state_.X[__i] = (__initial_x + __ctr_inc + __carry) & in_mask;
+            scalar_type __initial_x = __state.__x[__i];
+            __state.__x[__i] = (__initial_x + __ctr_inc + __carry) & __in_mask;
 
             __carry = 0;
             // check overflow of the current chunk
-            if (state_.X[__i] < __initial_x)
+            if (__state.__x[__i] < __initial_x)
             {
                 __carry = 1;
             }
@@ -265,94 +266,94 @@ class philox_engine
 
     /* Decrement counter by 1 */
     void
-    decrease_counter_internal()
+    _decrease_counter_internal()
     {
         for (std::size_t __i = 0; __i < word_count; ++__i)
         {
-            if (state_.X[__i])
+            if (__state.__x[__i])
             {
-                state_.X[__i] = (state_.X[__i] - 1) & in_mask;
+                __state.__x[__i] = (__state.__x[__i] - 1) & __in_mask;
                 return;
             }
 
             /* Borrow for zero counter chunk */
-            state_.X[__i] = in_mask;
+            __state.__x[__i] = __in_mask;
         }
     }
 
-    /* generate_internal() specified for sycl_vec output 
+    /* _generate_internal() specified for sycl_vec output
        and overload for result portion generation */
-    template <unsigned int _N>
-    std::enable_if_t<(_N > 0), result_type>
-    generate_internal(unsigned int __random_nums)
+    template <unsigned int _VecSize>
+    std::enable_if_t<(_VecSize > 0), result_type>
+    _generate_internal(unsigned int __random_nums)
     {
-        if (__random_nums >= _N)
+        if (__random_nums >= _VecSize)
             return operator()();
 
         result_type __loc_result;
         for (int __elm_count = 0; __elm_count < __random_nums; ++__elm_count)
         {
-            ++state_.idx;
+            ++__state.__idx;
 
             // check if buffer is empty
-            if (state_.idx == word_count)
+            if (__state.__idx == word_count)
             {
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = 0;
+                _philox_kernel();
+                _increase_counter_internal();
+                __state.__idx = 0;
             }
-            __loc_result[__elm_count] = state_.Y[state_.idx];
+            __loc_result[__elm_count] = __state.__y[__state.__idx];
         }
 
         return __loc_result;
     }
 
-    /* generate_internal() specified for sycl_vec output */
-    template <unsigned int _N>
-    std::enable_if_t<(_N > 0), result_type>
-    generate_internal()
+    /* _generate_internal() specified for sycl_vec output */
+    template <unsigned int _VecSize>
+    std::enable_if_t<(_VecSize > 0), result_type>
+    _generate_internal()
     {
         result_type __loc_result;
-        for (int __elm_count = 0; __elm_count < _N; ++__elm_count)
+        for (int __elm_count = 0; __elm_count < _VecSize; ++__elm_count)
         {
-            ++state_.idx;
+            ++__state.__idx;
 
             // check if buffer is empty
-            if (state_.idx == word_count)
+            if (__state.__idx == word_count)
             {
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = 0;
+                _philox_kernel();
+                _increase_counter_internal();
+                __state.__idx = 0;
             }
-            __loc_result[__elm_count] = state_.Y[state_.idx];
+            __loc_result[__elm_count] = __state.__y[__state.__idx];
         }
 
         return __loc_result;
     }
 
-    /* generate_internal() specified for a scalar output */
-    template <unsigned int _N>
-    std::enable_if_t<(_N == 0), result_type>
-    generate_internal()
+    /* _generate_internal() specified for a scalar output */
+    template <unsigned int _VecSize>
+    std::enable_if_t<(_VecSize == 0), result_type>
+    _generate_internal()
     {
-        ++state_.idx;
-        if (state_.idx == word_count)
+        ++__state.__idx;
+        if (__state.__idx == word_count)
         {
-            philox_kernel();
-            increase_counter_internal();
-            state_.idx = 0;
+            _philox_kernel();
+            _increase_counter_internal();
+            __state.__idx = 0;
         }
 
-        return state_.Y[state_.idx];
+        return __state.__y[__state.__idx];
     }
 
     void
-    discard_internal(unsigned long long __z)
+    _discard_internal(unsigned long long __z)
     {
-        std::uint32_t __available_in_buffer = word_count - 1 - state_.idx;
+        std::uint32_t __available_in_buffer = word_count - 1 - __state.__idx;
         if (__z <= __available_in_buffer)
         {
-            state_.idx += __z;
+            __state.__idx += __z;
         }
         else
         {
@@ -360,72 +361,72 @@ class philox_engine
             int __tail = __z % word_count;
             if (__tail == 0)
             {
-                increase_counter_internal(__z / word_count);
-                state_.idx = word_count - 1;
+                _increase_counter_internal(__z / word_count);
+                __state.__idx = word_count - 1;
             }
             else
             {
                 if (__z > word_count)
                 {
-                    increase_counter_internal((__z - 1) / word_count);
+                    _increase_counter_internal((__z - 1) / word_count);
                 }
-                philox_kernel();
-                increase_counter_internal();
-                state_.idx = __tail - 1;
+                _philox_kernel();
+                _increase_counter_internal();
+                __state.__idx = __tail - 1;
             }
         }
     }
 
     /* Internal generation Philox kernel */
     void
-    philox_kernel()
+    _philox_kernel()
     {
         if constexpr (word_count == 2)
         {
-            scalar_type __V0 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __K0 = state_.K[0];
+            scalar_type __v0 = __state.__x[0];
+            scalar_type __v1 = __state.__x[1];
+            scalar_type __k0 = __state.__k[0];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                __V0 = __hi0 ^ __K0 ^ __V1;
-                __V1 = __lo0;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
+                auto [__hi0, __lo0] = _mulhilo(__v0, multipliers[0]);
+                __v0 = __hi0 ^ __k0 ^ __v1;
+                __v1 = __lo0;
+                __k0 = (__k0 + round_consts[0]) & __in_mask;
             }
-            state_.Y[0] = __V0;
-            state_.Y[1] = __V1;
+            __state.__y[0] = __v0;
+            __state.__y[1] = __v1;
         }
         else if constexpr (word_count == 4)
         {
-            // permute X to V
-            scalar_type __V2 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __V0 = state_.X[2];
-            scalar_type __V3 = state_.X[3];
-            scalar_type __K0 = state_.K[0];
-            scalar_type __K1 = state_.K[1];
+            // permute __x to V
+            scalar_type __v2 = __state.__x[0];
+            scalar_type __v1 = __state.__x[1];
+            scalar_type __v0 = __state.__x[2];
+            scalar_type __v3 = __state.__x[3];
+            scalar_type __k0 = __state.__k[0];
+            scalar_type __k1 = __state.__k[1];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                auto [__hi1, __lo1] = mulhilo(__V2, multipliers[1]);
-                __V2 = __hi0 ^ __V1 ^ __K0;
-                __V1 = __lo0;
-                __V0 = __hi1 ^ __V3 ^ __K1;
-                __V3 = __lo1;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
-                __K1 = (__K1 + round_consts[1]) & in_mask;
+                auto [__hi0, __lo0] = _mulhilo(__v0, multipliers[0]);
+                auto [__hi1, __lo1] = _mulhilo(__v2, multipliers[1]);
+                __v2 = __hi0 ^ __v1 ^ __k0;
+                __v1 = __lo0;
+                __v0 = __hi1 ^ __v3 ^ __k1;
+                __v3 = __lo1;
+                __k0 = (__k0 + round_consts[0]) & __in_mask;
+                __k1 = (__k1 + round_consts[1]) & __in_mask;
             }
-            state_.Y[0] = __V2;
-            state_.Y[1] = __V1;
-            state_.Y[2] = __V0;
-            state_.Y[3] = __V3;
+            __state.__y[0] = __v2;
+            __state.__y[1] = __v1;
+            __state.__y[2] = __v0;
+            __state.__y[3] = __v3;
         }
     }
 
     /* Returns the word_size high and word_size low
        bits of the 2*word_size-bit product of __a and __b */
     static std::pair<scalar_type, scalar_type>
-    mulhilo(scalar_type __a, scalar_type __b)
+    _mulhilo(scalar_type __a, scalar_type __b)
     {
         scalar_type __res_hi, __res_lo;
 
@@ -467,67 +468,67 @@ class philox_engine
                     : __res_hi << (std::numeric_limits<scalar_type>::digits - word_size) | (__res_lo >> word_size);
         }
 
-        return {__res_hi & in_mask, __res_lo & in_mask};
+        return {__res_hi & __in_mask, __res_lo & __in_mask};
     }
 };
 
-template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-std::basic_ostream<__CharT, __Traits>&
-operator<<(std::basic_ostream<__CharT, __Traits>& __os,
-           const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
+template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+std::basic_ostream<_CharT, _Traits>&
+operator<<(std::basic_ostream<_CharT, _Traits>& __os,
+           const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>& __engine)
 {
-    oneapi::dpl::internal::save_stream_flags<__CharT, __Traits> __flags(__os);
+    oneapi::dpl::internal::save_stream_flags<_CharT, _Traits> __flags(__os);
 
     __os.setf(std::ios_base::dec | std::ios_base::left);
-    __CharT __sp = __os.widen(' ');
+    _CharT __sp = __os.widen(' ');
     __os.fill(__sp);
 
-    for (auto __k_elm : __engine.state_.K)
+    for (auto __k_elm : __engine.__state.__k)
     {
         __os << __k_elm << __sp;
     }
-    for (auto __x_elm : __engine.state_.X)
+    for (auto __x_elm : __engine.__state.__x)
     {
         __os << __x_elm << __sp;
     }
-    __os << __engine.state_.idx;
+    __os << __engine.__state.__idx;
 
     return __os;
 }
 
-template <typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
+template <typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
 const sycl::stream&
-operator<<(const sycl::stream& __os, const philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
+operator<<(const sycl::stream& __os, const philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>& __engine)
 {
-    for (auto __k_elm : __engine.state_.K)
+    for (auto __k_elm : __engine.__state.__k)
     {
         __os << __k_elm << ' ';
     }
-    for (auto __x_elm : __engine.state_.X)
+    for (auto __x_elm : __engine.__state.__x)
     {
         __os << __x_elm << ' ';
     }
-    __os << __engine.state_.idx;
+    __os << __engine.__state.__idx;
 
     return __os;
 }
 
-template <typename __CharT, typename __Traits, typename __UIntType, std::size_t __w, std::size_t __n, std::size_t __r,
-          oneapi::dpl::internal::element_type_t<__UIntType>... __consts>
-std::basic_istream<__CharT, __Traits>&
-operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType, __w, __n, __r, __consts...>& __engine)
+template <typename _CharT, typename _Traits, typename _UIntTypeP, std::size_t _Wp, std::size_t _Np, std::size_t _Rp,
+          oneapi::dpl::internal::element_type_t<_UIntTypeP>... _ConstsP>
+std::basic_istream<_CharT, _Traits>&
+operator>>(std::basic_istream<_CharT, _Traits>& __is, philox_engine<_UIntTypeP, _Wp, _Np, _Rp, _ConstsP...>& __engine)
 {
-    oneapi::dpl::internal::save_stream_flags<__CharT, __Traits> __flags(__is);
+    oneapi::dpl::internal::save_stream_flags<_CharT, _Traits> __flags(__is);
 
     __is.setf(std::ios_base::dec);
 
-    /* Number of elements in the state (K, X and idx) */
-    constexpr std::size_t __state_size = __n / 2 + __n + 1;
+    /* Number of elements in the state (__k, __x and __idx) */
+    constexpr std::size_t __statesize = _Np / 2 + _Np + 1;
 
-    std::array<oneapi::dpl::internal::element_type_t<__UIntType>, __state_size> __tmp_inp;
-    for (std::size_t __i = 0; __i < __state_size; ++__i)
+    std::array<oneapi::dpl::internal::element_type_t<_UIntTypeP>, __statesize> __tmp_inp;
+    for (std::size_t __i = 0; __i < __statesize; ++__i)
     {
         __is >> __tmp_inp[__i];
     }
@@ -535,22 +536,22 @@ operator>>(std::basic_istream<__CharT, __Traits>& __is, philox_engine<__UIntType
     if (!__is.fail())
     {
         int __inp_itr = 0;
-        for (std::size_t __i = 0; __i < __n / 2; ++__i, ++__inp_itr)
+        for (std::size_t __i = 0; __i < _Np / 2; ++__i, ++__inp_itr)
         {
-            __engine.state_.K[__i] = __tmp_inp[__inp_itr];
+            __engine.__state.__k[__i] = __tmp_inp[__inp_itr];
         }
-        for (std::size_t __i = 0; __i < __n; ++__i, ++__inp_itr)
+        for (std::size_t __i = 0; __i < _Np; ++__i, ++__inp_itr)
         {
-            __engine.state_.X[__i] = __tmp_inp[__inp_itr];
+            __engine.__state.__x[__i] = __tmp_inp[__inp_itr];
         }
-        __engine.state_.idx = __tmp_inp[__inp_itr];
+        __engine.__state.__idx = __tmp_inp[__inp_itr];
 
         /* Counter is incremented right after the generation of Yi - to restore the unused sequence Yi, the counter has to be decremented */
-        if (__engine.state_.idx != __n - 1)
+        if (__engine.__state.__idx != _Np - 1)
         {
-            __engine.decrease_counter_internal();
+            __engine._decrease_counter_internal();
             /* setup Yi */
-            __engine.philox_kernel();
+            __engine._philox_kernel();
         }
     }
 
