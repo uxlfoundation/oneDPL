@@ -773,7 +773,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
+template <bool _Bounded, bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
     template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
@@ -813,30 +813,34 @@ struct __set_generic_operation
 };
 
 // Set operation implementations using the generic implementation
-using __set_intersection = __set_generic_operation<true, false, false>;
-using __set_difference = __set_generic_operation<false, true, false>;
-using __set_union = __set_generic_operation<true, true, true>;
-using __set_symmetric_difference = __set_generic_operation<false, true, true>;
+template <bool _Bounded>
+using __set_intersection = __set_generic_operation<_Bounded, true, false, false>;
+template <bool _Bounded>
+using __set_difference = __set_generic_operation<_Bounded, false, true, false>;
+template <bool _Bounded>
+using __set_union = __set_generic_operation<_Bounded, true, true, true>;
+template <bool _Bounded>
+using __set_symmetric_difference = __set_generic_operation<_Bounded, false, true, true>;
 
-template <typename _SetTag>
+template <bool _Bounded, typename _SetTag>
 struct __get_set_operation;
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection
+template <bool _Bounded>
+struct __get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_IntersectionTag> : __set_intersection<_Bounded>
 {
 };
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference
+template <bool _Bounded>
+struct __get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_DifferenceTag> : __set_difference<_Bounded>
 {
 };
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_UnionTag> : __set_union
+template <bool _Bounded>
+struct __get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_UnionTag> : __set_union<_Bounded>
 {
 };
 
-template <>
-struct __get_set_operation<oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference
+template <bool _Bounded>
+struct __get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_SymmetricDifferenceTag> : __set_symmetric_difference<_Bounded>
 {
 };
 

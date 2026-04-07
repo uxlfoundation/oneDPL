@@ -1114,7 +1114,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
     using _Size3 = oneapi::dpl::__internal::__difference_t<_Range3>;
 
-    using _SetOperation = __get_set_operation<_SetTag>;
+    using _SetOperation = __get_set_operation<_Bounded, _SetTag>;
     using _In1ValueT = oneapi::dpl::__internal::__value_t<_Range1>;
     using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
