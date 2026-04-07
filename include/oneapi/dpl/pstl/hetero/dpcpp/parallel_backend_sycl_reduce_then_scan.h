@@ -692,7 +692,8 @@ struct __get_bounds_simple
 // Reduce then scan building block for set balanced path which is used in the reduction kernel to calculate the
 // balanced path intersection, store it to temporary data with "star" status, then count the number of elements to write
 // to the output for the reduction operation.
-template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _BoundsProvider, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
@@ -868,8 +869,8 @@ struct __gen_set_balanced_path
                      oneapi::dpl::__ranges::__size(__rng1) + oneapi::dpl::__ranges::__size(__rng2) -
                          _IndexT{__id * __diagonal_spacing - 1});
 
-        return __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos,
-                                               __eles_to_process, __temp_data, __comp, __proj1, __proj2);
+        return __set_op_count(__rng1, __rng2, __rng1_balanced_pos, __rng2_balanced_pos, __eles_to_process, __temp_data,
+                              __comp, __proj1, __proj2);
     }
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
@@ -882,7 +883,8 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1, typename _Proj2>
+template <typename _SetOpCount, typename _TempData, typename _RetType, typename _Compare, typename _Proj1,
+          typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
@@ -916,7 +918,7 @@ struct __gen_set_op_from_known_balanced_path
                                             oneapi::dpl::__ranges::__size(__rng2) - __i_elem + 1)));
 
         _RetType __count = __set_op_count(__rng1, __rng2, __rng1_idx, __rng2_idx, __eles_to_process, __output_data,
-                                               __comp, __proj1, __proj2);
+                                          __comp, __proj1, __proj2);
 
         return std::make_tuple(__count, __count);
     }
@@ -1258,7 +1260,8 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
+        _ValueType __partial_carry_in =
+            __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1270,11 +1273,13 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
         __value = __binary_op(__init_and_carry.__v, __value);
         if (__sub_group_local_id == 0)
             __old_init.__setup(__init_and_carry.__v);
-        __init_and_carry.__v = __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
+        __init_and_carry.__v =
+            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(__group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
+        __init_and_carry.__setup(
+            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
     }
 
     __value = __shift_group_right<__use_subgroup_ops>(__sub_group, __value, 1, __comm_slm);
@@ -1300,7 +1305,8 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
-        _ValueType __partial_carry_in = __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
+        _ValueType __partial_carry_in =
+            __shift_group_right<__use_subgroup_ops>(__sub_group, __value, __shift, __comm_slm);
         if (__mask_fn(__sub_group_local_id, __shift))
         {
             __value = __binary_op(__partial_carry_in, __value);
@@ -1309,11 +1315,13 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
     if constexpr (__init_present)
     {
         __value = __binary_op(__init_and_carry.__v, __value);
-        __init_and_carry.__v = __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
+        __init_and_carry.__v =
+            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm);
     }
     else
     {
-        __init_and_carry.__setup(__group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
+        __init_and_carry.__setup(
+            __group_broadcast<__use_subgroup_ops>(__sub_group, __value, __init_broadcast_id, __comm_slm));
     }
     //return by reference __value and __init_and_carry
 }
@@ -1562,11 +1570,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
 
     template <bool __use_subgroup_ops, typename _TmpAcc, typename _InRng>
     void
-    __reduce_kernel_body(sycl::nd_item<1> __ndi,
-                         __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials,
-                         __dpl_sycl::__local_accessor<_InitValueType> __comm_slm,
-                         _TmpAcc __tmp_acc, _InRng __in_rng, const std::size_t __inputs_remaining,
-                         const std::size_t __block_num) const
+    __reduce_kernel_body(sycl::nd_item<1> __ndi, __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials,
+                         __dpl_sycl::__local_accessor<_InitValueType> __comm_slm, _TmpAcc __tmp_acc, _InRng __in_rng,
+                         const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
         const std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
@@ -1737,7 +1743,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
         return __tmp_acc[__num_sub_groups_global + (__block_num % 2)];
     }
 
-
     template <typename _TmpAcc, typename _ValueType>
     void
     __set_block_carry_out(const std::size_t __block_num, _TmpAcc __tmp_acc, const _ValueType __block_carry_out,
@@ -1749,8 +1754,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     template <bool __use_subgroup_ops, typename _TmpAcc, typename _ResAcc, typename _InRng, typename _OutRng>
     void
     __scan_kernel_body(sycl::nd_item<1> __ndi, __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials,
-                       __dpl_sycl::__local_accessor<_InitValueType> __comm_slm, _TmpAcc __tmp_acc,
-                       _ResAcc __res_acc, _InRng __in_rng, _OutRng __out_rng, std::uint32_t __inputs_in_block,
+                       __dpl_sycl::__local_accessor<_InitValueType> __comm_slm, _TmpAcc __tmp_acc, _ResAcc __res_acc,
+                       _InRng __in_rng, _OutRng __out_rng, std::uint32_t __inputs_in_block,
                        const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
@@ -1762,7 +1767,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
         const std::uint32_t __active_groups = oneapi::dpl::__internal::__dpl_ceiling_div(
             __inputs_in_block, __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local);
-
 
         std::uint32_t __group_id = __ndi.get_group(0);
         std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
