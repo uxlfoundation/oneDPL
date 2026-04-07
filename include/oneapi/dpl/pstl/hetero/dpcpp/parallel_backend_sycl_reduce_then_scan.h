@@ -60,7 +60,7 @@ struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
 
     template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, _TupleOfSizes)
+    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes&)
     {
         __data[__idx].__setup(std::forward<_ValueArg>(__value));
     }
@@ -87,7 +87,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
 
     template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, _TupleOfSizes __idxs)
+    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes& __idxs)
     {
         __data[__idx].__setup(std::forward<_ValueArg>(__value));
         __indexes[__idx] = __idxs;
@@ -103,7 +103,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     }
 
     void
-    set_final_src_idx(_TupleOfSizes __idxs)
+    set_final_src_idx(const _TupleOfSizes& __idxs)
     {
         __final_src_idx = __idxs;
     }
@@ -115,7 +115,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     }
 
     void
-    set_first_oob_src_idx(_TupleOfSizes __idxs)
+    set_first_oob_src_idx(const _TupleOfSizes& __idxs)
     {
         __first_oob_src_idx_opt = __idxs;
     }
@@ -140,19 +140,19 @@ struct __noop_temp_data
 {
     template <typename _ValueArg, typename... _Sizes>
     void
-    set(std::uint16_t, _ValueArg&&, std::tuple<_Sizes...>)
+    set(std::uint16_t, _ValueArg&&, const std::tuple<_Sizes...>&)
     {
     }
 
     template <typename... _Sizes>
     void
-    set_final_src_idx(std::tuple<_Sizes...>)
+    set_final_src_idx(const std::tuple<_Sizes...>&)
     {
     }
 
     template <typename... _Sizes>
     void
-    set_first_oob_src_idx(std::tuple<_Sizes...>)
+    set_first_oob_src_idx(const std::tuple<_Sizes...>&)
     {
     }
 };
