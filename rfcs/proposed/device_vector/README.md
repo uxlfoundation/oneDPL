@@ -118,17 +118,24 @@ discussion.*
 - **device_pointer should be device copyable and indirectly device accessible**
   The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
 
+- **No custom allocator template parameter; use `sycl::malloc_device` directly**
+  The SYCL 2020 spec intentionally excludes `sycl::usm_allocator` for device
+  memory because the C++ `Allocator` named requirement mandates host-accessible
+  memory, which device USM is not. A device memory allocator cannot satisfy
+  `Allocator`, so a custom allocator template parameter in the `std::vector`
+  sense is not meaningful here. We use `sycl::malloc_device` / `sycl::free`
+  directly, keeping the implementation simpler.
+
 ### Strawman API
 
 ```cpp
 namespace oneapi::dpl::experimental {
 
-template <typename T, typename Allocator = /* see below */>
+template <typename T>
 class device_vector {
 public:
     // Standard container typedefs
     using value_type      = T;
-    using allocator_type  = Allocator;
     using size_type       = std::size_t;
     using difference_type = std::ptrdiff_t;
     using reference       = device_reference<T>;      // proxy
@@ -230,15 +237,13 @@ std::vector<float> result = static_cast<std::vector<float>>(d_vec2);
 
 ### Helper Types
 
-A `device_vector` requires several supporting types (see comparison below):
+A `device_vector` requires several supporting types (see comparison above):
 
 - **`device_pointer<T>`** -- wraps a raw device pointer; models random
   access iterator; dereference returns `device_reference<T>`.
 - **`device_reference<T>`** -- proxy reference for host-side element
   access; reads/writes trigger synchronous `memcpy` on the host path,
   direct dereference on the device path.
-- **`device_allocator<T>`** -- allocator using USM device memory
-  (or the chosen memory model).
 
 ## Open Questions
 
