@@ -148,6 +148,12 @@ discussion.*
   We should not need anything except device copyability (for copy to and from
   the device).
 
+- **We don't need a tag system for dispatch to specific hardware**
+  Execution policies dictate where algorithms are run. We don't intend to provide other flavors of vector / iterator which would have different tags, so this doesn't make much sense.
+
+- **device_pointer should be device copyable and indirectly device accessible**
+  The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
+
 ### Strawman API
 
 ```cpp
@@ -276,3 +282,6 @@ A `device_vector` requires several supporting types (see comparison below):
   Distributed ranges work has been halted, but is this an important use case to
   preserve, or unnecessary complication for users?  We could always add another
   type distributed_device_vector in the future if it seems necessary.
+
+- **Do we gain anything from having a separate device_iterator and device_pointer,
+   or can we just only implement device_pointer?**
