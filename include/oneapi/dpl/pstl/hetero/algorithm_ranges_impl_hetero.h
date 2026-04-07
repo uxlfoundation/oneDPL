@@ -1098,7 +1098,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& _
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
-        return {__first1 + __n1, __first2 + __n2, __result};
+        return {__first1, __first2, __result};
 
     const auto [__offset1, __offset2, __offset_out] =
         __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_IntersectionTag>(
