@@ -103,6 +103,18 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     }
 
     void
+    set_final_src_idx(_TupleOfSizes __idxs)
+    {
+        __final_src_idx = __idxs;
+    }
+
+    _TupleOfSizes
+    get_final_src_idx() const
+    {
+        return __final_src_idx;
+    }
+
+    void
     set_first_oob_src_idx(_TupleOfSizes __idxs)
     {
         __first_oob_src_idx_opt = __idxs;
@@ -119,6 +131,7 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
     std::array<_TupleOfSizes, elements> __indexes;
 
     std::optional<_TupleOfSizes> __first_oob_src_idx_opt;
+    _TupleOfSizes __final_src_idx = {};
 };
 
 // This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
@@ -128,6 +141,12 @@ struct __noop_temp_data
     template <typename _ValueArg, typename... _Sizes>
     void
     set(std::uint16_t, _ValueArg&&, std::tuple<_Sizes...>)
+    {
+    }
+
+    template <typename... _Sizes>
+    void
+    set_final_src_idx(std::tuple<_Sizes...>)
     {
     }
 
