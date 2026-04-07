@@ -85,7 +85,7 @@ plus an index offset.
 *This section is intentionally left as a rough skeleton for further design
 discussion.*
 
-## Key Decisions
+## High Level Decisions
 
 - **Use device memory as baseline, copy to/from host on demand when required**
    This matches semantics of all pre-existing implementations other than SYCLomatic
