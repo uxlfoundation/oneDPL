@@ -885,12 +885,11 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign, _Bounded>;
 
-        [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-                __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
-                _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
+        auto&& __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+            __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
+            _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+        auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
         _Size __stop_out = __f.get();
 
         __ret = {__stop_out, __n};
@@ -1009,12 +1008,11 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_mask<_Pred>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<0, _Assign, _Bounded>;
 
-        [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-            __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
-                __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
-                _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
+        auto&& __res = __parallel_reduce_then_scan_copy<_Bounded, _CustomName>(
+            __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
+            _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
-        auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+        auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
         _Size __stop_out = __f.get();
 
         __ret = {__stop_out, __n};
@@ -1072,32 +1070,36 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
         oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
             __mask_buf.get_buffer()));
 
-    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-        __parallel_transform_reduce_then_scan<_Bounded, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
-                                              _CustomName>(
-            __q, __n1, std::move(__packed_src_view), std::forward<_Range3>(__result),
-            _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
-            _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
-            _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
-            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
+    auto&& __res = __parallel_transform_reduce_then_scan<_Bounded, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
+                                                         _CustomName>(
+        __q, __n1, std::move(__packed_src_view), std::forward<_Range3>(__result),
+        _GenReduceInput{_GenMaskReduce{__comp, __proj1, __proj2}}, _ReduceOp{},
+        _GenScanInput{_GenMaskScan{_MaskPredicate{}, _MaskRangeTransform{}}, _ScanRangeTransform{}},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 
-    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
-    auto __res = __f.get();
+    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
+    auto __output_res = __f.get();
 
     if constexpr (!_Bounded)
     {
-        return {__n1, __n2, __res};
+        return {__n1, __n2, __output_res};
     }
     else
     {
-        typename decltype(__stop_pos_payload)::_ValueType __stop_pos{};
+        using _StoPosPayload = decltype(std::get<2>(__res));
+        using _StoPos = typename _StoPosPayload::_ValueType;
+
+        _StoPos __stop_pos{};
+
+        auto __stop_pos_payload = std::get<2>(__res);
         __stop_pos_payload.__copy_result(&__stop_pos, 1);
 
         auto [__n1_stop, __n2_stop] = __stop_pos;
         __n1_stop = __n1_stop == 0 ? __n1 : __n1_stop;
         __n2_stop = __n2_stop == 0 ? __n2 : __n2_stop;
 
-        return {__n1_stop, __n2_stop, __res};
+        return {__n1_stop, __n2_stop, __output_res};
     }
 }
 
@@ -1169,24 +1171,31 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     _WriteOp __write_op{};
 
-    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-        __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
-            __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
-            __gen_reduce_input_phase2, _ReduceOp{},
-            _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{},
-            __write_op, oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
-            /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
+    auto&& __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
+        __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
+        __gen_reduce_input_phase2, _ReduceOp{},
+        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{}, __write_op,
+        oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
+        /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 
-    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
-    auto __res = __f.get();
+    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
+    auto __output_res = __f.get();
 
     if constexpr (!_Bounded)
     {
-        return {__n1, __n2, __res};
+        return {__n1, __n2, __output_res};
     }
     else
     {
-        typename decltype(__stop_pos_payload)::_ValueType __stop_positions{};
+        // Wait for the event before accessing the stop positions, as they are written to in the kernel and may not be ready until the kernel finishes.
+        std::get<0>(__res).wait_and_throw();
+
+        using _StopPosPayload = std::decay_t<decltype(std::get<2>(__res))>;
+        using _StopPos = typename _StopPosPayload::_ValueType;
+
+        _StopPos __stop_positions{};
+        
+        auto __stop_pos_payload = std::move(std::get<2>(__res));
         __stop_pos_payload.__copy_result(&__stop_positions, 1);
 
         auto __n1_stop = std::get<0>(__stop_positions);
@@ -1195,7 +1204,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         __n1_stop = __n1_stop == std::numeric_limits<decltype(__n1_stop)>::max() ? __n1 : __n1_stop;
         __n2_stop = __n2_stop == std::numeric_limits<decltype(__n2_stop)>::max() ? __n2 : __n2_stop;
 
-        return {__n1_stop, __n2_stop, __res};
+        return {__n1_stop, __n2_stop, __output_res};
     }
 }
 
@@ -1247,10 +1256,10 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 
     auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
-    auto __res = __f.get();
+    auto __output_res = __f.get();
 
     // KSATODO this return looks incorrect
-    return {__n1, __n2, __res};
+    return {__n1, __n2, __output_res};
 }
 
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
@@ -2579,14 +2588,14 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
         using _ScanInitType = oneapi::dpl::__internal::__value_t<decltype(oneapi::dpl::__ranges::zip_view(
             std::forward<_Range2>(__values), __mask_view))>;
 
-        [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] = __parallel_transform_scan<_Bounded>(
+        auto&& __res = __parallel_transform_scan<_Bounded>(
             oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range2>(__values), __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
             oneapi::dpl::identity{}, oneapi::dpl::unseq_backend::__no_init_value<_ScanInitType>{},
             oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
             /*_Inclusive*/ std::true_type{});
-        __event.wait_and_throw();
+        std::get<0>(__res).wait_and_throw();
     }
     else
     {
@@ -2623,7 +2632,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
         using _ScanInitType =
             oneapi::dpl::__internal::__value_t<decltype(oneapi::dpl::__ranges::zip_view(__temp_view, __mask_view))>;
 
-        [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] = __parallel_transform_scan<_Bounded>(
+        auto&& __res = __parallel_transform_scan<_Bounded>(
             oneapi::dpl::__internal::__device_backend_tag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::zip_view(__temp_view, __mask_view),
             oneapi::dpl::__ranges::zip_view(std::forward<_Range3>(__out_values), __mask_view), __n,
@@ -2632,7 +2641,7 @@ __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_ta
                 oneapi::dpl::__internal::make_tuple(__init.__value, _FlagType(1))},
             oneapi::dpl::__internal::__segmented_scan_fun<_BinaryOperator, _FlagType, _BinaryOperator>{__binary_op},
             /*_Inclusive*/ std::true_type{});
-        __event.wait_and_throw();
+        std::get<0>(__res).wait_and_throw();
     }
 }
 
@@ -2653,11 +2662,10 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 
         if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
         {
-            [[maybe_unused]] auto [__event, __payload, __stop_pos_payload] =
-                __parallel_scan_by_segment_reduce_then_scan<_Bounded, _CustomName, __is_inclusive>(
-                    __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
-                    std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init);
-            __event.wait_and_throw();
+            auto&& __res = __parallel_scan_by_segment_reduce_then_scan<_Bounded, _CustomName, __is_inclusive>(
+                __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
+                std::forward<_Range3>(__out_values), __binary_pred, __binary_op, __init);
+            std::get<0>(__res).wait_and_throw();
             return;
         }
     }

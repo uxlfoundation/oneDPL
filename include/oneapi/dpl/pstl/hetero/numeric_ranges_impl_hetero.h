@@ -98,15 +98,12 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n1 == 0)
         return 0;
 
-    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
-            _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
-            std::forward<_Range2>(__rng2), __n1, __unary_op, __init, __binary_op, _Inclusive{});
+    auto&& __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
+        _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
+        std::forward<_Range2>(__rng2), __n1, __unary_op, __init, __binary_op, _Inclusive{});
 
-    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
-    auto __res = __f.get();
-
-    return __res;
+    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
+    return __f.get();
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,

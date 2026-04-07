@@ -195,13 +195,11 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__result, __result + __n);
 
-    [[maybe_unused]] auto&& [__event, __payload, __stop_pos_payload] =
-        oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
-            _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
-            __unary_op, __init, __binary_op, _Inclusive{});
+    auto&& __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
+        _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
+        __init, __binary_op, _Inclusive{});
 
-    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
-    return __f.__make_future(__result + __n);
+    return __create_future(/*event*/ std::move(std::get<0>(__res)), __result + __n, /*result*/ std::move(std::get<1>(__res)))
 }
 
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2,
