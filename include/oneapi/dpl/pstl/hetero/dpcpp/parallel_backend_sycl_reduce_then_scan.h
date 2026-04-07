@@ -803,19 +803,29 @@ struct __set_generic_operation
         }
         else
         {
-            const auto __idx1_prev = __idx1;
-            const auto __idx2_prev = __idx2;
-
-            while (__idx < __num_eles_min)
+            if constexpr (!_Bounded)
             {
-                //bounds check all
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
-                    __proj2);
+                while (__idx < __num_eles_min)
+                {
+                    //bounds check all
+                    __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
+                        __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp,
+                        __proj1, __proj2);
+                }
             }
-
-            if constexpr (_Bounded)
+            else
             {
+                const std::size_t __idx1_prev = __idx1;
+                const std::size_t __idx2_prev = __idx2;
+
+                while (__idx < __num_eles_min)
+                {
+                    //bounds check all
+                    __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
+                        __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
+                        __proj2);
+                }
+
                 if (__idx1_prev != __idx1 || __idx2_prev != __idx2)
                 {
                     __temp_out.set_final_src_idx(_TupleOfSizes{__idx1, __idx2});
