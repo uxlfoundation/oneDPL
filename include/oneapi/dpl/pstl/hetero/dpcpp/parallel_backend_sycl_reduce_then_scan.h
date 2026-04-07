@@ -1591,7 +1591,7 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
           typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
-std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::TempData>, bool>
+std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::TempData>, bool>      // KSATODO better to create __temp_data on caller side or return EOB pos + final pos without extra __temp_data copy
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
@@ -2358,23 +2358,25 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            auto __stop_pos_ptr = __stop_pos_acc.__data();
+                            const auto& __temp_data = std::get<1>(__scan_res);
 
                             typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
-                            if (std::get<1>(__scan_res).get_first_oob_src_idx(__first_oob_pos))
+                            if (__temp_data.get_first_oob_src_idx(__first_oob_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __first_oob_pos);
 
+                                auto __stop_pos_ptr = __stop_pos_acc.__data();
                                 __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __tmp;
                             }
 
                             typename __temp_data_array_t::_TupleOfSizes __final_pos{};
-                            if (std::get<1>(__scan_res).get_final_src_idx(__final_pos))
+                            if (__temp_data.get_final_src_idx(__final_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __final_pos);
 
+                                auto __stop_pos_ptr = __stop_pos_acc.__data();
                                 __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = __tmp;
                             }
                         }
