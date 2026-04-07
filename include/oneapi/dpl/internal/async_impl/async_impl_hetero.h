@@ -30,8 +30,8 @@ namespace dpl
 namespace __internal
 {
 
-template <__par_backend_hetero::access_mode __acc_mode, bool _IsNoInitRequested, typename _BackendTag,
-          typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
+template <__par_backend_hetero::access_mode __acc_mode, bool _IsNoInitRequested, bool _DeferToUserHint = false,
+          typename _BackendTag, typename _ExecutionPolicy, typename _ForwardIterator, typename _Function>
 auto
 __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                       _ForwardIterator __last, _Function __f)
@@ -39,7 +39,7 @@ __pattern_walk1_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _For
     auto __n = __last - __first;
     assert(__n > 0);
 
-    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode, _IsNoInitRequested>();
+    auto __keep = oneapi::dpl::__ranges::__get_sycl_range<__acc_mode, _IsNoInitRequested, _DeferToUserHint>();
     auto __buf = __keep(__first, __last);
 
     auto __future_obj = oneapi::dpl::__par_backend_hetero::__parallel_for(
@@ -113,8 +113,8 @@ auto
 __pattern_for_each_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _ForwardIterator __first,
                          _ForwardIterator __last, _Function __f)
 {
-    return __pattern_walk1_async<oneapi::dpl::__ranges::__extract_hint_access_mode_v<_ForwardIterator>,
-                                 oneapi::dpl::__ranges::__extract_hint_no_init_v<_ForwardIterator>>(
+    return __pattern_walk1_async<__par_backend_hetero::access_mode::read_write, /*_IsNoInitRequested=*/false,
+                                 /*_DeferToUserHint=*/true>(
         __hetero_tag<_BackendTag>{}, std::forward<_ExecutionPolicy>(__exec), __first, __last, __f);
 }
 

@@ -245,10 +245,6 @@ struct __extract_user_hint_data<oneapi::dpl::__internal::sycl_iterator<_AccessMo
 {
 };
 
-template <typename _ForwardIterator>
-static constexpr sycl::access_mode __extract_hint_access_mode_v = __extract_user_hint_data<_ForwardIterator>::__value;
-template <typename _ForwardIterator>
-static constexpr bool __extract_hint_no_init_v = __extract_user_hint_data<_ForwardIterator>::__no_init;
 template <typename Iter, typename Void = void>
 struct is_hetero_legacy_trait : ::std::false_type
 {
@@ -445,7 +441,7 @@ struct __range_holder
     }
 };
 
-template <sycl::access::mode AccMode, bool _IsNoInitRequested = false>
+template <sycl::access::mode AccMode, bool _IsNoInitRequested = false, bool _DeferToUserHint = false>
 struct __get_sycl_range
 {
     __get_sycl_range()
@@ -463,6 +459,22 @@ struct __get_sycl_range
         _LocalAccMode == sycl::access::mode::read_write || _LocalAccMode == sycl::access::mode::write;
 
   private:
+    // When _DeferToUserHint is true and _Iter is a sycl_iterator, resolve the access mode and no_init
+    // from the iterator's embedded user hint. Otherwise, pass through the provided mode.
+    template <sycl::access::mode _Mode, bool _NoInit>
+    struct __passthrough_access_mode
+    {
+        static constexpr sycl::access::mode __value = _Mode;
+        static constexpr bool __no_init = _NoInit;
+    };
+
+    template <sycl::access::mode _LocalAccMode, bool _LocalNoInit, typename _Iter>
+    struct __resolve_access_mode
+        : std::conditional_t<_DeferToUserHint && is_sycl_iterator<_Iter>::value, __extract_user_hint_data<_Iter>,
+                             __passthrough_access_mode<_LocalAccMode, _LocalNoInit>>
+    {
+    };
+
     // We have to keep sycl buffer(s) instance here by sync reasons;
     std::vector<std::unique_ptr<oneapi::dpl::__internal::__lifetime_keeper_base>> m_buffers;
 
@@ -652,9 +664,15 @@ struct __get_sycl_range
     auto
     __process_input_iter(_Iter __first, _Iter __last)
         -> std::enable_if_t<oneapi::dpl::__ranges::is_hetero_iterator_v<_Iter>,
-                            __range_holder<oneapi::dpl::__ranges::all_view<val_t<_Iter>, _LocalAccMode, _LocalNoInit>>>
+                            __range_holder<oneapi::dpl::__ranges::all_view<
+                                val_t<_Iter>, __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__value,
+                                __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__no_init>>>
     {
-        static_assert(!(_LocalAccMode == sycl::access::mode::read && _LocalNoInit),
+        constexpr sycl::access::mode __resolved_mode =
+            __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__value;
+        constexpr bool __resolved_no_init = __resolve_access_mode<_LocalAccMode, _LocalNoInit, _Iter>::__no_init;
+
+        static_assert(!(__resolved_mode == sycl::access::mode::read && __resolved_no_init),
                       "Read mode cannot be used with no_init property.");
         assert(__first < __last);
         using value_type = val_t<_Iter>;
@@ -671,7 +689,7 @@ struct __get_sycl_range
         const std::size_t __n = std::min<std::size_t>(__last - __first, __size);
         assert(__offset + __n <= __size);
 
-        using _View = oneapi::dpl::__ranges::all_view<value_type, _LocalAccMode, _LocalNoInit>;
+        using _View = oneapi::dpl::__ranges::all_view<value_type, __resolved_mode, __resolved_no_init>;
 
         return __range_holder<_View>{_View(__first.get_buffer(), __offset, __n)};
     }
