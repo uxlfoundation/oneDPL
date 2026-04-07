@@ -710,14 +710,12 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                 return __future{std::move(__event), std::move(__dummy_result_and_scratch)};
             }
         }
-
     }
 
     if (__use_reduce_then_scan)
     {
         using _GenInput =
-            oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
-                                                                        typename _InitType::__value_type>;
+            oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation, typename _InitType::__value_type>;
         using _ScanInputTransform = oneapi::dpl::identity;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 
@@ -743,12 +741,13 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         auto&& [__event, __payload] = __parallel_transform_scan_base<_CustomName>(
             __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __init,
             // local scan
-            unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged, _InitType>{
-                __binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op, __read_op},
+            unseq_backend::__scan<_Inclusive, _BinaryOperation, _UnaryFunctor, _Assigner, _Assigner, _Unchanged,
+                                  _InitType>{__binary_op, _UnaryFunctor{__unary_op}, __assign_op, __assign_op,
+                                             __read_op},
             // scan between groups
             unseq_backend::__scan</*inclusive=*/std::true_type, _BinaryOperation, _Unchanged, _NoAssign, _Assigner,
-                                _Unchanged, unseq_backend::__no_init_value<_Type>>{__binary_op, __read_op, __ignore_op,
-                                                                                    __assign_op, __read_op},
+                                  _Unchanged, unseq_backend::__no_init_value<_Type>>{
+                __binary_op, __read_op, __ignore_op, __assign_op, __read_op},
             // global scan
             unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
             /*apex*/ __ignore_op);
@@ -1000,7 +999,8 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMaskReduce, _Size>;
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _Size, _ScanRangeTransform>;
+    using _GenScanInput =
+        oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMaskScan, _Size, _ScanRangeTransform>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng1);
@@ -1035,11 +1035,11 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _ReduceOp = std::plus<_Size>;
     using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Size,
-                                                                                       _Compare, _Proj1, _Proj2>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider,
+                                                                                       _Size, _Compare, _Proj1, _Proj2>;
     using _GenScanInput =
-        oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Size, _Compare,
-                                                                                 _Proj1, _Proj2>;
+        oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_SetOperation, _TempData, _Size,
+                                                                                 _Compare, _Proj1, _Proj2>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
@@ -2490,7 +2490,6 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ValueType = oneapi::dpl::__internal::__value_t<_Range2>;
     assert(oneapi::dpl::__ranges::__size(__keys) > 0);
-
 
     sycl::queue __q_local = __exec.queue();
     if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
