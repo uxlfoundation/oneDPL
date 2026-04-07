@@ -9,12 +9,13 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 
 ### Motivation
 
-- **Migration from CUDA/Thrust** Thrust's `device_vector` is heavily used
+- **Migration from CUDA/Thrust** - Thrust's `device_vector` is heavily used
   in CUDA codebases. Providing an equivalent in oneDPL lowers the barrier
   for porting to SYCL backends. SYCLomatic already generates code targeting
   a `dpct::device_vector` compatibility shim, and having an official oneDPL
-  type would give that migration a stable target.
-- **Ease of use** Users currently must manually manage USM allocations or
+  type would give that migration a stable target, in a repository which is
+  actively maintained.
+- **Ease of use** - Users currently must manually manage USM allocations or
   SYCL buffers and pair them with raw pointers or iterators. A
   `device_vector` encapsulates allocation, sizing, and lifetime in a
   single object and integrates directly with oneDPL algorithms.
