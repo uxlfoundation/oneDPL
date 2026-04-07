@@ -80,44 +80,6 @@ SYCLomatic introduces a distinct `device_iterator<T>` class. Boost.Compute
 uses `buffer_iterator<T>`, a random access iterator that wraps a buffer
 plus an index offset.
 
-### Summary of Key Differences
-
-**Thrust** is the most mature and feature-rich: full CRTP hierarchy for
-pointer/reference types, tag-based dispatch, rich operator set on proxy
-references, and a shared `vector_base` between `device_vector` and
-`host_vector`. The trade-off is complexity and CUDA-only semantics.
-
-**SYCLomatic** is the most pragmatic for migration: it supports *both* USM
-and buffer backends via compile-time switch, provides `std::vector`
-interop (including implicit conversion), and uses oneDPL algorithms
-internally for bulk construction/destruction. Unlike Thrust and DR,
-SYCLomatic uses a *shared memory* model in both modes -- USM shared
-memory where the runtime migrates data between host and device, or SYCL
-buffers where the runtime manages data placement via the accessor model.
-This means host-side element access does not require an explicit transfer
-in the proxy reference; instead, the runtime handles migration
-transparently. The trade-off is less predictable performance and
-potential migration overhead. SYCLomatic also has a more complex internal
-helper (`device_allocator_traits`) and does not support custom allocators
-in buffer mode.
-
-**Distributed Ranges** is the most minimal: `device_vector` is a thin
-wrapper (~30 lines) over a generic `vector` base, adding only a `rank()`
-for multi-device awareness. The `device_ref` is C++20-constrained
-(`trivially_copyable`) and provides only basic read/write -- no compound
-assignment operators. This simplicity comes at the cost of fewer
-convenience features.
-
-**Boost.Compute** is the closest OpenCL analog. Named simply `vector`
-(in the `boost::compute` namespace), it stores data in an OpenCL
-`cl::Buffer` and requires an explicit `command_queue` for construction
-and most operations. Its iterator (`buffer_iterator`) and proxy
-reference (`buffer_value`) operate via OpenCL buffer read/write commands.
-Notably, Boost.Compute's explicit queue passing on constructors is the
-closest precedent to the queue association model proposed here for
-oneDPL. It has no separate device pointer type -- the buffer iterator
-serves both roles.
-
 ## Proposal
 
 *This section is intentionally left as a rough skeleton for further design
@@ -142,7 +104,9 @@ discussion.*
 - **Users optionally provide a queue on construction**
   Users provide a queue or device for their device_vector memory to be associated
   with. If nothing is provided, a global default queue is used.  This matches
-  how oneDPL device policies work.
+  how oneDPL device policies work. Among existing implementations,
+  Boost.Compute's explicit `command_queue` parameter on constructors and
+  operations is the closest precedent for this model.
 
 - **Type T should only require device copyability**
   We should not need anything except device copyability (for copy to and from
