@@ -387,8 +387,10 @@ class philox_engine
     {
         if constexpr (word_count == 2)
         {
-            scalar_type __v0 = __state.__x[0];
-            scalar_type __v1 = __state.__x[1];
+            scalar_type& __v0 = __state.__y[0];
+            scalar_type& __v1 = __state.__y[1];
+            __v0 = __state.__x[0];
+            __v1 = __state.__x[1];
             scalar_type __k0 = __state.__k[0];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
@@ -397,16 +399,19 @@ class philox_engine
                 __v1 = __lo0;
                 __k0 = (__k0 + round_consts[0]) & __in_mask;
             }
-            __state.__y[0] = __v0;
-            __state.__y[1] = __v1;
         }
         else if constexpr (word_count == 4)
         {
+            scalar_type& __v0 = __state.__y[2];
+            scalar_type& __v1 = __state.__y[1];
+            scalar_type& __v2 = __state.__y[0];
+            scalar_type& __v3 = __state.__y[3];
+
             // permute __x to V
-            scalar_type __v2 = __state.__x[0];
-            scalar_type __v1 = __state.__x[1];
-            scalar_type __v0 = __state.__x[2];
-            scalar_type __v3 = __state.__x[3];
+            __v2 = __state.__x[0];
+            __v1 = __state.__x[1];
+            __v0 = __state.__x[2];
+            __v3 = __state.__x[3];
             scalar_type __k0 = __state.__k[0];
             scalar_type __k1 = __state.__k[1];
             for (std::size_t __i = 0; __i < round_count; ++__i)
@@ -420,10 +425,6 @@ class philox_engine
                 __k0 = (__k0 + round_consts[0]) & __in_mask;
                 __k1 = (__k1 + round_consts[1]) & __in_mask;
             }
-            __state.__y[0] = __v2;
-            __state.__y[1] = __v1;
-            __state.__y[2] = __v0;
-            __state.__y[3] = __v3;
         }
     }
 
