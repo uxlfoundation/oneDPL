@@ -197,7 +197,7 @@ template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange,
 void
 __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radix_offset, std::size_t __sg_chunk_start,
                         std::size_t __sg_chunk_end, std::size_t __full_end, std::uint32_t __sg_size,
-                        std::uint32_t __sg_local_id, std::size_t __wg_size, std::size_t __self_lidx,
+                        std::uint32_t __sg_local_id, std::size_t __self_lidx,
                         std::uint8_t* __slm_buckets, _IndexViews __views)
 {
     constexpr std::uint32_t __unroll_elements = 8;
@@ -332,11 +332,11 @@ __radix_sort_count_submit(sycl::queue& __q, std::size_t __segments, std::size_t 
                 if (__input_is_first)
                     __radix_sort_count_impl<__radix_bits, __is_ascending>(
                         __val_rng1, __proj, __radix_offset, __sg_chunk_start, __sg_chunk_end, __full_end, __sg_size,
-                        __sg_local_id, __wg_size, __self_lidx, __slm_buckets, __views);
+                        __sg_local_id, __self_lidx, __slm_buckets, __views);
                 else
                     __radix_sort_count_impl<__radix_bits, __is_ascending>(
                         __val_rng2, __proj, __radix_offset, __sg_chunk_start, __sg_chunk_end, __full_end, __sg_size,
-                        __sg_local_id, __wg_size, __self_lidx, __slm_buckets, __views);
+                        __sg_local_id, __self_lidx, __slm_buckets, __views);
 
                 __dpl_sycl::__group_barrier(__self_item);
 
