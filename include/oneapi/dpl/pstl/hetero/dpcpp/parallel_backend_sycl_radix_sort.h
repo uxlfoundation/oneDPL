@@ -197,8 +197,8 @@ template <std::uint32_t __radix_bits, bool __is_ascending, typename _InputRange,
 void
 __radix_sort_count_impl(_InputRange& __input, _Proj __proj, std::uint32_t __radix_offset, std::size_t __sg_chunk_start,
                         std::size_t __sg_chunk_end, std::size_t __full_end, std::uint32_t __sg_size,
-                        std::uint32_t __sg_local_id, std::size_t __self_lidx,
-                        std::uint8_t* __slm_buckets, _IndexViews __views)
+                        std::uint32_t __sg_local_id, std::size_t __self_lidx, std::uint8_t* __slm_buckets,
+                        _IndexViews __views)
 {
     constexpr std::uint32_t __unroll_elements = 8;
 
