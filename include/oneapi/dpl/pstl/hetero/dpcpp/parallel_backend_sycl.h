@@ -713,7 +713,11 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_Range1>>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_Range1>>,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,         // KSATODO check calling chains+
                           _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op, _InitType __init,
                           _BinaryOperation __binary_op, _Inclusive)
@@ -747,7 +751,10 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                     __q_local, std::forward<_Range1>(__in_rng), std::forward<_Range2>(__out_rng), __n, __unary_op,
                     __init, __binary_op, _Inclusive{});
 
-                return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
+                if constexpr (_Bounded)
+                    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+                else
+                    return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
             }
         }
         if (__use_reduce_then_scan)
@@ -792,12 +799,19 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         unseq_backend::__global_scan_functor<_Inclusive, _BinaryOperation, _InitType>{__binary_op, __init},
         /*apex*/ __ignore_op);
 
-    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
+    if constexpr (_Bounded)
+        return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+    else
+        return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
 }
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
-std::tuple<sycl::event, __combined_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>,
+    std::tuple<sycl::event, __combined_storage<_Size>>
+>
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,                                // KSATODO check calling chains+
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
@@ -912,9 +926,11 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-std::tuple<sycl::event,
-           __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>,
-           __scan_stop_pos_storage_t<_Range1, _Range2>>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>, __scan_stop_pos_storage_t<_Range1, _Range2>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+>
 __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
                                               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
@@ -945,8 +961,11 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 }
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
-std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>,
-           __scan_stop_pos_storage_t<_Range1>>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>, __scan_stop_pos_storage_t<_Range1>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
+>
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,        // KSATODO check calling chains+
                           _Range2&& __result, _UnaryPredicate __pred)
 {
@@ -972,7 +991,10 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n,
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
-        return {std::move(__event), std::move(__payload), __scan_stop_pos_storage_t<_Range1>(__q_local, (std::size_t)_StopPosPayloadIndexes::eLast)};
+        if constexpr (_Bounded) 
+            return {std::move(__event), std::move(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+        else
+            return {std::move(__event), std::move(__payload)};
     }
 }
 
@@ -2517,10 +2539,11 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 template <bool _Bounded, typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2,
           typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-std::tuple<
-    sycl::event,
-    __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>,
-    __scan_stop_pos_storage_t<_Range1, _Range2>>
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>, __scan_stop_pos_storage_t<_Range1, _Range2>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
+>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,         // KSATODO check calling chains+
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)

@@ -2130,6 +2130,24 @@ enum class _StopPosPayloadIndexes
 template <typename... _InRng>
 using __scan_stop_pos_storage_t = __result_storage<__scan_stop_pos_t<_InRng...>>;
 
+struct __scan_stop_pos_storage_stub_t
+{
+};
+
+template <bool _Bounded, typename _InRng>
+auto
+__create_scan_stop_pos_storage(sycl::queue& __q)
+{
+    if constexpr (_Bounded)
+    {
+        return __scan_stop_pos_storage_t<_InRng>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
+    }
+    else
+    {
+        return __scan_stop_pos_storage_stub_t{};
+    }
+}
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _KernelName>
@@ -2179,7 +2197,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>      // KSATODO the type of return value should depends of _Bounded state
+    std::conditional_t<
+        _Bounded,
+        std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>,
+        std::tuple<sycl::event>
+    >
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
@@ -2194,7 +2216,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, (std::size_t)_StopPosPayloadIndexes::eLast);    // KSATODO should create only when _Bounded is true
+        // Real storage for _Bounded case, else - simple stub
+        auto __stop_pos_payload = __create_scan_stop_pos_storage<_Bounded, _InRng>(__q);
 
         const _InitValueType __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
@@ -2549,7 +2572,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             });
         });
 
-        return {std::move(__event), std::move(__stop_pos_payload)};
+        if constexpr (_Bounded)
+            return {std::move(__event), std::move(__stop_pos_payload)};
+        else
+            return {std::move(__event)};
     }
 
     const std::uint32_t __max_num_work_groups;
@@ -2594,22 +2620,6 @@ __calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uin
                                    __num_work_groups * __work_group_size);
 }
 
-template <bool _Bounded, typename _InRng, typename _InitType>
-struct __parallel_transform_reduce_then_scan_return_t;
-
-template <typename _InRng, typename _InitType>
-struct __parallel_transform_reduce_then_scan_return_t</*_Bounded*/ false, _InRng, _InitType>
-{
-    using _Type = std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>;
-};
-
-template <typename _InRng, typename _InitType>
-struct __parallel_transform_reduce_then_scan_return_t</*_Bounded*/ true, _InRng, _InitType>
-{
-    using _Type = std::tuple<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>,
-                             __scan_stop_pos_storage_t<_InRng>>;
-};
-
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
@@ -2624,7 +2634,11 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern>
-std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>            // KSATODO __scan_stop_pos_storage_t should be used in return type only when _Bounded is true
+std::conditional_t<
+    _Bounded,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
+>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,         // KSATODO check calling chains+
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
@@ -2678,7 +2692,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
-    __scan_stop_pos_storage_t<_InRng> __stop_pos_payload(__q, (std::size_t)_StopPosPayloadIndexes::eLast);   // KSATODO should create only when _Bounded is true + probably not required here because it's returned from scan submitter
+    // Real storage for _Bounded case, else - simple stub
+    auto __stop_pos_payload = __create_scan_stop_pos_storage<_Bounded, _InRng>(__q);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
@@ -2725,8 +2740,12 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
 
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        std::tie(__prior_event, __stop_pos_payload) = __scan_submitter(
-            __q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
+        auto&& __scan_res = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+                                             __prior_event, __inputs_remaining, __b);
+        if constexpr (_Bounded)
+            std::tie(__prior_event, __stop_pos_payload) = std::forward<decltype(__scan_res)>(__scan_res);
+        else
+            std::tie(__prior_event) = std::forward<decltype(__scan_res)>(__scan_res);
 
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
@@ -2737,7 +2756,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         }
     }
 
-    return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
+    if constexpr (_Bounded)
+        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
+    else
+        return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
