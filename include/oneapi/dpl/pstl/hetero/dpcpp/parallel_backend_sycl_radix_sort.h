@@ -60,7 +60,7 @@ __order_preserving_cast(_UInt __val)
 }
 
 template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
+          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
 ::std::make_unsigned_t<_Int>
 __order_preserving_cast(_Int __val)
 {
