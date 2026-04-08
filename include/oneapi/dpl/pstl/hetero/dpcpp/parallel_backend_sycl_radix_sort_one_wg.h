@@ -215,6 +215,10 @@ struct __subgroup_radix_sort
                         {
                             uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
+                                // Cache bin indices (1 byte each) instead of full pointers (8 bytes each)
+                                // to reduce register pressure while avoiding recomputation from values
+                                uint16_t __bins[__block_size];
+
                                 //1. "counting" phase
                                 //counter initialization
                                 auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
@@ -236,6 +240,7 @@ struct __subgroup_radix_sort
                                             : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;
 
                                     //"counting" and local offset calculation
+                                    __bins[__i] = __bin;
                                     auto* __p = &__pcounter[__bin * __wg_size];
                                     __indices[__i] = *__p;
                                     *__p = __indices[__i] + 1;
@@ -271,16 +276,8 @@ struct __subgroup_radix_sort
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    // a global index is a local offset plus a global base index;
-                                    // recompute the bucket to avoid caching pointers in registers
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    const uint16_t __bin = __idx < __n
-                                                               ? __get_bucket</*mask*/ __bin_count - 1>(
-                                                                     __order_preserving_cast<__is_asc>(
-                                                                         std::invoke(__proj, __values.__v[__i])),
-                                                                     __begin_bit)
-                                                               : __bin_count - 1;
-                                    __indices[__i] += __pcounter[__bin * __wg_size];
+                                    // a global index is a local offset plus a global base index
+                                    __indices[__i] += __pcounter[__bins[__i] * __wg_size];
                                 }
                             }
 
