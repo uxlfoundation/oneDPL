@@ -2453,7 +2453,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if constexpr (_Bounded)
                     {
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
-                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
+                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_processed_info>)
                         {
                             using __processed_info_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                             const __processed_info_t& __processed_info = std::get<1>(__scan_res);
