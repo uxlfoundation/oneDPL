@@ -18,15 +18,9 @@
 #include <numeric>
 #include <vector>
 
-int main()
+bool
+test_sort_by_key(sycl::queue& q, std::size_t n)
 {
-    sycl::queue q{sycl::gpu_selector_v};
-    std::cout << "Device: " << q.get_device().get_info<sycl::info::device::name>() << "\n";
-
-    // Common sizes from HPCG benchmark
-    constexpr std::size_t n = 2048000;
-
-    // Allocate device memory (matching HPCG: sycl::malloc_device, int32_t)
     auto* keys = sycl::malloc_device<std::int32_t>(n, q);
     auto* vals = sycl::malloc_device<std::int32_t>(n, q);
 
@@ -42,7 +36,6 @@ int main()
         q.wait();
     }
 
-    // This is the call that triggers the spill warnings
     auto policy = oneapi::dpl::execution::make_device_policy(q);
     oneapi::dpl::sort_by_key(policy, keys, keys + n, vals, std::less<void>());
 
@@ -60,5 +53,21 @@ int main()
 
     sycl::free(keys, q);
     sycl::free(vals, q);
-    return ok ? 0 : 1;
+    return ok;
+}
+
+int
+main()
+{
+    sycl::queue q{sycl::gpu_selector_v};
+    std::cout << "Device: " << q.get_device().get_info<sycl::info::device::name>() << "\n";
+
+    // Common sizes from HPCG benchmark
+    constexpr std::size_t sizes[] = {1048576, 1024000, 2097152, 2048000, 4194304};
+
+    bool all_ok = true;
+    for (auto n : sizes)
+        all_ok &= test_sort_by_key(q, n);
+
+    return all_ok ? 0 : 1;
 }
