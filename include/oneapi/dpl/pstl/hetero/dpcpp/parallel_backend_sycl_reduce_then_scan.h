@@ -2379,10 +2379,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            const auto& __temp_data = std::get<1>(__scan_res);
+                            const auto& __temp_out = std::get<1>(__scan_res);
 
                             typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
-                            if (__temp_data.get_first_oob_src_idx(__first_oob_pos))
+                            if (__temp_out.get_first_oob_src_idx(__first_oob_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __first_oob_pos);
@@ -2392,7 +2392,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             }
 
                             typename __temp_data_array_t::_TupleOfSizes __final_pos{};
-                            if (__temp_data.get_final_src_idx(__final_pos))
+                            if (__temp_out.get_final_src_idx(__final_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
                                 oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __final_pos);
