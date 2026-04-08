@@ -453,13 +453,21 @@ class philox_engine
             scalar_type __y0 = __b & __word_mask<__chunk_size>;
             scalar_type __y1 = __b >> __chunk_size;
 
-            scalar_type __p11 = __x1 * __y1;
-            scalar_type __p01 = __x0 * __y1;
-            scalar_type __p10 = __x1 * __y0;
-            scalar_type __p00 = __x0 * __y0;
+            /* alias partial products to chunk variables to reduce register pressure */
+            scalar_type __p00;
+            scalar_type& __p01 = __x0;
+            scalar_type& __p10 = __y0;
+            scalar_type& __p11 = __x1;
+
+            /* calculate parts of the final multiplication result */
+            __p00 = __x0 * __y0;
+            __p01 = __x0 * __y1;
+            __p10 = __x1 * __y0;
+            __p11 = __x1 * __y1;
 
             /* addition of three 32-bit values to get the carry for the hi part */
-            scalar_type __carry_hi =
+            scalar_type& __carry_hi = __y1;
+            __carry_hi =
                 ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
                 __chunk_size;
 
