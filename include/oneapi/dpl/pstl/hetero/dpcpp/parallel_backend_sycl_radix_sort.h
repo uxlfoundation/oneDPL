@@ -905,7 +905,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // Select block size (elements per work-item) for the one-workgroup radix sort kernel.
     // The base block sizes (4, 8, 16, 32) were tuned for 4-byte value types. For larger value types
     // (e.g., sort_by_key tuples), we scale block sizes down proportionally to maintain similar
-    // register pressure per work-item. Tiers whose scaled block size falls below 4 are not
+    // register pressure per work-item. Kernels whose scaled block size falls below 4 are not
     // instantiated, as they would provide too little work per work-item to be worthwhile.
     constexpr std::size_t __val_scale =
         std::max<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_ValueT), 4u), 1u);
@@ -957,10 +957,8 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
         }
     }
     // Fall through to multi-group sort
-    {
-        __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj);
-    }
+    __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
+        __q_local, std::forward<_Range>(__in_rng), __proj);
 
     return __future{std::move(__event)};
 }
