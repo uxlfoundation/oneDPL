@@ -909,11 +909,11 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // instantiated, as they would provide too little work per work-item to be worthwhile.
     constexpr std::size_t __val_scale =
         std::max<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_ValueT), 4u), 1u);
-    constexpr std::size_t __bs0 = 4u / __val_scale;
-    constexpr std::size_t __bs1 = 8u / __val_scale;
-    constexpr std::size_t __bs2 = 16u / __val_scale;
-    constexpr std::size_t __bs3 = 32u / __val_scale;
-    constexpr std::size_t __absolute_min_block_size = 4u;
+    constexpr std::uint16_t __bs0 = 4u / __val_scale;
+    constexpr std::uint16_t __bs1 = 8u / __val_scale;
+    constexpr std::uint16_t __bs2 = 16u / __val_scale;
+    constexpr std::uint16_t __bs3 = 32u / __val_scale;
+    constexpr std::uint16_t __absolute_min_block_size = 4u;
 
     if constexpr (__bs0 >= __absolute_min_block_size)
     {
