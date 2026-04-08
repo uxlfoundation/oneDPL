@@ -1117,7 +1117,7 @@ struct __gen_set_balanced_path
     void
     __calc_partition_bounds(const _InRng& __in_rng, _IndexT __id) const
     {
-        calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple</*_Bounded*/ false>{});
+        calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
     }
 
     // Entry point for reduce then scan reduce input
