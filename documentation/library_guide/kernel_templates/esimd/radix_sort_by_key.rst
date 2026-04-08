@@ -59,7 +59,8 @@ A synopsis of the ``radix_sort_by_key`` function is provided below:
 
 .. note::
    For broader platform support and similar performance,
-   consider using :doc:`kernel_param <../sycl/radix_sort_by_key>`.
+   consider using the :doc:`SYCL radix sort-by-key KT <../sycl/radix_sort_by_key>`.
+
 Template Parameters
 --------------------
 
@@ -275,7 +276,7 @@ Global Memory Requirements
 --------------------------
 
 Global memory is used for copying the input sequence(s) and storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys` + N\ :sub:`values` + C * N\ :sub:`keys`
 
@@ -302,7 +303,7 @@ Local Memory Requirements
 
 Local memory is used for reordering key-value pairs within a work-group,
 and for storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys_per_workgroup` + N\ :sub:`values_per_workgroup` + C
 

@@ -2,7 +2,8 @@ SYCL-Based Kernel Templates
 ############################
 
 The SYCL kernel templates are based on the SYCL 2020 programming model of |dpcpp_compiler|.
-This technology only supports Intel GPU devices.
+Kernel templates may impose restrictions on supported devices or adapters which are documented in their
+respective sections.
 
 These templates are available in the ``oneapi::dpl::experimental::kt::gpu`` namespace. The following are implemented:
 
