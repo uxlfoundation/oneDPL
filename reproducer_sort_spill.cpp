@@ -2,7 +2,7 @@
 // with subgroup radix sort on PVC/BMG GPUs.
 //
 // Build:
-//   icpx -fsycl -std=c++17 -O2 reproducer_sort_spill.cpp -o reproducer_sort_spill
+//    icpx -fsycl -std=c++17 -O2 reproducer_sort_spill.cpp -Wall -Wextra -Werror -Wimplicit-fallthrough -Wformat -Wformat-security -fsycl-targets=spir64_gen -Xsycl-target-backend "-device pvc" -ftarget-register-alloc-mode=pvc:default -fsycl-force-target=spir64 -Wno-sycl-target -o reproducer_sort_spill -I./include
 //
 // Expected: build warnings about register allocation and spilling, e.g.:
 //   warning: kernel ... compiled SIMD16 allocated 128 regs and spilled around 106
