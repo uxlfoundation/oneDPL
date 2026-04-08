@@ -90,10 +90,10 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
 
     template <typename _ValueArg>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes& __idxs)
+    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes& __pos)
     {
         __data[__idx].__setup(std::forward<_ValueArg>(__value));
-        __indexes[__idx] = __idxs;
+        __indexes[__idx] = __pos;
     }
 
     std::tuple<_ValueT, _TupleOfSizes>
@@ -115,49 +115,49 @@ struct __processed_info
     using _TupleOfSizes = std::tuple<_Sizes...>;
 
     void
-    set_final_src_idx(const _TupleOfSizes& __idxs)
+    set_final_pos(const _TupleOfSizes& __pos)
     {
-        __final_src_idx = __idxs;
+        __final_pos = __pos;
     }
 
     const _TupleOfSizes&
-    get_final_src_idx() const
+    get_final_pos() const
     {
-        return __final_src_idx;
+        return __final_pos;
     }
 
     void
-    set_first_oob_src_idx(const _TupleOfSizes& __idxs)
+    set_oob_pos(const _TupleOfSizes& __pos)
     {
-        __first_oob_src_idx_opt = __idxs;
+        __oob_pos_opt = __pos;
     }
 
     bool
-    get_first_oob_src_idx(_TupleOfSizes& __idxs) const
+    get_oob_pos(_TupleOfSizes& __pos) const
     {
-        __idxs = __first_oob_src_idx_opt.value_or(__idxs);
-        return __first_oob_src_idx_opt.has_value();
+        __pos = __oob_pos_opt.value_or(__pos);
+        return __oob_pos_opt.has_value();
     }
 
     // We should call this operation without any runtime condition checks to avoid deadlocks
     template <typename _NDItem>
     static _TupleOfSizes
-    reduce_max_pos_over_group(const _NDItem& __nd_item, const _TupleOfSizes& __idxs)
+    reduce_max_pos_over_group(const _NDItem& __nd_item, const _TupleOfSizes& __pos)
     {
         const auto& __group = __nd_item.get_group();
 
         return std::apply(
-            [&](const auto&... __local_index_state) {
-                return std::make_tuple(__reduce_max_pos_over_group_impl(__group, __local_index_state)...);
+            [&](const auto&... __local_pos_field) {
+                return std::make_tuple(__reduce_max_pos_over_group_impl(__group, __local_pos_field)...);
             },
-            __idxs);
+            __pos);
     }
 
     template <typename _Tuple>
     static void
-    fetch_max_pos(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs)
+    fetch_max_pos(_Tuple& __global_max_pos, const _Tuple& __local_max_pos)
     {
-        __fetch_max_pos_by_index_impl(__global_max_idxs, __local_max_idxs, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
+        __fetch_max_pos_by_index_impl(__global_max_pos, __local_max_pos, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
     }
 
 protected :
@@ -171,9 +171,9 @@ protected :
 
     template <typename _Tuple, std::size_t... _Is>
     static void
-    __fetch_max_pos_by_index_impl(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs, std::index_sequence<_Is...>)
+    __fetch_max_pos_by_index_impl(_Tuple& __global_max_pos, const _Tuple& __local_max_pos, std::index_sequence<_Is...>)
     {
-        (..., __fetch_max_value_impl(std::get<_Is>(__global_max_idxs), std::get<_Is>(__local_max_idxs)));
+        (..., __fetch_max_value_impl(std::get<_Is>(__global_max_pos), std::get<_Is>(__local_max_pos)));
     }
 
     template <typename _Value>
@@ -188,21 +188,21 @@ protected :
 
   protected:
 
-    _TupleOfSizes __final_src_idx = {};                     // Final position state
-    std::optional<_TupleOfSizes> __first_oob_src_idx_opt;   // First OOB position state
+    _TupleOfSizes __final_pos = {};             // Final position state
+    std::optional<_TupleOfSizes> __oob_pos_opt; // First OOB position state
 };
 
 struct __noop_processed_info
 {
     template <typename... _Sizes>
     void
-    set_final_src_idx(const std::tuple<_Sizes...>&)
+    set_final_pos(const std::tuple<_Sizes...>&)
     {
     }
 
     template <typename... _Sizes>
     void
-    set_first_oob_src_idx(const std::tuple<_Sizes...>&)
+    set_oob_pos(const std::tuple<_Sizes...>&)
     {
     }
 };
@@ -484,7 +484,7 @@ struct __write_multiple_to_id
                 {
                     if (__out_idx == __out_rng_size)
                     {
-                        __processed_info.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
+                        __processed_info.set_oob_pos(std::get<1>(__saved_tmp_data));
                     }
 
                     // Destroy all remaining initialized elements to avoid resource leak
@@ -910,7 +910,7 @@ struct __set_generic_operation
 
             if constexpr (_Bounded)
             {
-                __processed_info.set_final_src_idx(std::make_tuple(__idx1, __idx2));
+                __processed_info.set_final_pos(std::make_tuple(__idx1, __idx2));
             }
         }
 
@@ -2484,7 +2484,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             /////////////////////////////////////////////////////////
                             // First OOB pos is only one inside all source data set
                             typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
-                            if (__processed_info.get_first_oob_src_idx(__first_oob_pos))
+                            if (__processed_info.get_oob_pos(__first_oob_pos))
                             {
                                 typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
                                 oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
@@ -2496,7 +2496,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             /////////////////////////////////////////////////////////
                             // Final position evaluated in each work-item,
                             // so need to find the max across the work-group
-                            const typename __temp_data_array_t::_TupleOfSizes& __final_pos = __processed_info.get_final_src_idx();
+                            const typename __temp_data_array_t::_TupleOfSizes& __final_pos = __processed_info.get_final_pos();
                             
                             // Find max final position across the work-group
                             const auto __max_final_pos_in_group = __processed_info_t::reduce_max_pos_over_group(__ndi, __final_pos);
