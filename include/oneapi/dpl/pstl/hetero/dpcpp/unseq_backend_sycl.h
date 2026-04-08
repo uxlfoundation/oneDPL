@@ -975,7 +975,7 @@ struct __scan
         if (__group_id == 0)
             __use_init(__init, __adder, __bin_op);
 
-        for (auto __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
+        for (std::size_t __iter = 0; __iter < __iters_per_wg; ++__iter, __adjusted_global_id += __wgroup_size)
         {
             if (__adjusted_global_id < __n)
             {
