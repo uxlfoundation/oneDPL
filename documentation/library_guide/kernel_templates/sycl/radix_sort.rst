@@ -6,7 +6,7 @@ radix_sort Function Templates
 -----------------------------
 
 The ``radix_sort`` function sorts data using the radix sort algorithm.
-The sorting is stable, preserving the relative order of elements with equal keys.
+The sorting is stable, preserving the relative order of equal elements.
 Both in-place and out-of-place overloads are provided. Out-of-place overloads do not alter the input sequence.
 
 The functions implement a Onesweep* [#fnote1]_ algorithm variant.
@@ -226,7 +226,7 @@ Global Memory Requirements
 --------------------------
 
 Global memory is used for copying the input sequence(s) and storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys` + C * N\ :sub:`keys`
 
@@ -248,7 +248,7 @@ Local Memory Requirements
 
 Local memory is used for reordering keys within a work-group,
 and for storing internal data such as radix value counters.
-The used amount depends on many parameters; below is an upper bound approximation:
+The amount used depends on many parameters; below is an upper bound approximation:
 
    N\ :sub:`keys_per_workgroup` + C
 
