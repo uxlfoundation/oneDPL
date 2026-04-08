@@ -1136,13 +1136,14 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _In2ValueT = oneapi::dpl::__internal::__value_t<_Range2>;
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
     using _TempData = __temp_data_array<_Bounded, __diagonal_spacing, _OutValueT, _Size1, _Size2>;
+    using _ProcessedInfo = __processed_info<_Size1, _Size2>;
     using _ReduceOp = std::plus<_Size3>;
     using _BoundsProviderPhase1 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned</*_Bounded*/ false>;
     using _BoundsProviderPhase2 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned<_Bounded>;
 
     using _GenReduceInputPhase1 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path</*_Bounded*/ false, _SetOperation, _BoundsProviderPhase1, _Compare, _Proj1, _Proj2>;
     using _GenReduceInputPhase2 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded,           _SetOperation, _BoundsProviderPhase2, _Compare, _Proj1, _Proj2>;;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_Bounded, _SetOperation, _TempData, _Compare, _Proj1, _Proj2>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_Bounded, _SetOperation, _TempData, _ProcessedInfo, _Compare, _Proj1, _Proj2>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign, _Bounded>;
 

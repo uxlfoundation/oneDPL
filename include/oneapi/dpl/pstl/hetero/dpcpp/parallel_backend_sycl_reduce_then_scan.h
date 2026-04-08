@@ -50,6 +50,9 @@ namespace __par_backend_hetero
 template <bool _Bounded, std::uint16_t elements, typename _ValueT, typename... _Sizes>
 struct __temp_data_array;
 
+template <typename... _Sizes>
+struct __processed_info;
+
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
 struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
@@ -102,17 +105,25 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
         return {std::move(__data[__idx].__v), __indexes[__idx]};
     }
 
+    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
+    std::array<_TupleOfSizes, elements> __indexes;
+};
+
+template <typename... _Sizes>
+struct __processed_info
+{
+    using _TupleOfSizes = std::tuple<_Sizes...>;
+
     void
     set_final_src_idx(const _TupleOfSizes& __idxs)
     {
-        __final_src_idx_opt = __idxs;
+        __final_src_idx = __idxs;
     }
 
-    bool
-    get_final_src_idx(_TupleOfSizes& __idxs) const
+    const _TupleOfSizes&
+    get_final_src_idx() const
     {
-        __idxs = __final_src_idx_opt.value_or(__idxs);
-        return __final_src_idx_opt.has_value();
+        return __final_src_idx;
     }
 
     void
@@ -128,23 +139,61 @@ struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
         return __first_oob_src_idx_opt.has_value();
     }
 
-    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
-    std::array<_TupleOfSizes, elements> __indexes;
-
-    std::optional<_TupleOfSizes> __first_oob_src_idx_opt;
-    std::optional<_TupleOfSizes> __final_src_idx_opt;
-};
-
-// This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
-// where no temporary register data is needed within reduce then scan kern
-struct __noop_temp_data
-{
-    template <typename _ValueArg, typename... _Sizes>
-    void
-    set(std::uint16_t, _ValueArg&&, const std::tuple<_Sizes...>&)
+    // We should call this operation without any runtime condition checks to avoid deadlocks
+    template <typename _NDItem>
+    static _TupleOfSizes
+    reduce_max_pos_over_group(const _NDItem& __nd_item, const _TupleOfSizes& __idxs)
     {
+        const auto& __group = __nd_item.get_group();
+
+        return std::apply(
+            [&](const auto&... __local_index_state) {
+                return std::make_tuple(__reduce_max_pos_over_group(__group, __local_index_state)...);
+            },
+            __idxs);
     }
 
+    template <typename _Tuple>
+    static void
+    fetch_max_pos(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs)
+    {
+        __fetch_max_pos_by_index(__global_max_idxs, __local_max_idxs, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
+    }
+
+protected :
+
+    template <typename _Group, typename _Value>
+    static _Value
+    __reduce_max_pos_over_group(const _Group& __group, _Value __local_index_state)
+    {
+        return __dpl_sycl::__reduce_over_group(__group, __local_index_state, __dpl_sycl::__maximum<_Value>());
+    }
+
+    template <typename _Tuple, std::size_t... _Is>
+    static void
+    __fetch_max_pos_by_index(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs, std::index_sequence<_Is...>)
+    {
+        (..., __fetch_max_value_impl(std::get<_Is>(__global_max_idxs), std::get<_Is>(__local_max_idxs)));
+    }
+
+    template <typename _Value>
+    static void
+    __fetch_max_value_impl(_Value& __global_max_value, const _Value& __local_max_value)
+    {
+        using _AtomicValueT = sycl::atomic_ref<_Value, sycl::memory_order::relaxed, sycl::memory_scope::work_group, sycl::access::address_space::global_space>;
+
+        _AtomicValueT __atomic(__global_max_value);
+        __atomic.fetch_max(__local_max_value);
+    }
+
+  protected:
+
+    _TupleOfSizes __final_src_idx = {};                     // Final position state
+    std::optional<_TupleOfSizes> __first_oob_src_idx_opt;   // First OOB position state
+};
+
+struct __noop_processed_info
+{
     template <typename... _Sizes>
     void
     set_final_src_idx(const std::tuple<_Sizes...>&)
@@ -154,6 +203,17 @@ struct __noop_temp_data
     template <typename... _Sizes>
     void
     set_first_oob_src_idx(const std::tuple<_Sizes...>&)
+    {
+    }
+};
+
+// This is a stand-in for a temporary data structure which is used to turn set() into a no-op. This is used in the case
+// where no temporary register data is needed within reduce then scan kern
+struct __noop_temp_data
+{
+    template <typename _ValueArg, typename... _Sizes>
+    void
+    set(std::uint16_t, _ValueArg&&, const std::tuple<_Sizes...>&)
     {
     }
 };
@@ -207,10 +267,11 @@ template <bool _Bounded>
 struct __simple_write_to_id
 {
     using _TempData = __noop_temp_data;
+    using _ProcessedInfo = __noop_processed_info;
 
     template <typename _OutRng, typename _ValueType>
     bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -230,10 +291,11 @@ template <std::int32_t __offset, typename _Assign, bool _Bounded>
 struct __write_to_id_if
 {
     using _TempData = __noop_temp_data;
+    using _ProcessedInfo = __noop_processed_info;
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -257,10 +319,11 @@ template <typename _Assign, bool _Bounded>
 struct __write_to_id_if_else
 {
     using _TempData = __noop_temp_data;
+    using _ProcessedInfo = __noop_processed_info;
 
     template <typename _OutRng, typename _SizeType, typename _ValueType>
     bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -285,10 +348,11 @@ template <typename _BinaryPred, bool _Bounded>
 struct __write_red_by_seg
 {
     using _TempData = __noop_temp_data;
+    using _ProcessedInfo = __noop_processed_info;
 
     template <typename _OutRng, typename _Tup>
     bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, const _ProcessedInfo&) const
     {
         using std::get;
 
@@ -338,13 +402,14 @@ template <bool __is_inclusive, typename _InitType, typename _BinaryOp, bool _Bou
 struct __write_scan_by_seg
 {
     using _TempData = __noop_temp_data;
+    using _ProcessedInfo = __noop_processed_info;
 
     _InitType __init_value;
     _BinaryOp __binary_op;
 
     template <typename _OutRng, typename _ValueType>
     bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -386,9 +451,9 @@ struct __write_scan_by_seg
 template <typename _Assign, bool _Bounded>
 struct __write_multiple_to_id
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _ProcessedInfo>
     bool
-    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_out) const
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_out, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -419,7 +484,7 @@ struct __write_multiple_to_id
                 {
                     if (__out_idx == __out_rng_size)
                     {
-                        __temp_out.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
+                        __processed_info.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
                     }
 
                     // Destroy all remaining initialized elements to avoid resource leak
@@ -447,9 +512,11 @@ template <typename _UnaryOp, typename _InitType>
 struct __gen_transform_input
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -481,9 +548,11 @@ template <typename _GenMask>
 struct __gen_count_mask
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     template <typename _InRng, typename _SizeType>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&, ProcessedInfo&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
@@ -496,9 +565,11 @@ template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
 struct __gen_expand_count_mask
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     template <typename _InRng, typename _SizeType>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, TempData&, ProcessedInfo&) const
     {
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
@@ -720,14 +791,13 @@ template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBo
           typename _TempOutput,
           typename _Compare, typename _Proj1, typename _Proj2>
 void
-__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
-                                  std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
-                                  _SizeType& __idx, std::uint16_t& __count, const _Compare __comp, _Proj1 __proj1,
-                                  _Proj2 __proj2)
+__set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1, std::size_t& __idx2,
+                                  const _SizeType __num_eles_min,
+                                  _TempOutput& __temp_out,
+                                  _SizeType& __idx, std::uint16_t& __count,
+                                  const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
-
-    static_assert(false);
 
     if constexpr (_CheckBounds)
     {
@@ -801,12 +871,15 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 template <bool _Bounded, bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
 struct __set_generic_operation
 {
-    template <typename _InRng1, typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare,
-              typename _Proj1, typename _Proj2>
+    template <typename _InRng1, typename _InRng2, typename _SizeType,
+              typename _TempOutput, typename _ProcessedInfo,
+              typename _Compare, typename _Proj1, typename _Proj2>
     std::uint16_t
-    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t __idx1, std::size_t __idx2,
-               const _SizeType __num_eles_min, _TempOutput& __temp_out, const _Compare __comp, _Proj1 __proj1,
-               _Proj2 __proj2) const
+    operator()(const _InRng1& __in_rng1, const _InRng2& __in_rng2,
+               std::size_t __idx1, std::size_t __idx2,
+               const _SizeType __num_eles_min,
+               _TempOutput& __temp_out, _ProcessedInfo& __processed_info,
+               const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
         using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
@@ -827,33 +900,17 @@ struct __set_generic_operation
         }
         else
         {
-            if constexpr (!_Bounded)
+            while (__idx < __num_eles_min)
             {
-                while (__idx < __num_eles_min)
-                {
-                    //bounds check all
-                    __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
-                        __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp,
-                        __proj1, __proj2);
-                }
+                //bounds check all
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
+                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp,
+                    __proj1, __proj2);
             }
-            else
+
+            if constexpr (_Bounded)
             {
-                const std::size_t __idx1_prev = __idx1;
-                const std::size_t __idx2_prev = __idx2;
-
-                while (__idx < __num_eles_min)
-                {
-                    //bounds check all
-                    __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
-                        __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
-                        __proj2);
-                }
-
-                if (__idx1_prev != __idx1 || __idx2_prev != __idx2)
-                {
-                    __temp_out.set_final_src_idx(_TupleOfSizes{__idx1, __idx2});
-                }
+                __processed_info.set_final_src_idx(std::make_tuple(__idx1, __idx2));
             }
         }
 
@@ -1003,6 +1060,7 @@ template <bool _Bounded, typename _SetOpCount, typename _BoundsProvider, typenam
 struct __gen_set_balanced_path
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
 
     // Locates and returns the "intersection" of a diagonal on the balanced path, based on merge path coordinates.
     // It returns coordinates in each set of the intersection with a boolean representing if the diagonal is "starred",
@@ -1123,7 +1181,7 @@ struct __gen_set_balanced_path
     // Entry point for reduce then scan reduce input
     template <typename _InRng, typename _IndexT>
     std::uint16_t
-    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_out) const
+    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_out, ProcessedInfo& __processed_info) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1170,7 +1228,7 @@ struct __gen_set_balanced_path
         return __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2,
                               __rng1_balanced_pos, __rng2_balanced_pos,
                               __eles_to_process,
-                              __temp_out,
+                              __temp_out, __processed_info,
                               __comp, __proj1, __proj2);
     }
 
@@ -1185,14 +1243,15 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _ProcessedInfo, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
     using TempData = _TempData;
+    using ProcessedInfo = _ProcessedInfo;
 
     template <typename _InRng, typename _IndexT>
     std::tuple<std::uint32_t, std::uint16_t>
-    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data) const
+    operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data, ProcessedInfo& __processed_info) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1214,11 +1273,14 @@ struct __gen_set_op_from_known_balanced_path
             static_cast<_SizeType>(oneapi::dpl::__ranges::__size(__src_ranges.__rng1) +
                                    oneapi::dpl::__ranges::__size(__src_ranges.__rng2) - __i_elem + 1)));
 
-        std::uint16_t __count = __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2, __rng1_idx,
-                                               __rng2_idx, __eles_to_process, __output_data, __comp, __proj1, __proj2);
+        std::uint16_t __count = __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2, __rng1_idx, __rng2_idx,
+                                               __eles_to_process,
+                                               __output_data, __processed_info,
+                                               __comp, __proj1, __proj2);
 
         return std::make_tuple(std::uint32_t{__count}, __count);
     }
+
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
     _Compare __comp;
@@ -1262,13 +1324,15 @@ template <typename _BinaryPred>
 struct __gen_red_by_seg_reduce_input
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     // Returns the following tuple:
     // (new_seg_mask, value)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
     // ValueType value     : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1290,13 +1354,15 @@ template <typename _BinaryPred>
 struct __gen_scan_by_seg_reduce_input
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     // Returns the following tuple:
     // (new_seg_mask, value)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
     {
         // Get source base
         auto&& __tuple = __in_rng.base();
@@ -1316,6 +1382,8 @@ template <typename _BinaryPred>
 struct __gen_red_by_seg_scan_input
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     // Returns the following tuple:
     // ((new_seg_mask, value), output_value, next_key, current_key)
     // size_t new_seg_mask : 1 for a start of a new segment, 0 otherwise
@@ -1325,7 +1393,7 @@ struct __gen_red_by_seg_scan_input
     // KeyType current_key : The current element's key. This is only ever used by work-item 0 to write the first key
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1372,13 +1440,15 @@ template <typename _BinaryPred>
 struct __gen_scan_by_seg_scan_input
 {
     using TempData = __noop_temp_data;
+    using ProcessedInfo = __noop_processed_info;
+
     // Returns the following tuple:
     // ((new_seg_mask, value), new_seg_mask)
     // bool new_seg_mask : true for a start of a new segment, false otherwise
     // ValueType value   : Current element's value for reduction
     template <typename _InRng>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1612,7 +1682,7 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
           typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
-std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::TempData>, bool>      // KSATODO better to create __temp_out on caller side or return EOB pos + final pos without extra __temp_out copy
+std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::ProcessedInfo>, bool>
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
@@ -1620,24 +1690,26 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __iters_per_item, const std::size_t __subgroup_start_id,
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups)
 {
-    using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, typename _GenInput::TempData&>;
+    using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, typename _GenInput::TempData&, typename _GenInput::ProcessedInfo&>;
     using _TempData = typename _GenInput::TempData;
+    using _ProcessedInfo = typename _GenInput::ProcessedInfo;
 
     const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
     _TempData __temp_out{};
+    _ProcessedInfo __processed_info{};
 
     bool __all_writes_succeeded = true;
 
     if (__is_full_thread)
     {
-        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out);
+        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
         if constexpr (__capture_output)
         {
-            __write_op(__out_rng, __start_id, __v, __temp_out);
+            __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
         }
 
         if (__is_full_block)
@@ -1646,12 +1718,12 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item && __all_writes_succeeded; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
                 }
             }
         }
@@ -1661,12 +1733,12 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             // can proceed without special casing for partial subgroups.
             for (std::uint32_t __j = 1; __j < __iters_per_item && __all_writes_succeeded; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
                 }
             }
         }
@@ -1682,55 +1754,55 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             if (__iters == 1)
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_out);
+                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - __subgroup_start_id);
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out);
+                        __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
                 }
             }
             else
             {
-                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out);
+                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
                 }
 
                 for (std::uint32_t __j = 1; __j < __iters - 1 && __all_writes_succeeded; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id, __temp_out);
+                    __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     if constexpr (__capture_output)
                     {
-                        __all_writes_succeeded &= __write_op(__out_rng, __local_id, __v, __temp_out);
+                        __all_writes_succeeded &= __write_op(__out_rng, __local_id, __v, __temp_out, __processed_info);
                     }
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id, __temp_out);
+                __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __offset, __v, __temp_out);
+                        __all_writes_succeeded &= __write_op(__out_rng, __offset, __v, __temp_out, __processed_info);
                 }
             }
         }
     }
 
     if constexpr (_Bounded)
-        return {__all_writes_succeeded, std::move(__temp_out)};
+        return {__all_writes_succeeded, std::move(__processed_info)};
     else
         return __all_writes_succeeded;
 }
@@ -2152,7 +2224,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if (__global_id == 0)
                     {
                         auto __stop_pos_ptr = __stop_pos_acc.__data();
-                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = __scan_stop_pos_initial_value<_InRng>::create();
+
+                        // As far as later we will work with this state through fetch_max operations, we initialize this by zero states
+                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
+
+                        // As far as we may have only one (or none) OOB position, we initialize this by max value
                         __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos_initial_value<_InRng>::create();
                     }
                 }
@@ -2379,26 +2455,37 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
                         if constexpr (!std::is_same_v<__temp_data_array_t, __noop_temp_data>)
                         {
-                            const auto& __temp_out = std::get<1>(__scan_res);
+                            using __processed_info_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
+                            const __processed_info_t& __processed_info = std::get<1>(__scan_res);
 
+                            /////////////////////////////////////////////////////////
+                            // First OOB pos is only one inside all source data set
                             typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
-                            if (__temp_out.get_first_oob_src_idx(__first_oob_pos))
+                            if (__processed_info.get_first_oob_src_idx(__first_oob_pos))
                             {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __first_oob_pos);
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
+                                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
 
                                 auto __stop_pos_ptr = __stop_pos_acc.__data();
-                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __tmp;
+                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
                             }
 
-                            typename __temp_data_array_t::_TupleOfSizes __final_pos{};
-                            if (__temp_out.get_final_src_idx(__final_pos))
+                            /////////////////////////////////////////////////////////
+                            // Final position evaluated in each work-item,
+                            // so need to find the max across the work-group
+                            const typename __temp_data_array_t::_TupleOfSizes& __final_pos = __processed_info.get_final_src_idx();
+                            
+                            // Find max final position across the work-group
+                            const auto __max_final_pos_in_group = __processed_info_t::reduce_max_pos_over_group(__ndi, __final_pos);
+
+                            // Writes from only one work-item
+                            if (__ndi.get_local_id(0) == 0)
                             {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __tmp{};
-                                oneapi::dpl::__internal::__tuple_copy_prefix(__tmp, __final_pos);
+                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
+                                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
 
                                 auto __stop_pos_ptr = __stop_pos_acc.__data();
-                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = __tmp;
+                                __processed_info_t::fetch_max_pos(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos], __scan_stop_pos);
                             }
                         }
                     }
