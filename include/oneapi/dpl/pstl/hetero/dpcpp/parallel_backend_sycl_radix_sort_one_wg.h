@@ -215,6 +215,9 @@ struct __subgroup_radix_sort
                         {
                             uint16_t __indices[__block_size]; //indices for indirect access in the "re-order" phase
                             {
+                                //pointers(by performance reasons) to bucket's counters
+                                uint32_t* __counters[__block_size];
+
                                 //1. "counting" phase
                                 //counter initialization
                                 auto __pcounter = __dpl_sycl::__get_accessor_ptr(__counter_lacc) + __wi;
@@ -236,9 +239,9 @@ struct __subgroup_radix_sort
                                             : __bin_count - 1 /*default bin for out of range elements (when idx >= n)*/;
 
                                     //"counting" and local offset calculation
-                                    auto* __p = &__pcounter[__bin * __wg_size];
-                                    __indices[__i] = *__p;
-                                    *__p = __indices[__i] + 1;
+                                    __counters[__i] = &__pcounter[__bin * __wg_size];
+                                    __indices[__i] = *__counters[__i];
+                                    *__counters[__i] = __indices[__i] + 1;
                                 }
                                 __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
 
@@ -268,20 +271,11 @@ struct __subgroup_radix_sort
                                     __dpl_sycl::__group_barrier(__it, decltype(__buf_count)::get_fence());
                                 }
 
-                                // Recompute each element's bucket to look up the global base index from
-                                // the scan results, avoiding the need to cache block_size pointers in registers.
                                 _ONEDPL_PRAGMA_UNROLL
                                 for (uint16_t __i = 0; __i < __block_size; ++__i)
                                 {
-                                    const uint16_t __idx = __wi * __block_size + __i;
-                                    const uint16_t __bin = __idx < __n
-                                                               ? __get_bucket</*mask*/ __bin_count - 1>(
-                                                                     __order_preserving_cast<__is_asc>(
-                                                                         std::invoke(__proj, __values.__v[__i])),
-                                                                     __begin_bit)
-                                                               : __bin_count - 1;
                                     // a global index is a local offset plus a global base index
-                                    __indices[__i] += __pcounter[__bin * __wg_size];
+                                    __indices[__i] += *__counters[__i];
                                 }
                             }
 
