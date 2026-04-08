@@ -101,13 +101,6 @@ discussion.*
   sycl buffer backing is awkward and breaks our decision to have the data live
   on the device. If users want a device_vector, they need USM support.
 
-- **Users optionally provide a queue on construction**
-  Users provide a queue or device for their device_vector memory to be associated
-  with. If nothing is provided, a global default queue is used.  This matches
-  how oneDPL device policies work. Among existing implementations,
-  Boost.Compute's explicit `command_queue` parameter on constructors and
-  operations is the closest precedent for this model.
-
 - **Type T should only require device copyability**
   We should not need anything except device copyability (for copy to and from
   the device).
@@ -115,7 +108,7 @@ discussion.*
 - **We don't need a tag system for dispatch to specific hardware**
   Execution policies dictate where algorithms are run. We don't intend to provide other flavors of vector / iterator which would have different tags, so this doesn't make much sense.
 
-- **device_pointer should be device copyable and indirectly device accessible**
+- **device_pointer should be device copyable and indirectly device accessible and usable with good performance on the device**
   The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
 
 - **No custom allocator template parameter; use `sycl::malloc_device` directly**
@@ -146,7 +139,8 @@ public:
     using const_iterator  = /* const version */;
 
     // Constructors / assignment / destructor -- mirrors std::vector
-    // All constructors accept an optional sycl::queue argument
+    // All constructors accept an optional sycl::queue argument currently,
+    // but this is an open question.
     // (defaulted, e.g. to a global default queue).
     device_vector(sycl::queue q = /* default queue */);
     explicit device_vector(size_type count,
@@ -252,5 +246,32 @@ A `device_vector` requires several supporting types (see comparison above):
   preserve, or unnecessary complication for users?  We could always add another
   type distributed_device_vector in the future if it seems necessary.
 
-- **Do we gain anything from having a separate device_iterator and device_pointer,
-   or can we just only implement device_pointer?**
+- **Queue association model and its impact on device_pointer**
+  We want `device_pointer` to be device copyable so it can be used directly
+  in kernels and oneDPL algorithms. However, host-side dereference (returning
+  a proxy reference that does `memcpy`) requires a `sycl::queue`, and
+  `sycl::queue` is not device copyable. This creates a tension with several
+  possible resolutions, here are the leading 2:
+
+  1. **Store a raw `sycl::queue*` in device_pointer.** `device_pointer`
+     holds `T*` + `sycl::queue*` -- a struct of two raw pointers is trivially
+     copyable and therefore device copyable. On the host, the queue pointer
+     is dereferenced to obtain the queue for `memcpy`. On the device, the
+     queue pointer is unused dead bits. This preserves both device copyability
+     and host-side dereference with the correct queue. The queue must
+     outlive the pointer, but this is fine because it lives in the vector
+     the same as the memory itself.
+  2. **Use a global default queue only.** `device_vector` does not accept a
+     queue on construction. `device_pointer` holds only a raw `T*`, is device
+     copyable, and host-side dereference uses the default queue. Simple, but
+     limits users to a single device/queue.
+
+
+  Among existing implementations, Boost.Compute's explicit `command_queue`
+  parameter on constructors is the closest precedent for queue association.
+  CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
+  global function that doesn't require a queue object.
+
+- **Should we use device_pointer as the device iterator?**
+  It seems there is no use case for a separate device_iterator, but its
+  worth considering.
