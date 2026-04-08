@@ -1132,51 +1132,48 @@ struct __gen_set_balanced_path
         // dereferencing is dangerous
         auto __src_ranges = _SetOpSourceDataPackUnpack::__unpack<_Bounded>(__tuple);
 
+        const auto __src_n1 = oneapi::dpl::__ranges::__size(__src_ranges.__rng1);
+        const auto __src_n2 = oneapi::dpl::__ranges::__size(__src_ranges.__rng2);
+        const auto __src_total = __src_n1 + __src_n2;
+
+        if (__id * __diagonal_spacing >= __src_total)
+            return 0;
+
         _IndexT __rng1_balanced_pos = 0;
         _IndexT __rng2_balanced_pos = 0;
         bool __star = false;
 
-        const auto __total_size = oneapi::dpl::__ranges::__size(__src_ranges.__rng1) +
-                                  oneapi::dpl::__ranges::__size(__src_ranges.__rng2);
-        const bool __is_partitioned = __total_size >= __get_bounds.__partition_threshold;
-
-        if (__id * __diagonal_spacing >= __total_size)
-            return 0;
+        const bool __is_partitioned = __src_total >= __get_bounds.__partition_threshold;
         if (!__is_partitioned)
         {
             // If not partitioned, just use the bounds of the full range to limit balanced path intersection search
-            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
-            __rng1_balanced_pos = __idx_rng1;
-            __rng2_balanced_pos = __idx_rng2;
-            __star = __local_star;
+            std::tie(__rng1_balanced_pos, __rng2_balanced_pos, __star) = calc_and_store_balanced_path(
+                __in_rng, __id, oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>{});
         }
         else if (__id % __get_bounds.__tile_size != 0)
         {
             // If partitioned, but not on the boundary, we must calculate intersection with the balanced path, and
             // we can use bounds for our search established in the partitioning phase by __get_bounds.
-            auto [__idx_rng1, __idx_rng2, __local_star] = calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
-            __rng1_balanced_pos = __idx_rng1;
-            __rng2_balanced_pos = __idx_rng2;
-            __star = __local_star;
+            std::tie(__rng1_balanced_pos, __rng2_balanced_pos, __star) =
+                calc_and_store_balanced_path(__in_rng, __id, __get_bounds);
         }
         else // if we are at the start of a tile, we can decode the balanced path from the existing temporary data
         {
-            auto [__idx_rng1, __idx_rng2, __local_star] = __decode_balanced_path_temp_data(__src_ranges.__split_diags, __id, __diagonal_spacing);
-            __rng1_balanced_pos = __idx_rng1;
-            __rng2_balanced_pos = __idx_rng2;
-            __star = __local_star;
+            std::tie(__rng1_balanced_pos, __rng2_balanced_pos, __star) =
+                __decode_balanced_path_temp_data(__src_ranges.__split_diags, __id, __diagonal_spacing);
         }
 
-        _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - (__star ? _IndexT{1} : _IndexT{0}),
-                                             oneapi::dpl::__ranges::__size(__src_ranges.__rng1) +
-                                                 oneapi::dpl::__ranges::__size(__src_ranges.__rng2) -
-                                                 _IndexT{__id * __diagonal_spacing - 1});
+        const _IndexT __eles_to_process = std::min(_IndexT{__diagonal_spacing} - _IndexT{__star},
+                                                   __src_total - _IndexT{__id * __diagonal_spacing - 1});
 
-        std::uint16_t __count =
-            __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2, __rng1_balanced_pos,
-                           __rng2_balanced_pos, __eles_to_process, __temp_data, __comp, __proj1, __proj2);
-        return __count;
+        // Calculate and return the amount of elements
+        return __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2,
+                              __rng1_balanced_pos, __rng2_balanced_pos,
+                              __eles_to_process,
+                              __temp_data,
+                              __comp, __proj1, __proj2);
     }
+
     _SetOpCount __set_op_count;
     std::uint16_t __diagonal_spacing;
     _BoundsProvider __get_bounds;
