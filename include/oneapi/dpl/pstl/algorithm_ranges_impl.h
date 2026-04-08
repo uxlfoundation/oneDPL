@@ -707,8 +707,7 @@ __brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
           typename _Proj2>
 bool
-__pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
-                   _Proj2 __proj2)
+__pattern_includes(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
@@ -828,8 +827,8 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                    _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                    _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
@@ -904,8 +903,8 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_intersection(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                           _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
@@ -1029,8 +1028,8 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                         _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
@@ -1152,8 +1151,8 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                                   _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
