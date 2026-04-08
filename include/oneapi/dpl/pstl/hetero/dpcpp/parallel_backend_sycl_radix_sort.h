@@ -60,7 +60,7 @@ __order_preserving_cast(_UInt __val)
 }
 
 template <bool __is_ascending, typename _Int,
-          ::std::enable_if_t<::std::is_integral_v<_Int> && ::std::is_signed_v<_Int>, int> = 0>
+          ::std::enable_if_t<::std::is_integral_v<_Int>&& ::std::is_signed_v<_Int>, int> = 0>
 ::std::make_unsigned_t<_Int>
 __order_preserving_cast(_Int __val)
 {
@@ -907,12 +907,13 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // (e.g., sort_by_key tuples), we scale block sizes down proportionally to maintain similar
     // register pressure per work-item. Tiers whose scaled block size falls below 4 are not
     // instantiated, as they would provide too little work per work-item to be worthwhile.
-    constexpr std::uint16_t __val_scale = std::max<std::size_t>(sizeof(_ValueT) / 4u, 1u);
-    constexpr std::uint16_t __bs0 = 4u / __val_scale;
-    constexpr std::uint16_t __bs1 = 8u / __val_scale;
-    constexpr std::uint16_t __bs2 = 16u / __val_scale;
-    constexpr std::uint16_t __bs3 = 32u / __val_scale;
-    constexpr std::uint16_t __absolute_min_block_size = 4u;
+    constexpr std::size_t __val_scale =
+        std::max<std::size_t>(oneapi::dpl::__internal::__dpl_ceiling_div(sizeof(_ValueT), 4u), 1u);
+    constexpr std::size_t __bs0 = 4u / __val_scale;
+    constexpr std::size_t __bs1 = 8u / __val_scale;
+    constexpr std::size_t __bs2 = 16u / __val_scale;
+    constexpr std::size_t __bs3 = 32u / __val_scale;
+    constexpr std::size_t __absolute_min_block_size = 4u;
 
     if constexpr (__bs0 >= __absolute_min_block_size)
     {
