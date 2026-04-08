@@ -694,9 +694,31 @@ struct __gen_set_mask
 // __parallel_set_write_a_b_op
 
 // Returns by reference: iterations consumed, and the number of elements copied to temp output.
-template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds, typename _InRng1,
-          typename _InRng2, typename _SizeType, typename _TempOutput, typename _Compare, typename _Proj1,
-          typename _Proj2>
+/*
+ * Template parameters:
+ *   _CopyMatch    - if true, copies elements equal in both ranges to temp output (used by intersection, union)
+ *   _CopyDiffSetA - if true, copies elements from rng1 absent in rng2 to temp output (used by difference, union)
+ *   _CopyDiffSetB - if true, copies elements from rng2 absent in rng1 to temp output (used by symmetric difference, union)
+ *   _CheckBounds  - if true, checks whether the end of rng1 or rng2 has been reached before accessing elements;
+ *                   should be enabled when the diagonal being processed may reach the boundary of either range
+ *   _InRng1       - type of the first sorted input range (Set A); elements are accessed via __proj1
+ *   _InRng2       - type of the second sorted input range (Set B); elements are accessed via __proj2
+ *   _SizeType     - unsigned integer type used for diagonal position tracking and element counting
+ *   _TempOutput   - type of the temporary register storage that accumulates results prior to the scan and write phases
+ *   _Compare      - binary comparison functor satisfying strict weak ordering, used to merge rng1 and rng2
+ *   _Proj1        - unary projection applied to elements of rng1 before comparison
+ *   _Proj2        - unary projection applied to elements of rng2 before comparison
+ * 
+ *                            _CopyMatch _CopyDiffSetA _CopyDiffSetB _CheckBounds
+ *  set_union                      T            T             T           T/F
+ *  set_intersection               T            F             F           T/F
+ *  set_difference                 F            T             F           T/F
+ *  set_symmetric_difference       F            T             T           T/F
+ */
+template <bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB, bool _CheckBounds,
+          typename _InRng1, typename _InRng2, typename _SizeType,
+          typename _TempOutput,
+          typename _Compare, typename _Proj1, typename _Proj2>
 void
 __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_rng2, std::size_t& __idx1,
                                   std::size_t& __idx2, const _SizeType __num_eles_min, _TempOutput& __temp_out,
@@ -705,11 +727,13 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 {
     using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
+    static_assert(false);
+
     if constexpr (_CheckBounds)
     {
         if (__idx1 == oneapi::dpl::__ranges::__size(__in_rng1))
         {
-            if constexpr (_CopyDiffSetB)
+            if constexpr (_CopyDiffSetB)        // set_union, set_symmetric_difference
             {
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < oneapi::dpl::__ranges::__size(__in_rng2) && __idx < __num_eles_min; ++__idx2, ++__idx)
@@ -723,7 +747,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
         }
         if (__idx2 == oneapi::dpl::__ranges::__size(__in_rng2))
         {
-            if constexpr (_CopyDiffSetA)
+            if constexpr (_CopyDiffSetA)        // set_union, set_difference, set_symmetric_difference
             {
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < oneapi::dpl::__ranges::__size(__in_rng1) && __idx < __num_eles_min; ++__idx1, ++__idx)
@@ -741,7 +765,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     auto&& __ele_rng2 = __in_rng2[__idx2];
     if (std::invoke(__comp, std::invoke(__proj1, __ele_rng1), std::invoke(__proj2, __ele_rng2)))
     {
-        if constexpr (_CopyDiffSetA)
+        if constexpr (_CopyDiffSetA)        // set_union, set_difference, set_symmetric_difference
         {
             __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), _TupleOfSizes{__idx1, __idx2});
             ++__count;
@@ -751,7 +775,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     }
     else if (std::invoke(__comp, std::invoke(__proj2, __ele_rng2), std::invoke(__proj1, __ele_rng1)))
     {
-        if constexpr (_CopyDiffSetB)
+        if constexpr (_CopyDiffSetB)        // set_union, set_symmetric_difference
         {
             __temp_out.set(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2), _TupleOfSizes{__idx1, __idx2});
             ++__count;
@@ -761,7 +785,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     }
     else // if neither element is less than the other, they are equal
     {
-        if constexpr (_CopyMatch)
+        if constexpr (_CopyMatch)           // set_union, set_intersection
         {
             __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), _TupleOfSizes{__idx1, __idx2});
             ++__count;
@@ -839,13 +863,13 @@ struct __set_generic_operation
 
 // Set operation implementations using the generic implementation
 template <bool _Bounded>
-using __set_intersection = __set_generic_operation<_Bounded, true, false, false>;
+using __set_intersection = __set_generic_operation<_Bounded, /*_CopyMatch*/ true, /*_CopyDiffSetA*/ false, /*_CopyDiffSetB*/ false>;
 template <bool _Bounded>
-using __set_difference = __set_generic_operation<_Bounded, false, true, false>;
+using __set_difference = __set_generic_operation<_Bounded, /*_CopyMatch*/ false, /*_CopyDiffSetA*/ true, /*_CopyDiffSetB*/ false>;
 template <bool _Bounded>
-using __set_union = __set_generic_operation<_Bounded, true, true, true>;
+using __set_union = __set_generic_operation<_Bounded, /*_CopyMatch*/ true, /*_CopyDiffSetA*/ true, /*_CopyDiffSetB*/ true>;
 template <bool _Bounded>
-using __set_symmetric_difference = __set_generic_operation<_Bounded, false, true, true>;
+using __set_symmetric_difference = __set_generic_operation<_Bounded, /*_CopyMatch*/ false, /*_CopyDiffSetA*/ true, /*_CopyDiffSetB*/ true>;
 
 template <bool _Bounded, typename _SetTag>
 struct __get_set_operation;
