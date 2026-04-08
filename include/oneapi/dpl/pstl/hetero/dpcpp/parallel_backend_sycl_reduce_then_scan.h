@@ -148,7 +148,7 @@ struct __processed_info
 
         return std::apply(
             [&](const auto&... __local_index_state) {
-                return std::make_tuple(__reduce_max_pos_over_group(__group, __local_index_state)...);
+                return std::make_tuple(__reduce_max_pos_over_group_impl(__group, __local_index_state)...);
             },
             __idxs);
     }
@@ -157,21 +157,21 @@ struct __processed_info
     static void
     fetch_max_pos(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs)
     {
-        __fetch_max_pos_by_index(__global_max_idxs, __local_max_idxs, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
+        __fetch_max_pos_by_index_impl(__global_max_idxs, __local_max_idxs, std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
     }
 
 protected :
 
     template <typename _Group, typename _Value>
     static _Value
-    __reduce_max_pos_over_group(const _Group& __group, _Value __local_index_state)
+    __reduce_max_pos_over_group_impl(const _Group& __group, _Value __local_index_state)
     {
         return __dpl_sycl::__reduce_over_group(__group, __local_index_state, __dpl_sycl::__maximum<_Value>());
     }
 
     template <typename _Tuple, std::size_t... _Is>
     static void
-    __fetch_max_pos_by_index(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs, std::index_sequence<_Is...>)
+    __fetch_max_pos_by_index_impl(_Tuple& __global_max_idxs, const _Tuple& __local_max_idxs, std::index_sequence<_Is...>)
     {
         (..., __fetch_max_value_impl(std::get<_Is>(__global_max_idxs), std::get<_Is>(__local_max_idxs)));
     }
