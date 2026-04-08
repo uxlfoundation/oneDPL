@@ -199,6 +199,10 @@ __pattern_transform_scan_base_async(__hetero_tag<_BackendTag>, _ExecutionPolicy&
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n, __unary_op,
         __init, __binary_op, _Inclusive{});
 
+    static_assert(std::tuple_size_v<std::decay_t<decltype(__res)>> == 2,
+                  "__parallel_transform_scan<_Bounded=false> must return a 2-element tuple."
+                  "A 3-element tuple would cause the stop_pos storage to be destroyed before the kernel completes.");
+
     return __create_future(/*event*/ std::move(std::get<0>(__res)), __result + __n, /*result*/ std::move(std::get<1>(__res)))
 }
 
