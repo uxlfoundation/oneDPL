@@ -900,27 +900,62 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
                                           static_cast<std::size_t>(16)) != __subgroup_sizes.end();
 
     using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
+    using _ValueT = oneapi::dpl::__internal::__value_t<_Range>;
 
-    // Select block size based on input size (block_size = elements per work-item)
-    // Larger block sizes reduce register spills but require more registers per work-item
-    if (__n <= std::min<std::size_t>(1024, __max_wg_size * 4))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 4, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= std::min<std::size_t>(2048, __max_wg_size * 8))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 8, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else if (__n <= std::min<std::size_t>(4096, __max_wg_size * 16))
-        __event = __subgroup_radix_sort<_RadixSortKernel, 16, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+    // Select block size (elements per work-item) for the one-workgroup radix sort kernel.
+    // The base block sizes (4, 8, 16, 32) were tuned for 4-byte value types. For larger value types
+    // (e.g., sort_by_key tuples), we scale block sizes down proportionally to maintain similar
+    // register pressure per work-item. Tiers whose scaled block size falls below 4 are not
+    // instantiated, as they would provide too little work per work-item to be worthwhile.
+    constexpr std::uint16_t __val_scale = std::max<std::size_t>(sizeof(_ValueT) / 4u, 1u);
+    constexpr std::uint16_t __bs0 = 4u / __val_scale;
+    constexpr std::uint16_t __bs1 = 8u / __val_scale;
+    constexpr std::uint16_t __bs2 = 16u / __val_scale;
+    constexpr std::uint16_t __bs3 = 32u / __val_scale;
+    constexpr std::uint16_t __absolute_min_block_size = 4u;
+
+    if constexpr (__bs0 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs0) * 256u, __max_wg_size * __bs0))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs0, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
+    if constexpr (__bs1 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs1) * 256u, __max_wg_size * __bs1))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs1, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
+    if constexpr (__bs2 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs2) * 256u, __max_wg_size * __bs2))
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs2, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
     // In __subgroup_radix_sort, we request a sub-group size of 16 via _ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED
     // for compilation targets that support this option. For the below cases, register spills that result in
     // runtime exceptions have been observed on accelerators that do not support the requested sub-group size of 16.
     // For the above cases that request but may not receive a sub-group size of 16, inputs are small enough to avoid
     // register spills on assessed hardware.
-    else if (__n <= std::min<std::size_t>(16384, __max_wg_size * 32) && __dev_has_sg16)
-        __event = __subgroup_radix_sort<_RadixSortKernel, 32, __radix_bits, __is_ascending>{}(
-            __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
-    else
+    if constexpr (__bs3 >= __absolute_min_block_size)
+    {
+        if (__n <= std::min<std::size_t>(std::size_t(__bs3) * 512u, __max_wg_size * __bs3) && __dev_has_sg16)
+        {
+            __event = __subgroup_radix_sort<_RadixSortKernel, __bs3, __radix_bits, __is_ascending>{}(
+                __q_local, std::forward<_Range>(__in_rng), __proj, __max_wg_size);
+            return __future{std::move(__event)};
+        }
+    }
+    // Fall through to multi-group sort
     {
         __event = __parallel_multi_group_radix_sort<_RadixSortKernel, __radix_bits, __is_ascending>{}(
             __q_local, std::forward<_Range>(__in_rng), __proj);
