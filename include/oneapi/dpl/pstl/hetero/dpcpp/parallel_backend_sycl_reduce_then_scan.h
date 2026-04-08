@@ -379,7 +379,7 @@ struct __write_scan_by_seg
     }
 };
 
-// Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_data` from a
+// Writes multiple elements from temp data to the output range. The values to write are stored in `__temp_out` from a
 // previous operation, and must be written to the output range in the appropriate location. The zeroth element of `__v`
 // will contain the index of one past the last element to write, and the first element of `__v` will contain the number
 // of elements to write. Used for __parallel_set_write_a_b_op.
@@ -388,7 +388,7 @@ struct __write_multiple_to_id
 {
     template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     bool
-    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_out) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -405,13 +405,13 @@ struct __write_multiple_to_id
         {
             if constexpr (!_Bounded)
             {
-                __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)), __out_rng[__base_idx + __i]);
+                __assign(static_cast<_ConvertedTupleType>(__temp_out.get_and_destroy(__i)), __out_rng[__base_idx + __i]);
             }
             else
             {
                 const std::size_t __out_idx = __base_idx + __i;
 
-                auto __saved_tmp_data = __temp_data.get_and_destroy(__i);
+                auto __saved_tmp_data = __temp_out.get_and_destroy(__i);
 
                 if (!__save_if_in_bounds<_Bounded>(__out_rng, __out_idx, [&]() {
                         __assign(static_cast<_ConvertedTupleType>(std::get<0>(__saved_tmp_data)), __out_rng[__out_idx]);
@@ -419,12 +419,12 @@ struct __write_multiple_to_id
                 {
                     if (__out_idx == __out_rng_size)
                     {
-                        __temp_data.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
+                        __temp_out.set_first_oob_src_idx(std::get<1>(__saved_tmp_data));
                     }
 
                     // Destroy all remaining initialized elements to avoid resource leak
                     for (++__i; __i < __n; ++__i)
-                        __temp_data.get_and_destroy(__i);
+                        __temp_out.get_and_destroy(__i);
 
                     return false;
                 }
@@ -1123,7 +1123,7 @@ struct __gen_set_balanced_path
     // Entry point for reduce then scan reduce input
     template <typename _InRng, typename _IndexT>
     std::uint16_t
-    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_data) const
+    operator()(const _InRng& __in_rng, _IndexT __id, TempData& __temp_out) const
     {
         // Get source tuple
         auto&& __tuple = __in_rng.base();
@@ -1170,7 +1170,7 @@ struct __gen_set_balanced_path
         return __set_op_count(__src_ranges.__rng1, __src_ranges.__rng2,
                               __rng1_balanced_pos, __rng2_balanced_pos,
                               __eles_to_process,
-                              __temp_data,
+                              __temp_out,
                               __comp, __proj1, __proj2);
     }
 
@@ -1612,7 +1612,7 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
           typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
-std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::TempData>, bool>      // KSATODO better to create __temp_data on caller side or return EOB pos + final pos without extra __temp_data copy
+std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::TempData>, bool>      // KSATODO better to create __temp_out on caller side or return EOB pos + final pos without extra __temp_out copy
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
@@ -1626,18 +1626,18 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
-    _TempData __temp_data{};
+    _TempData __temp_out{};
 
     bool __all_writes_succeeded = true;
 
     if (__is_full_thread)
     {
-        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+        _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
         if constexpr (__capture_output)
         {
-            __write_op(__out_rng, __start_id, __v, __temp_data);
+            __write_op(__out_rng, __start_id, __v, __temp_out);
         }
 
         if (__is_full_block)
@@ -1646,12 +1646,12 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             _ONEDPL_PRAGMA_UNROLL
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item && __all_writes_succeeded; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out);
                 }
             }
         }
@@ -1661,12 +1661,12 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             // can proceed without special casing for partial subgroups.
             for (std::uint32_t __j = 1; __j < __iters_per_item && __all_writes_succeeded; __j++)
             {
-                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_data);
+                __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_data);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out);
                 }
             }
         }
@@ -1682,55 +1682,55 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             if (__iters == 1)
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
-                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_data);
+                _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_out);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - __subgroup_start_id);
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_data);
+                        __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out);
                 }
             }
             else
             {
-                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_data);
+                _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_data);
+                    __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out);
                 }
 
                 for (std::uint32_t __j = 1; __j < __iters - 1 && __all_writes_succeeded; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
-                    __v = __gen_input(__in_rng, __local_id, __temp_data);
+                    __v = __gen_input(__in_rng, __local_id, __temp_out);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     if constexpr (__capture_output)
                     {
-                        __all_writes_succeeded &= __write_op(__out_rng, __local_id, __v, __temp_data);
+                        __all_writes_succeeded &= __write_op(__out_rng, __local_id, __v, __temp_out);
                     }
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
-                __v = __gen_input(__in_rng, __local_id, __temp_data);
+                __v = __gen_input(__in_rng, __local_id, __temp_out);
                 __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
                     __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __offset, __v, __temp_data);
+                        __all_writes_succeeded &= __write_op(__out_rng, __offset, __v, __temp_out);
                 }
             }
         }
     }
 
     if constexpr (_Bounded)
-        return {__all_writes_succeeded, std::move(__temp_data)};
+        return {__all_writes_succeeded, std::move(__temp_out)};
     else
         return __all_writes_succeeded;
 }
