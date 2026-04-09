@@ -1150,7 +1150,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_DifferenceTag>(
             _BackendTag{}, unseq_backend::_DifferenceTag{}, std::forward<_ExecutionPolicy>(__exec),
             oneapi::dpl::__ranges::__get_subscription_view(__r1),
-            oneapi::dpl::__ranges::__get_subscription_view(std::forward<_R2>(__r2)),
+            oneapi::dpl::__ranges::__get_subscription_view(__r2),
             oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
