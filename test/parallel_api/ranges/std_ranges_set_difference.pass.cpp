@@ -18,6 +18,22 @@
 #if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
+{
+    static constexpr bool RunTestForHeteroPolicy = true;
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
+};
+
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
+template <>
+struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
+{
+    static constexpr bool RunTestForHeteroPolicy = true;
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
+};
+
 template<>
 inline int out_size_with_empty_in2<std::remove_cvref_t<decltype(oneapi::dpl::ranges::set_difference)>>(int in1_size)
 {
@@ -76,12 +92,23 @@ void test_mixed_types_device()
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
+template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
+using set_difference_result_t =
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>;
+#else
+template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
+using set_difference_result_t =
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_ROut>>;
+#endif
+
 struct
 {
     template <std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _ROut, typename Comp = std::ranges::less, typename Proj1 = std::identity,
               typename Proj2 = std::identity>
-    std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>
+    set_difference_result_t<_R1, _R2, _ROut>
     operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         auto in1 = std::ranges::begin(r_1);
@@ -127,7 +154,11 @@ struct
         assert(idx1 <= n1);
         assert(idxOut <= nOut);
 
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
         return {in1 + idx1, out + idxOut};
+#else
+        return {in1 + idx1, in2 + idx2, out + idxOut};
+#endif
     }
 } set_difference_checker;
 
@@ -141,14 +172,20 @@ test_set_difference_checker()
         //                         -------------------------------------------------^---------------------------------------
         // res:                                                                     |
         // final position in set1: -------------------------------------------------+
-        // final position in set2:--------------------------------------------------+  // Absent in results for now
+        // final position in set2:--------------------------------------------------+
 
         std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
         EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
         EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
+#else
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.begin() + 15, "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
+#    endif
     }
 
     // oneapi::dpl::ranges::set_difference logic
@@ -158,13 +195,18 @@ test_set_difference_checker()
         //                         --------------------------------------------------^---------------------------------------
         // res:                                               10, 11, 12, 13, 14, 15 |
         // final position in set1: --------------------------------------------------+
-        // final position in set2:---------------------------------------------------+  // Absent in results for now
+        // final position in set2:---------------------------------------------------+
 
         std::vector<int> set1{1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15};
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
         EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
+#else
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.begin() + 9, "Wrong 'in2' state of result");
+#endif
 
         const std::vector<int> resExpected{10, 11, 12, 13, 14, 15};
 
@@ -180,13 +222,18 @@ test_set_difference_checker()
         //                         ---------------------------------------------------------------------^-------------------
         // res:                    1, 2, 3,             8, 9, 10                                        |
         // final position in set1: ---------------------------------------------------------------------+
-        // final position in set2:----------------------------------------------------------------------+  // Absent in results for now
+        // final position in set2:----------------------------------------------------------------------+
 
         std::vector<int> set1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20};
         std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
         EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
+#else                                                               
+        EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
+        EXPECT_EQ(res.in2, set2.begin() + 14, "Wrong 'in2' state of result");
+#endif
 
         const std::vector<int> resExpected{1, 2, 3, 8, 9, 10};
 
@@ -228,7 +275,12 @@ main()
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
+
+// TODO remove the definition check after implementation range-based set operations for bounded output range with hetero policies
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
     test_mixed_types_device();
+#endif
+
 #endif
 
     bProcessed = true;
