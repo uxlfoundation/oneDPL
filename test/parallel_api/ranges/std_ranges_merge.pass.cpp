@@ -24,41 +24,31 @@ struct merge_checker_fn
     auto operator()(_R1&& r_1, _R2&& r_2, _ROut&& r_out, Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {})
     {
         using ret_type = std::ranges::merge_result<std::ranges::borrowed_iterator_t<decltype(r_1)>,
-            std::ranges::borrowed_iterator_t<decltype(r_2)>, std::ranges::borrowed_iterator_t<decltype(r_out)>>;
+                                                   std::ranges::borrowed_iterator_t<decltype(r_2)>,
+                                                   std::ranges::borrowed_iterator_t<decltype(r_out)>>;
+
+        auto it_1 = std::ranges::begin(r_1);
+        auto it_1_e = it_1 + std::ranges::size(r_1);
+
+        auto it_2 = std::ranges::begin(r_2);
+        auto it_2_e = it_2 + std::ranges::size(r_2);
 
         auto it_out = std::ranges::begin(r_out);
-        auto it_1 = std::ranges::begin(r_1);
-        auto it_2 = std::ranges::begin(r_2);
-        auto it_1_e = std::ranges::end(r_1);
-        auto it_2_e = std::ranges::end(r_2);
-        auto it_out_e = std::ranges::end(r_out);
+        auto it_out_e = it_out + std::ranges::size(r_out);
 
-        while(it_1 != it_1_e && it_2 != it_2_e)
+        while (it_1 != it_1_e && it_2 != it_2_e && it_out != it_out_e)
         {
             if (std::invoke(comp, std::invoke(proj2, *it_2), std::invoke(proj1, *it_1)))
-            {
-                *it_out = *it_2;
-                ++it_out, ++it_2;
-            }
+                *it_out++ = *it_2++;
             else
-            {
-                *it_out = *it_1;
-                ++it_out, ++it_1;
-            }
-            if(it_out == it_out_e)
-                return ret_type{it_1, it_2, it_out};
+                *it_out++ = *it_1++;
         }
 
-        if(it_1 == it_1_e)
-        {
-            for(; it_2 != it_2_e && it_out != it_out_e; ++it_2, (void) ++it_out)
-                *it_out = *it_2;
-        }
-        else
-        {
-            for(; it_1 != it_1_e && it_out != it_out_e; ++it_1, (void) ++it_out)
-                *it_out = *it_1;
-        }
+        while (it_2 != it_2_e && it_out != it_out_e)
+            *it_out++ = *it_2++;
+
+        while (it_1 != it_1_e && it_out != it_out_e)
+            *it_out++ = *it_1++;
 
         return ret_type{it_1, it_2, it_out};
     }

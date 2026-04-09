@@ -103,6 +103,7 @@ struct P2
 {
     P2() {}
     P2(int v): x(v) {}
+    P2(int v, int w): x(v), y(w) {}
     int x = {};
     int y = {};
 
@@ -116,6 +117,14 @@ struct P2
         os << "{" << item.x << ", " << item.y << "}";
         return os;
     }
+};
+
+struct P3 : public P2
+{
+    using P2::P2;
+    P3(int v): P2(v, v + 13) {}
+
+    friend bool operator==(const P3& a, const P3& b) { return a.x == b.x && a.y == b.y; }
 };
 
 struct A
@@ -272,6 +281,14 @@ struct all_dangling_in_result<std::ranges::min_max_result<std::ranges::dangling>
 template <typename _ReturnType>
 constexpr bool all_dangling_in_result_v = all_dangling_in_result<_ReturnType>::value;
 
+void call_with_host_policies(auto algo, auto... args)
+{
+    algo(oneapi::dpl::execution::seq, args...);
+    algo(oneapi::dpl::execution::unseq, args...);
+    algo(oneapi::dpl::execution::par, args...);
+    algo(oneapi::dpl::execution::par_unseq, args...);
+}
+
 template<typename DataType, typename Container, TestDataMode test_mode = data_in, typename DataGen1 = std::identity,
          typename DataGen2 = decltype(data_gen2_default)>
 struct test
@@ -296,6 +313,8 @@ struct test
     }
 
 private:
+
+    using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
     template <typename T>
     using TmpContainerType = std::array<T,0>;
@@ -432,8 +451,23 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), cont_in().begin(), n, (std::string("data mismatch with ")
             + typeid(Algo).name() + typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<1, 100>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.        
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
     template <TestDataMode mode, typename View>
@@ -550,8 +584,25 @@ private:
         EXPECT_EQ_N(cont_in_exp().begin(), cont_in().begin(), n_in_exp,
                     (std::string("input mismatch with ") + names + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<2, 200>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
 public:
@@ -563,7 +614,7 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
-	    process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
     }
 
     template<typename Policy, typename Algo, typename Checker, TestDataMode mode = test_mode>
@@ -601,6 +652,8 @@ public:
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
     }
 
 private:
@@ -657,8 +710,24 @@ private:
                        typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
         }
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<2, 300>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
@@ -728,8 +797,26 @@ private:
         EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("output mismatch with ")
                     + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
 
-        // Test dangling iterators in return types for call with temporary data
-        test_dangling_pointers<3, 400>(exec, algo, std::forward<decltype(args)>(args)...);
+        if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
+        {
+#if _ONEDPL_CPP20_OWNING_VIEW_PRESENT // Otherwise, `tr_in = std::views::all` leads to a compile error for `rvalue_container_t`.
+            // Check dangling iterators in return types for call with r-value ranges; 
+            // TransIn and TransOut may modify the non-borrowed range to a borrowed one, so we need to check it.
+            if constexpr(!std::ranges::borrowed_range<decltype(tr_in(std::declval<rvalue_container_t&&>()))>
+                        && !std::ranges::borrowed_range<decltype(tr_out(std::declval<rvalue_container_t&&>()))>)
+            {
+                using res_ret_t = decltype(algo(exec, tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_in(std::declval<rvalue_container_t&&>()),
+                                        tr_out(std::declval<rvalue_container_t&&>()), args...));
+
+                if constexpr(!std::is_fundamental_v<res_ret_t>)
+                {
+                    static_assert(all_dangling_in_result_v<res_ret_t>,
+                                "res_ret_t is expected to be or consist of std::ranges::dangling");
+                }
+            }
+#endif //_ONEDPL_CPP20_OWNING_VIEW_PRESENT
+        }
     }
 
 public:
@@ -757,8 +844,9 @@ public:
         process_data_in_in_out(max_n, r_size,          r_size / kParts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size,          r_size,          r_size / kParts, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
-        //test cases with empty sequence(s)
+        //test cases with empty sequence(s) and/or zero output capacity
         process_data_in_in_out(max_n, 0, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, 0, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, r_size / 2, 0, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
         process_data_in_in_out(max_n, 0, r_size / 2, r_size / 4, CLONE_TEST_POLICY(exec), algo, checker, args...);
