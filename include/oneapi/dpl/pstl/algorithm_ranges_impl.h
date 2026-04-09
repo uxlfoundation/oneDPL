@@ -707,8 +707,7 @@ __brick_includes(_R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
           typename _Proj2>
 bool
-__pattern_includes(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1,
-                   _Proj2 __proj2)
+__pattern_includes(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag>);
 
@@ -875,8 +874,8 @@ __brick_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Pr
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_union_return_t<_R1, _R2, _OutRange>
-__pattern_set_union(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
-                    _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_union(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1,
+                    _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -976,8 +975,8 @@ __brick_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __co
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_intersection_return_t<_R1, _R2, _OutRange>
-__pattern_set_intersection(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                           _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_intersection(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                           _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -1141,8 +1140,8 @@ __brick_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_difference_return_t<_R1, _OutRange>
-__pattern_set_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                         _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                         _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
@@ -1209,8 +1208,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
     {
+        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __parallel_set_op</*__Bounded*/ IMPLEMENT_SET_OP_AS_BOUNDED>(
-                   __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
+                   __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
                    __result2, __comp, __proj1, __proj2, [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                    [](auto&&... __args) {
@@ -1221,8 +1221,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     }
 
     // use serial algorithm
-    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-                                   __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::ranges::subrange(__left_bound_seq_2, __last2),
+                                   std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1316,8 +1316,8 @@ __brick_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _C
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _OutRange, typename _Comp,
           typename _Proj1, typename _Proj2>
 __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
-__pattern_set_symmetric_difference(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r,
-                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+__pattern_set_symmetric_difference(_Tag, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp,
+                                   _Proj1 __proj1, _Proj2 __proj2)
 {
     static_assert(__is_serial_tag_v<_Tag> || __is_parallel_forward_tag_v<_Tag>);
 
