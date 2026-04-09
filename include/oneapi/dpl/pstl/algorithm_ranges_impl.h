@@ -1194,8 +1194,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     if (__n2 == 0)
     {
         const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-                                                __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        auto __out_last =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                                              __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__first1 + __n, __out_last};
     }
 
@@ -1207,8 +1208,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     if (__left_bound_seq_1 == __last1)
     {
         const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
-        auto __out_last = __pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-                                                __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
+        auto __out_last =
+            __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                                              __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__first1 + __n, __out_last};
     }
 
@@ -1222,14 +1224,14 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         const _DifferenceType __n = std::min(__last1 - __first1, __result2 - __result1);
         auto __out_last =
             __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-                                              __result1, __brick_copy<__parallel_tag<_IsVector>>{});
+                                              __result1, __internal::__brick_copy<__parallel_tag<_IsVector>>{});
         return {__first1 + __n, __out_last};
     }
 
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
     {
        //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
-        return __parallel_set_op</*__Bounded*/ true>(
+        return __internal::__parallel_set_op</*__Bounded*/ true>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
                    __result2, __comp, __proj1, __proj2, [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
