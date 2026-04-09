@@ -1069,9 +1069,16 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-template <typename _R1, typename _OutRange>
-using __set_difference_return_t = std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<_R1>,
-                                                                     std::ranges::borrowed_iterator_t<_OutRange>>;
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>;
+#else
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
+                                  std::ranges::borrowed_iterator_t<_OutRange>>;
+#endif
 
 // Bounded set difference: performs set_difference with output range capacity checking.
 // Truncates result if output range is too small.
