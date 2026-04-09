@@ -1208,8 +1208,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
 
     if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
     {
+       //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __parallel_set_op</*__Bounded*/ true>(
-                   __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result1,
+                   __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __left_bound_seq_2, __last2, __result1,
                    __result2, __comp, __proj1, __proj2, [](_DifferenceType __n, _DifferenceType) { return __n; },
                    [](_DifferenceType __n, _DifferenceType __m) { return __n + __m; },
                    [](auto&&... __args) {
@@ -1220,8 +1221,8 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     }
 
     // use serial algorithm
-    return __serial_set_difference(std::forward<_R1>(__r1), std::forward<_R2>(__r2), std::forward<_OutRange>(__out_r),
-                                   __comp, __proj1, __proj2);
+    return __serial_set_difference(std::forward<_R1>(__r1), std::ranges::subrange(__left_bound_seq_2, __last2),
+                                   std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
