@@ -59,11 +59,7 @@ void test() {
     auto [x, y] = *it;
     assert(&x == &(a[0]));
     assert(&y == &(b[0]));
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<decltype(*it), std::pair<int&, double&>>);
-#else
     static_assert(std::is_same_v<decltype(*it), tuple_type<int&, double&>>);
-#endif
 
     x = 5;
     y = 0.5;
@@ -87,11 +83,7 @@ void test() {
     auto it = v.begin();
     assert(&(std::get<0>(*it)) == &(a[0]));
     assert(&(std::get<1>(*it)) == &(a[0]));
-#ifdef _LIBCPP_VERSION // libc++ doesn't implement P2165R4 yet
-    static_assert(std::is_same_v<decltype(*it), std::pair<int&, int const&>>);
-#else
     static_assert(std::is_same_v<decltype(*it), tuple_type<int&, int const&>>);
-#endif
   }
 }
 

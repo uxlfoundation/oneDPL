@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Cauchy Distribution
 
 #ifndef _ONEDPL_CAUCHY_DISTRIBUTION_H
 #define _ONEDPL_CAUCHY_DISTRIBUTION_H

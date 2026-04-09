@@ -166,6 +166,8 @@ exclusive_scan(const oneapi::dpl::execution::device_policy<PolicyParams...>& __e
 }
 
 #        if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <class _ForwardIterator1, class _ForwardIterator2, class _Tp, class _BinaryOperation, class KernelName,
           int factor>
 _ForwardIterator2
@@ -174,6 +176,7 @@ exclusive_scan(const oneapi::dpl::execution::fpga_policy<factor, KernelName>& __
 {
     return transform_exclusive_scan(__exec, __first, __last, __result, __init, __binary_op, oneapi::dpl::identity{});
 }
+#pragma GCC diagnostic pop
 #        endif // _ONEDPL_FPGA_DEVICE
 #    endif     // _ONEDPL_BACKEND_SYCL
 

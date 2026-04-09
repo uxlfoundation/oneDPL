@@ -12,10 +12,6 @@
 // See https://llvm.org/LICENSE.txt for license information.
 //
 //===----------------------------------------------------------------------===//
-//
-// Abstract:
-//
-// Public header file provides implementation for Extreme Value Distribution
 
 #ifndef _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H
 #define _ONEDPL_EXTREME_VALUE_DISTRIBUTION_H

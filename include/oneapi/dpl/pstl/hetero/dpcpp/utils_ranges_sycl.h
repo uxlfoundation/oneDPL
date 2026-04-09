@@ -25,6 +25,13 @@
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
 
+// TODO: Explore extracting SYCL-specific range/view definitions into their own
+//       file or forward declaring them, to allow inclusion of ranges_defs.h
+//       here instead of zip_view_impl.h
+#if _ONEDPL_CPP20_RANGES_PRESENT
+#include "../../zip_view_impl.h"
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -753,6 +760,8 @@ __select_backend(const execution::device_policy<_KernelName>&, _Ranges&&...)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 //TODO required correct implementation of this __ranges::__select_backend()
 // 1. There is still not RA ranges checks
 // 2. Obviously, a return tag is not necessarily oneapi::dpl::__internal::__hetero_tag
@@ -762,6 +771,7 @@ __select_backend(const execution::fpga_policy<_Factor, _KernelName>&, _Ranges&&.
 {
     return {};
 }
+#pragma GCC diagnostic pop
 #endif
 
 } // namespace __ranges

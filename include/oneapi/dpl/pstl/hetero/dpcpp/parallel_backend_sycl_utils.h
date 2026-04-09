@@ -174,6 +174,8 @@ make_wrapped_policy(_Policy&& __policy)
 }
 
 #if _ONEDPL_FPGA_DEVICE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 template <template <typename> class _NewKernelName, typename _Policy,
           oneapi::dpl::__internal::__enable_if_fpga_execution_policy<_Policy, int> = 0>
 auto
@@ -183,6 +185,7 @@ make_wrapped_policy(_Policy&& __policy)
         oneapi::dpl::__internal::__policy_unroll_factor<_Policy>,
         _NewKernelName<oneapi::dpl::__internal::__policy_kernel_name<_Policy>>>(::std::forward<_Policy>(__policy));
 }
+#pragma GCC diagnostic pop
 #endif
 
 namespace __internal

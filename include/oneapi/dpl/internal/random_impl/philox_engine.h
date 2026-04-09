@@ -7,11 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Abstract:
-//
-// Public header file provides implementation for Philox Engine
-//
-// The documentation of the Engine: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
+// The behavior of the Philox engine's scalar API was aligned with std::philox_engine generator: https://en.cppreference.com/w/cpp/numeric/random/philox_engine
 //
 
 #ifndef _ONEDPL_PHILOX_ENGINE_H
