@@ -82,6 +82,9 @@ plus an index offset.
 
 ## Proposal
 
+The proposal consists of the high-level design decisions below and an API
+skeleton that mirrors `std::vector` where applicable, adapted for device
+memory semantics.
 
 
 ### High Level Decisions
@@ -107,7 +110,7 @@ plus an index offset.
 - **We don't need a tag system for dispatch to specific hardware**
   Execution policies dictate where algorithms are run. We don't intend to provide other flavors of vector / iterator which would have different tags, so this doesn't make much sense.
 
-- **device_pointer should be device copyable and indirectly device accessible and usable with good performance on the device**
+- **device_pointer should be [device copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable) and indirectly device accessible and usable with good performance on the device**
   The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
 
 - **`device_reference` supports all compound assignment and increment/decrement operators**
@@ -126,7 +129,7 @@ plus an index offset.
   sense is not meaningful here. We use `sycl::malloc_device` / `sycl::free`
   directly, keeping the implementation simpler.
 
-### Strawman API
+### API Skeleton
 
 ```cpp
 namespace oneapi::dpl::experimental {
@@ -161,18 +164,24 @@ public:
                   sycl::queue q = /* default queue */);
     device_vector(const device_vector&); // also copies the queue
     device_vector(device_vector&&) noexcept;
+    device_vector& operator=(const device_vector&);
+    device_vector& operator=(device_vector&&) noexcept;
     ~device_vector();
 
     // Interop with std::vector
-    explicit device_vector(const std::vector<T>&);
+    explicit device_vector(const std::vector<T>&,
+                           sycl::queue q = /* default queue */);
     explicit operator std::vector<T>() const;
 
     // Element access (proxy references, implies host-device transfer)
     reference       operator[](size_type pos);
     const_reference operator[](size_type pos) const;
     reference       front();
+    const_reference front() const;
     reference       back();
+    const_reference back() const;
     pointer         data() noexcept;
+    const_pointer   data() const noexcept;
 
     // Iterators
     iterator begin() noexcept;
@@ -190,6 +199,10 @@ public:
     void shrink_to_fit();
 
     // Modifiers
+    void assign(size_type count, const T& value);
+    template <typename InputIt>
+    void assign(InputIt first, InputIt last);
+    void assign(std::initializer_list<T> ilist);
     void clear() noexcept;
     void push_back(const T& value);
     void pop_back();
@@ -280,12 +293,11 @@ A `device_vector` requires several supporting types (see comparison above):
      copyable, and host-side dereference uses the default queue. Simple, but
      limits users to a single device/queue.
 
-
   Among existing implementations, Boost.Compute's explicit `command_queue`
   parameter on constructors is the closest precedent for queue association.
   CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
   global function that doesn't require a queue object.
 
 - **Should we use device_pointer as the device iterator?**
-  It seems there is no use case for a separate device_iterator, but its
+  It seems there is no use case for a separate device_iterator, but it's
   worth considering.
