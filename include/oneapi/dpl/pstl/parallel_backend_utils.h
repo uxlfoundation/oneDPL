@@ -610,14 +610,6 @@ struct __set_operations_result
     _RandomAccessIterator2 __in2;
     _RandomAccessOutputIterator __it_out;
 
-    // Get reached input1 and output iterators
-    template <typename TResult>
-    TResult
-    __get_reached_in1_out() const
-    {
-        return {__in1, __it_out};
-    }
-
     // Get reached input1, input2 and output iterators
     template <typename TResult>
     TResult
