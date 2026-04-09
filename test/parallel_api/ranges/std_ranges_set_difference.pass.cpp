@@ -18,7 +18,7 @@
 #if _ENABLE_STD_RANGES_TESTING
 namespace test_std_ranges
 {
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
 {
@@ -26,7 +26,7 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
     static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
 };
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
@@ -276,7 +276,7 @@ main()
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
 
-// KSATODO remove the definition check after implementation range-based set operations for bounded output range with hetero policies
+// TODO remove the definition check after implementation range-based set operations for bounded output range with hetero policies
 #if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
     test_mixed_types_device();
 #endif
