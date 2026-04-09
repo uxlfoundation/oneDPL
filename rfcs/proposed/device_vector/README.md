@@ -82,10 +82,9 @@ plus an index offset.
 
 ## Proposal
 
-*This section is intentionally left as a rough skeleton for further design
-discussion.*
 
-## High Level Decisions
+
+### High Level Decisions
 
 - **Use device memory as baseline, copy to/from host on demand when required**
    This matches semantics of all pre-existing implementations other than SYCLomatic
@@ -110,6 +109,14 @@ discussion.*
 
 - **device_pointer should be device copyable and indirectly device accessible and usable with good performance on the device**
   The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
+
+- **`device_reference` supports all compound assignment and increment/decrement operators**
+  Following Thrust's convention, `device_reference<T>` will support all compound
+  assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
+  and increment/decrement (`++`, `--`). This makes host-side element access behave
+  as close to a real `T&` as possible and eases migration from Thrust codebases
+  where users expect expressions like `d_vec[i] += 1` to work. Each such operation
+  implies a synchronous round-trip (read-modify-write) to device memory.
 
 - **No custom allocator template parameter; use `sycl::malloc_device` directly**
   The SYCL 2020 spec intentionally excludes `sycl::usm_allocator` for device
@@ -152,7 +159,7 @@ public:
                   sycl::queue q = /* default queue */);
     device_vector(std::initializer_list<T> init,
                   sycl::queue q = /* default queue */);
-    device_vector(const device_vector&);
+    device_vector(const device_vector&); // also copies the queue
     device_vector(device_vector&&) noexcept;
     ~device_vector();
 
@@ -186,10 +193,15 @@ public:
     void clear() noexcept;
     void push_back(const T& value);
     void pop_back();
+    iterator insert(const_iterator pos, const T& value);
+    iterator insert(const_iterator pos, size_type count, const T& value);
+    template <typename InputIt>
+    iterator insert(const_iterator pos, InputIt first, InputIt last);
+    iterator erase(const_iterator pos);
+    iterator erase(const_iterator first, const_iterator last);
     void resize(size_type count);
     void resize(size_type count, const T& value);
     void swap(device_vector& other) noexcept;
-    // insert, erase, assign ...
 };
 
 } // namespace oneapi::dpl::experimental
@@ -219,10 +231,12 @@ std::sort(policy, d_vec2.begin(), d_vec2.end());
 float val = d_vec2[0];       // device-to-host transfer
 d_vec2[0] = 42.0f;           // host-to-device transfer
 
+oneapi::dpl::experimental::device_vector<int> d_vec3(10, q);  // 10 elements on q's device
 // Extract raw pointer for use in SYCL kernels
-float* raw = d_vec2.data().get();  // or similar accessor
+oneapi::dpl::experimental::device_pointer<float> raw = d_vec2.data();  // begin() would work the same
 q.parallel_for(sycl::range<1>(1024), [=](sycl::id<1> i) {
     raw[i] *= 2.0f;
+    
 }).wait();
 
 // Copy back to host
@@ -260,7 +274,8 @@ A `device_vector` requires several supporting types (see comparison above):
      queue pointer is unused dead bits. This preserves both device copyability
      and host-side dereference with the correct queue. The queue must
      outlive the pointer, but this is fine because it lives in the vector
-     the same as the memory itself.
+     the same as the memory itself, which will be freed if the vector leaves
+     scope.
   2. **Use a global default queue only.** `device_vector` does not accept a
      queue on construction. `device_pointer` holds only a raw `T*`, is device
      copyable, and host-side dereference uses the default queue. Simple, but
