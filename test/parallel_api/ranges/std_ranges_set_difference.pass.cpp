@@ -275,12 +275,7 @@ main()
     // Check if projections are applied to the right sequences and trigger a compile-time error if not
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-
-// TODO remove the definition check after implementation range-based set operations for bounded output range with hetero policies
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
     test_mixed_types_device();
-#endif
-
 #endif
 
     bProcessed = true;
