@@ -231,7 +231,6 @@ std::sort(policy, d_vec2.begin(), d_vec2.end());
 float val = d_vec2[0];       // device-to-host transfer
 d_vec2[0] = 42.0f;           // host-to-device transfer
 
-oneapi::dpl::experimental::device_vector<int> d_vec3(10, q);  // 10 elements on q's device
 // Extract raw pointer for use in SYCL kernels
 oneapi::dpl::experimental::device_pointer<float> raw = d_vec2.data();  // begin() would work the same
 q.parallel_for(sycl::range<1>(1024), [=](sycl::id<1> i) {
