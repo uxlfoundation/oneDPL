@@ -1080,6 +1080,19 @@ using __set_difference_return_t =
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
 #endif
 
+// Helper function to create the appropriate return type for oneapi::dpl::ranges::set_difference based on C++23 compatibility mode.
+// In C++23, set_difference returns in_out_result with the second input iterator omitted, as it is not needed for the caller.
+template <typename _R1, typename _R2, typename _OutRange, typename _It1, typename _It2, typename _ItOut>
+__set_difference_return_t<_R1, _R2, _OutRange>
+__create_set_difference_result(_It1 __it1, _It2 __it2, _ItOut __it_out)
+{
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
+    return std::ranges::in_out_result<_It1, _ItOut>{__it1, __it_out};
+#else
+    return std::ranges::in_in_out_result<_It1, _It2, _ItOut>{__it1, __it2, __it_out};
+#endif
+}
+
 // Bounded set difference: performs set_difference with output range capacity checking.
 // Truncates result if output range is too small.
 template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typename _Proj1, typename _Proj2>
