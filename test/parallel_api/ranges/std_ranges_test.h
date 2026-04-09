@@ -1094,7 +1094,7 @@ struct span_view_fo
 };
 #endif
 
-// KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+// TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <TestDataMode mode>
 struct ResolveTestDataModeForHeteroPolicy
 {
@@ -1179,7 +1179,7 @@ struct test_range_algo
             {
                 if constexpr (ResolveTestDataModeForHeteroPolicy<mode>::RunTestForHeteroPolicy)
                 {
-                    // KSATODO remove after implementation range-based set operations for bounded output range with hetero policies
+                    // TODO remove after implementation range-based set operations for bounded output range with hetero policies
                     constexpr TestDataMode resHeteroMode = ResolveTestDataModeForHeteroPolicy<mode>::res_mode;
 
                     test<T, usm_vector<T>,   resHeteroMode, DataGen1, DataGen2>{}(n_device, CLONE_TEST_POLICY_IDX(exec, call_id + 10), algo, checker, subrange_view,   subrange_view,   args...);
