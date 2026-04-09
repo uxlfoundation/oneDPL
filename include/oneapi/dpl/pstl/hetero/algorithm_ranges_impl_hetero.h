@@ -1120,14 +1120,16 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
                          _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     const auto __first1 = std::ranges::begin(__r1);
+    const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
+    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
         return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
-            __first1, std::ranges::begin(__r2), __result);
+            __first1, __first2, __result);
 
     // {1} \ {}: the difference is {1}
     if (oneapi::dpl::__ranges::__empty(__r2))
@@ -1141,7 +1143,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
         return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
-            __first1 + __n1, std::ranges::begin(__r2), __result + __idx);
+            __first1 + __n1, __first2, __result + __idx);
     }
 
     [[maybe_unused]] const auto [__offset1, __offset2, __offset_out] =
@@ -1152,7 +1154,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
     return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
-        __first1 + __offset1, std::ranges::begin(__r2) + __offset2, __result + __offset_out);
+        __first1 + __offset1, __first2 + __offset2, __result + __offset_out);
 }
 
 //Dummy names to avoid kernel problems
