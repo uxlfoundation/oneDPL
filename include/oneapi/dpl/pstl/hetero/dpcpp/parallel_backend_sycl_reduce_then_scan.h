@@ -1567,6 +1567,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
     template <bool __use_subgroup_ops, typename _TmpAcc, typename _InRng>
     void
@@ -1575,7 +1576,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                          const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-        constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
         __reduce_then_scan_sub_group_params __sub_group_params(
             __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
@@ -1695,7 +1695,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
                 __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
-                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_sycl::reqd_sub_group_size(__sub_group_size)]] {
+                __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
 
                     if (!__use_slm_for_comm)
@@ -1734,6 +1734,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
+    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
     template <typename _TmpAcc>
     _InitValueType
@@ -1759,7 +1760,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                        const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-        constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
         _InitValueType* __comm_slm_ptr = __use_subgroup_ops ? nullptr : &__comm_slm[0];
 
         __reduce_then_scan_sub_group_params __sub_group_params(
