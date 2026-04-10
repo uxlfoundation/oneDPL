@@ -36,7 +36,7 @@ namespace __internal
 {
 template <typename _AccessorType, typename _BufferType, typename _DiffType>
 static _AccessorType
-__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, sycl::property_list __properties = {})
+__create_accessor(_BufferType& __buf, _DiffType __offset, _DiffType __n, const sycl::property_list& __properties = {})
 {
     auto __n_buf = __dpl_sycl::__get_buffer_size(__buf);
     auto __n_acc = (__n > 0 ? __n : __n_buf);
@@ -63,7 +63,7 @@ class all_view
 
     all_view(sycl::buffer<_T, 1> __buf = sycl::buffer<_T, 1>(0), __diff_type __offset = 0, __diff_type __n = 0)
         : __m_acc(__internal::__create_accessor<__accessor_t>(
-              __buf, __offset, __n, _NoInit ? sycl::property_list{sycl::property::no_init{}} : sycl::property_list{}))
+              __buf, __offset, __n, _NoInit ? sycl::property_list{__dpl_sycl::__no_init{}} : sycl::property_list{}))
     {
     }
 
