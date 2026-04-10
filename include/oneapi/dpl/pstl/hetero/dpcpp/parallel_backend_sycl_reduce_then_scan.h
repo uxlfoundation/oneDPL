@@ -866,6 +866,41 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     }
 }
 
+template <bool _Bounded>
+struct __final_pos_setter;
+
+template <>
+struct __final_pos_setter</*_Bounded*/false>
+{
+    __final_pos_setter(std::size_t, std::size_t) {}
+
+    template <typename _ProcessedInfo>
+    void
+    opt_call_set_final_pos(_ProcessedInfo&, std::size_t, std::size_t)
+    {
+    }
+};
+
+template <>
+struct __final_pos_setter</*_Bounded*/ true>
+{
+    __final_pos_setter(std::size_t __idx1, std::size_t __idx2) : __idx1(__idx1), __idx2(__idx2) {}
+
+    template <typename _ProcessedInfo>
+    void
+    opt_call_set_final_pos(_ProcessedInfo& __processed_info, std::size_t __new_idx1, std::size_t __new_idx2)
+    {
+        if (__new_idx1 != __idx1 || __new_idx2 != __idx2)
+        {
+            __processed_info.set_final_pos(std::make_tuple(__new_idx1, __new_idx2));
+        }
+    }
+
+    const std::size_t __idx1 = {};
+    const std::size_t __idx2 = {};
+};
+
+
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
 template <bool _Bounded, bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
@@ -900,6 +935,8 @@ struct __set_generic_operation
         }
         else
         {
+            __final_pos_setter<_Bounded> __fp_setter(__idx1, __idx2);
+
             while (__idx < __num_eles_min)
             {
                 //bounds check all
@@ -908,10 +945,7 @@ struct __set_generic_operation
                     __proj1, __proj2);
             }
 
-            if constexpr (_Bounded)
-            {
-                __processed_info.set_final_pos(std::make_tuple(__idx1, __idx2));
-            }
+            __fp_setter.opt_call_set_final_pos(__processed_info, __idx1, __idx2);
         }
 
         return __count;
