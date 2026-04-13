@@ -919,32 +919,27 @@ struct __set_generic_operation
                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
         std::uint16_t __count = 0;
-        _SizeType __idx = 0;
-        const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
-        const bool __can_reach_rng2_end = __idx2 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng2);
 
-        if (!__can_reach_rng1_end && !__can_reach_rng2_end)
+        auto __call_set_generic_operation_iteration = [&](auto __check_bound_tag)
         {
-            while (__idx < __num_eles_min)
+            constexpr bool _CheckBounds = decltype(__check_bound_tag)::value;
+            for (_SizeType __idx = 0; __idx < __num_eles_min;)
             {
-                // no bounds checking
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ false>(
+                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, _CheckBounds>(
                     __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp, __proj1,
                     __proj2);
             }
+        };
+
+        if (__idx1 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng1) &&
+            __idx2 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng2))
+        {
+            __call_set_generic_operation_iteration(/*_CheckBounds*/ std::false_type{});
         }
         else
         {
             __final_pos_setter<_Bounded> __fp_setter(__idx1, __idx2);
-
-            while (__idx < __num_eles_min)
-            {
-                //bounds check all
-                __set_generic_operation_iteration<_CopyMatch, _CopyDiffSetA, _CopyDiffSetB, /*_CheckBounds*/ true>(
-                    __in_rng1, __in_rng2, __idx1, __idx2, __num_eles_min, __temp_out, __idx, __count, __comp,
-                    __proj1, __proj2);
-            }
-
+            __call_set_generic_operation_iteration(/*_CheckBounds*/ std::true_type{});
             __fp_setter.__set_final_pos_if_changed(__processed_info, __idx1, __idx2);
         }
 
