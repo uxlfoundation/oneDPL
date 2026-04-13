@@ -8,6 +8,13 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in the next release
+=======================
+
+- The sorting algorithms with device policies now use radix sort with
+  ``less`` and ``greater`` comparators from ``std::ranges`` namespace.
+  TODO: update the [#fnote1]_  with the release version.
+
 New in 2022.12.0
 ================
 
@@ -1139,7 +1146,8 @@ Known Issues and Limitations
   for double precision.
 
 .. [#fnote1] The sorting algorithms in oneDPL use Radix sort for arithmetic data types and
-   ``sycl::half`` (since oneDPL 2022.6) compared with ``std::less`` or ``std::greater``, otherwise Merge sort.
+  ``sycl::half`` (since oneDPL 2022.6) compared with ``less`` or ``greater``
+  from ``std`` and ``std::ranges`` (since oneDPL <next_release>) namespaces, otherwise Merge sort.
 .. _`oneDPL Guide`: https://uxlfoundation.github.io/oneDPL/index.html
 .. _`Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes`: https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html
 .. _`restrictions and known limitations`: https://uxlfoundation.github.io/oneDPL/introduction.html#restrictions.
