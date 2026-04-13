@@ -1092,8 +1092,7 @@ __pattern_set_intersection(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec,
 
     // intersection is empty
     if (oneapi::dpl::__ranges::__empty(__r1) || oneapi::dpl::__ranges::__empty(__r2))
-        return {__first1 + oneapi::dpl::__ranges::__size(__r1), __first2 + oneapi::dpl::__ranges::__size(__r2),
-                __result};
+        return {__first1, __first2, __result};
 
     const auto [__offset1, __offset2, __offset_out] =
         __par_backend_hetero::__parallel_set_op</*_Bounded*/ true, unseq_backend::_IntersectionTag>(
