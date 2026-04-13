@@ -27,19 +27,27 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Thrust** (`thrust::device_vector`) | [NVIDIA/cccl - device_vector.h](https://github.com/NVIDIA/cccl/blob/main/thrust/thrust/device_vector.h) |
 | **SYCLomatic** (`dpct::device_vector`) | [SYCLomatic - vector.h](https://github.com/oneapi-src/SYCLomatic/blob/SYCLomatic/clang/runtime/dpct-rt/include/dpct/dpl_extras/vector.h) |
 | **Distributed Ranges** (`dr::sp::device_vector`) | [distributed-ranges - device_vector.hpp](https://github.com/oneapi-src/distributed-ranges/blob/main/include/dr/sp/device_vector.hpp) |
-| **Boost.Compute** (`boost::compute::vector`) | [boostorg/compute - vector.hpp](https://github.com/boostorg/compute/blob/master/include/boost/compute/container/vector.hpp) |
-
 ### 1. How They Differ
 
-| Aspect | Thrust | SYCLomatic | Distributed Ranges | Boost.Compute | Proposed (oneDPL) |
-|---|---|---|---|---|---|
-| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `buffer_allocator<T>` (OpenCL buffers) | N/A; Always uses `sycl::malloc_device` directly |
-| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via OpenCL `cl::Buffer`; host access via buffer map/unmap | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
-| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `buffer_value<T>` proxy (OpenCL buffer read/write commands) | Via `device_reference` proxy (explicit device-to-host copy) |
-| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | No direct interop | Explicit constructor + `operator std::vector()` |
-| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No | see [open question](#open-questions) |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `command_queue` parameter on constructors and operations | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
-| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | see [open question](#open-questions) |
+| Aspect | Thrust | SYCLomatic | Distributed Ranges | Proposed (oneDPL) |
+|---|---|---|---|---|
+| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | N/A; Always uses `sycl::malloc_device` directly |
+| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
+| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (explicit device-to-host copy) |
+| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Explicit constructor + `operator std::vector()` |
+| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | see [open question](#open-questions) |
+| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
+| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | see [open question](#open-questions) |
+
+### 2. Boost.Compute
+
+[Boost.Compute](https://github.com/boostorg/compute/blob/master/include/boost/compute/container/vector.hpp)
+(`boost::compute::vector`) is an OpenCL-based device vector built on `cl::Buffer`.
+Its most relevant design choice is **explicit queue association**: constructors and
+operations accept a `command_queue` parameter, making the queue relationship clear
+rather than relying on a global default. This is the closest existing precedent
+for our proposed explicit `sycl::queue` constructor parameter (see
+[open question](#open-questions) on queue association).
 
 ## Proposal
 
