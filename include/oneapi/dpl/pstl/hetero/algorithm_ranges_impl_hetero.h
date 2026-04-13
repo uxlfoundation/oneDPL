@@ -1118,10 +1118,8 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-
     // {} \ {2}: the difference is empty
-    if (__n1 == 0)
+    if (oneapi::dpl::__ranges::__empty(__r1))
         return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
             __first1, __first2, __result);
 
@@ -1137,7 +1135,7 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
             oneapi::dpl::__ranges::__get_subscription_view(__out_r));
 
         return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
-            __first1 + __n1, __first2, __result + __idx);
+            __first1 + __idx, __first2, __result + __idx);
     }
 
     [[maybe_unused]] const auto [__offset1, __offset2, __offset_out] =
