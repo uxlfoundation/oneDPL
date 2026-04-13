@@ -97,7 +97,7 @@ __work_group_scan_impl(const _NdItem& __item, _SlmAcc __local_acc,
                 __idx += __sub_group_size;
             }
             __val = __local_acc[__idx];
-            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size, 
+            oneapi::dpl::__par_backend_hetero::__sub_group_scan_partial<__sub_group_size,
                                                                         /*__use_subgroup_ops=*/true,
                                                                         /*__is_inclusive*/ true,
                                                                         /*__init_present*/ true>(
