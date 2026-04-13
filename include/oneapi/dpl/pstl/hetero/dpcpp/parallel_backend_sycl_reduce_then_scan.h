@@ -246,7 +246,7 @@ struct __get_zeroth_element
 
 template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner>
 bool
-__save_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign)
+__write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign)
 {
     if constexpr (!_Bounded)
     {
@@ -280,7 +280,7 @@ struct __simple_write_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
-        return __save_if_in_bounds<_Bounded>(__out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); });
+        return __write_if_in_bounds<_Bounded>(__out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); });
     }
 };
 
@@ -305,7 +305,7 @@ struct __write_to_id_if
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
         return !std::get<1>(__v) ||
-               __save_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1 + __offset,
+               __write_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1 + __offset,
                                             [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]); });
     }
 
@@ -333,9 +333,9 @@ struct __write_to_id_if_else
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
         return std::get<1>(__v)
-            ? __save_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1,
+            ? __write_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1,
                                             [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1])); })
-            : __save_if_in_bounds<_Bounded>(__out_rng, __id - std::get<0>(__v),
+            : __write_if_in_bounds<_Bounded>(__out_rng, __id - std::get<0>(__v),
                                             [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)])); });
     }
 
@@ -375,18 +375,18 @@ struct __write_red_by_seg
         // segments process.
         if (__id == 0)
         {
-            if (!__save_if_in_bounds<_Bounded>(__out_keys, 0, [&]() { __out_keys[0] = __current_key; }))
+            if (!__write_if_in_bounds<_Bounded>(__out_keys, 0, [&]() { __out_keys[0] = __current_key; }))
                 return false;
         }
 
         if (__is_seg_end)
         {
-            if (!__save_if_in_bounds<_Bounded>(__out_values, __out_idx, [&]() { __out_values[__out_idx] = __current_value; }))
+            if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx, [&]() { __out_values[__out_idx] = __current_value; }))
                 return false;
 
             if (__id != __n - 1)
             {
-                if (!__save_if_in_bounds<_Bounded>(__out_values, __out_idx + 1, [&]() { __out_values[__out_idx + 1] = __next_key; }))
+                if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx + 1, [&]() { __out_values[__out_idx + 1] = __next_key; }))
                     return false;
             }
         }
@@ -425,7 +425,7 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
                 "inclusive_scan_by_segment must not have an initial element");
 
-            return __save_if_in_bounds<_Bounded>(
+            return __write_if_in_bounds<_Bounded>(
                 __out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v))); });
         }
         else
@@ -434,7 +434,7 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
 
-            return __save_if_in_bounds<_Bounded>(__out_rng, __id, [&]() {
+            return __write_if_in_bounds<_Bounded>(__out_rng, __id, [&]() {
                 __out_rng[__id] =
                     get<1>(__v)
                         ? static_cast<_ConvertedTupleType>(__init_value.__value)
@@ -478,7 +478,7 @@ struct __write_multiple_to_id
 
                 auto __saved_tmp_data = __temp_out.get_and_destroy(__i);
 
-                if (!__save_if_in_bounds<_Bounded>(__out_rng, __out_idx, [&]() {
+                if (!__write_if_in_bounds<_Bounded>(__out_rng, __out_idx, [&]() {
                         __assign(static_cast<_ConvertedTupleType>(std::get<0>(__saved_tmp_data)), __out_rng[__out_idx]);
                     }))
                 {
