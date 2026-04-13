@@ -876,7 +876,7 @@ struct __final_pos_setter</*_Bounded*/false>
 
     template <typename _ProcessedInfo>
     void
-    opt_call_set_final_pos(_ProcessedInfo&, std::size_t, std::size_t)
+    __set_final_pos_if_changed(_ProcessedInfo&, std::size_t, std::size_t)
     {
     }
 };
@@ -888,7 +888,7 @@ struct __final_pos_setter</*_Bounded*/ true>
 
     template <typename _ProcessedInfo>
     void
-    opt_call_set_final_pos(_ProcessedInfo& __processed_info, std::size_t __new_idx1, std::size_t __new_idx2)
+    __set_final_pos_if_changed(_ProcessedInfo& __processed_info, std::size_t __new_idx1, std::size_t __new_idx2)
     {
         if (__new_idx1 != __idx1 || __new_idx2 != __idx2)
         {
@@ -945,7 +945,7 @@ struct __set_generic_operation
                     __proj1, __proj2);
             }
 
-            __fp_setter.opt_call_set_final_pos(__processed_info, __idx1, __idx2);
+            __fp_setter.__set_final_pos_if_changed(__processed_info, __idx1, __idx2);
         }
 
         return __count;
