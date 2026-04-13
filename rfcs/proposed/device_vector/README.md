@@ -42,7 +42,7 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 ### 2. Boost.Compute
 
 [Boost.Compute](https://github.com/boostorg/compute/blob/master/include/boost/compute/container/vector.hpp)
-(`boost::compute::vector`) is an OpenCL-based device vector built on `cl::Buffer`.
+(`boost::compute::vector`) is another variant, which is further removed from the rest, it is a OpenCL-based device vector built on `cl::Buffer`.
 Its most relevant design choice is **explicit queue association**: constructors and
 operations accept a `command_queue` parameter, making the queue relationship clear
 rather than relying on a global default. This is the closest existing precedent
