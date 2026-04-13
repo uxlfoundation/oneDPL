@@ -280,22 +280,48 @@ The general advice is to choose kernel parameters based on performance measureme
 The initial configuration may be selected according to these high-level guidelines:
 
 - When the number of elements to sort ``N`` is small (e.g., less than ~1M), utilizing all available
-  compute cores is key for better performance. Allow creating enough work chunks to feed all
-  X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
+  compute cores may improve performance. Experiment with creating enough work chunks to feed all
+  X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``
+  in addition to the next configuration which maximizes data per work-group. The optimal settings may differ between
+  hardware depending on the cost of inter-work group synchronization.
 
 - When the number of elements to sort is large (e.g., more than ~1M), maximizing the number of elements
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
+Sample Parameters
+-----------------
+
+The following table provides starting points for ``param.data_per_workitem`` and ``param.workgroup_size``
+for large input sizes. This configuration performs well when sorting 2\ :sup:`28` ``std::uint32_t`` input
+elements uniformly distributed over the range [0, UINT32_MAX]:
+
++---------------------------+----------------------------+----------------------------+
+| Platform                  | ``data_per_workitem``      | ``workgroup_size``         |
++===========================+============================+============================+
+| Intel Data Center GPU Max | 22                         | 512                        |
++---------------------------+----------------------------+----------------------------+
+| Intel Arc B-Series        | 10                         | 512                        |
++---------------------------+----------------------------+----------------------------+
+
+.. note::
+
+   Optimal parameters may differ by the data type and the entropy of the underlying data.
+   Furthermore, smaller input sizes may perform better with smaller ``param.data_per_workitem`` values or a different
+   ``param.workgroup_size``.
+
 .. warning::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
+   A good starting reference is to avoid using ``param.data_per_workitem`` values beyond those listed in the sample
+   parameters table above.
 
 .. warning::
 
-   Maximizing ``param.data_per_workitem`` generally improves performance as long as private memory usage does not exceed available register capacity.
-   Large performance drops with an increase to ``param.data_per_workitem`` are indicative of register spillage and profiling tools may be used to analyze this behavior.
+   Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does not
+   exceed available register capacity. Large performance drops with an increase to ``param.data_per_workitem`` are
+   indicative of register spillage and profiling tools may be used to analyze this behavior.
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
 .. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
