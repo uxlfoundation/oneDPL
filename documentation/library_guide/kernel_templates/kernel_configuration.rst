@@ -58,7 +58,7 @@ The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantl
   implicitly vectorized by the compiler.
 
 - ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. Work-items corresponding
-  to the same hardware thread are grouped into a sub-group which executes in lockstep.
+  to the same hardware thread are grouped into a sub-group.
 
 .. note::
 

@@ -5,7 +5,8 @@ The SYCL kernel templates are based on the SYCL 2020 programming model of |dpcpp
 Kernel templates may impose restrictions on supported devices or adapters which are documented in their
 respective sections.
 
-These templates are available in the ``oneapi::dpl::experimental::kt::gpu`` namespace. The following are implemented:
+The following templates are available in the ``oneapi::dpl::experimental::kt::gpu`` namespace,
+with the implementation optimized for GPU devices:
 
 * :doc:`radix_sort <sycl/radix_sort>`
 * :doc:`radix_sort_by_key <sycl/radix_sort_by_key>`

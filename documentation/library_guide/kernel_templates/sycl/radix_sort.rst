@@ -50,7 +50,7 @@ A synopsis of the ``radix_sort`` function is provided below:
    ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
    The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 compiler or greater is required, and the Unified Runtime adapter over
    Level-Zero must be used. This is the default adapter for Intel GPUs. For more information, please refer to
-   `Device Selection
+   `DPC++ Device Selection
    <https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2025-1/device-selection.html>`_.
 
 Template Parameters
