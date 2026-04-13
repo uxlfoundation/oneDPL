@@ -1287,8 +1287,9 @@ struct __remove_copy_if_fn
     std::ranges::remove_copy_if_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Pred __pred, _Proj __proj = {}) const
     {
-        return oneapi::dpl::ranges::copy_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            std::forward<_OutR>(__out_r), oneapi::dpl::__internal::__not_pred<
+        return oneapi::dpl::ranges::copy_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
+            oneapi::dpl::__internal::__not_pred<
                 oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred), __proj);
     }
 }; //__remove_copy_if_fn
@@ -1308,8 +1309,9 @@ struct __remove_copy_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, const _T& __value, _Proj __proj = {}) const
     {
         // TODO: make sure std::ranges::equal_to is used for comparison
-        return oneapi::dpl::ranges::copy_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            std::forward<_OutR>(__out_r), oneapi::dpl::__internal::__not_equal_value<
+        return oneapi::dpl::ranges::copy_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
+            oneapi::dpl::__internal::__not_equal_value<
                 oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>(__value), __proj);
     }
 }; //__remove_copy_fn
