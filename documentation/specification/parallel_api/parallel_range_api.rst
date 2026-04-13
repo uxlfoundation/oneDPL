@@ -43,8 +43,8 @@ The following differences to the standard serial C++ range algorithms apply:
   `P3709R2 <https://isocpp.org/files/papers/P3709R2.html>`_.
 - The return type of ``set_difference`` is ``std::ranges::in_in_out_result`` rather than
   ``std::ranges::set_difference_result``.
-- ``set_intersection`` might return the "last" iterator for only one, and not necessarily both, of the input ranges
-  (see below for more information).
+- ``set_intersection`` is not required to return the "last" iterator for its input range if the algorithm
+  does not reach the end of that range (see below for details).
 - ``destroy`` is not marked with ``noexcept``.
 
 Auxiliary Definitions
@@ -931,10 +931,11 @@ Set operations
    Unlike the respective serial algorithm in ``std::ranges``, ``set_intersection`` does not guarantee to return
    iterators to the ends of both ``r1`` and ``r2``, even if there is enough space in ``result``.
 
-   The returned values are as if they were obtained by a serial algorithm that iterates over both ranges
-   comparing their elements according to ``comp``, ``proj1``, and ``proj2``, advancing the iterator that pointed
-   to the element ordered before the other one, advancing both iterators if neither of the elements is ordered before
-   the other, and stopping when any or both of the iterators reach the end of the respective ranges.
+   The returned values are as if they were obtained by a serial algorithm that iterates over both ranges and
+   - determines a relative order of two elements according to ``comp``, ``proj1``, and ``proj2``,
+   - advances the iterator pointing to the element ordered before the other one,
+   - advances both iterators if neither of the elements is ordered before the other, and
+   - stops when any or both of the iterators reach the end of the respective ranges.
    
    The same semantics applies to ``set_difference``, except that the algorithm stops when reaching the end of ``r1``.
 
