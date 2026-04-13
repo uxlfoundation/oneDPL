@@ -93,25 +93,29 @@ memory semantics.
    This matches semantics of all pre-existing implementations other than SYCLomatic
    where the runtime handles where memory lives. Shared memory has significantly
    worse performance than device memory, and if users want those semantics, they
-   can directly use usm shared memory or sycl buffers. Considering the existing
-   semantics of other offerings, let us define our device_vector to match; data
-   lives on the device and can be accessed on host slowly.
+   can directly use usm shared memory or sycl buffers.
 
 - **Use USM, no support for buffer-backed device_vector**
-  As mentioned above buffers provide an alternative but similar semantic. As learned
-  in the experience with SYCLomatic, offering device_vector functionality with
-  sycl buffer backing is awkward and breaks our decision to have the data live
-  on the device. If users want a device_vector, they need USM support.
+  As mentioned above, buffers provide an alternative but similar semantic to
+  `device_vector`. We learned from the SYCLomatic implementation that offering
+  `device_vector` functionality with sycl buffer backing is awkward and breaks
+  our decision to have the data live on the device. If users want a device_vector,
+  they need USM support.
 
 - **Type T should only require device copyability**
   We should not need anything except device copyability (for copy to and from
   the device).
 
 - **We don't need a tag system for dispatch to specific hardware**
-  Execution policies dictate where algorithms are run. We don't intend to provide other flavors of vector / iterator which would have different tags, so this doesn't make much sense.
+  Execution policies dictate where algorithms are run. We don't intend to
+  provide other flavors of vector / iterator which would have different tags,
+  which would be required to dispatch based upon tag.
 
-- **device_pointer should be [device copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable) and indirectly device accessible and usable with good performance on the device**
-  The intent is for these to be directly usable in kernels / oneDPL algorithms so this is required.
+- **device_pointer should be [device copyable](https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable), indirectly device accessible and usable with good performance on the device**
+  The intent is for these to be directly usable in sycl kernels and oneDPL algorithms.
+  Ideally, no hard coded support will be required for `device_vector` within oneDPL's
+  input processing code. The indirectly device accessible trait should provide everything
+  we need here, including for it to be composable with custom iterator adapters.
 
 - **`device_reference` supports all compound assignment and increment/decrement operators**
   Following Thrust's convention, `device_reference<T>` will support all compound
