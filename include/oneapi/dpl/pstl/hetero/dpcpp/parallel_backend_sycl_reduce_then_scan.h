@@ -639,7 +639,8 @@ class _SetOpSourceDataPackUnpack
     static auto
     __unpack(const _InRngTuple& __tuple)
     {
-        if constexpr (!_Bounded)
+        // KSATODO required to think is it all really required or should be deleted
+        //if constexpr (!_Bounded)
         {
             return _UnpackedSourceZippedRangesUnbounded{
                 std::get<0>(__tuple), // first sequence
@@ -647,35 +648,35 @@ class _SetOpSourceDataPackUnpack
                 std::get<2>(__tuple)  // temp diag sequence
             };
         }
-        else
-        {
-            using _PackedRange1 = std::decay_t<decltype(std::get<0>(__tuple))>;
-
-            using _PackedRange1Tuple = decltype(std::declval<_PackedRange1>().base());
-            using _PackedRange2 = std::decay_t<decltype(std::get<1>(__tuple))>;
-
-            using _PackedRange2Tuple = decltype(std::declval<_PackedRange2>().base());
-
-            using _RngDiags = std::decay_t<decltype(std::get<2>(__tuple))>;
-
-            auto __internal_tuple1 = std::get<0>(__tuple).base();
-            static_assert(std::is_same_v<_PackedRange1Tuple, decltype(__internal_tuple1)>, "Unexpected type for unpacked range 1 tuple");
-
-            auto __rng1 = std::get<0>(__internal_tuple1); // first sequence
-
-            auto __internal_tuple2 = std::get<1>(__tuple).base();
-            static_assert(std::is_same_v<_PackedRange2Tuple, decltype(__internal_tuple2)>, "Unexpected type for unpacked range 2 tuple");
-
-            auto __rng2 = std::get<0>(__internal_tuple2); // second sequence
-
-            return _UnpackedSourceZippedRangesBounded<
-                _PackedRange1Tuple, _PackedRange2Tuple,
-                decltype(__rng1), decltype(__rng2), _RngDiags>{
-                {__rng1, __rng2, std::get<2>(__tuple)},
-                __internal_tuple1,
-                __internal_tuple2,
-            };
-        }
+        //else
+        //{
+        //    using _PackedRange1 = std::decay_t<decltype(std::get<0>(__tuple))>;
+        //
+        //    using _PackedRange1Tuple = decltype(std::declval<_PackedRange1>().base());
+        //    using _PackedRange2 = std::decay_t<decltype(std::get<1>(__tuple))>;
+        //
+        //    using _PackedRange2Tuple = decltype(std::declval<_PackedRange2>().base());
+        //
+        //    using _RngDiags = std::decay_t<decltype(std::get<2>(__tuple))>;
+        //
+        //    auto __internal_tuple1 = std::get<0>(__tuple).base();
+        //    static_assert(std::is_same_v<_PackedRange1Tuple, decltype(__internal_tuple1)>, "Unexpected type for unpacked range 1 tuple");
+        //
+        //    auto __rng1 = std::get<0>(__internal_tuple1); // first sequence
+        //
+        //    auto __internal_tuple2 = std::get<1>(__tuple).base();
+        //    static_assert(std::is_same_v<_PackedRange2Tuple, decltype(__internal_tuple2)>, "Unexpected type for unpacked range 2 tuple");
+        //
+        //    auto __rng2 = std::get<0>(__internal_tuple2); // second sequence
+        //
+        //    return _UnpackedSourceZippedRangesBounded<
+        //        _PackedRange1Tuple, _PackedRange2Tuple,
+        //        decltype(__rng1), decltype(__rng2), _RngDiags>{
+        //        {__rng1, __rng2, std::get<2>(__tuple)},
+        //        __internal_tuple1,
+        //        __internal_tuple2,
+        //    };
+        //}
     }
 
   protected:
@@ -684,21 +685,22 @@ class _SetOpSourceDataPackUnpack
     static decltype(auto)
     __create_src_data_view(_Range&& __rng)
     {
-        if constexpr (!_Bounded)
+        // KSATODO required to think is it all really required or should be deleted
+        //if constexpr (!_Bounded)
         {
             return std::forward<_Range>(__rng);
         }
-        else
-        {
-            using _Index = oneapi::dpl::__internal::__difference_t<_Range>;
-            using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
-
-            return oneapi::dpl::__ranges::make_zip_view(
-                std::forward<_Range>(__rng),
-                oneapi::dpl::__ranges::guard_view<_CountingIterator>(
-                    _CountingIterator(0),
-                    oneapi::dpl::__ranges::__size(__rng)));
-        }
+        //else
+        //{
+        //    using _Index = oneapi::dpl::__internal::__difference_t<_Range>;
+        //    using _CountingIterator = oneapi::dpl::counting_iterator<_Index>;
+        //
+        //    return oneapi::dpl::__ranges::make_zip_view(
+        //        std::forward<_Range>(__rng),
+        //        oneapi::dpl::__ranges::guard_view<_CountingIterator>(
+        //            _CountingIterator(0),
+        //            oneapi::dpl::__ranges::__size(__rng)));
+        //}
     }
 };
 
