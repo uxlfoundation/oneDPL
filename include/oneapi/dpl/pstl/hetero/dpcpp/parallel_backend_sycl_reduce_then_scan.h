@@ -916,8 +916,6 @@ struct __set_generic_operation
                _TempOutput& __temp_out, _ProcessedInfo& __processed_info,
                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
-        using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
-
         std::uint16_t __count = 0;
         _SizeType __idx = 0;
         const bool __can_reach_rng1_end = __idx1 + __num_eles_min >= oneapi::dpl::__ranges::__size(__in_rng1);
