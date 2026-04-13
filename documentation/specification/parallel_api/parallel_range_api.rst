@@ -932,6 +932,7 @@ Set operations
    iterators to the ends of both ``r1`` and ``r2``, even if there is enough space in ``result``.
 
    The returned values are as if they were obtained by a serial algorithm that iterates over both ranges and
+   
    - determines a relative order of two elements according to ``comp``, ``proj1``, and ``proj2``,
    - advances the iterator pointing to the element ordered before the other one,
    - advances both iterators if neither of the elements is ordered before the other, and
