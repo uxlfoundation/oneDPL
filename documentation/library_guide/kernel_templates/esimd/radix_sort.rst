@@ -237,11 +237,10 @@ The amount used depends on many parameters; below is an upper bound approximatio
 
 where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
-The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
-For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `64`, and ``RadixBits`` to `8`,
+The value of `C` depends on ``param.data_per_workitem`` and ``param.workgroup_size``.
+For ``param.data_per_workitem`` set to `32` and ``param.workgroup_size`` to `64`,
 `C` approximately equals to `1`.
-Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
-``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
+Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
 .. note::
 

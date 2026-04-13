@@ -234,11 +234,10 @@ The amount used depends on many parameters; below is an upper bound approximatio
 
 where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
-The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
-For ``param.data_per_workitem`` set to `10`, ``param.workgroup_size`` to `512`, and ``RadixBits`` to `8`,
+The value of `C` depends on ``param.data_per_workitem`` and ``param.workgroup_size``.
+For ``param.data_per_workitem`` set to `10` and ``param.workgroup_size`` to `512`,
 `C` is typically less than `1`.
-Incrementing ``RadixBits`` increases `C` up to twice, while doubling either
-``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
+Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
 ..
    The estimation above is not very precise and it seems it is not necessary for the global memory.
@@ -296,7 +295,7 @@ The initial configuration may be selected according to these high-level guidelin
 .. warning::
 
    Maximizing ``param.data_per_workitem`` generally improves performance as long as private memory usage does not exceed available register capacity.
-   Large performance drops with an increase to ``param.data_per_workitem`` is indicative of register spillage and profiling tools may be used to analyze this behavior.
+   Large performance drops with an increase to ``param.data_per_workitem`` are indicative of register spillage and profiling tools may be used to analyze this behavior.
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
 .. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
