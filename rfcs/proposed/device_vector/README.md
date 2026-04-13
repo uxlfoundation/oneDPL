@@ -33,52 +33,13 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 
 | Aspect | Thrust | SYCLomatic | Distributed Ranges | Boost.Compute | Proposed (oneDPL) |
 |---|---|---|---|---|---|
-| **Language/Runtime** | CUDA | SYCL (via DPC++) | SYCL (via DPC++) | OpenCL | SYCL (via DPC++) |
-| **Inheritance** | Inherits `detail::vector_base<T,Alloc>` (all logic in base) | Standalone class (no inheritance) | Inherits `dr::sp::vector<T,Alloc>` (thin wrapper) | Standalone class | Standalone class (no inheritance) |
 | **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `buffer_allocator<T>` (OpenCL buffers) | N/A; Always uses `sycl::malloc_device` directly |
-| **Memory Model** | **Device memory** -- data lives on device; host access triggers explicit transfers | **Shared/managed memory** -- runtime manages data placement and host-device migration (both USM shared mode and buffer mode) | **Device memory** -- data lives on device; host access triggers explicit transfers | **Device memory** -- data lives in OpenCL buffer; host access via buffer map/unmap | **Device memory** -- data lives on device; host access triggers explicit transfers |
-| **Backing Mechanism** | CUDA device memory (`cudaMalloc`) | USM `sycl::usm::alloc::shared` OR SYCL buffer/accessor (compile-time `#ifdef DPCT_USM_LEVEL_NONE`) | USM device (`sycl::malloc_device`) | OpenCL `cl::Buffer` | USM device (`sycl::malloc_device`) |
+| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via OpenCL `cl::Buffer`; host access via buffer map/unmap | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
 | **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `buffer_value<T>` proxy (OpenCL buffer read/write commands) | Via `device_reference` proxy (explicit device-to-host copy) |
 | **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | No direct interop | Explicit constructor + `operator std::vector()` |
 | **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No | see [open question](#open-questions) |
 | **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `command_queue` parameter on constructors and operations | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
-| **Backend Dispatch** | Tag-based (`device_system_tag`) | Execution policy-based (oneDPL) | Direct SYCL calls | Direct OpenCL calls | Execution policy-based (oneDPL) |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | see [open question](#open-questions) |
-
-### 2. Key Helper Types
-
-#### Proxy Reference
-
-Every implementation needs a proxy reference type to mediate host-side
-access to elements that live in device memory. Thrust provides the most
-full-featured version: `device_reference<T>` inherits a CRTP base and
-supports all compound assignment and increment/decrement operators, making
-it behave as close to a real `T&` as possible. SYCLomatic takes a similar
-approach with its own `device_reference<T>`. Distributed Ranges goes
-minimal -- `device_ref<T>` only provides `operator T()` and `operator=`,
-with no compound assignment, and constrains `T` to trivially copyable
-types. Boost.Compute's `buffer_value<T>` is comparable, proxying reads
-and writes through OpenCL buffer commands.
-
-#### Device Pointer
-
-A device pointer wraps a raw device-side `T*` and provides pointer
-semantics on the host. Thrust's `device_ptr<T>` inherits a CRTP pointer
-base, carries a `device_system_tag` for backend dispatch, and offers a
-`device_pointer_cast()` factory. SYCLomatic has a standalone
-`device_pointer<T>`. Distributed Ranges uses `device_ptr<T>` which wraps
-a raw pointer with a `get_raw_pointer()` accessor, again constrained to
-trivially copyable types. Boost.Compute has no separate device pointer
-type -- its `buffer_iterator` fills both roles.
-
-#### Device Iterator
-
-The device iterator is what algorithms operate on. In Thrust and
-Distributed Ranges, the device pointer *is* the iterator -- `device_ptr`
-models random access iterator directly, so no separate type is needed.
-SYCLomatic introduces a distinct `device_iterator<T>` class. Boost.Compute
-uses `buffer_iterator<T>`, a random access iterator that wraps a buffer
-plus an index offset.
 
 ## Proposal
 
@@ -261,13 +222,17 @@ std::vector<float> result = static_cast<std::vector<float>>(d_vec2);
 
 ### Helper Types
 
-A `device_vector` requires several supporting types (see comparison above):
+A `device_vector` requires two supporting types:
 
 - **`device_pointer<T>`** -- wraps a raw device pointer; models random
   access iterator; dereference returns `device_reference<T>`.
 - **`device_reference<T>`** -- proxy reference for host-side element
   access; reads/writes trigger synchronous `memcpy` on the host path,
-  direct dereference on the device path.
+  direct dereference on the device path. Existing implementations range
+  from full-featured (Thrust: all compound assignment and
+  increment/decrement operators) to minimal (Distributed Ranges: only
+  `operator T()` and `operator=`). Our proposal follows Thrust's
+  full-featured approach (see design decisions above).
 
 ## Open Questions
 
