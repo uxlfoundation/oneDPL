@@ -197,9 +197,9 @@ public:
 sycl::queue q;
 oneapi::dpl::experimental::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
 
-// Fill from host data
+// Fill from host data (interop constructor)
 std::vector<float> host_data(1024, 3.14f);
-oneapi::dpl::experimental::device_vector<float> d_vec2(host_data.begin(), host_data.end(), q);
+oneapi::dpl::experimental::device_vector<float> d_vec2(host_data, q);
 
 // Use with oneDPL algorithms -- iterators work directly
 auto policy = oneapi::dpl::execution::make_device_policy(q);
@@ -210,14 +210,22 @@ float val = d_vec2[0];       // device-to-host transfer
 d_vec2[0] = 42.0f;           // host-to-device transfer
 
 // Extract raw pointer for use in SYCL kernels
-oneapi::dpl::experimental::device_pointer<float> raw = d_vec2.data();  // begin() would work the same
+oneapi::dpl::experimental::device_pointer<float> d_ptr = d_vec2.data();
+
+// device_pointer or possibly device_iterator (see open question)
+auto d_iter = d_vec.begin();
 q.parallel_for(sycl::range<1>(1024), [=](sycl::id<1> i) {
-    raw[i] *= 2.0f;
-    
+    // Device-side side access (direct USM pointer dereference, fast)
+    d_ptr[i] *= 2.0f;
+    d_iter[i] += 3.0f;
 }).wait();
 
 // Copy back to host
 std::vector<float> result = static_cast<std::vector<float>>(d_vec2);
+
+// Read the element at d_vec[5] on the host
+d_iter += 5;
+std::cout << *d_iter;
 ```
 
 ### Helper Types
