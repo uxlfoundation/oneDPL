@@ -1535,7 +1535,6 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                                                     __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
     template <bool __use_subgroup_ops, typename _TmpAcc, typename _InRng>
     void
@@ -1699,7 +1698,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
-    static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
     template <typename _TmpAcc>
     _InitValueType
