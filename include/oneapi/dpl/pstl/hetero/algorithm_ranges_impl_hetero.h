@@ -1038,15 +1038,12 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     const auto __first2 = std::ranges::begin(__r2);
     const auto __result = std::ranges::begin(__out_r);
 
-    const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
-    const auto __n_out = oneapi::dpl::__ranges::__size(__out_r);
-
-    if ((__n1 == 0 && __n2 == 0) || __n_out == 0)
+    if ((oneapi::dpl::__ranges::__empty(__r1) && oneapi::dpl::__ranges::__empty(__r2)) ||
+        oneapi::dpl::__ranges::__empty(__out_r))
         return {__first1, __first2, __result};
 
     //{1} is empty
-    if (__n1 == 0)
+    if (oneapi::dpl::__ranges::__empty(__r1))
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
@@ -1060,7 +1057,7 @@ __pattern_set_union(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
     }
 
     //{2} is empty
-    if (__n2 == 0)
+    if (oneapi::dpl::__ranges::__empty(__r2))
     {
         const auto __idx = oneapi::dpl::__internal::__ranges::__pattern_walk_n(
             __tag,
