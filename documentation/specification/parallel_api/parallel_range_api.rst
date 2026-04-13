@@ -41,6 +41,10 @@ The following differences to the standard serial C++ range algorithms apply:
   rather than ``std::ranges::reverse_copy_result`` and ``std::ranges::rotate_copy_result``, respectively.
   The semantics of the returned value are as specified in
   `P3709R2 <https://isocpp.org/files/papers/P3709R2.html>`_.
+- The return type of ``set_difference`` is ``std::ranges::in_in_out_result`` rather than
+  ``std::ranges::set_difference_result``.
+- ``set_intersection`` is not required to return the "last" iterator for its input range if the algorithm
+  does not reach the end of that range (see below for details).
 - ``destroy`` is not marked with ``noexcept``.
 
 Auxiliary Definitions
@@ -899,8 +903,9 @@ Set operations
                std::ranges::sized_range<OutR> &&
                std::mergeable<std::ranges::iterator_t<R1>, std::ranges::iterator_t<R2>,
                               std::ranges::iterator_t<OutR>, Comp, Proj1, Proj2>
-      std::ranges::set_difference_result<std::ranges::borrowed_iterator_t<R1>,
-                                         std::ranges::borrowed_iterator_t<OutR>>
+      std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<R1>,
+                                    std::ranges::borrowed_iterator_t<R2>,
+                                    std::ranges::borrowed_iterator_t<OutR>>
         set_difference (ExecutionPolicy&& pol, R1&& r1, R2&& r2, OutR&& result, Comp comp = {},
                         Proj1 proj1 = {}, Proj2 proj2 = {});
 
@@ -921,6 +926,19 @@ Set operations
                                  Comp comp = {}, Proj1 proj1 = {}, Proj2 proj2 = {});
 
   }
+
+.. note::
+   Unlike the respective serial algorithm in ``std::ranges``, ``set_intersection`` does not guarantee to return
+   iterators to the ends of both ``r1`` and ``r2``, even if there is enough space in ``result``.
+
+   The returned values are as if they were obtained by a serial algorithm that iterates over both ranges and
+   
+   - determines a relative order of two elements according to ``comp``, ``proj1``, and ``proj2``,
+   - advances the iterator pointing to the element ordered before the other one,
+   - advances both iterators if neither of the elements is ordered before the other, and
+   - stops when any or both of the iterators reach the end of the respective ranges.
+   
+   The same semantics applies to ``set_difference``, except that the algorithm stops when reaching the end of ``r1``.
 
 Partition operations
 ++++++++++++++++++++
