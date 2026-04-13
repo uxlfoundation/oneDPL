@@ -31,19 +31,19 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 
 ### 1. How They Differ
 
-| Aspect | Thrust | SYCLomatic | Distributed Ranges | Boost.Compute |
-|---|---|---|---|---|
-| **Language/Runtime** | CUDA | SYCL (via DPC++) | SYCL (via DPC++) | OpenCL |
-| **Inheritance** | Inherits `detail::vector_base<T,Alloc>` (all logic in base) | Standalone class (no inheritance) | Inherits `dr::sp::vector<T,Alloc>` (thin wrapper) | Standalone class |
-| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `buffer_allocator<T>` (OpenCL buffers) |
-| **Memory Model** | **Device memory** -- data lives on device; host access triggers explicit transfers | **Shared/managed memory** -- runtime manages data placement and host-device migration (both USM shared mode and buffer mode) | **Device memory** -- data lives on device; host access triggers explicit transfers | **Device memory** -- data lives in OpenCL buffer; host access via buffer map/unmap |
-| **Backing Mechanism** | CUDA device memory (`cudaMalloc`) | USM `sycl::usm::alloc::shared` OR SYCL buffer/accessor (compile-time `#ifdef DPCT_USM_LEVEL_NONE`) | USM device (`sycl::malloc_device`) | OpenCL `cl::Buffer` |
-| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `buffer_value<T>` proxy (OpenCL buffer read/write commands) |
-| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | No direct interop |
-| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `command_queue` parameter on constructors and operations |
-| **Backend Dispatch** | Tag-based (`device_system_tag`) | Execution policy-based (oneDPL) | Direct SYCL calls | Direct OpenCL calls |
-| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported |
+| Aspect | Thrust | SYCLomatic | Distributed Ranges | Boost.Compute | Proposed (oneDPL) |
+|---|---|---|---|---|---|
+| **Language/Runtime** | CUDA | SYCL (via DPC++) | SYCL (via DPC++) | OpenCL | SYCL (via DPC++) |
+| **Inheritance** | Inherits `detail::vector_base<T,Alloc>` (all logic in base) | Standalone class (no inheritance) | Inherits `dr::sp::vector<T,Alloc>` (thin wrapper) | Standalone class | Standalone class (no inheritance) |
+| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `buffer_allocator<T>` (OpenCL buffers) | N/A; Always uses `sycl::malloc_device` directly |
+| **Memory Model** | **Device memory** -- data lives on device; host access triggers explicit transfers | **Shared/managed memory** -- runtime manages data placement and host-device migration (both USM shared mode and buffer mode) | **Device memory** -- data lives on device; host access triggers explicit transfers | **Device memory** -- data lives in OpenCL buffer; host access via buffer map/unmap | **Device memory** -- data lives on device; host access triggers explicit transfers |
+| **Backing Mechanism** | CUDA device memory (`cudaMalloc`) | USM `sycl::usm::alloc::shared` OR SYCL buffer/accessor (compile-time `#ifdef DPCT_USM_LEVEL_NONE`) | USM device (`sycl::malloc_device`) | OpenCL `cl::Buffer` | USM device (`sycl::malloc_device`) |
+| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `buffer_value<T>` proxy (OpenCL buffer read/write commands) | Via `device_reference` proxy (explicit device-to-host copy) |
+| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | No direct interop | Explicit constructor + `operator std::vector()` |
+| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No | see [open question](#open-questions) |
+| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `command_queue` parameter on constructors and operations | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
+| **Backend Dispatch** | Tag-based (`device_system_tag`) | Execution policy-based (oneDPL) | Direct SYCL calls | Direct OpenCL calls | Execution policy-based (oneDPL) |
+| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | see [open question](#open-questions) |
 
 ### 2. Key Helper Types
 
@@ -301,6 +301,12 @@ A `device_vector` requires several supporting types (see comparison above):
   parameter on constructors is the closest precedent for queue association.
   CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
   global function that doesn't require a queue object.
+
+- **Should we support uninitialized / default-initialized construction?**
+  Thrust provides `default_init_t` and `no_init_t` tags that let users skip
+  value-initialization when constructing a `device_vector`.  No other existing
+  implementation supports this. It fits nicely with uninitialized_* APIs.
+  Should we support similar tags?
 
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
