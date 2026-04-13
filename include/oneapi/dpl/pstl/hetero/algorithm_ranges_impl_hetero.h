@@ -1124,7 +1124,6 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
     const auto __result = std::ranges::begin(__out_r);
 
     const auto __n1 = oneapi::dpl::__ranges::__size(__r1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__r2);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
