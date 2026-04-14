@@ -47,25 +47,24 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
-template <bool _Bounded, std::uint16_t elements, typename _ValueT, typename... _Sizes>
+// Temporary data structure which is used to store results to registers during a reduce then scan operation.
+template <bool _CaptureIndexes, std::uint16_t elements, typename _ValueT, typename... _Sizes>
 struct __temp_data_array;
-
-template <typename... _Sizes>
-struct __processed_info;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
-struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
+struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>
 {
+    static constexpr bool _CaptureIndexes = false;
     using _ValueType = _ValueT;
 
-    using _TupleOfSizes = std::tuple<_Sizes...>;
+    using _TupleOfIndexes = std::tuple<_Sizes...>;
 
-    template <typename _ValueArg>
+    template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes&)
+    set(std::uint16_t __idx, _ValueT2&& __ele)
     {
-        __data[__idx].__setup(std::forward<_ValueArg>(__value));
+        __data[__idx].__setup(std::forward<_ValueT2>(__ele));
     }
 
     _ValueT
@@ -74,7 +73,7 @@ struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return std::move(__data[__idx].__v);
+        return __data[__idx].__v;
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
@@ -82,31 +81,33 @@ struct __temp_data_array</*_Bounded*/ false, elements, _ValueT, _Sizes...>
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
-struct __temp_data_array</*_Bounded*/ true, elements, _ValueT, _Sizes...>
+struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
 {
+    static constexpr bool _CaptureIndexes = true;
     using _ValueType = _ValueT;
 
-    using _TupleOfSizes = std::tuple<_Sizes...>;
+    using _TupleOfIndexes = std::tuple<_Sizes...>;
 
-    template <typename _ValueArg>
+    template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, _ValueArg&& __value, const _TupleOfSizes& __pos)
+    set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
     {
-        __data[__idx].__setup(std::forward<_ValueArg>(__value));
-        __indexes[__idx] = __pos;
+        __data[__idx].__setup(std::forward<_ValueT2>(__ele));
+
+        __src_indexes[__idx] = __indexes;
     }
 
-    std::tuple<_ValueT, _TupleOfSizes>
+    _ValueT
     get_and_destroy(std::uint16_t __idx)
     {
         // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
         // it leaves scope.
         oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return {std::move(__data[__idx].__v), __indexes[__idx]};
+        return __data[__idx].__v;
     }
 
     oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
-    std::array<_TupleOfSizes, elements> __indexes;
+    _TupleOfIndexes* __src_indexes = nullptr;
 };
 
 template <typename... _Sizes>
@@ -126,17 +127,28 @@ struct __processed_info
         return __final_pos;
     }
 
-    void
-    set_oob_pos(const _TupleOfSizes& __pos)
+    void set_oob_reached()
     {
-        __oob_pos_opt = __pos;
+        __oob_reached = true;
     }
 
     bool
-    get_oob_pos(_TupleOfSizes& __pos) const
+    get_oob_reached() const
     {
-        __pos = __oob_pos_opt.value_or(__pos);
-        return __oob_pos_opt.has_value();
+        return __oob_reached;
+    }
+
+    void
+    set_oob_source_pos(const _TupleOfSizes& __pos)
+    {
+        __oob_source_pos = __pos;
+    }
+
+    bool
+    get_oob_source_pos(_TupleOfSizes& __pos) const
+    {
+        __pos = __oob_source_pos;
+        return __oob_reached;
     }
 
     // We should call this operation without any runtime condition checks to avoid deadlocks
@@ -188,8 +200,10 @@ protected :
 
   protected:
 
-    _TupleOfSizes __final_pos = {};             // Final position state
-    std::optional<_TupleOfSizes> __oob_pos_opt; // First OOB position state
+    _TupleOfSizes __final_pos = {};         // Final position state
+
+    bool __oob_reached = false;             // Whether an OOB position was reached
+    _TupleOfSizes __oob_source_pos = {};    // First OOB position state
 };
 
 struct __noop_processed_info
@@ -200,9 +214,14 @@ struct __noop_processed_info
     {
     }
 
+    void
+    set_oob_reached()
+    {
+    }
+
     template <typename... _Sizes>
     void
-    set_oob_pos(const std::tuple<_Sizes...>&)
+    set_oob_source_pos(const std::tuple<_Sizes...>&)
     {
     }
 };
@@ -211,12 +230,45 @@ struct __noop_processed_info
 // where no temporary register data is needed within reduce then scan kern
 struct __noop_temp_data
 {
-    template <typename _ValueArg, typename... _Sizes>
+    static constexpr bool _CaptureIndexes = false;
+
+    template <typename _ValueArg>
     void
-    set(std::uint16_t, _ValueArg&&, const std::tuple<_Sizes...>&)
+    set(std::uint16_t, _ValueArg&&)
     {
     }
 };
+
+template <typename _OutputRng>
+struct __noop_output_range
+{
+    using value_type = oneapi::dpl::__internal::__value_t<_OutputRng>;
+    using difference_type = oneapi::dpl::__internal::__difference_t<_OutputRng>;
+
+    explicit __noop_output_range(_OutputRng __rng) : __rng(std::move(__rng)) {}
+
+    auto
+    size() const
+    {
+        return oneapi::dpl::__ranges::__size(__rng);
+    }
+
+    value_type&
+    operator[](difference_type) const
+    {
+        return __sink;
+    }
+
+    _OutputRng __rng;
+    mutable value_type __sink{};
+};
+
+template <typename _Rng>
+auto
+__make_noop_output_range(_Rng&& __rng)
+{
+    return __noop_output_range<std::decay_t<_Rng>>{std::forward<_Rng>(__rng)};
+}
 
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
@@ -244,21 +296,19 @@ struct __get_zeroth_element
 // *** Write Operations ***
 
 
-template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner>
-bool
-__write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign)
+template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner, typename _ProcessedInfo>
+std::enable_if_t<_Bounded, bool>
+__write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign,
+                     _ProcessedInfo& __processed_info)
 {
-    if constexpr (!_Bounded)
+    if (__out_idx < oneapi::dpl::__ranges::__size(__out_rng))
     {
         __assign();
         return true;
     }
-    else
-    {
-        const bool __result = __out_idx < oneapi::dpl::__ranges::__size(__out_rng);
-        __result ? __assign() : void();
-        return __result;
-    }
+
+    __processed_info.set_oob_reached();
+    return false;
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
@@ -269,8 +319,23 @@ struct __simple_write_to_id
     using _ProcessedInfo = __noop_processed_info;
 
     template <bool _Bounded, typename _OutRng, typename _ValueType>
-    bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
+
+        return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -279,7 +344,8 @@ struct __simple_write_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
-        return __write_if_in_bounds<_Bounded>(__out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); });
+        return __write_if_in_bounds<_Bounded>(
+            __out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); }, __processed_info);
     }
 };
 
@@ -293,8 +359,24 @@ struct __write_to_id_if
     using _ProcessedInfo = __noop_processed_info;
 
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
-    bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        if (std::get<1>(__v))
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
+
+        return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -303,9 +385,13 @@ struct __write_to_id_if
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
-        return !std::get<1>(__v) ||
-               __write_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1 + __offset,
-                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]); });
+        return !std::get<1>(__v) || __write_if_in_bounds<_Bounded>(
+                                        __out_rng, std::get<0>(__v) - 1 + __offset,
+                                        [&]() {
+                                            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                                                     __out_rng[std::get<0>(__v) - 1 + __offset]);
+                                        },
+                                        __processed_info);
     }
 
     _Assign __assign;
@@ -321,8 +407,27 @@ struct __write_to_id_if_else
     using _ProcessedInfo = __noop_processed_info;
 
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
-    bool
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        if (std::get<1>(__v))
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+        else
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+
+        return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -331,11 +436,24 @@ struct __write_to_id_if_else
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
-        return std::get<1>(__v)
-            ? __write_if_in_bounds<_Bounded>(__out_rng, std::get<0>(__v) - 1,
-                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1])); })
-            : __write_if_in_bounds<_Bounded>(__out_rng, __id - std::get<0>(__v),
-                                            [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)])); });
+        if (std::get<1>(__v))
+        {
+            return __write_if_in_bounds<_Bounded>(
+                __out_rng, std::get<0>(__v) - 1,
+                [&]() {
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                             std::get<0>(__out_rng[std::get<0>(__v) - 1]));
+                },
+                __processed_info);
+        }
+
+        return __write_if_in_bounds<_Bounded>(
+            __out_rng, __id - std::get<0>(__v),
+            [&]() {
+                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                         std::get<1>(__out_rng[__id - std::get<0>(__v)]));
+            },
+            __processed_info);
     }
 
     _Assign __assign;
@@ -350,8 +468,43 @@ struct __write_red_by_seg
     using _ProcessedInfo = __noop_processed_info;
 
     template <bool _Bounded, typename _OutRng, typename _Tup>
-    bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, const _ProcessedInfo&) const
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
+    {
+        using std::get;
+
+        // Get source tuple
+        auto&& __tuple = __out_rng.base();
+
+        auto __out_keys = get<0>(__tuple);
+        auto __out_values = get<1>(__tuple);
+
+        const auto& __next_key = get<2>(__tup);
+        const auto& __current_key = get<3>(__tup);
+        const auto& __current_value = get<1>(get<0>(__tup));
+        const bool __is_seg_end = get<1>(__tup);
+        const std::size_t __out_idx = get<0>(get<0>(__tup));
+
+        // With the exception of the first key which is output by index 0, the first key in each segment is written
+        // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
+        // API requires that the first key in a segment is output and is important for when keys in a segment might not
+        // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
+        // segments process.
+        if (__id == 0)
+            __out_keys[0] = __current_key;
+        if (__is_seg_end)
+        {
+            __out_values[__out_idx] = __current_value;
+            if (__id != __n - 1)
+                __out_keys[__out_idx + 1] = __next_key;
+        }
+
+        return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _Tup>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, _ProcessedInfo& __processed_info) const
     {
         using std::get;
 
@@ -374,19 +527,25 @@ struct __write_red_by_seg
         // segments process.
         if (__id == 0)
         {
-            if (!__write_if_in_bounds<_Bounded>(__out_keys, 0, [&]() { __out_keys[0] = __current_key; }))
+            if (!__write_if_in_bounds<_Bounded>(__out_keys, 0, [&]() { __out_keys[0] = __current_key; }, __processed_info))
                 return false;
         }
 
         if (__is_seg_end)
         {
-            if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx, [&]() { __out_values[__out_idx] = __current_value; }))
+            if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx,
+                [&]() { __out_values[__out_idx] = __current_value; }, __processed_info))
+            {
                 return false;
+            }
 
             if (__id != __n - 1)
             {
-                if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx + 1, [&]() { __out_values[__out_idx + 1] = __next_key; }))
+                if (!__write_if_in_bounds<_Bounded>(__out_values, __out_idx + 1,
+                    [&]() { __out_values[__out_idx + 1] = __next_key; }, __processed_info))
+                {
                     return false;
+                }
             }
         }
 
@@ -407,8 +566,39 @@ struct __write_scan_by_seg
     _BinaryOp __binary_op;
 
     template <bool _Bounded, typename _OutRng, typename _ValueType>
-    bool
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    {
+        using std::get;
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+        if constexpr (__is_inclusive)
+        {
+            static_assert(std::is_same_v<_InitType,
+                                         oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
+                          "inclusive_scan_by_segment must not have an initial element");
+            __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+        }
+        else
+        {
+            static_assert(
+                std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
+                "exclusive_scan_by_segment must have an initial element");
+            __out_rng[__id] =
+                get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+        }
+
+        return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -425,7 +615,8 @@ struct __write_scan_by_seg
                 "inclusive_scan_by_segment must not have an initial element");
 
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v))); });
+                __out_rng, __id, [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v))); },
+                __processed_info);
         }
         else
         {
@@ -436,9 +627,9 @@ struct __write_scan_by_seg
             return __write_if_in_bounds<_Bounded>(__out_rng, __id, [&]() {
                 __out_rng[__id] =
                     get<1>(__v)
-                        ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                        : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
-            });
+                    ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                    : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+                }, __processed_info);
         }
     }
 };
@@ -450,9 +641,9 @@ struct __write_scan_by_seg
 template <typename _Assign>
 struct __write_multiple_to_id
 {
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _ProcessedInfo>
-    bool
-    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_out, _ProcessedInfo& __processed_info) const
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
+    std::enable_if_t<!_Bounded, bool>
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -461,41 +652,50 @@ struct __write_multiple_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<typename _TempData::_ValueType>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
         const std::size_t __n = std::get<1>(__v);
-        const std::size_t __base_idx = std::get<0>(__v) - __n;
-
-        [[maybe_unused]] const auto __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
-
         for (std::size_t __i = 0; __i < __n; ++__i)
         {
-            if constexpr (!_Bounded)
-            {
-                __assign(static_cast<_ConvertedTupleType>(__temp_out.get_and_destroy(__i)), __out_rng[__base_idx + __i]);
-            }
-            else
-            {
-                const std::size_t __out_idx = __base_idx + __i;
-
-                auto __saved_tmp_data = __temp_out.get_and_destroy(__i);
-
-                if (!__write_if_in_bounds<_Bounded>(__out_rng, __out_idx, [&]() {
-                        __assign(static_cast<_ConvertedTupleType>(std::get<0>(__saved_tmp_data)), __out_rng[__out_idx]);
-                    }))
-                {
-                    if (__out_idx == __out_rng_size)
-                    {
-                        __processed_info.set_oob_pos(std::get<1>(__saved_tmp_data));
-                    }
-
-                    // Destroy all remaining initialized elements to avoid resource leak
-                    for (++__i; __i < __n; ++__i)
-                        __temp_out.get_and_destroy(__i);
-
-                    return false;
-                }
-            }
+            __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
+                     __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
 
         return true;
+    }
+
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
+              typename _ProcessedInfo>
+    std::enable_if_t<_Bounded, bool>
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
+    {
+        // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
+        // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
+        // through.
+        using _ConvertedTupleType =
+            typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<typename _TempData::_ValueType>,
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+
+        using _OutIndex = decltype(std::get<0>(__v) - std::get<1>(__v));
+
+        bool __all_writes_succeeded = true;
+        _OutIndex __out_index = {};
+
+        const std::size_t __n = std::get<1>(__v);
+        for (std::size_t __i = 0; __i < __n; ++__i)
+        {
+            __out_index = std::get<0>(__v) - std::get<1>(__v) + __i;
+
+            auto&& __current_val = __temp_data.get_and_destroy(__i);
+
+            __all_writes_succeeded &= __write_if_in_bounds<_Bounded>(
+                __out_rng, __out_index,
+                [&]() {
+                    __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
+                             __out_rng[__out_index]);
+                },
+                __processed_info);
+        }
+
+        return __all_writes_succeeded;
     }
 
     _Assign __assign;
@@ -800,6 +1000,14 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 {
     using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
+    auto __set_value = [&__temp_out, &__idx1, &__idx2](std::uint16_t __idx, auto&& __ele) {
+
+        if constexpr (std::decay_t<_TempOutput>::_CaptureIndexes)
+            __temp_out.set(__idx, std::forward<decltype(__ele)>(__ele), _TupleOfSizes{__idx1, __idx2});
+        else
+            __temp_out.set(__idx, std::forward<decltype(__ele)>(__ele));
+    };
+
     if constexpr (_CheckBounds)
     {
         if (__idx1 == oneapi::dpl::__ranges::__size(__in_rng1))
@@ -809,7 +1017,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng1, copy the rest of rng2 within our diagonal's bounds
                 for (; __idx2 < oneapi::dpl::__ranges::__size(__in_rng2) && __idx < __num_eles_min; ++__idx2, ++__idx)
                 {
-                    __temp_out.set(__count, __in_rng2[__idx2], _TupleOfSizes{__idx1, __idx2});
+                    __set_value(__count, __in_rng2[__idx2]);
                     ++__count;
                 }
             }
@@ -823,7 +1031,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                 // If we are at the end of rng2, copy the rest of rng1 within our diagonal's bounds
                 for (; __idx1 < oneapi::dpl::__ranges::__size(__in_rng1) && __idx < __num_eles_min; ++__idx1, ++__idx)
                 {
-                    __temp_out.set(__count, __in_rng1[__idx1], _TupleOfSizes{__idx1, __idx2});
+                    __set_value(__count, __in_rng1[__idx1]);
                     ++__count;
                 }
             }
@@ -838,7 +1046,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetA)        // set_union, set_difference, set_symmetric_difference
         {
-            __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), _TupleOfSizes{__idx1, __idx2});
+            __set_value(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1));
             ++__count;
         }
         ++__idx1;
@@ -848,7 +1056,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyDiffSetB)        // set_union, set_symmetric_difference
         {
-            __temp_out.set(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2), _TupleOfSizes{__idx1, __idx2});
+            __set_value(__count, std::forward<decltype(__ele_rng2)>(__ele_rng2));
             ++__count;
         }
         ++__idx2;
@@ -858,7 +1066,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     {
         if constexpr (_CopyMatch)           // set_union, set_intersection
         {
-            __temp_out.set(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1), _TupleOfSizes{__idx1, __idx2});
+            __set_value(__count, std::forward<decltype(__ele_rng1)>(__ele_rng1));
             ++__count;
         }
         ++__idx1;
@@ -929,6 +1137,8 @@ struct __set_generic_operation
                     __proj2);
             }
         };
+
+        __processed_info.set_oob_source_pos(std::make_tuple(__idx1, __idx2));
 
         if (__idx1 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng1) &&
             __idx2 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng2))
@@ -1271,14 +1481,16 @@ struct __gen_set_balanced_path
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
-template <bool _Bounded, typename _SetOpCount, typename _TempData, typename _ProcessedInfo, typename _Compare, typename _Proj1, typename _Proj2>
+template <bool _Bounded, typename _SetOpCount, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo, typename _Compare, typename _Proj1, typename _Proj2>
 struct __gen_set_op_from_known_balanced_path
 {
-    using TempData = _TempData;
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;    
     using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng, typename _IndexT>
-    std::tuple<std::uint32_t, std::uint16_t>
+    template <typename _InRng, typename _IndexT, typename _TempData>
+    std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> || std::is_same_v<_TempData, TempDataCaptureIndexes>, std::tuple<std::uint32_t, std::uint16_t>>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data, ProcessedInfo& __processed_info) const
     {
         // Get source tuple
@@ -1496,6 +1708,38 @@ struct __gen_scan_by_seg_scan_input
     _BinaryPred __binary_pred;
 };
 
+// Selects TempDataNoCaptureIndexes if present, otherwise TempData
+template <typename _T, typename = void>
+struct __select_temp_data_type_no_capture_indexes
+{
+    using type = typename _T::TempData;
+};
+
+template <typename _T>
+struct __select_temp_data_type_no_capture_indexes<_T, std::void_t<typename _T::TempDataNoCaptureIndexes>>
+{
+    using type = typename _T::TempDataNoCaptureIndexes;
+};
+
+template <typename _T>
+using __select_temp_data_type_no_capture_indexes_t = typename __select_temp_data_type_no_capture_indexes<_T>::type;
+
+// Selects TempDataCaptureIndexes if present, otherwise TempData
+template <typename _T, typename = void>
+struct __select_temp_data_type_capture_indexes
+{
+    using type = typename _T::TempData;
+};
+
+template <typename _T>
+struct __select_temp_data_type_capture_indexes<_T, std::void_t<typename _T::TempDataCaptureIndexes>>
+{
+    using type = typename _T::TempDataCaptureIndexes;
+};
+
+template <typename _T>
+using __select_temp_data_capture_indexes_t = typename __select_temp_data_type_capture_indexes<_T>::type;
+
 // Reduction operation for reduce-by-segment
 template <typename _BinaryOp>
 struct __red_by_seg_op
@@ -1709,36 +1953,42 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
 
 template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
           std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng>
-std::conditional_t<_Bounded, std::tuple<bool, typename _GenInput::ProcessedInfo>, bool>
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
+          typename _TempData, typename _ProcessedInfo>
+void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
                                _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
                                const std::size_t __start_id, const std::size_t __n,
                                const std::uint32_t __iters_per_item, const std::size_t __subgroup_start_id,
-                               const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups)
+                               const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
+                               _TempData& __temp_out, _ProcessedInfo& __processed_info)
 {
-    using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, typename _GenInput::TempData&, typename _GenInput::ProcessedInfo&>;
-    using _TempData = typename _GenInput::TempData;
-    using _ProcessedInfo = typename _GenInput::ProcessedInfo;
+    using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, _TempData&, _ProcessedInfo&>;
 
     const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
     const bool __is_full_thread = __subgroup_start_id + __iters_per_item * __sub_group_size <= __n;
 
-    _TempData __temp_out{};
-    _ProcessedInfo __processed_info{};
-
     bool __all_writes_succeeded = true;
+
+    auto __call_write_op = [&](std::size_t __id, auto&&... __args) -> bool {
+        if constexpr (__capture_output)
+        {
+            if constexpr (!_Bounded)
+                return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out);
+            else
+                return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out, __processed_info);
+        }
+
+        return true;
+    };
 
     if (__is_full_thread)
     {
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
-        if constexpr (__capture_output)
-        {
-            __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
-        }
+        __all_writes_succeeded &= __call_write_op(__start_id, __v);
 
         if (__is_full_block)
         {
@@ -1749,10 +1999,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
-                {
-                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
-                }
+                __all_writes_succeeded &= __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
         else
@@ -1764,10 +2011,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
-                {
-                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
-                }
+                __all_writes_succeeded &= __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
     }
@@ -1789,7 +2033,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
+                        __all_writes_succeeded &= __call_write_op(__start_id, __v);
                 }
             }
             else
@@ -1797,10 +2041,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                if constexpr (__capture_output)
-                {
-                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
-                }
+                __all_writes_succeeded &= __call_write_op(__start_id, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1 && __all_writes_succeeded; __j++)
                 {
@@ -1808,10 +2049,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    if constexpr (__capture_output)
-                    {
-                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __local_id, __v, __temp_out, __processed_info);
-                    }
+                    __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -1823,16 +2061,11 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __offset, __v, __temp_out, __processed_info);
+                        __all_writes_succeeded &= __call_write_op(__offset, __v);
                 }
             }
         }
     }
-
-    if constexpr (_Bounded)
-        return {__all_writes_succeeded, std::move(__processed_info)};
-    else
-        return __all_writes_succeeded;
 }
 
 constexpr inline std::uint8_t
@@ -1941,7 +2174,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
                 _InitValueType* __temp_ptr = __temp_acc.__data();
-                std::size_t __group_id = __ndi.get_group(0);
+                const std::size_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
                 std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
@@ -1967,24 +2200,26 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                 if (__sub_group_id < __active_subgroups)
                 {
+                    using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenReduceInput>;
+                    using _ProcessedInfo = typename _GenReduceInput::ProcessedInfo;
+
+                    _TempDataNoCaptureIndexes __temp_out{};
+                    _ProcessedInfo __processed_info{};
+
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    auto __scan_res = __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                                     /*__init_present=*/false,
-                                                                     /*__capture_output=*/false, __max_inputs_per_item>(
+                    // returns void when __capture_output=false
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                   /*__init_present=*/false,
+                                                   /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
                         __sub_group_carry, __in_rng, /*unused*/ __in_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups);
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id, __active_subgroups,
+                        __temp_out, __processed_info);
 
                     if (__sub_group_local_id == 0)
                         __sub_group_partials[__sub_group_id] = __sub_group_carry.__v;
                     __sub_group_carry.__destroy();
-
-                    if constexpr (_Bounded)
-                    {
-                        if (!std::get<0>(__scan_res))
-                            assert(!"Bounds faced in source data!");
-                    }
                 }
                 __dpl_sycl::__group_barrier(__ndi);
 
@@ -2230,7 +2465,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>,
         std::tuple<sycl::event>
     >
-    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
+    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,        // KSATODO submitter for detect OOB indexes stack : __parallel_reduce_then_scan_scan_submitter
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
@@ -2256,6 +2491,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
 
+            // KSATODO __local_accessor to save source indexes?
+            // __dpl_sycl::__local_accessor
+
             __cgh.depends_on(__prior_event);
 
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
@@ -2265,7 +2503,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             auto __stop_pos_acc = __get_stop_pos_accessor(__cgh, __stop_pos_payload);
 
-            __cgh.parallel_for<_KernelName...>(
+            __cgh.parallel_for<_KernelName...>(                                                                                     // KSATODO submitter for setup value stack : __parallel_reduce_then_scan_scan_submitter
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
 
                 // Initialize stop positions from the first item
@@ -2500,69 +2738,77 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                auto __process_scan_result = [&]([[maybe_unused]] const auto& __scan_res) {
-                    if constexpr (_Bounded)
-                    {
-                        using __temp_data_array_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
-                        if constexpr (!std::is_same_v<__temp_data_array_t, __noop_processed_info>)
-                        {
-                            using __processed_info_t = std::decay_t<decltype(std::get<1>(__scan_res))>;
-                            const __processed_info_t& __processed_info = std::get<1>(__scan_res);
+                using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
+                using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
+                using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
 
-                            /////////////////////////////////////////////////////////
-                            // First OOB pos is only one inside all source data set
-                            typename __temp_data_array_t::_TupleOfSizes __first_oob_pos{};
-                            if (__processed_info.get_oob_pos(__first_oob_pos))
-                            {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
-
-                                auto __stop_pos_ptr = __stop_pos_acc.__data();
-                                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
-                            }
-
-                            /////////////////////////////////////////////////////////
-                            // Final position evaluated in each work-item,
-                            // so need to find the max across the work-group
-                            const typename __temp_data_array_t::_TupleOfSizes& __final_pos = __processed_info.get_final_pos();
-                            
-                            // Find max final position across the work-group
-                            const auto __max_final_pos_in_group = __processed_info_t::reduce_max_pos_over_group(__ndi, __final_pos);
-
-                            // Writes from only one work-item
-                            if (__ndi.get_local_id(0) == 0)
-                            {
-                                typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
-
-                                auto __stop_pos_ptr = __stop_pos_acc.__data();
-                                __processed_info_t::fetch_max_pos(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos], __scan_stop_pos);
-                            }
-                        }
-                    }
-                };
+                _TempDataNoCaptureIndexes __temp_out{};
+                _ProcessedInfo __processed_info{};
 
                 if (__sub_group_carry_initialized)
                 {
-                    __process_scan_result(
-                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/true,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups));
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                    /*__init_present=*/true,
+                                                    /*__capture_output=*/true, __max_inputs_per_item>(
+                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                        __active_subgroups,
+                        __temp_out, __processed_info);
                 }
                 else // first group first block, no subgroup carry
                 {
-                    __process_scan_result(
-                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/false,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups));
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                    /*__init_present=*/false,
+                                                    /*__capture_output=*/true, __max_inputs_per_item>(
+                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                        __active_subgroups,
+                        __temp_out, __processed_info);
+                }
+
+                if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
+                {
+                    /////////////////////////////////////////////////////////
+                    // First OOB pos is only one inside all source data set
+                    typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
+                    if (__processed_info.get_oob_source_pos(__oob_source_pos))
+                    {
+                        // OOB can be reached by at most one work-item per kernel invocation:
+                        // output indices are monotonically increasing across all work-items,
+                        // so only the single work-item that first crosses the output boundary
+                        // can have get_oob_source_pos() return true.
+                        // Therefore, no atomic fetch_min is needed here � at most one writer.
+
+                        typename _ProcessedInfo::_TupleOfSizes __first_oob_pos{};
+                        // KSATODO required to implement __first_oob_pos = f(__oob_source_pos)
+                        //__first_oob_pos = __processed_info.eval_oob_position(__oob_source_pos);
+
+                        typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
+                        oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
+
+                        auto __stop_pos_ptr = __stop_pos_acc.__data();
+                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
+                    }
+
+                    /////////////////////////////////////////////////////////
+                    // Final position evaluated in each work-item,
+                    // so need to find the max across the work-group
+                    const typename _ProcessedInfo::_TupleOfSizes& __final_pos = __processed_info.get_final_pos();
+                            
+                    // Find max final position across the work-group
+                    const auto __max_final_pos_in_group = _ProcessedInfo::reduce_max_pos_over_group(__ndi, __final_pos);
+
+                    // Writes from only one work-item
+                    if (__ndi.get_local_id(0) == 0)
+                    {
+                        typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
+                        oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
+
+                        auto __stop_pos_ptr = __stop_pos_acc.__data();
+                        _ProcessedInfo::fetch_max_pos(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos], __scan_stop_pos);
+                    }
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
