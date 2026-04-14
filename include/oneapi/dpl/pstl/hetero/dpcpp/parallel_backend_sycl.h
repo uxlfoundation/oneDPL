@@ -1164,7 +1164,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _BoundsProviderPhase2 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned<_Bounded>;
 
     using _GenReduceInputPhase1 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path</*_Bounded*/ false, _SetOperation, _BoundsProviderPhase1, _Compare, _Proj1, _Proj2>;
-    using _GenReduceInputPhase2 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded,           _SetOperation, _BoundsProviderPhase2, _Compare, _Proj1, _Proj2>;;
+    using _GenReduceInputPhase2 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded,           _SetOperation, _BoundsProviderPhase2, _Compare, _Proj1, _Proj2>;
     using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_Bounded, _SetOperation, _TempData, _ProcessedInfo, _Compare, _Proj1, _Proj2>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign, _Bounded>;
