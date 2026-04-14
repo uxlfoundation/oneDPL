@@ -346,12 +346,12 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-.. warning::
+.. note::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <radix-sort-by-key-memory-requirements>` are satisfied.
 
-.. warning::
+.. note::
 
    While increasing ``param.data_per_workitem`` generally improves performance by reducing
    synchronization overhead, excessively large values can cause register spills to memory,

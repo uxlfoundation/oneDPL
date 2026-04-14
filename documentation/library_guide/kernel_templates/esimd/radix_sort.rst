@@ -237,7 +237,7 @@ The amount used depends on many parameters; below is an upper bound approximatio
 
 where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
-The value of `C` depends on ``param.data_per_workitem``,  ``param.workgroup_size``, and ``RadixBits``.
+The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
 For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `64`, and ``RadixBits`` to `8`,
 `C` approximately equals to `1`.
 Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
@@ -305,12 +305,12 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-.. warning::
+.. note::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
 
-.. warning::
+.. note::
 
    While increasing ``param.data_per_workitem`` generally improves performance by reducing
    synchronization overhead, excessively large values can cause register spills to memory,

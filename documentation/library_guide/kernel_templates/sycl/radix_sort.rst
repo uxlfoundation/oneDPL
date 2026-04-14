@@ -289,20 +289,19 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-Sample Parameters
------------------
-
 The following table provides starting points for ``param.data_per_workitem`` and ``param.workgroup_size``
 for large input sizes. This configuration performs well when sorting 2\ :sup:`28` ``std::uint32_t`` input
 elements uniformly distributed over the range [0, UINT32_MAX]:
 
-+---------------------------+----------------------------+----------------------------+
-| Platform                  | ``data_per_workitem``      | ``workgroup_size``         |
-+===========================+============================+============================+
-| Intel Data Center GPU Max | 22                         | 512                        |
-+---------------------------+----------------------------+----------------------------+
-| Intel Arc B-Series        | 10                         | 512                        |
-+---------------------------+----------------------------+----------------------------+
+.. table:: Sample Parameters for ``std::uint32_t`` Sort
+
+    +---------------------------+----------------------------+----------------------------+
+    | Platform                  | ``data_per_workitem``      | ``workgroup_size``         |
+    +===========================+============================+============================+
+    | Intel Data Center GPU Max | 22                         | 512                        |
+    +---------------------------+----------------------------+----------------------------+
+    | Intel Arc B-Series        | 10                         | 512                        |
+    +---------------------------+----------------------------+----------------------------+
 
 .. note::
 
@@ -310,14 +309,14 @@ elements uniformly distributed over the range [0, UINT32_MAX]:
    Furthermore, smaller input sizes may perform better with smaller ``param.data_per_workitem`` values or a different
    ``param.workgroup_size``.
 
-.. warning::
+.. note::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
-   A good starting reference is to avoid using ``param.data_per_workitem`` values beyond those listed in the sample
-   parameters table above.
+   If sorting 4-byte types, a good starting point is to use the ``param.data_per_workitem`` values in the sample
+   parameters above as an upper-bound for experimentation.
 
-.. warning::
+.. note::
 
    Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does not
    exceed available register capacity. Large performance drops with an increase to ``param.data_per_workitem`` are

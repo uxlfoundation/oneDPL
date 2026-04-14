@@ -348,13 +348,15 @@ The following table provides starting points for ``param.data_per_workitem`` and
 for large input sizes. This configuration performs well when sorting 2\ :sup:`28` ``std::uint32_t`` keys and
 values uniformly distributed over the range [0, UINT32_MAX]:
 
-+---------------------------+----------------------------+----------------------------+
-| Platform                  | ``data_per_workitem``      | ``workgroup_size``         |
-+===========================+============================+============================+
-| Intel Data Center GPU Max | 14                         | 1024                       |
-+---------------------------+----------------------------+----------------------------+
-| Intel Arc B-Series        | 5                          | 512                        |
-+---------------------------+----------------------------+----------------------------+
+.. table:: Sample Parameters for ``std::uint32_t`` Sort
+
+    +---------------------------+----------------------------+----------------------------+
+    | Platform                  | ``param.data_per_workitem``| ``param.workgroup_size``   |
+    +===========================+============================+============================+
+    | Intel Data Center GPU Max | 14                         | 1024                       |
+    +---------------------------+----------------------------+----------------------------+
+    | Intel Arc B-Series        | 5                          | 512                        |
+    +---------------------------+----------------------------+----------------------------+
 
 .. note::
 
@@ -362,14 +364,14 @@ values uniformly distributed over the range [0, UINT32_MAX]:
    Furthermore, smaller input sizes may perform better with smaller ``param.data_per_workitem`` values or a different
    ``param.workgroup_size``.
 
-.. warning::
+.. note::
 
    Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
    Make sure that :ref:`Memory requirements <sycl-radix-sort-by-key-memory-requirements>` are satisfied.
-   A good starting reference is to avoid using ``param.data_per_workitem`` values beyond those listed in the sample
-   parameters table above.
+   If sorting 4-byte types, a good starting point is to use the ``param.data_per_workitem`` values in the sample
+   parameters above as an upper-bound for experimentation.
 
-.. warning::
+.. note::
 
    Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does
    not exceed available register capacity. Large performance drops with an increase to ``param.data_per_workitem`` are
