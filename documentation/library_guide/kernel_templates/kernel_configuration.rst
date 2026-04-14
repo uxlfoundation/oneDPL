@@ -39,35 +39,11 @@ Static Member Constants
 |                                                      |                     | a work-group.                          |
 +------------------------------------------------------+---------------------+----------------------------------------+
 
-The meaning of ``data_per_workitem`` and ``workgroup_size`` differs significantly between
-:doc:`ESIMD-based <esimd_main>` and :doc:`SYCL-based <sycl_main>` kernel templates due to their underlying execution models:
-
-**ESIMD (Explicit SIMD) Kernel Templates:**
-
-- ``data_per_workitem``: The number of data elements processed by a single **hardware thread**
-  (work-item in ESIMD terminology), which issues explicit vector operations. The hardware thread
-  processes these elements using SIMD instructions with an implementation-defined vector length.
-
-- ``workgroup_size``: The number of **hardware threads** in a work-group. Each hardware thread
-  executes scalar and SIMD operations independently.
-
-**SYCL Kernel Templates:**
-
-- ``data_per_workitem``: The number of data elements processed by a single **SIMD lane**
-  (work-item in SYCL terminology) within a hardware thread. Operations performed by each work-item are
-  implicitly vectorized by the compiler.
-
-- ``workgroup_size``: The number of **SIMD lanes** (work-items) in a work-group. Work-items corresponding
-  to the same hardware thread are grouped into a sub-group.
-
 .. note::
 
-   As a rough guideline, dividing ESIMD ``data_per_workitem`` by 32 approximates the SYCL
-   ``data_per_workitem``, and multiplying ESIMD ``workgroup_size`` by 32 approximates the SYCL
-   ``workgroup_size`` for current kernel template implementations. However, configurations from one model may
-   not directly map to the other, and optimal parameters should be determined through performance testing for each
-   model.
-
+   The interpretation of ``data_per_workitem`` and ``workgroup_size`` depends on the underlying hardware
+   and kernel template API. For details on how these parameters are interpreted, refer to :doc:`ESIMD-based <esimd_main>`
+   and :doc:`SYCL-based <sycl_main>` kernel template documentation.
 
 Member Types
 ------------

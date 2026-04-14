@@ -5,6 +5,24 @@ The SYCL kernel templates are based on the SYCL 2020 programming model of |dpcpp
 Kernel templates may impose restrictions on supported devices or adapters which are documented in their
 respective sections.
 
+Kernel Parameter Interpretation
+================================
+
+The definition of a work-item as it relates to :doc:`kernel_param <kernel_configuration>` parameters directly aligns
+with the SYCL specification. With the |dpcpp_compiler|, a work-item corresponds to a SIMD lane on SIMD architecutes
+and a thread on SIMT architectures.
+
+.. note::
+
+   If migrating from :doc:`ESIMD kernel templates <esimd_main>`, then
+   dividing ESIMD ``data_per_workitem`` by 32 approximates the SYCL ``data_per_workitem``
+   and multiplying ESIMD ``workgroup_size`` by 32 approximates the SYCL ``workgroup_size`` on Intel GPUs.
+   However, configurations from one model may not be supported by the other, and optimal parameters should
+   be determined through performance testing.
+
+Available Templates
+===================
+
 The following templates are available in the ``oneapi::dpl::experimental::kt::gpu`` namespace,
 with the implementation optimized for GPU devices:
 

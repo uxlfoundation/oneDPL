@@ -11,6 +11,13 @@ Both in-place and out-of-place overloads are provided. Out-of-place overloads do
 
 The functions implement a Onesweep* [#fnote1]_ algorithm variant.
 
+.. note::
+   ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 compiler or greater is required, and the Unified Runtime adapter over
+   Level-Zero must be used. This is the default adapter for Intel GPUs. For more information, please refer to
+   `DPC++ Device Selection
+   <https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2025-1/device-selection.html>`_.
+
 A synopsis of the ``radix_sort`` function is provided below:
 
 .. code:: cpp
@@ -45,13 +52,6 @@ A synopsis of the ``radix_sort`` function is provided below:
    radix_sort (sycl::queue q, Range1&& r, Range2&& r_out,
                KernelParam param = {}); // (4)
    }
-
-.. note::
-   ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
-   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 compiler or greater is required, and the Unified Runtime adapter over
-   Level-Zero must be used. This is the default adapter for Intel GPUs. For more information, please refer to
-   `DPC++ Device Selection
-   <https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2025-1/device-selection.html>`_.
 
 Template Parameters
 --------------------
@@ -234,8 +234,8 @@ The amount used depends on many parameters; below is an upper bound approximatio
 
 where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
-The value of `C` depends on ``param.data_per_workitem`` and ``param.workgroup_size``.
-For ``param.data_per_workitem`` set to `10` and ``param.workgroup_size`` to `512`,
+The value of `C` depends on ``param.data_per_workitem``,  ``param.workgroup_size`` and ``RadixBits``.
+For ``param.data_per_workitem`` set to `10`, ``param.workgroup_size`` to `512`, and ``RadixBits`` to `8`,
 `C` is typically less than `1`.
 Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
 
