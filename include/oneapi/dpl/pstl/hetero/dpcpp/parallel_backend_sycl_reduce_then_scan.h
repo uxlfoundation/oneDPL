@@ -268,7 +268,7 @@ struct __simple_write_to_id
     using _TempData = __noop_temp_data;
     using _ProcessedInfo = __noop_processed_info;
 
-    template <typename _OutRng, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _ValueType>
     bool
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
@@ -292,7 +292,7 @@ struct __write_to_id_if
     using _TempData = __noop_temp_data;
     using _ProcessedInfo = __noop_processed_info;
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
     bool
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
@@ -320,7 +320,7 @@ struct __write_to_id_if_else
     using _TempData = __noop_temp_data;
     using _ProcessedInfo = __noop_processed_info;
 
-    template <typename _OutRng, typename _SizeType, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
     bool
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
@@ -349,7 +349,7 @@ struct __write_red_by_seg
     using _TempData = __noop_temp_data;
     using _ProcessedInfo = __noop_processed_info;
 
-    template <typename _OutRng, typename _Tup>
+    template <bool _Bounded, typename _OutRng, typename _Tup>
     bool
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, const _ProcessedInfo&) const
     {
@@ -406,7 +406,7 @@ struct __write_scan_by_seg
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <typename _OutRng, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _ValueType>
     bool
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, const _ProcessedInfo&) const
     {
@@ -450,7 +450,7 @@ struct __write_scan_by_seg
 template <typename _Assign>
 struct __write_multiple_to_id
 {
-    template <typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _ProcessedInfo>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData, typename _ProcessedInfo>
     bool
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_out, _ProcessedInfo& __processed_info) const
     {
@@ -1737,7 +1737,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                                                            __binary_op, __sub_group_carry);
         if constexpr (__capture_output)
         {
-            __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
+            __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
         }
 
         if (__is_full_block)
@@ -1751,7 +1751,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
+                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
                 }
             }
         }
@@ -1766,7 +1766,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
+                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id + __j * __sub_group_size, __v, __temp_out, __processed_info);
                 }
             }
         }
@@ -1789,7 +1789,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
+                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
                 }
             }
             else
@@ -1799,7 +1799,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 if constexpr (__capture_output)
                 {
-                    __all_writes_succeeded &= __write_op(__out_rng, __start_id, __v, __temp_out, __processed_info);
+                    __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __start_id, __v, __temp_out, __processed_info);
                 }
 
                 for (std::uint32_t __j = 1; __j < __iters - 1 && __all_writes_succeeded; __j++)
@@ -1810,7 +1810,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     if constexpr (__capture_output)
                     {
-                        __all_writes_succeeded &= __write_op(__out_rng, __local_id, __v, __temp_out, __processed_info);
+                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __local_id, __v, __temp_out, __processed_info);
                     }
                 }
 
@@ -1823,7 +1823,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded &= __write_op(__out_rng, __offset, __v, __temp_out, __processed_info);
+                        __all_writes_succeeded &= __write_op.template operator()<_Bounded>(__out_rng, __offset, __v, __temp_out, __processed_info);
                 }
             }
         }
