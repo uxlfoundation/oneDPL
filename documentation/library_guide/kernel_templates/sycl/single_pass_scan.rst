@@ -209,8 +209,7 @@ The initial configuration may be selected according to these high-level guidelin
 - For large inputs that fully saturate compute cores, maximizing ``param.workgroup_size`` and ``param.data_per_workitem``
   without spilling out of register memory results in best performance. The Intel® oneAPI DPC++ Compiler reports warnings
   when register spillage occurs. This may be used alongside guidance provided in the
-  `oneAPI GPU Optimization Guide <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2025-2/registers-and-performance.html>`_
-  and benchmarking parameter sweeps to determine performant kernel template parameters for your use case.
+  |registers_and_performance|_ and benchmarking parameter sweeps to determine performant kernel template parameters for your use case.
 
 - On devices with multiple tiles, it may prove beneficial to experiment with different tile hierarchies as described
   in `Options for using a GPU Tile Hierarchy <https://www.intel.com/content/www/us/en/developer/articles/technical/flattening-gpu-tile-hierarchy.html>`_.
@@ -222,7 +221,6 @@ The initial configuration may be selected according to these high-level guidelin
    Make sure that :ref:`Memory requirements <sycl-scan-memory-requirements>` are satisfied.
 
 .. [#fnote1] Merrill, D., Garland, M.: Single-pass Parallel Prefix Scan with Decoupled Look-back. Technical Report NVR-2016-002, NVIDIA (2016)
-.. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
-   <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2024-0/intel-xe-gpu-architecture.html#XE-CORE>`_.
+.. [#fnote2] The X\ :sup:`e`-core term is described in the |xe_gpu_architecture|_.
    Check the number of cores in the device specification, such as `Intel® Data Center GPU Max specification
    <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/max-series/products.html>`_.

@@ -15,8 +15,7 @@ The functions implement a Onesweep* [#fnote1]_ algorithm variant.
    ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
    The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 compiler or greater is required, and the Unified Runtime adapter over
    Level Zero must be used. This is the default adapter for Intel GPUs. For more information, please refer to
-   `DPC++ Device Selection
-   <https://www.intel.com/content/www/us/en/docs/oneapi/programming-guide/2025-1/device-selection.html>`_.
+   |dpcpp_device_selection|_.
 
 A synopsis of the ``radix_sort`` function is provided below:
 
@@ -303,28 +302,26 @@ elements uniformly distributed over the range [0, UINT32_MAX]:
     | Intel Arc B-Series        | 10                         | 512                        |
     +---------------------------+----------------------------+----------------------------+
 
-.. note::
+When tuning your own parameters, these ``param.data_per_workitem`` values may serve as a good initial starting point and can be thought of as an upper-bound of
+values to test with during experimentation. For smaller inputs, a lower ``param.data_per_workitem`` generally performs better.
 
-   Optimal parameters may differ by the data type and the entropy of the underlying data.
-   Furthermore, smaller input sizes may perform better with smaller ``param.data_per_workitem`` values or a different
-   ``param.workgroup_size``.
+.. tip::
 
-.. note::
+   - Optimal parameters may differ by the data type and the entropy of the underlying data, so it is important
+     that this is reflected in your tuning experiments.
 
-   Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
-   Make sure that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
-   If sorting 4-byte types, a good starting point is to use the ``param.data_per_workitem`` values in the sample
-   parameters above as an upper-bound for experimentation.
+   - Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values
+     by ensuring that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
 
-.. note::
+   - Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does not
+     exceed available register capacity.
 
-   Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does not
-   exceed available register capacity. Large performance drops with an increase to ``param.data_per_workitem`` are
-   indicative of register spillage and profiling tools may be used to analyze this behavior.
+   - Large performance drops with an increase to ``param.data_per_workitem`` are indicative of excessive register spillage.
+     `Ahead-of-Time (AOT) Compilation <https://www.intel.com/content/www/us/en/developer/articles/technical/ahead-of-time-compilation.html>`_
+     may be used to emit warnings when this occurs.
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
-.. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
-   <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2024-0/intel-xe-gpu-architecture.html#XE-CORE>`_.
+.. [#fnote2] The X\ :sup:`e`-core term is described in the |xe_gpu_architecture|_.
    Check the number of cores in the device specification, such as `Intel Arc B580 specification
    <https://www.intel.com/content/www/us/en/products/sku/241598/intel-arc-b580-graphics/specifications.html>`_.
 

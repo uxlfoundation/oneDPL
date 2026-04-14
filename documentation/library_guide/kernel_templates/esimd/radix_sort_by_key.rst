@@ -346,25 +346,20 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-.. note::
+- ``param.data_per_workitem`` is the only available parameter to tune performance since ``param.workgroup_size`` currently
+  supports only one value (`64`).
 
-   Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values.
-   Make sure that :ref:`Memory requirements <radix-sort-by-key-memory-requirements>` are satisfied.
+.. tip::
 
-.. note::
+   - Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values
+     by ensuring that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
 
-   While increasing ``param.data_per_workitem`` generally improves performance by reducing
-   synchronization overhead, excessively large values can cause register spills to memory,
-   significantly harming performance. Monitor register usage when tuning this parameter.
-
-.. note::
-
-   ``param.data_per_workitem`` is the only available parameter to tune the performance,
-   since ``param.workgroup_size`` currently supports only one value (`64`).
+   - Large performance drops with an increase to ``param.data_per_workitem`` are indicative of excessive register spillage.
+     `Ahead-of-Time (AOT) Compilation <https://www.intel.com/content/www/us/en/developer/articles/technical/ahead-of-time-compilation.html>`_
+     may be used to emit warnings when this occurs.
 
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
-.. [#fnote2] The X\ :sup:`e`-core term is described in the `oneAPI GPU Optimization Guide
-   <https://www.intel.com/content/www/us/en/docs/oneapi/optimization-guide-gpu/2024-0/intel-xe-gpu-architecture.html#XE-CORE>`_.
+.. [#fnote2] The X\ :sup:`e`-core term is described in the |xe_gpu_architecture|_.
    Check the number of cores in the device specification, such as `Intel® Data Center GPU Max specification
    <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/max-series/products.html>`_.
