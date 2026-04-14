@@ -301,6 +301,7 @@ std::enable_if_t<_Bounded, bool>
 __write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign,
                      _ProcessedInfo& __processed_info)
 {
+    static_assert(false);
     if (__out_idx < oneapi::dpl::__ranges::__size(__out_rng))
     {
         __assign();
@@ -2465,7 +2466,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>,
         std::tuple<sycl::event>
     >
-    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,        // KSATODO submitter for detect OOB indexes stack : __parallel_reduce_then_scan_scan_submitter
+    operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
@@ -2503,7 +2504,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             auto __stop_pos_acc = __get_stop_pos_accessor(__cgh, __stop_pos_payload);
 
-            __cgh.parallel_for<_KernelName...>(                                                                                     // KSATODO submitter for setup value stack : __parallel_reduce_then_scan_scan_submitter
+            __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
 
                 // Initialize stop positions from the first item
@@ -2745,31 +2746,43 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 _TempDataNoCaptureIndexes __temp_out{};
                 _ProcessedInfo __processed_info{};
 
-                if (__sub_group_carry_initialized)
-                {
-                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                    /*__init_present=*/true,
-                                                    /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                        __active_subgroups,
-                        __temp_out, __processed_info);
-                }
-                else // first group first block, no subgroup carry
-                {
-                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
-                                                    /*__init_present=*/false,
-                                                    /*__capture_output=*/true, __max_inputs_per_item>(
-                        __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                        __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
-                        __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                        __active_subgroups,
-                        __temp_out, __processed_info);
-                }
+                auto __call_scan_through_elements_helper = [&](auto& __temp_out_arg) {
+                    if (__sub_group_carry_initialized)
+                    {
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                        /*__init_present=*/true,
+                                                        /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups,
+                            __temp_out_arg, __processed_info);
+                    }
+                    else // first group first block, no subgroup carry
+                    {
+                        __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                        /*__init_present=*/false,
+                                                        /*__capture_output=*/true, __max_inputs_per_item>(
+                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                            __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
+                            __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
+                            __active_subgroups,
+                            __temp_out_arg, __processed_info);
+                    }
+                };
+
+                // The first normal call of __scan_through_elements_helper
+                __call_scan_through_elements_helper(__temp_out);
 
                 if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
                 {
+                    // The second additional call of __scan_through_elements_helper to save OOB index
+                    if (__processed_info.get_oob_reached())
+                    {
+                        _TempDataCaptureIndexes __temp_out_capture_indexes{};
+                        __call_scan_through_elements_helper(__temp_out_capture_indexes);
+                    }
+
                     /////////////////////////////////////////////////////////
                     // First OOB pos is only one inside all source data set
                     typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
