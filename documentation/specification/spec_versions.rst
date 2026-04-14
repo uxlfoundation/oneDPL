@@ -18,7 +18,7 @@ Latest Revision
 
   * - Revision
     - Changes
-  * - 1.5-provisional rev 1 (:doc:`HTML <index>`)
+  * - 1.5 rev 1 (:doc:`HTML <index>`)
     - - Added 56 more parallel range algorithms
       - Aligned parallel range algorithms with the C++26 standardization proposals
       - Require segmented and histogram algorithms to be defined in ``<oneapi/dpl/numeric>``
