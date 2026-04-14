@@ -1258,7 +1258,6 @@ __exclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-    _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
         _ValueType __partial_carry_in =
@@ -1304,7 +1303,6 @@ __inclusive_sub_group_masked_scan(const __dpl_sycl::__sub_group& __sub_group, _M
 {
     std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
     const std::uint8_t __sub_group_size = __sub_group.get_max_local_range()[0];
-    _ONEDPL_PRAGMA_UNROLL
     for (std::uint8_t __shift = 1; __shift <= __sub_group_size / 2; __shift <<= 1)
     {
         _ValueType __partial_carry_in =
