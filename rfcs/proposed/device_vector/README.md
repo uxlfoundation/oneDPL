@@ -153,21 +153,21 @@ public:
     const_reference front() const;
     reference       back();
     const_reference back() const;
-    pointer         data() noexcept;
-    const_pointer   data() const noexcept;
+    pointer         data() ;
+    const_pointer   data() const;
 
     // Iterators
-    iterator begin() noexcept;
-    iterator end()   noexcept;
+    iterator begin();
+    iterator end();
     // + const/reverse variants
 
     // Queue access
-    sycl::queue get_queue() const noexcept;
+    sycl::queue get_queue();
 
     // Capacity
-    bool      empty()    const noexcept;
-    size_type size()     const noexcept;
-    size_type capacity() const noexcept;
+    bool      empty()    const;
+    size_type size()     const;
+    size_type capacity() const;
     void reserve(size_type new_cap);
     void shrink_to_fit();
 
@@ -176,7 +176,7 @@ public:
     template <typename InputIt>
     void assign(InputIt first, InputIt last);
     void assign(std::initializer_list<T> ilist);
-    void clear() noexcept;
+    void clear();
     void push_back(const T& value);
     void pop_back();
     iterator insert(const_iterator pos, const T& value);
@@ -187,7 +187,7 @@ public:
     iterator erase(const_iterator first, const_iterator last);
     void resize(size_type count);
     void resize(size_type count, const T& value);
-    void swap(device_vector& other) noexcept;
+    void swap(device_vector& other);
 };
 
 } // namespace oneapi::dpl::experimental
