@@ -217,7 +217,7 @@ std::sort(policy, d_vec2.begin(), d_vec2.end());
 float val = d_vec2[0];       // device-to-host transfer
 d_vec2[0] = 42.0f;           // host-to-device transfer
 
-// Extract raw pointer for use in SYCL kernels
+// Extract device pointer for use in SYCL kernels
 oneapi::dpl::experimental::device_pointer<float> d_ptr = d_vec2.data();
 
 // device_pointer or possibly device_iterator (see open question)
