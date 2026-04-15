@@ -306,10 +306,11 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <bool _Bounded, typename _OutRng, typename _InSizeType, typename _OutSizeType, typename _Assigner, typename _ProcessedInfo>
+template <bool _Bounded, typename _OutRng, typename _InSizeType, typename _OutSizeType, typename _Assigner,
+          typename _TempData, typename _ProcessedInfo>
 bool
 __write_if_in_bounds(const _OutRng& __out_rng, _InSizeType __in_idx, _OutSizeType __out_idx, _Assigner&& __assign,
-                     _ProcessedInfo& __processed_info)
+                     const _TempData& __temp_data, _ProcessedInfo& __processed_info)
 {
     if constexpr (_Bounded)
     {
@@ -353,7 +354,8 @@ struct __simple_write_to_id
 
     template <bool _Bounded, typename _OutRng, typename _ValueType>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -364,7 +366,7 @@ struct __simple_write_to_id
 
         return __write_if_in_bounds<_Bounded>(
             __out_rng, /*TODO dummy __in_idx*/ -1, __id,
-            [&](auto __out_idx_arg) { __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v); },
+            [&](auto __out_idx_arg) { __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v); }, __temp_data,
             __processed_info);
     }
 };
@@ -396,7 +398,8 @@ struct __write_to_id_if
 
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -411,7 +414,7 @@ struct __write_to_id_if
                    [&](auto __out_idx_arg) {
                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                    },
-                   __processed_info);
+                   __temp_data, __processed_info);
     }
 
     _Assign __assign;
@@ -447,7 +450,8 @@ struct __write_to_id_if_else
 
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -463,7 +467,7 @@ struct __write_to_id_if_else
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[__out_idx_arg]));
                 },
-                __processed_info);
+                __temp_data, __processed_info);
         }
 
         return __write_if_in_bounds<_Bounded>(
@@ -471,7 +475,7 @@ struct __write_to_id_if_else
             [&](auto __out_idx_arg) {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
             },
-            __processed_info);
+            __temp_data, __processed_info);
     }
 
     _Assign __assign;
@@ -522,7 +526,8 @@ struct __write_red_by_seg
 
     template <bool _Bounded, typename _OutRng, typename _Tup>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
     {
         using std::get;
 
@@ -548,7 +553,7 @@ struct __write_red_by_seg
             if (!__write_if_in_bounds<_Bounded>(
                     __out_keys, /*TODO dummy __in_idx*/ -1, 0,
                     [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __current_key; },
-                    __processed_info))
+                    __temp_data, __processed_info))
                 return false;
         }
 
@@ -566,7 +571,8 @@ struct __write_red_by_seg
             {
                 if (!__write_if_in_bounds<_Bounded>(
                         __out_values, /*TODO dummy __in_idx*/ -1, __out_idx + 1,
-                        [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __next_key; }, __processed_info))
+                        [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __next_key; },
+                        __temp_data, __processed_info))
                 {
                     return false;
                 }
@@ -622,7 +628,8 @@ struct __write_scan_by_seg
 
     template <bool _Bounded, typename _OutRng, typename _ValueType>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData& __temp_data,
+               _ProcessedInfo& __processed_info) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -643,7 +650,7 @@ struct __write_scan_by_seg
                 [&](auto __out_idx_arg) {
                     __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
                 },
-                __processed_info);
+                __temp_data, __processed_info);
         }
         else
         {
@@ -659,7 +666,7 @@ struct __write_scan_by_seg
                             ? static_cast<_ConvertedTupleType>(__init_value.__value)
                             : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
                 },
-                __processed_info);
+                __temp_data, __processed_info);
         }
     }
 };
@@ -722,7 +729,7 @@ struct __write_multiple_to_id
                     __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
                              __out_rng[__out_idx_arg]);
                 },
-                __processed_info);
+                __temp_data, __processed_info);
         }
 
         return __all_writes_succeeded;
