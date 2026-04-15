@@ -2541,6 +2541,25 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <bool _Create, typename _InitValueType>
+    auto
+    __save_carry_for_oob_replay(bool __sub_group_carry_initialized,
+                                oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>& __sub_group_carry) const
+    {
+        if constexpr (_Create)
+        {
+            oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry_saved;
+            if (__sub_group_carry_initialized)
+                __sub_group_carry_saved.__setup(__sub_group_carry.__v);
+
+            return std::make_tuple(__sub_group_carry_initialized, __sub_group_carry_saved);
+        }
+        else
+        {
+            return std::monostate{};
+        }
+    }
+
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<
         _Bounded,
@@ -2853,6 +2872,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
                 using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
 
+                constexpr bool __oob_detection_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
+
+                auto __carry_for_oob_replay = __save_carry_for_oob_replay<__oob_detection_enabled>(__sub_group_carry_initialized, __sub_group_carry);
+
                 _TempDataNoCaptureIndexes __temp_out{};
                 _ProcessedInfo __processed_info{};
 
@@ -2861,7 +2884,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                                     __sub_group_carry_initialized, __sub_group_carry, __temp_out,
                                                     __processed_info);
 
-                if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
+                if constexpr (__oob_detection_enabled)
                 {
                     // The second additional call of __scan_through_elements_helper to save OOB index
                     if (__processed_info.get_oob_reached())
@@ -2883,19 +2906,18 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             // output indices are monotonically increasing across all work-items,
                             // so only the single work-item that first crosses the output boundary
                             // can have get_oob_source_pos() return true.
-                            // Therefore, no atomic fetch_min is needed here � at most one writer.
-
-                            typename _ProcessedInfo::_TupleOfSizes __first_oob_pos{};
-                            // KSATODO required to implement __first_oob_pos = f(__oob_source_pos)
-                            //__first_oob_pos = __processed_info.eval_oob_position(__oob_source_pos);
+                            // Therefore, no atomic fetch_min is needed here - at most one writer.
 
                             typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
+                            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __oob_source_pos);
 
                             auto __stop_pos_ptr = __stop_pos_acc.__data();
                             __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
                         }
                     }
+
+                    if (std::get<0>(__carry_for_oob_replay))
+                        std::get<1>(__carry_for_oob_replay).__destroy();
 
                     /////////////////////////////////////////////////////////
                     // Final position evaluated in each work-item,
