@@ -306,9 +306,10 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner, typename _ProcessedInfo>
+template <bool _Bounded, typename _OutRng, typename _InSizeType, typename _OutSizeType, typename _Assigner, typename _ProcessedInfo>
 bool
-__write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign, _ProcessedInfo& __processed_info)
+__write_if_in_bounds(const _OutRng& __out_rng, _InSizeType __in_idx, _OutSizeType __out_idx, _Assigner&& __assign,
+                     _ProcessedInfo& __processed_info)
 {
     if constexpr (_Bounded)
     {
@@ -362,7 +363,7 @@ struct __simple_write_to_id
                                                                std::decay_t<decltype(__out_rng[__id])>>::__type;
 
         return __write_if_in_bounds<_Bounded>(
-            __out_rng, __id,
+            __out_rng, /*TODO dummy __in_idx*/ -1, __id,
             [&](auto __out_idx_arg) { __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v); },
             __processed_info);
     }
@@ -406,7 +407,7 @@ struct __write_to_id_if
 
         return !std::get<1>(__v) ||
                __write_if_in_bounds<_Bounded>(
-                   __out_rng, std::get<0>(__v) - 1 + __offset,
+                   __out_rng, /*TODO dummy __in_idx*/ -1, std::get<0>(__v) - 1 + __offset,
                    [&](auto __out_idx_arg) {
                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                    },
@@ -458,7 +459,7 @@ struct __write_to_id_if_else
         if (std::get<1>(__v))
         {
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, std::get<0>(__v) - 1,
+                __out_rng, /*TODO dummy __in_idx*/ -1, std::get<0>(__v) - 1,
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[__out_idx_arg]));
                 },
@@ -466,7 +467,7 @@ struct __write_to_id_if_else
         }
 
         return __write_if_in_bounds<_Bounded>(
-            __out_rng, __id - std::get<0>(__v),
+            __out_rng, /*TODO dummy __in_idx*/ -1, __id - std::get<0>(__v),
             [&](auto __out_idx_arg) {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
             },
@@ -545,7 +546,8 @@ struct __write_red_by_seg
         if (__id == 0)
         {
             if (!__write_if_in_bounds<_Bounded>(
-                    __out_keys, 0, [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __current_key; },
+                    __out_keys, /*TODO dummy __in_idx*/ -1, 0,
+                    [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __current_key; },
                     __processed_info))
                 return false;
         }
@@ -553,7 +555,8 @@ struct __write_red_by_seg
         if (__is_seg_end)
         {
             if (!__write_if_in_bounds<_Bounded>(
-                    __out_values, __out_idx, [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __current_value; },
+                    __out_values, /*TODO dummy __in_idx*/ -1, __out_idx,
+                    [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __current_value; }, __temp_data,
                     __processed_info))
             {
                 return false;
@@ -562,7 +565,7 @@ struct __write_red_by_seg
             if (__id != __n - 1)
             {
                 if (!__write_if_in_bounds<_Bounded>(
-                        __out_values, __out_idx + 1,
+                        __out_values, /*TODO dummy __in_idx*/ -1, __out_idx + 1,
                         [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __next_key; }, __processed_info))
                 {
                     return false;
@@ -636,7 +639,7 @@ struct __write_scan_by_seg
                 "inclusive_scan_by_segment must not have an initial element");
 
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, __id,
+                __out_rng, /*TODO dummy __in_idx*/ -1, __id,
                 [&](auto __out_idx_arg) {
                     __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
                 },
@@ -649,7 +652,7 @@ struct __write_scan_by_seg
                 "exclusive_scan_by_segment must have an initial element");
 
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, __id,
+                __out_rng, /*TODO dummy __in_idx*/ -1, __id,
                 [&](auto __out_idx_arg) {
                     __out_rng[__out_idx_arg] =
                         get<1>(__v)
@@ -714,7 +717,7 @@ struct __write_multiple_to_id
             auto&& __current_val = __temp_data.get_and_destroy(__i);
 
             __all_writes_succeeded = __all_writes_succeeded && __write_if_in_bounds<_Bounded>(
-                __out_rng, __out_index,
+                __out_rng, __i, __out_index,
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
                              __out_rng[__out_idx_arg]);
