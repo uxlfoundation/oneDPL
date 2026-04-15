@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cassert>
 #include <array>
+#include <variant>  // std::optional, std::monostate
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -2476,10 +2477,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    struct _no_accessor_type
-    {
-    };
-
     auto
     __get_stop_pos_accessor(sycl::handler& __cgh, auto& __stop_pos_payload) const
     {
@@ -2490,7 +2487,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
         else
         {
-            return _no_accessor_type{};
+            return std::monostate{};
         }
     }
 
