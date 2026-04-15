@@ -58,8 +58,6 @@ struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...
     static constexpr bool _CaptureIndexes = false;
     using _ValueType = _ValueT;
 
-    using _TupleOfIndexes = std::tuple<_Sizes...>;
-
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, _ValueT2&& __ele)
