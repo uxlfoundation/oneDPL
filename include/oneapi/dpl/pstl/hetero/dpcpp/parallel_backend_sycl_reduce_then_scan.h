@@ -2385,7 +2385,6 @@ struct __scan_stop_pos_type<_Range, _Ranges...>
 template <typename... _InRng>
 using __scan_stop_pos_t = typename __scan_stop_pos_type<std::decay_t<_InRng>...>::_Type;
 
-template <typename... _Ranges>
 class __scan_stop_pos_initial_value
 {
     template <typename _T>
@@ -2443,10 +2442,11 @@ class __scan_stop_pos_initial_value
 
   public:
 
-    static __scan_stop_pos_t<_Ranges...>
+    template <typename _Tuple>
+    static _Tuple
     create()
     {
-        return __convert_fields(__scan_stop_pos_t<_Ranges...>{});
+        return __convert_fields(_Tuple{});
     }
 };
 
@@ -2619,7 +2619,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
 
                         // As far as we may have only one (or none) OOB position, we initialize this by max value
-                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos_initial_value<_InRng>::create();
+                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                            __scan_stop_pos_initial_value::template create<__scan_stop_pos_t<_InRng>>();
                     }
                 }
 
