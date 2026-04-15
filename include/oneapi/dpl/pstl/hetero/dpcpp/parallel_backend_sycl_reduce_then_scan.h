@@ -2525,9 +2525,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             // Temporary data with indexes
             // - will be used only in one sub-group which reached OOB-position
-            using _TupleOfIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>::_TupleOfIndexes;
-            constexpr auto _Elements = __select_temp_data_capture_indexes_t<_GenScanInput>::_Elements;
-            __dpl_sycl::__local_accessor<_TupleOfIndexes> __slm_sub_group_temp_out_src_indexes(_Elements, __cgh);
+            auto __slm_sub_group_temp_out_src_indexes = __create_slm_sub_group_temp_out_src_indexes<_GenScanInput>(__cgh);
 
             __cgh.depends_on(__prior_event);
 
@@ -2773,14 +2771,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
-                using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
-                using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
-
-                _TempDataNoCaptureIndexes __temp_out{};
-                _ProcessedInfo __processed_info{};
-
-                auto __call_scan_through_elements_helper = [&](auto& __temp_out_arg) {
+                auto __call_scan_through_elements_helper = [&](auto& __temp_out_arg, auto& __processed_info_arg) {
                     if (__sub_group_carry_initialized)
                     {
                         __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
@@ -2790,7 +2781,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
                             __active_subgroups,
-                            __temp_out_arg, __processed_info);
+                            __temp_out_arg, __processed_info_arg);
                     }
                     else // first group first block, no subgroup carry
                     {
@@ -2801,12 +2792,19 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             __sub_group_carry, __in_rng, __out_rng, __start_id, __n,
                             __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
                             __active_subgroups,
-                            __temp_out_arg, __processed_info);
+                            __temp_out_arg, __processed_info_arg);
                     }
                 };
 
+                using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
+                using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
+                using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
+
+                _TempDataNoCaptureIndexes __temp_out{};
+                _ProcessedInfo __processed_info{};
+
                 // The first normal call of __scan_through_elements_helper
-                __call_scan_through_elements_helper(__temp_out);
+                __call_scan_through_elements_helper(__temp_out, __processed_info);
 
                 if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
                 {
@@ -2815,7 +2813,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if (__processed_info.get_oob_reached(__oob_output_pos))
                     {
                         _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
-                        __call_scan_through_elements_helper(__temp_out_capture_indexes);
+                        __call_scan_through_elements_helper(__temp_out_capture_indexes, __processed_info);
 
                         /////////////////////////////////////////////////////////
                         // First OOB pos is only one inside all source data set
