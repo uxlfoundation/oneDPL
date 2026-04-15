@@ -115,11 +115,10 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     _TupleOfIndexes* __slm_sub_group_src_indexes_ptr = nullptr;
 };
 
-template <typename _OutSize, typename... _Sizes>
+template <typename... _Sizes>
 struct __processed_info
 {
     using _TupleOfSizes = std::tuple<_Sizes...>;
-    using _OutSizeType = _OutSize;
 
     void
     set_final_pos(const _TupleOfSizes& __pos)
@@ -134,21 +133,15 @@ struct __processed_info
     }
 
     void
-    set_oob_reached(_OutSize __out_index)
+    set_oob_reached()
     {
-        __oob_reached_opt.emplace(__out_index);
+        __oob_reached = true;
     }
 
     bool
-    get_oob_reached(_OutSize& __out_index) const
+    get_oob_reached() const
     {
-        if (__oob_reached_opt.has_value())
-        {
-            __out_index = *__oob_reached_opt;
-            return true;
-        }
-
-        return false;
+        return __oob_reached;
     }
 
     void
@@ -220,7 +213,7 @@ protected :
 
     _TupleOfSizes __final_pos = {};                     // Final position state
 
-    std::optional<_OutSize> __oob_reached_opt;          // Whether an OOB position was reached + the index of the first OOB position in the output range. 
+    bool __oob_reached = false;                         // Whether an OOB position was reached + the index of the first OOB position in the output range. 
     std::optional<_TupleOfSizes> __oob_source_pos_opt;  // First OOB source position state
 };
 
@@ -232,9 +225,8 @@ struct __noop_processed_info
     {
     }
 
-    template <typename _OutSize>
     void
-    set_oob_reached(_OutSize)
+    set_oob_reached()
     {
     }
 
@@ -326,7 +318,7 @@ __write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& 
             return true;
         }
 
-        __processed_info.set_oob_reached(__out_idx);
+        __processed_info.set_oob_reached();
         return false;
     }
     else
@@ -2827,8 +2819,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
                 {
                     // The second additional call of __scan_through_elements_helper to save OOB index
-                    typename _ProcessedInfo::_OutSizeType __oob_output_pos = {};
-                    if (__processed_info.get_oob_reached(__oob_output_pos))
+                    if (__processed_info.get_oob_reached())
                     {
                         _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
                         __call_scan_through_elements_helper(__temp_out_capture_indexes, __processed_info);
