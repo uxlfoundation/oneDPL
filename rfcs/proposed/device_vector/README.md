@@ -257,12 +257,19 @@ A `device_vector` requires two supporting types:
   preserve, or unnecessary complication for users?  We could always add another
   type to support such use cases in the future.
 
-- **Queue association model and its impact on device_pointer**
+- **Queue association model**
+  - Impact on `device_pointer`:
   We want `device_pointer` to be device copyable so it can be used directly
   in kernels and oneDPL algorithms. However, host-side dereference (returning
   a proxy reference that does `memcpy`) requires a `sycl::queue`, and
   `sycl::queue` is not device copyable. This creates a tension with several
   possible resolutions, here are the leading 2:
+  - Device & context instead?:
+  All that is required to allocate is device & context, which can be dictated by a queue, but it is a many-to-one releationship in that many queues may exist on top of a device & context pair. However, If we want implicit synchronization between an in-order queue and host-side accesses of `device_vector`, we need the association with a queue. 
+  
+  Thrust has implicit synchronization with its default stream, which sychronizes its host access to either all streams or the default per-thread stream based upon compiliation settings.
+
+  There is a [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc) to allow synchronizing with a whole device. Otherwise, we could make the synchronization the user's responsibility or tie it only to an associated in-order queue.  
 
   1. **Store a raw `sycl::queue*` in device_pointer.** `device_pointer`
      holds `T*` + `sycl::queue*` -- a struct of two raw pointers is trivially
