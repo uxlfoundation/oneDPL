@@ -114,10 +114,11 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     _TupleOfIndexes* __slm_sub_group_src_indexes_ptr = nullptr;
 };
 
-template <typename... _Sizes>
+template <typename _OutSize, typename... _Sizes>
 struct __processed_info
 {
     using _TupleOfSizes = std::tuple<_Sizes...>;
+    using _OutSizeType = _OutSize;
 
     void
     set_final_pos(const _TupleOfSizes& __pos)
@@ -131,28 +132,40 @@ struct __processed_info
         return __final_pos;
     }
 
-    void set_oob_reached()
+    void
+    set_oob_reached(_OutSize __out_index)
     {
-        __oob_reached = true;
+        __oob_reached_opt.emplace(__out_index);
     }
 
     bool
-    get_oob_reached() const
+    get_oob_reached(_OutSize& __out_index) const
     {
-        return __oob_reached;
+        if (__oob_reached_opt.has_value())
+        {
+            __out_index = *__oob_reached_opt;
+            return true;
+        }
+
+        return false;
     }
 
     void
-    set_oob_source_pos(const _TupleOfSizes& __pos)
+    set_oob_source_pos(const _TupleOfSizes& __source_oob_pos)
     {
-        __oob_source_pos = __pos;
+        __oob_source_pos_opt.emplace(__source_oob_pos);
     }
 
     bool
-    get_oob_source_pos(_TupleOfSizes& __pos) const
+    get_oob_source_pos(_TupleOfSizes& __source_oob_pos) const
     {
-        __pos = __oob_source_pos;
-        return __oob_reached;
+        if (__oob_source_pos_opt.has_value())
+        {
+            __source_oob_pos = *__oob_source_pos_opt;
+            return true;
+        }
+
+        return false;
     }
 
     // We should call this operation without any runtime condition checks to avoid deadlocks
@@ -204,10 +217,10 @@ protected :
 
   protected:
 
-    _TupleOfSizes __final_pos = {};         // Final position state
+    _TupleOfSizes __final_pos = {};                     // Final position state
 
-    bool __oob_reached = false;             // Whether an OOB position was reached
-    _TupleOfSizes __oob_source_pos = {};    // First OOB position state
+    std::optional<_OutSize> __oob_reached_opt;          // Whether an OOB position was reached + the index of the first OOB position in the output range. 
+    std::optional<_TupleOfSizes> __oob_source_pos_opt;  // First OOB source position state
 };
 
 struct __noop_processed_info
@@ -218,8 +231,9 @@ struct __noop_processed_info
     {
     }
 
+    template <typename _OutSize>
     void
-    set_oob_reached()
+    set_oob_reached(_OutSize)
     {
     }
 
@@ -2800,32 +2814,33 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 if constexpr (_Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>)
                 {
                     // The second additional call of __scan_through_elements_helper to save OOB index
-                    if (__processed_info.get_oob_reached())
+                    typename _ProcessedInfo::_OutSizeType __oob_output_pos = {};
+                    if (__processed_info.get_oob_reached(__oob_output_pos))
                     {
                         _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
                         __call_scan_through_elements_helper(__temp_out_capture_indexes);
-                    }
 
-                    /////////////////////////////////////////////////////////
-                    // First OOB pos is only one inside all source data set
-                    typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
-                    if (__processed_info.get_oob_source_pos(__oob_source_pos))
-                    {
-                        // OOB can be reached by at most one work-item per kernel invocation:
-                        // output indices are monotonically increasing across all work-items,
-                        // so only the single work-item that first crosses the output boundary
-                        // can have get_oob_source_pos() return true.
-                        // Therefore, no atomic fetch_min is needed here � at most one writer.
+                        /////////////////////////////////////////////////////////
+                        // First OOB pos is only one inside all source data set
+                        typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
+                        if (__processed_info.get_oob_source_pos(__oob_source_pos))
+                        {
+                            // OOB can be reached by at most one work-item per kernel invocation:
+                            // output indices are monotonically increasing across all work-items,
+                            // so only the single work-item that first crosses the output boundary
+                            // can have get_oob_source_pos() return true.
+                            // Therefore, no atomic fetch_min is needed here � at most one writer.
 
-                        typename _ProcessedInfo::_TupleOfSizes __first_oob_pos{};
-                        // KSATODO required to implement __first_oob_pos = f(__oob_source_pos)
-                        //__first_oob_pos = __processed_info.eval_oob_position(__oob_source_pos);
+                            typename _ProcessedInfo::_TupleOfSizes __first_oob_pos{};
+                            // KSATODO required to implement __first_oob_pos = f(__oob_source_pos)
+                            //__first_oob_pos = __processed_info.eval_oob_position(__oob_source_pos);
 
-                        typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                        oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
+                            typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
+                            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __first_oob_pos);
 
-                        auto __stop_pos_ptr = __stop_pos_acc.__data();
-                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
+                            auto __stop_pos_ptr = __stop_pos_acc.__data();
+                            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
+                        }
                     }
 
                     /////////////////////////////////////////////////////////

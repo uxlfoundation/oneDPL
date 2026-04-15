@@ -1159,7 +1159,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _OutValueT = oneapi::dpl::__internal::__value_t<_Range3>;
     using _TempDataNoCaptureIndexes = __temp_data_array</*_CaptureIndexes*/ false, __diagonal_spacing, _OutValueT, _Size1, _Size2>;
     using _TempDataCaptureIndexes = __temp_data_array</*_CaptureIndexes*/ true, __diagonal_spacing, _OutValueT, _Size1, _Size2>;
-    using _ProcessedInfo = __processed_info<_Size1, _Size2>;
+    using _ProcessedInfo = __processed_info</* Output index type at first place*/ _Size3, /*than source indexes*/ _Size1, _Size2>;
     using _ReduceOp = std::plus<_Size3>;
     using _BoundsProviderPhase1 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned</*_Bounded*/ false>;
     using _BoundsProviderPhase2 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned<_Bounded>;
