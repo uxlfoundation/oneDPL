@@ -160,6 +160,10 @@ public:
     iterator begin();
     iterator end();
     // + const/reverse variants
+    
+    // Views
+    device_view<T> view();
+    device_view<const T> view() const;
 
     // Queue access
     sycl::queue get_queue();
@@ -250,6 +254,88 @@ A `device_vector` requires two supporting types:
   `operator T()` and `operator=`). Our proposal follows Thrust's
   full-featured approach (see design decisions above).
 
+### Range Support
+
+The primary range interface for `device_vector` is through `device_view<T>`,
+a lightweight, device-copyable view. `device_vector` itself is not intended
+to be used directly as a range. Host-side iteration through proxy references
+is a synchronous memcpy per element, making host-policy range algorithms
+over a `device_vector` impractical. Instead, users obtain a device copyable
+`device_view` and pass it to oneDPL range algorithms with a device policy.
+
+#### Requirements on `device_reference` and `device_pointer`
+
+For `device_pointer<T>` to model `std::random_access_iterator` (and therefore
+for `device_view` to model `std::ranges::random_access_range`), the proxy
+reference type must satisfy the `common_reference_with` requirements. This
+requires a specialization of `std::basic_common_reference` for
+`device_reference<T>`:
+
+```cpp
+template <typename T, typename U, template<class> class TQual, template<class> class UQual>
+struct std::basic_common_reference<oneapi::dpl::experimental::device_reference<T>, U, TQual, UQual> {
+    using type = std::common_reference_t<T&, UQual<U>>;
+};
+
+template <typename T, typename U, template<class> class TQual, template<class> class UQual>
+struct std::basic_common_reference<U, oneapi::dpl::experimental::device_reference<T>, TQual, UQual> {
+    using type = std::common_reference_t<TQual<U>, T&>;
+};
+```
+
+`device_pointer<T>` must also expose the correct iterator traits:
+- `iterator_concept = std::random_access_iterator_tag`
+- `value_type = T`
+- `reference = device_reference<T>`
+
+#### `device_view<T>`
+
+`device_vector` itself is not device copyable, it owns a `sycl::queue`
+and manages device memory lifetime. `device_view<T>` is a lightweight,
+device-copyable view that models `std::ranges::random_access_range` and
+`std::ranges::sized_range`:
+
+```cpp
+template <typename T>
+class device_view {
+    device_pointer<T> __begin;
+    std::size_t __size;
+public:
+    auto begin() const { return __begin; }
+    auto end()   const { return __begin + __size; }
+    auto size()  const { return __size; }
+    auto operator[](std::size_t i) const { return __begin[i]; }
+    bool empty() const { return __size == 0; }
+};
+```
+
+`device_view` is trivially copyable (and therefore device copyable) because
+it contains only a `device_pointer<T>` and a `size_t`. It is obtained via
+a member function:
+
+```cpp
+auto view = dv.view();  // returns device_view<T>
+
+// Use with oneDPL range algorithms:
+oneapi::dpl::ranges::sort(policy, dv.view());
+oneapi::dpl::ranges::for_each(policy, dv.view(), f);
+
+// Compose with standard range adaptors:
+auto pipeline = dv.view() | std::views::take(100) | std::views::transform(f);
+oneapi::dpl::ranges::for_each(policy, pipeline, g);
+
+// Capture into a kernel:
+auto v = dv.view() | std::views::take(512);
+q.parallel_for(sycl::range<1>(512), [=](sycl::id<1> i) {
+    v[i] *= 2.0f;
+});
+```
+
+Separating usage as a range from `device_vector` itself allows us to keep the
+most of the convenience functionality modelling `std::vector` on the host side
+only, while allowing a simplified, lightweight, device_copyable view to enable
+range support on the device.
+
 ## Open Questions
 
 - **Should we try to support multiple devices?**
@@ -299,3 +385,7 @@ A `device_vector` requires two supporting types:
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
   worth considering.
+
+
+## TODOs 
+- Gather motivating use cases
