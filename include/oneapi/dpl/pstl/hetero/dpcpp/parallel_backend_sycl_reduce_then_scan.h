@@ -713,7 +713,7 @@ struct __write_multiple_to_id
 
             auto&& __current_val = __temp_data.get_and_destroy(__i);
 
-            __all_writes_succeeded &= __write_if_in_bounds<_Bounded>(
+            __all_writes_succeeded = __all_writes_succeeded && __write_if_in_bounds<_Bounded>(
                 __out_rng, __out_index,
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
@@ -2016,30 +2016,30 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                            __binary_op, __sub_group_carry);
-        __all_writes_succeeded &= __call_write_op(__start_id, __v);
+        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
         if (__is_full_block)
         {
             // For full block and full thread, we can unroll the loop
             _ONEDPL_PRAGMA_UNROLL
-            for (std::uint32_t __j = 1; __j < __max_inputs_per_item && __all_writes_succeeded; __j++)
+            for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded &= __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
         else
         {
             // For full thread but not full block, we can't unroll the loop, but we
             // can proceed without special casing for partial subgroups.
-            for (std::uint32_t __j = 1; __j < __iters_per_item && __all_writes_succeeded; __j++)
+            for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded &= __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
     }
@@ -2061,7 +2061,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded &= __call_write_op(__start_id, __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
                 }
             }
             else
@@ -2069,15 +2069,15 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded &= __call_write_op(__start_id, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
-                for (std::uint32_t __j = 1; __j < __iters - 1 && __all_writes_succeeded; __j++)
+                for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
                     __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    __call_write_op(__local_id, __v);
+                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -2089,7 +2089,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded &= __call_write_op(__offset, __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, __v);
                 }
             }
         }
