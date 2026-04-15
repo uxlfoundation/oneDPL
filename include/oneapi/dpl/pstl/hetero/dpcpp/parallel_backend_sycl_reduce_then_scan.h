@@ -314,25 +314,25 @@ struct __get_zeroth_element
 // *** Write Operations ***
 
 template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner, typename _ProcessedInfo>
-std::enable_if_t<_Bounded, bool>
+bool
 __write_if_in_bounds(const _OutRng& __out_rng, _SizeType __out_idx, _Assigner&& __assign, _ProcessedInfo& __processed_info)
 {
-    if (__out_idx < oneapi::dpl::__ranges::__size(__out_rng))
+    if constexpr (_Bounded)
+    {
+        if (__out_idx < oneapi::dpl::__ranges::__size(__out_rng))
+        {
+            __assign(__out_idx);
+            return true;
+        }
+
+        __processed_info.set_oob_reached(__out_idx);
+        return false;
+    }
+    else
     {
         __assign(__out_idx);
         return true;
     }
-
-    __processed_info.set_oob_reached();
-    return false;
-}
-
-template <bool _Bounded, typename _OutRng, typename _SizeType, typename _Assigner, typename _ProcessedInfo>
-std::enable_if_t<!_Bounded, bool>
-__write_if_in_bounds(const _OutRng&, _SizeType __out_idx, _Assigner&& __assign, _ProcessedInfo&)
-{
-    __assign(__out_idx);
-    return true;
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
