@@ -255,7 +255,7 @@ A `device_vector` requires two supporting types:
 - **Should we try to support multiple devices?**
   Distributed ranges work has been halted, but is this an important use case to
   preserve, or unnecessary complication for users?  We could always add another
-  type distributed_device_vector in the future if it seems necessary.
+  type to support such use cases in the future.
 
 - **Queue association model and its impact on device_pointer**
   We want `device_pointer` to be device copyable so it can be used directly
