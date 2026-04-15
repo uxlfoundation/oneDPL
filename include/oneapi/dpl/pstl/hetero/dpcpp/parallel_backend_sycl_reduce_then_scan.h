@@ -357,7 +357,7 @@ struct __simple_write_to_id
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
 
         return true;
@@ -373,7 +373,7 @@ struct __simple_write_to_id
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
 
         return __write_if_in_bounds<_Bounded>(
             __out_rng, /*TODO dummy __in_idx*/ -1, __id,
@@ -400,7 +400,7 @@ struct __write_to_id_if
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
 
@@ -417,7 +417,7 @@ struct __write_to_id_if
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
 
         return !std::get<1>(__v) ||
                __write_if_in_bounds<_Bounded>(
@@ -449,7 +449,7 @@ struct __write_to_id_if_else
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
         else
@@ -469,7 +469,7 @@ struct __write_to_id_if_else
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
 
         if (std::get<1>(__v))
         {
@@ -616,7 +616,7 @@ struct __write_scan_by_seg
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
         if constexpr (__is_inclusive)
         {
             static_assert(std::is_same_v<_InitType,
@@ -648,7 +648,7 @@ struct __write_scan_by_seg
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(get<1>(get<0>(__v)))>,
-                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
 
         if constexpr (__is_inclusive)
         {
