@@ -1186,8 +1186,6 @@ struct __set_generic_operation
             }
         };
 
-        __processed_info.set_oob_source_pos(std::make_tuple(__idx1, __idx2));
-
         if (__idx1 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng1) &&
             __idx2 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng2))
         {
