@@ -321,6 +321,17 @@ __write_if_in_bounds(const _OutRng& __out_rng, _InSizeType __in_idx, _OutSizeTyp
         }
 
         __processed_info.set_oob_reached();
+
+        // If we captured indexes for the temporary data, we can use the index of the first OOB element to fetch the source
+        if constexpr (_TempData::_CaptureIndexes)
+        {
+            if (__in_idx != -1)
+            {
+                const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.__slm_sub_group_src_indexes_ptr[__in_idx];
+                __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
+            }
+        }
+
         return false;
     }
     else
