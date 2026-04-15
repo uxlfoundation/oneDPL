@@ -2004,13 +2004,12 @@ template <bool _Bounded, bool _SkipSubGroupScan, std::uint8_t __sub_group_size, 
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
-                               _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng& __out_rng,
+                               _LazyValueType& __sub_group_carry, const _InRng& __in_rng, _OutRng&& __out_rng,
                                const std::size_t __start_id, const std::size_t __n,
                                const std::uint32_t __iters_per_item, const std::size_t __subgroup_start_id,
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _ProcessedInfo& __processed_info)
 {
-    //decltype(__sub_group_carry)::dummy;
     using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, _TempData&, _ProcessedInfo&>;
 
     const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
