@@ -2491,6 +2491,24 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <typename _T>
+    auto
+    __create_slm_sub_group_temp_out_src_indexes(sycl::handler& __cgh) const
+    {
+        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_T>;
+
+        if constexpr (_temp_data_capture_indexes_t::_CaptureIndexes)
+        {
+            using _TupleOfIndexes = typename _temp_data_capture_indexes_t::_TupleOfIndexes;
+            constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
+            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements, __cgh);
+        }
+        else
+        {
+            return std::monostate{};
+        }
+    }
+
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<
         _Bounded,
