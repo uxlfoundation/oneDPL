@@ -55,6 +55,7 @@ struct __temp_data_array;
 template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
 struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>
 {
+    static constexpr std::uint16_t _Elements = elements;
     static constexpr bool _CaptureIndexes = false;
     using _ValueType = _ValueT;
 
@@ -80,32 +81,37 @@ struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
 struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
+    : __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>
 {
+    static constexpr std::uint16_t _Elements = elements;
     static constexpr bool _CaptureIndexes = true;
     using _ValueType = _ValueT;
 
+    using _Base = __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>;
+
     using _TupleOfIndexes = std::tuple<_Sizes...>;
+
+    __temp_data_array(_TupleOfIndexes* __slm_sub_group_src_indexes_ptr)
+        : __slm_sub_group_src_indexes_ptr(__slm_sub_group_src_indexes_ptr)
+    {
+    }
 
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
     {
-        __data[__idx].__setup(std::forward<_ValueT2>(__ele));
-
-        __src_indexes[__idx] = __indexes;
+        _Base::set(__idx, std::forward<_ValueT2>(__ele));
+        __slm_sub_group_src_indexes_ptr[__idx] = __indexes;
     }
 
     _ValueT
     get_and_destroy(std::uint16_t __idx)
     {
-        // Setting up temporary value to be destroyed as this function exits. The __scoped_destroyer calls destroy when
-        // it leaves scope.
-        oneapi::dpl::__internal::__scoped_destroyer<_ValueT> __destroy_when_leaving_scope{__data[__idx]};
-        return __data[__idx].__v;
+        return _Base::get_and_destroy(__idx);
     }
 
-    oneapi::dpl::__internal::__lazy_ctor_storage<_ValueT> __data[elements];
-    _TupleOfIndexes* __src_indexes = nullptr;
+    // Pointer to the SLM-based array with source indexes corresponding to the stored values
+    _TupleOfIndexes* __slm_sub_group_src_indexes_ptr = nullptr;
 };
 
 template <typename... _Sizes>
@@ -1978,6 +1984,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                                const std::uint32_t __sub_group_id, const std::uint32_t __active_subgroups,
                                _TempData& __temp_out, _ProcessedInfo& __processed_info)
 {
+    //decltype(__sub_group_carry)::dummy;
     using _GenInputType = std::invoke_result_t<_GenInput, decltype(__in_rng), std::size_t, _TempData&, _ProcessedInfo&>;
 
     const bool __is_full_block = (__iters_per_item == __max_inputs_per_item);
@@ -2505,8 +2512,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
 
-            // KSATODO __local_accessor to save source indexes?
-            // __dpl_sycl::__local_accessor
+            // Temporary data with indexes
+            // - will be used only in one sub-group which reached OOB-position
+            using _TupleOfIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>::_TupleOfIndexes;
+            constexpr auto _Elements = __select_temp_data_capture_indexes_t<_GenScanInput>::_Elements;
+            __dpl_sycl::__local_accessor<_TupleOfIndexes> __slm_sub_group_temp_out_src_indexes(_Elements, __cgh);
 
             __cgh.depends_on(__prior_event);
 
@@ -2569,7 +2579,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
-                oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry;
+                oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry;     // KSATODO contains index for output range
 
                 // on the first sub-group in a work-group (assuming S subgroups in a work-group):
                 // 1. load S sub-group local carry prefix sums (T0..TS-1) to SLM
@@ -2792,7 +2802,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     // The second additional call of __scan_through_elements_helper to save OOB index
                     if (__processed_info.get_oob_reached())
                     {
-                        _TempDataCaptureIndexes __temp_out_capture_indexes{};
+                        _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
                         __call_scan_through_elements_helper(__temp_out_capture_indexes);
                     }
 
