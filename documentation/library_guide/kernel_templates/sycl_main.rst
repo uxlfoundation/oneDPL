@@ -29,7 +29,7 @@ with the implementation optimized for GPU devices:
 
 * :doc:`radix_sort <sycl/radix_sort>`
 * :doc:`radix_sort_by_key <sycl/radix_sort_by_key>`
-* :doc:`single_pass_scan <sycl/single_pass_scan>`
+* :doc:`inclusive_scan <sycl/single_pass_scan>`
 
 .. toctree::
    :maxdepth: 2

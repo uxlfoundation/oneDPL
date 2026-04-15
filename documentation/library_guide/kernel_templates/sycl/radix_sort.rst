@@ -13,8 +13,8 @@ The functions implement a Onesweep* [#fnote1]_ algorithm variant.
 
 .. note::
    ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
-   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 compiler or greater is required, and the Unified Runtime adapter over
-   Level Zero must be used. This is the default adapter for Intel GPUs. For more information, please refer to
+   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
+   Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
    |dpcpp_device_selection|_.
 
 A synopsis of the ``radix_sort`` function is provided below:
