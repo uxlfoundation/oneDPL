@@ -9,8 +9,9 @@ Kernel Parameter Interpretation
 ================================
 
 The definition of a work-item as it relates to :doc:`kernel_param <kernel_configuration>` parameters directly aligns
-with the SYCL specification. With the |dpcpp_compiler|, a work-item corresponds to a SIMD lane on SIMD architecutes
-and a thread on SIMT architectures.
+with the `SYCL specification <https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#_sycl_kernel_execution_model>`_.
+With the |dpcpp_compiler|, a work-item corresponds to a SIMD lane on SIMD architecutes and a thread on SIMT
+architectures.
 
 .. note::
 

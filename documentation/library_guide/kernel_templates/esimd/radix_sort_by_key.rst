@@ -346,7 +346,9 @@ The initial configuration may be selected according to these high-level guidelin
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-- ``param.data_per_workitem`` is the only available parameter to tune performance since ``param.workgroup_size`` currently
+.. note::
+
+  ``param.data_per_workitem`` is the only available parameter to tune performance since ``param.workgroup_size`` currently
   supports only one value (`64`).
 
 .. tip::
