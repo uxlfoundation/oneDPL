@@ -928,10 +928,10 @@ __pattern_partition_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _
                                                            /*_IsNoInitRequested=*/true>();
     auto __buf2 = __keep2(__zipped_res, __zipped_res + __n);
 
-    auto&& __res = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(
+    auto __result = oneapi::dpl::__par_backend_hetero::__parallel_partition_copy</*_Bounded*/ false>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __pred);
 
-    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
+    auto __f = __create_future(/*event*/ std::move(std::get<0>(__result)), /*result*/ std::move(std::get<1>(__result)));
     _It1DifferenceType __num_true = __f.get(); // blocking call
 
     return std::make_pair(__result1 + __num_true, __result2 + (__last - __first - __num_true));
