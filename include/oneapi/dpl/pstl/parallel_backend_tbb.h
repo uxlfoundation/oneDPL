@@ -1248,7 +1248,7 @@ operator()(__task* __self)
     return __self;
 }
 
-template <bool, class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _RandomAccessIterator3, typename _Compare, typename _LeafMerge>
 void
 __parallel_merge(oneapi::dpl::__internal::__tbb_backend_tag, _ExecutionPolicy&&, _RandomAccessIterator1 __xs,

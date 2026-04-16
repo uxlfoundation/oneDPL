@@ -68,7 +68,7 @@ __parallel_merge_body(std::size_t __size_x, std::size_t __size_y, _RandomAccessI
     _ONEDPL_PRAGMA(omp taskwait)
 }
 
-template <bool, class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
+template <class _ExecutionPolicy, typename _RandomAccessIterator1, typename _RandomAccessIterator2,
           typename _RandomAccessIterator3, typename _Compare, typename _LeafMerge>
 void
 __parallel_merge(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&& /*__exec*/, _RandomAccessIterator1 __xs,
