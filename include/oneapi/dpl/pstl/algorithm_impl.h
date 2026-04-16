@@ -4085,8 +4085,11 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     __brick_copy<__parallel_tag<_IsVector>> __copy_range{};
 
     // If output is empty just return first iterators
-    if (__n_out == 0)
-        return {__first1, __first2, __result1};
+    if constexpr (__Bounded)
+    {
+        if (__n_out == 0)
+            return {__first1, __first2, __result1};
+    }
 
     // {1} {}: parallel copying just first sequence
     if (__n2 == 0)
