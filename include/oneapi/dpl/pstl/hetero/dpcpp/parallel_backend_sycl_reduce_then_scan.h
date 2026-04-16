@@ -103,7 +103,9 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
     {
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
-        __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+
+        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
+            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
     }
 
     _ValueT
@@ -2609,22 +2611,22 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _TempDataCaptureIndexes, typename _NDItem, typename _OutRng, typename _StopPosAcc,
-              typename _SlmSrcIndexesLocalAccessorForOneSG, typename _ProcessedInfo, typename _OobReplayCarryTuple,
-              typename _CallScanHelper>
+              typename _SlmSrcIndexesLocalAccessorForOneSG, typename _OobReplayCarryTuple, typename _CallScanHelper>
     void
     __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
                                 _StopPosAcc& __stop_pos_acc,
                                 _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_sg,
-                                _ProcessedInfo& __processed_info, _OobReplayCarryTuple& __oob_replay_carry_tuple,
+                                bool __oob_reached_in_in_this_wi, _OobReplayCarryTuple& __oob_replay_carry_tuple,
                                 _CallScanHelper& __call_scan_through_elements_helper) const
     {
-        const bool __oob_reached_in_any_item_of_sub_group = __dpl_sycl::__any_of_group(__sub_group, __processed_info.get_oob_reached());
-        if (__oob_reached_in_any_item_of_sub_group)
+        const bool __oob_reached_in_any_wi_of_sub_group = __dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_in_this_wi);
+        if (__oob_reached_in_any_wi_of_sub_group)
         {
             auto __src_indexes_local_accessor_for_one_sg_raw =__dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_sg);
             auto __src_indexes_local_accessor_for_one_wi_raw = __get_slm_sub_group_temp_out_src_indexes_wi(__sub_group, __ndi, __src_indexes_local_accessor_for_one_sg_raw);
 
             _TempDataCaptureIndexes __temp_out_capture_indexes(__src_indexes_local_accessor_for_one_wi_raw);
+            _ProcessedInfo __processed_info{};
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
             __call_scan_through_elements_helper(
@@ -2962,18 +2964,26 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_replay_enabled>(__sub_group_carry_initialized, __sub_group_carry);
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
-                _TempDataNoCaptureIndexes __temp_out{};
-                _ProcessedInfo __processed_info{};
+                bool __oob_reached_in_in_this_wi = false;
+                {
+                    _TempDataNoCaptureIndexes __temp_out{};
+                    _ProcessedInfo __processed_info{};
 
-                // The first normal call of __scan_through_elements_helper
-                __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
-                                                    __sub_group_carry, __temp_out, __processed_info);
+                    // The first normal call of __scan_through_elements_helper
+                    __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
+                                                        __sub_group_carry, __temp_out, __processed_info);
+
+                    if constexpr (__oob_replay_enabled)
+                    {
+                        __oob_reached_in_in_this_wi = __processed_info.get_oob_reached();
+                    }
+                }
 
                 if constexpr (__oob_replay_enabled)
                 {
                     __process_oob_and_final_pos<_TempDataCaptureIndexes>(
                         __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_sg,
-                        __processed_info, __oob_replay_carry_tuple, __call_scan_through_elements_helper);
+                        __oob_reached_in_in_this_wi, __oob_replay_carry_tuple, __call_scan_through_elements_helper);
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
