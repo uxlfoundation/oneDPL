@@ -512,8 +512,7 @@ range support on the device.
 
   Among existing implementations, CUDA-based Thrust avoids the problem
   entirely since `cudaMemcpy` is a global function that doesn't require a
-  queue object. Boost.Compute's explicit `command_queue` parameter on
-  constructors is the closest precedent for explicit queue association.
+  queue object. 
   sycl-thrust's pointer-introspection approach demonstrates that the
   device-optimal path (minimal pointer size) is viable when host-side
   access is accepted as inherently slow.
