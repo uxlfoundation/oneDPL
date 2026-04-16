@@ -25,7 +25,7 @@
 #include <cmath>
 #include <cassert>
 #include <array>
-#include <variant>  // std::optional, std::monostate
+#include <variant>  // std::monostate
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
@@ -150,19 +150,14 @@ struct __processed_info
     void
     set_oob_source_pos(const _TupleOfSizes& __source_oob_pos)
     {
-        __oob_source_pos_opt.emplace(__source_oob_pos);
+        __oob_source_pos = __source_oob_pos;
     }
 
     bool
     get_oob_source_pos(_TupleOfSizes& __source_oob_pos) const
     {
-        if (__oob_source_pos_opt.has_value())
-        {
-            __source_oob_pos = *__oob_source_pos_opt;
-            return true;
-        }
-
-        return false;
+        __source_oob_pos = __oob_source_pos;
+        return __oob_source_pos != oneapi::dpl::__internal::__tuple_max_sentinel<_TupleOfSizes>::__create();
     }
 
     // We should call this operation without any runtime condition checks to avoid deadlocks
@@ -214,10 +209,14 @@ protected :
 
   protected:
 
-    _TupleOfSizes __final_pos = {};                     // Final position state
+    // Final position state
+    _TupleOfSizes __final_pos = {};
 
-    bool __oob_reached = false;                         // Whether an OOB position was reached + the index of the first OOB position in the output range. 
-    std::optional<_TupleOfSizes> __oob_source_pos_opt;  // First OOB source position state
+    // First OOB source position state
+    _TupleOfSizes __oob_source_pos = oneapi::dpl::__internal::__tuple_max_sentinel<_TupleOfSizes>::__create();
+
+    // Whether an OOB position was reached + the index of the first OOB position in the output range. 
+    bool __oob_reached = false;
 };
 
 struct __noop_processed_info
@@ -2379,71 +2378,6 @@ struct __scan_stop_pos_type<_Range, _Ranges...>
 template <typename... _InRng>
 using __scan_stop_pos_t = typename __scan_stop_pos_type<std::decay_t<_InRng>...>::_Type;
 
-class __scan_stop_pos_initial_value
-{
-    template <typename _T>
-    struct _is_tuple : std::false_type
-    {
-    };
-
-    template <typename... _Ts>
-    struct _is_tuple<std::tuple<_Ts...>> : std::true_type
-    {
-    };
-
-    template <typename _T>
-    static constexpr bool _is_tuple_v = _is_tuple<std::decay_t<_T>>::value;
-
-    template <typename _T>
-    static auto
-    __convert_field(_T&& __t)
-    {
-        using _TDecayed = std::decay_t<_T>;
-
-        if constexpr (_is_tuple_v<_TDecayed>)
-        {
-            return __convert_fields(std::forward<_T>(__t));
-        }
-        else if constexpr (std::is_arithmetic_v<_TDecayed>)
-        {
-            return std::numeric_limits<_TDecayed>::max();
-        }
-        else
-        {
-            return std::forward<_T>(__t);
-        }
-    }
-
-    template <typename... _Types>
-    static auto
-    __convert_fields(std::tuple<_Types...>&& __tup)
-    {
-        return std::apply(
-            [](auto&&... __args) {
-                return std::make_tuple(__convert_field(std::forward<decltype(__args)>(__args))...);
-            },
-            std::forward<decltype(__tup)>(__tup));
-    }
-
-    template <typename _TValue>
-    static std::enable_if_t<std::is_arithmetic_v<std::decay_t<_TValue>>, std::decay_t<_TValue>>
-    __convert_fields(_TValue&& __value)
-    {
-        using _TDecayed = std::decay_t<_TValue>;
-
-        return std::numeric_limits<_TDecayed>::max();
-    }
-
-  public:
-
-    template <typename _Tuple>
-    static _Tuple
-    create()
-    {
-        return __convert_fields(_Tuple{});
-    }
-};
-
 enum class _StopPosPayloadIndexes
 {
     eFinalPos = 0,  // Source stop position
@@ -2606,7 +2540,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             // As far as we may have only one (or none) OOB position, we initialize this by max value
             __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                __scan_stop_pos_initial_value::template create<__scan_stop_pos_t<_InRng>>();
+                oneapi::dpl::__internal::__tuple_max_sentinel<__scan_stop_pos_t<_InRng>>::__create();
         }
     }
 
