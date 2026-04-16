@@ -124,6 +124,12 @@ memory semantics.
   the handle, not the underlying device data. This is required by
   `std::indirectly_writable` in C++20 (see [Range Support](#range-support)).
 
+- **Support `no_init` tag for uninitialized construction and resizing**
+  A `no_init_t` tag type allows users to skip value-initialization when
+  constructing or resizing a `device_vector`. This avoids the cost of a
+  device memset/kernel launch for temporary buffers that will be immediately
+  overwritten.
+
 - **No custom allocator template parameter; use `sycl::malloc_device` directly**
   The SYCL 2020 spec intentionally excludes `sycl::usm_allocator` for device
   memory because the C++ `Allocator` named requirement mandates host-accessible
@@ -136,6 +142,10 @@ memory semantics.
 
 ```cpp
 namespace oneapi::dpl::experimental {
+
+// Tag type for uninitialized construction / resize
+struct no_init_t { /* ... */ };
+inline constexpr no_init_t no_init{};
 
 template <typename T>
 class device_vector {
@@ -170,6 +180,10 @@ public:
     device_vector& operator=(const device_vector&);
     device_vector& operator=(device_vector&&) noexcept;
     ~device_vector();
+
+    // Uninitialized construction -- allocates without memset/kernel launch
+    explicit device_vector(size_type count, no_init_t,
+                           sycl::queue q = /* default queue */);
 
     // Interop with std::vector
     explicit device_vector(const std::vector<T>&,
@@ -221,6 +235,7 @@ public:
     iterator erase(const_iterator first, const_iterator last);
     void resize(size_type count);
     void resize(size_type count, const T& value);
+    void resize(size_type count, no_init_t);  // new elements uninitialized
     void swap(device_vector& other);
 };
 
