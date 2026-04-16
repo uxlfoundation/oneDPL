@@ -391,7 +391,7 @@ class zip_view
 };
 
 template <typename... _Views>
-oneapi::dpl::__ranges::zip_view<_Views...>
+auto
 make_zip_view(_Views... args)
 {
     return zip_view<_Views...>(args...);
