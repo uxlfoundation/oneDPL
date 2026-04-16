@@ -59,7 +59,7 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Explicit constructor + `operator std::vector()` |
 | **Multi-device** | No | No | Yes (`rank()` tracks owning device) | see [open question](#open-questions) |
 | **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
-| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | see [open question](#open-questions) |
+| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | `no_init_t` tag for construction and resize |
 
 ### 2. Alternatives Built by Projects That Rejected `thrust::device_vector`
 
@@ -459,12 +459,6 @@ range support on the device.
 
   CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
   global function that doesn't require a queue object.
-
-- **Should we support uninitialized / default-initialized construction?**
-  Thrust provides `default_init_t` and `no_init_t` tags that let users skip
-  value-initialization when constructing a `device_vector`.  No other existing
-  implementation supports this. It fits nicely with uninitialized_* APIs.
-  Should we support similar tags?
 
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
