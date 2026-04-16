@@ -22,8 +22,8 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 - **Real-world usage patterns** - A [detailed survey](usage_pattern_study.md)
   of `thrust::device_vector` (~2,520 files on GitHub), `dpct::device_vector`
   (~111 code results across ~18 repos), and alternative implementations
-  (FAISS `DeviceVector`, RMM `device_uvector`) reveals consistent patterns
-  that validate our design. Key findings:
+  (FAISS `DeviceVector`, RMM `device_uvector`) reveals consistent patterns.
+  Key findings:
 
   1. **Construction + bulk transfer + raw pointer extraction** are the core
      operations across all domains. `device_vector` is primarily used as an
@@ -41,11 +41,6 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
      ubiquitous for passing to kernels and library APIs.
   6. **`device_vector` as class member** is a major pattern in HPC
      (simulation state, sparse matrix storage, MPI buffers).
-
-  These findings validate our explicit queue association (addresses the #1
-  AI/ML complaint), device memory model, and `device_pointer::get()` design.
-  They also strengthen the case for `no_init_t` support (see
-  [open questions](#open-questions)).
 
 ## Comparison of Existing Implementations
 
@@ -75,33 +70,10 @@ control, uninitialized allocation, and stripped-down interfaces over STL
 compatibility. See the [detailed analysis](usage_pattern_study.md#alternatives-built-by-projects-that-rejected-thrustdevice_vector)
 for full design breakdowns.
 
-| Aspect | FAISS `DeviceVector` | RMM `device_uvector` | Proposed (oneDPL) |
-|---|---|---|---|
-| **Stream/queue on operations** | Yes (every method) | Yes (every method) | Queue on construction only (see [open question](#open-questions)) |
-| **Initialization on resize** | No | No | Yes (zero-fill) — consider `no_init_t` |
-| **Growth strategy** | Tiered (2x/1.25x/exact) | None (exact) | `std::vector`-like (2x) |
-| **Iterators** | None | Raw `T*` (device-only) | `device_pointer<T>` (host+device) |
-| **`operator[]`** | None | None | `device_reference<T>` proxy |
-| **Host↔device bulk transfer** | `append()`, `copyToHost()` | None | Constructor, `operator std::vector()` |
-| **Copy semantics** | Move-only | Move-only (copy needs stream) | Copy + move |
-| **Non-trivial types** | No (POD only) | No (`trivially_copyable`) | No (device copyable) |
-| **Memory resource** | Custom (`GpuResources`) | Pluggable (`resource_ref`) | Direct `sycl::malloc_device` |
-| **STL compatibility** | None | Minimal (iterators, span) | Near-complete `std::vector` interface |
-
-The key tension: **FAISS and RMM prioritize performance (no wasted
-initialization, explicit async control) at the cost of ergonomics, while
-our proposal prioritizes migration ease and `std::vector` familiarity.**
-Our `no_init_t` open question could bridge this gap by offering both modes.
-
-### 3. Boost.Compute
-
-[Boost.Compute](https://github.com/boostorg/compute/blob/master/include/boost/compute/container/vector.hpp)
-(`boost::compute::vector`) is another variant, which is further removed from the rest, it is a OpenCL-based device vector built on `cl::Buffer`.
-Its most relevant design choice is **explicit queue association**: constructors and
-operations accept a `command_queue` parameter, making the queue relationship clear
-rather than relying on a global default. This is the closest existing precedent
-for our proposed explicit `sycl::queue` constructor parameter (see
-[open question](#open-questions) on queue association).
+While these alternatives are a separate category, it seems to support the argument
+to provide uninitialized creation and resizing. Also, association with a queue
+can provide some explicit synchronization via in-order queues. However, adding
+explicit queue parameters to each operation does not seem appropriate.
 
 ## Proposal
 
@@ -303,7 +275,8 @@ std::cout << *d_iter;
 A `device_vector` requires two supporting types:
 
 - **`device_pointer<T>`** -- wraps a raw device pointer; models random
-  access iterator; dereference returns `device_reference<T>`.
+  access iterator; dereference returns `device_reference<T>`. Allows raw pointer
+  extraction via `.get()`.
 - **`device_reference<T>`** -- proxy reference for host-side element
   access; reads/writes trigger synchronous `memcpy` on the host path,
   direct dereference on the device path. Existing implementations range
@@ -460,46 +433,6 @@ most of the convenience functionality modelling `std::vector` on the host side
 only, while allowing a simplified, lightweight, device_copyable view to enable
 range support on the device.
 
-## Implementation Notes from POC
-
-A proof-of-concept implementation validated the design and uncovered the
-following points that should be considered during productization:
-
-- **`device_reference` host/device bifurcation.** `device_reference::operator T()`
-  and `operator=` must use different code paths depending on whether they are
-  compiled for host or device. On the host, they use `sycl::queue::memcpy`
-  (synchronous). On the device, they dereference the raw USM pointer directly.
-  The `__SYCL_DEVICE_ONLY__` macro selects the correct path. This keeps the
-  API consistent across compilation passes (same type, same member functions)
-  while the implementation adapts.
-
-- **`operator std::vector<T>()` should be non-const.** `sycl::queue::memcpy`
-  is a non-const member function, so `operator std::vector<T>() const` does
-  not compile without `mutable` on the queue. Making the conversion operator
-  non-const is the simpler option, but const element access (`operator[] const`,
-  `begin() const`, etc.) still requires `mutable sycl::queue` since they
-  construct `device_reference`/`device_pointer` objects that hold a non-const
-  queue pointer.
-
-- **`sycl::queue::memcpy` requires `void*` casts.** The `sycl::queue::memcpy`
-  overload set includes template overloads for `device_global` types. Passing
-  typed pointers (e.g. `T*`) can be ambiguous. Explicit
-  `static_cast<void*>` / `static_cast<const void*>` on the source and
-  destination pointers resolves the ambiguity.
-
-- **oneDPL `__brick_fill` / `__brick_fill_n` incompatibility with proxy
-  references.** The hetero specializations of `__brick_fill` take their
-  target parameter by lvalue reference (`_TargetT& __target`). When the
-  iterator's `operator[]` returns a proxy reference prvalue (as
-  `device_pointer` does), the prvalue cannot bind to the lvalue reference.
-  Changing the parameter to a forwarding reference (`_TargetT&& __target`)
-  fixes this for all proxy reference types. This is a pre-existing oneDPL
-  bug, not specific to `device_vector`.
-
-- **POC location.** The POC header is at
-  `include/oneapi/dpl/experimental/device_vector.h` with tests at
-  `test/parallel_api/experimental/device_vector.pass.cpp`.
-
 ## Open Questions
 
 - **Should we try to support multiple devices?**
@@ -535,8 +468,6 @@ following points that should be considered during productization:
      copyable, and host-side dereference uses the default queue. Simple, but
      limits users to a single device/queue.
 
-  Among existing implementations, Boost.Compute's explicit `command_queue`
-  parameter on constructors is the closest precedent for queue association.
   CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
   global function that doesn't require a queue object.
 
