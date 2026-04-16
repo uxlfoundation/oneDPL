@@ -137,7 +137,6 @@ struct __parallel_transform_reduce_small_submitter<_Tp, _Commutative, _VecSize,
         __combined_storage<_Tp> __result{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
 
         sycl::event __reduce_event = __q.submit([&, __n](sycl::handler& __cgh) {
-
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...); // get an access to data under SYCL buffer
 
             auto __res_acc = __get_result_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});

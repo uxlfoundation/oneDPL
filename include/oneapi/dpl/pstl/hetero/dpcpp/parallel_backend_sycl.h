@@ -407,7 +407,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
         const ::std::uint16_t __elems_per_item = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wg_size);
         const ::std::uint16_t __elems_per_wg = __elems_per_item * __wg_size;
 
-        __combined_storage<_ValueType> __result{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+        __combined_storage<_ValueType> __result_payload{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
 
         if constexpr (_Bounded)
             __n = std::min<decltype(__n)>(__n, oneapi::dpl::__ranges::__size(__out_rng));
@@ -417,7 +417,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
@@ -449,7 +449,7 @@ struct __parallel_transform_scan_dynamic_single_group_submitter<_Bounded, _Inclu
                 });
         });
 
-        return {std::move(__event), std::move(__result)};
+        return {std::move(__event), std::move(__result_payload)};
     }
 };
 
@@ -470,7 +470,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
         constexpr ::uint32_t __elems_per_wg = _ElemsPerItem * _WGSize;
 
-        __combined_storage<_ValueType> __result{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
+        __combined_storage<_ValueType> __result_payload{__q, /*No temporary data, just for return type compatibility*/ 0, 1};
 
         if constexpr (_Bounded)
             __n = std::min<decltype(__n)>(__n, oneapi::dpl::__ranges::__size(__out_rng));
@@ -480,7 +480,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
 
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>{__elems_per_wg}, __hdl);
 
-            auto __res_acc = __get_result_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_result_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});
 
             __hdl.parallel_for<_ScanKernelName...>(
                 sycl::nd_range<1>(_WGSize, _WGSize), [=](sycl::nd_item<1> __self_item) {
@@ -513,7 +513,7 @@ struct __parallel_transform_scan_static_single_group_submitter<_Bounded, _Inclus
                 });
         });
 
-        return {std::move(__event), std::move(__result)};
+        return {std::move(__event), std::move(__result_payload)};
     }
 };
 
@@ -560,7 +560,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         using __tuple_type = typename oneapi::dpl::__internal::__get_tuple_type<
             std::decay_t<decltype(__in_rng[0])>, std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        __result_storage<_Size> __result{__q, 2};
+        __result_storage<_Size> __result_payload{__q, 2};
 
         __q.submit([&](sycl::handler& __hdl) {
             oneapi::dpl::__ranges::__require_access(__hdl, __in_rng, __out_rng);
@@ -569,7 +569,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
             // Since __n_uniform is captured into a lambda, structured binding cannot be used here till C++20
             std::tie(__lsize, __n_uniform) = __local_memory_needed(__n);
             auto __lacc = __dpl_sycl::__local_accessor<_ValueType>(sycl::range<1>(__lsize), __hdl);
-            auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
+            auto __res_acc = __get_accessor(sycl::write_only, __result_payload, __hdl, __dpl_sycl::__no_init{});
             const auto __wg_size = static_cast<std::uint16_t>(std::min<std::size_t>(__n_uniform, __max_wg_size));
 
             __hdl.parallel_for<_ScanKernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
@@ -615,7 +615,7 @@ struct __parallel_copy_if_single_group_functor<__internal::__optional_kernel_nam
         }).wait_and_throw();
 
         std::array<_Size, 2> __ret;
-        __result.__copy_result(__ret.data(), __ret.size());
+        __result_payload.__copy_result(__ret.data(), __ret.size());
         return __ret;
     }
 };
