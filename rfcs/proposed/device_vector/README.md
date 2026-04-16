@@ -243,7 +243,119 @@ These patterns validate our design priorities:
 | **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | see [open question](#open-questions) |
 
-### 2. Boost.Compute
+### 2. Alternatives Built by Projects That Rejected `thrust::device_vector`
+
+Two notable alternatives were built by high-performance projects that found
+`thrust::device_vector` insufficient. Understanding their designs is
+instructive for our proposal.
+
+#### FAISS `DeviceVector<T>` (Meta, 39.7k stars)
+
+[Source: `faiss/gpu/utils/DeviceVector.cuh`](https://github.com/facebookresearch/faiss/blob/main/faiss/gpu/utils/DeviceVector.cuh)
+
+FAISS built a minimal replacement explicitly motivated by three deficiencies
+in Thrust (from the class comment): *"has more control over streams, whether
+resize() initializes new space with T() (which we don't want), and control
+on how much the reserved space grows."* It is restricted to POD types only.
+
+**Key design choices:**
+- **Explicit `cudaStream_t` on every mutating operation** — `resize(n, stream)`,
+  `append(ptr, n, stream)`, `setAt(i, val, stream)`, `getAt(i, stream)`,
+  `reserve(n, stream)`, `reclaim(exact, stream)`.
+- **No initialization on `resize()`** — comment: *"Don't bother zero
+  initializing the newly accessible memory (unlike thrust::device_vector)"*.
+  However, newly allocated raw capacity *is* zeroed.
+- **Tiered growth strategy** — power-of-2 below 4M elements, 1.25x up to
+  128M elements, exact allocation above. Prevents overallocation for large
+  buffers.
+- **No iterators, no `operator[]`** — element access only via explicit
+  `setAt()`/`getAt()` methods with stream parameter. No proxy references.
+- **Auto-detects host vs device source** — `append()` uses
+  `cudaPointerGetAttributes` to pick the right `memcpy` direction.
+- **Custom memory resource** — allocates through FAISS's `GpuResources`
+  abstraction (pool for temporaries, `cudaMalloc` for persistent data),
+  not through CUDA allocator APIs directly.
+- **No copy semantics** — move-only via the underlying RAII memory handle.
+
+**What it strips out vs Thrust:** iterators, `operator[]`, `push_back`,
+`insert`/`erase`, copy construction, implicit host↔device conversion,
+value initialization, STL container compatibility. What it **adds:**
+explicit stream parameter, `append()` with auto-direction detection,
+`reclaim()` for capacity shrinking, and return values indicating whether
+reallocation occurred.
+
+#### RAPIDS `rmm::device_uvector<T>`
+
+[Source: `rmm/include/rmm/device_uvector.hpp`](https://github.com/rapidsai/rmm/blob/main/cpp/include/rmm/device_uvector.hpp)
+
+RMM's `device_uvector` (the "u" stands for uninitialized) is the
+recommended replacement for `thrust::device_vector` across the RAPIDS
+ecosystem (cuDF, cuML, cuGraph). It was motivated by the same concerns
+as FAISS plus a desire for pluggable memory resources.
+
+**Key design choices:**
+- **Explicit `cuda_stream_view` on every operation** — construction,
+  resize, reserve, element access, copy construction all require a stream.
+- **No initialization** — construction and resize never launch a kernel
+  to zero-fill or value-initialize. This is the defining feature.
+- **No geometric growth** — `resize()` allocates exactly the requested
+  size. RMM's pool memory resources handle allocation performance, so
+  container-level overallocation is unnecessary.
+- **Deleted default and copy constructors** — must provide stream to
+  construct. Copy requires explicit call: `device_uvector(other, stream)`.
+- **Iterators are raw `T*` pointers** — usable in device code and thrust
+  algorithms, but dereferencing on host is undefined behavior. No proxy
+  references.
+- **No `operator[]`** — element access via explicit `element(i, stream)`
+  (synchronous D→H) and `set_element_async(i, val, stream)` (async H→D).
+  The async setter deliberately deletes its rvalue overload to prevent
+  dangling references.
+- **No bulk host↔device transfer API** — no constructor from host data,
+  no `assign()` from host range. Users must use `cudaMemcpy` directly.
+- **Pluggable memory resource** — uses `device_async_resource_ref`
+  (type-erased, `std::pmr`-style). Default is `cudaMalloc`, but can be
+  pool, arena, etc.
+- **`static_assert(is_trivially_copyable<T>)`** — only trivially copyable
+  types.
+- **Implicit conversion to `cuda::std::span<T>`** — lightweight view
+  interop.
+- **Stores device ID** — destructor deallocates on the correct device even
+  if a different device is current.
+
+**What it strips out vs Thrust:** `operator[]`, `push_back`, `insert`/`erase`,
+`assign`, `clear`, `swap`, implicit copy, host range construction, value
+initialization, geometric growth, non-trivial types. What it **adds:**
+explicit stream everywhere, pluggable memory resource, span conversion,
+device-aware destruction.
+
+Note: RMM also provides `rmm::device_vector<T>`, which is just a type alias
+for `thrust::device_vector<T, rmm::mr::thrust_allocator<T>>` — same Thrust
+interface but with RMM-backed allocation.
+
+#### Comparison With Our Proposal
+
+| Aspect | FAISS `DeviceVector` | RMM `device_uvector` | Proposed (oneDPL) |
+|---|---|---|---|
+| **Stream/queue on operations** | Yes (every method) | Yes (every method) | Queue on construction only (see [open question](#open-questions)) |
+| **Initialization on resize** | No | No | Yes (zero-fill) — consider `no_init_t` |
+| **Growth strategy** | Tiered (2x/1.25x/exact) | None (exact) | `std::vector`-like (2x) |
+| **Iterators** | None | Raw `T*` (device-only) | `device_pointer<T>` (host+device) |
+| **`operator[]`** | None | None | `device_reference<T>` proxy |
+| **Host↔device bulk transfer** | `append()`, `copyToHost()` | None | Constructor, `operator std::vector()` |
+| **Copy semantics** | Move-only | Move-only (copy needs stream) | Copy + move |
+| **Non-trivial types** | No (POD only) | No (`trivially_copyable`) | No (device copyable) |
+| **Memory resource** | Custom (`GpuResources`) | Pluggable (`resource_ref`) | Direct `sycl::malloc_device` |
+| **STL compatibility** | None | Minimal (iterators, span) | Near-complete `std::vector` interface |
+
+The key tension these alternatives highlight: **FAISS and RMM prioritize
+performance (no wasted initialization, explicit async control) at the cost
+of ergonomics, while our proposal prioritizes migration ease and
+`std::vector` familiarity.** Both approaches are valid for different
+audiences — performance-critical library internals vs. application-level
+code and CUDA migration. Our `no_init_t` open question could bridge this
+gap by offering both modes.
+
+### 3. Boost.Compute
 
 [Boost.Compute](https://github.com/boostorg/compute/blob/master/include/boost/compute/container/vector.hpp)
 (`boost::compute::vector`) is another variant, which is further removed from the rest, it is a OpenCL-based device vector built on `cl::Buffer`.
@@ -699,6 +811,3 @@ following points that should be considered during productization:
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
   worth considering.
-
-
-## TODOs
