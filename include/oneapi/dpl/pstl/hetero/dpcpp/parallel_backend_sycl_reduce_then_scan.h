@@ -2451,7 +2451,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     auto
-    __create_src_indexes_local_accessor_for_one_sg(sycl::handler& __cgh) const
+    __create_src_indexes_local_accessor_for_one_wi(sycl::handler& __cgh) const
     {
         using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
 
@@ -2461,40 +2461,19 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
 
-            // Each WI owns a contiguous region of _Elements slots:
-            //  +------------------+------------------+-----+--------------------------+
-            //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
-            //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
-            //  +------------------+------------------+-----+--------------------------+
-            //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
+            // One WI which reached OOB pos owns a contiguous region of _Elements slots:
+            //  +------------------+
+            //  | WI X             |
+            //  | [0 .._Ele - 1]   |
+            //  +------------------+
+            //  [0 .. _Elements-1]
 
-            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements * __sub_group_size, __cgh);
+            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements, __cgh);
         }
         else
         {
             return std::monostate{};
         }
-    }
-
-    template <typename _NDItem, typename _TupleOfIndexes>
-    _TupleOfIndexes*
-    __get_slm_sub_group_temp_out_src_indexes_wi(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi,
-                                                _TupleOfIndexes* __src_indexes_local_accessor_for_one_sg_raw) const
-    {
-        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
-
-        constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
-
-        // Get local linear id index representing work-item id within the sub-group
-        const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-
-            // Each WI owns a contiguous region of _Elements slots:
-        //  +------------------+------------------+-----+--------------------------+
-        //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
-        //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
-        //  +------------------+------------------+-----+--------------------------+
-        //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
-        return __src_indexes_local_accessor_for_one_sg_raw + __sub_group_local_id * _Elements;
     }
 
     template <bool _Create, typename _InitValueType>
@@ -2544,23 +2523,28 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
-    template <typename _TempDataCaptureIndexes, typename _NDItem, typename _OutRng, typename _StopPosAcc,
-              typename _SlmSrcIndexesLocalAccessorForOneSG, typename _OobReplayCarryTuple, typename _CallScanHelper>
+    template <typename _TempDataCaptureIndexes, typename _ProcessedInfo, typename _NDItem, typename _OutRng,
+              typename _StopPosAcc, typename _SlmSrcIndexesLocalAccessorForOneSG, typename _OobReplayCarryTuple,
+              typename _CallScanHelper>
     void
     __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
                                 _StopPosAcc& __stop_pos_acc,
-                                _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_sg,
-                                bool __oob_reached_in_in_this_wi, _OobReplayCarryTuple& __oob_replay_carry_tuple,
+                                _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
+                                const bool __oob_reached_in_in_this_wi, _OobReplayCarryTuple& __oob_replay_carry_tuple,
                                 _CallScanHelper& __call_scan_through_elements_helper) const
     {
-        const bool __oob_reached_in_any_wi_of_sub_group = __dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_in_this_wi);
-        if (__oob_reached_in_any_wi_of_sub_group)
+        _ProcessedInfo __processed_info{};
+
+        // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
+        // by replaying the scan with captured indexes in SLM
+        if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_in_this_wi))
         {
-            auto __src_indexes_local_accessor_for_one_sg_raw =__dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_sg);
-            auto __src_indexes_local_accessor_for_one_wi_raw = __get_slm_sub_group_temp_out_src_indexes_wi(__sub_group, __ndi, __src_indexes_local_accessor_for_one_sg_raw);
+            auto __src_indexes_local_accessor_for_one_wi_raw =
+                __oob_reached_in_in_this_wi
+                    ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi)
+                    : nullptr;
 
             _TempDataCaptureIndexes __temp_out_capture_indexes(__src_indexes_local_accessor_for_one_wi_raw);
-            _ProcessedInfo __processed_info{};
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
             __call_scan_through_elements_helper(
@@ -2629,8 +2613,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
 
             // Temporary data with indexes
-            // - will be used only in one sub-group which reached OOB-position
-            auto __slm_src_indexes_local_accessor_for_one_sg = __create_src_indexes_local_accessor_for_one_sg(__cgh);
+            // - will be used only in one work-item which reached OOB-position
+            auto __slm_src_indexes_local_accessor_for_one_wi = __create_src_indexes_local_accessor_for_one_wi(__cgh);
 
             __cgh.depends_on(__prior_event);
 
@@ -2915,8 +2899,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 if constexpr (__oob_replay_enabled)
                 {
-                    __process_oob_and_final_pos<_TempDataCaptureIndexes>(
-                        __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_sg,
+                    __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo>(
+                        __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
                         __oob_reached_in_in_this_wi, __oob_replay_carry_tuple, __call_scan_through_elements_helper);
                 }
 
