@@ -135,7 +135,7 @@ __pattern_fill(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R&& 
     oneapi::dpl::__internal::__set_value __f{__value};
 
     oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
-                                                        oneapi::dpl::__ranges::views::all_write(__r));
+                                                        oneapi::dpl::__ranges::views::all_write(std::forward<_R>(__r)));
 
     return {std::ranges::begin(__r) + oneapi::dpl::__ranges::__size(__r)};
 }
