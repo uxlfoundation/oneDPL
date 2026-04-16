@@ -2575,6 +2575,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             return std::monostate{};
     }
 
+    template <typename _InRng, typename _NDItem, typename _StopPosAcc>
+    void
+    __init_stop_pos_storage(const _NDItem& __ndi, _StopPosAcc& __stop_pos_acc) const
+    {
+        if (__ndi.get_global_linear_id() == 0)
+        {
+            auto __stop_pos_ptr = __stop_pos_acc.__data();
+
+            // As far as later we will work with this state through fetch_max operations, we initialize this by zero states
+            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
+
+            // As far as we may have only one (or none) OOB position, we initialize this by max value
+            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                __scan_stop_pos_initial_value::template create<__scan_stop_pos_t<_InRng>>();
+        }
+    }
+
     template <typename _TempDataCaptureIndexes, typename _NDItem, typename _OutRng, typename _StopPosAcc,
               typename _SlmSrcIndexes, typename _ProcessedInfo, typename _OobReplayCarryTuple, typename _CallScanHelper>
     void
@@ -2672,20 +2689,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 // Initialize stop positions from the first item
                 if constexpr (_Bounded)
-                {
-                    const std::size_t __global_id = __ndi.get_global_linear_id();
-                    if (__global_id == 0)
-                    {
-                        auto __stop_pos_ptr = __stop_pos_acc.__data();
-
-                        // As far as later we will work with this state through fetch_max operations, we initialize this by zero states
-                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
-
-                        // As far as we may have only one (or none) OOB position, we initialize this by max value
-                        __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                            __scan_stop_pos_initial_value::template create<__scan_stop_pos_t<_InRng>>();
-                    }
-                }
+                    __init_stop_pos_storage<_InRng>(__ndi, __stop_pos_acc);
 
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
