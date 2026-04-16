@@ -322,32 +322,6 @@ concept checks `convertible_to<device_reference<T>&&, common_reference_type>`,
 which fails if the common reference is `T&` since `is_convertible_v<device_reference<T>&&, T&>`
 is false.
 
-```cpp
-// device_reference<T> vs U (where T and U are the same unqualified type)
-template <typename T, typename U, template<class> class TQual, template<class> class UQual>
-    requires std::same_as<std::remove_cv_t<T>, std::remove_cv_t<U>>
-struct std::basic_common_reference<
-    oneapi::dpl::experimental::device_reference<T>, U, TQual, UQual> {
-    using type = std::remove_cv_t<T>;
-};
-
-// U vs device_reference<T> (symmetric)
-template <typename T, typename U, template<class> class TQual, template<class> class UQual>
-    requires std::same_as<std::remove_cv_t<T>, std::remove_cv_t<U>>
-struct std::basic_common_reference<
-    U, oneapi::dpl::experimental::device_reference<T>, TQual, UQual> {
-    using type = std::remove_cv_t<T>;
-};
-
-// device_reference<T> vs device_reference<U>
-template <typename T, typename U, template<class> class TQual, template<class> class UQual>
-struct std::basic_common_reference<
-    oneapi::dpl::experimental::device_reference<T>,
-    oneapi::dpl::experimental::device_reference<U>, TQual, UQual> {
-    using type = std::common_reference_t<T&, U&>;
-};
-```
-
 ##### Const-qualified operators on `device_reference`
 
 The `std::indirectly_writable` concept tests assignment through
