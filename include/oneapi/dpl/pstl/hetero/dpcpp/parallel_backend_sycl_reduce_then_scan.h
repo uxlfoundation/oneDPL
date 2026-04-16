@@ -2935,10 +2935,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
                 using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
 
-                constexpr bool __oob_detection_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
+                constexpr bool __oob_replay_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
 
-                auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_detection_enabled>(__sub_group_carry_initialized, __sub_group_carry);
-                auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_detection_enabled, _InitValueType>(__oob_replay_carry_tuple);
+                auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_replay_enabled>(__sub_group_carry_initialized, __sub_group_carry);
+                auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 _TempDataNoCaptureIndexes __temp_out{};
                 _ProcessedInfo __processed_info{};
@@ -2948,7 +2948,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                                     __sub_group_carry_initialized, __sub_group_carry, __temp_out,
                                                     __processed_info);
 
-                if constexpr (__oob_detection_enabled)
+                if constexpr (__oob_replay_enabled)
                 {
                     __process_oob_and_final_pos<_TempDataCaptureIndexes>(
                         __ndi, __out_rng, __stop_pos_acc, __slm_sub_group_temp_out_src_indexes, __processed_info,
