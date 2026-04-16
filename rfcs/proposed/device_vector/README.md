@@ -49,19 +49,48 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Thrust** (`thrust::device_vector`) | [NVIDIA/cccl - device_vector.h](https://github.com/NVIDIA/cccl/blob/main/thrust/thrust/device_vector.h) |
 | **SYCLomatic** (`dpct::device_vector`) | [SYCLomatic - vector.h](https://github.com/oneapi-src/SYCLomatic/blob/SYCLomatic/clang/runtime/dpct-rt/include/dpct/dpl_extras/vector.h) |
 | **Distributed Ranges** (`dr::sp::device_vector`) | [distributed-ranges - device_vector.hpp](https://github.com/oneapi-src/distributed-ranges/blob/main/include/dr/sp/device_vector.hpp) |
+| **sycl-thrust** (`thrust::device_vector`) | [SparseBLAS/sycl-thrust - device_vector.h](https://github.com/SparseBLAS/sycl-thrust/blob/main/include/thrust/device_vector.h) |
 ### 1. How They Differ
 
-| Aspect | Thrust | SYCLomatic | Distributed Ranges | Proposed (oneDPL) |
-|---|---|---|---|---|
-| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | N/A; Always uses `sycl::malloc_device` directly |
-| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
-| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (explicit device-to-host copy) |
-| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Explicit constructor + `operator std::vector()` |
-| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | see [open question](#open-questions) |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
-| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | `no_init_t` tag for construction and resize |
+| Aspect | Thrust | SYCLomatic | Distributed Ranges | sycl-thrust | Proposed (oneDPL) |
+|---|---|---|---|---|---|
+| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | N/A; Always uses `sycl::malloc_device` directly |
+| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
+| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (explicit device-to-host copy) |
+| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Constructor from `std::vector` | Explicit constructor + `operator std::vector()` |
+| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No | see [open question](#open-questions) |
+| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
+| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | `no_init_t` tag for construction and resize |
 
-### 2. Alternatives Built by Projects That Rejected `thrust::device_vector`
+### 2. sycl-thrust
+
+[sycl-thrust](https://github.com/SparseBLAS/sycl-thrust) is a SYCL-native
+reimplementation of Thrust's `device_vector` API from the SparseBLAS project.
+It uses `sycl::malloc_device`, a `device_ptr<T>` iterator wrapping a raw
+`T*`, and a `device_reference<T>` proxy with `__SYCL_DEVICE_ONLY__`
+bifurcation — the same fundamental patterns as our proposal.
+
+**Device & context vs queue.** sycl-thrust's allocator stores
+`sycl::device` + `sycl::context` rather than a `sycl::queue`. This is
+sufficient for allocation (`sycl::malloc_device` only requires device and
+context) and means the allocator doesn't tie the vector to a particular
+queue. When host-side `device_reference` needs a queue for memcpy, it
+resolves one at runtime via `sycl::get_pointer_device`. The key tradeoff:
+`device_ptr` is a single raw pointer (8 bytes) since it doesn't carry a
+queue, making it half the size of our `device_pointer` (16 bytes with
+`T*` + `sycl::queue*`). The device-hot path — where pointers are captured
+into kernels — pays nothing for host-side bookkeeping. The host-side
+queue lookup cost is amortized against the synchronous memcpy that already
+dominates host access. See [open question on queue association](#open-questions)
+for further discussion of this tradeoff.
+
+**Aligned allocation.** sycl-thrust's `device_allocator<T, Alignment>`
+supports `sycl::aligned_alloc_device` via a template parameter, allowing
+users to request specific alignment (e.g. 128 or 256 bytes for coalesced
+memory access). This is a capability we currently lack — see
+[open question on aligned allocation](#open-questions).
+
+### 3. Alternatives Built by Projects That Rejected `thrust::device_vector`
 
 Two notable alternatives — FAISS's `DeviceVector<T>` and RAPIDS's
 `rmm::device_uvector<T>` — were built by high-performance projects that
@@ -455,21 +484,54 @@ range support on the device.
   There is a [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc) to allow synchronizing with a whole device. Otherwise, we could make the synchronization the user's responsibility or tie it only to an associated in-order queue.  
 
   1. **Store a raw `sycl::queue*` in device_pointer.** `device_pointer`
-     holds `T*` + `sycl::queue*` -- a struct of two raw pointers is trivially
+     holds `T*` + `sycl::queue*` — a struct of two raw pointers is trivially
      copyable and therefore device copyable. On the host, the queue pointer
      is dereferenced to obtain the queue for `memcpy`. On the device, the
      queue pointer is unused dead bits. This preserves both device copyability
      and host-side dereference with the correct queue. The queue must
      outlive the pointer, but this is fine because it lives in the vector
      the same as the memory itself, which will be freed if the vector leaves
-     scope.
-  2. **Use a global default queue only.** `device_vector` does not accept a
+     scope. **Downside:** the queue pointer doubles the size of
+     `device_pointer` (16 bytes vs 8), and every kernel capture pays for
+     those extra 8 bytes even though the queue is never used on-device.
+  2. **Store only a raw `T*` in device_pointer; resolve the queue at
+     point of use on the host.** This is the approach taken by sycl-thrust,
+     where `device_ptr` is a single pointer and the queue is resolved via
+     `sycl::get_pointer_device` at runtime when host-side access is needed.
+     **Advantage:** `device_pointer` is minimal (8 bytes), optimizing the
+     device-hot path where pointers are captured into kernels. The queue
+     lookup cost on the host is amortized against the synchronous `memcpy`
+     that already dominates host-side access. **Downside:** requires either
+     a global/default queue mechanism or runtime pointer introspection,
+     which adds complexity, potential thread-safety concerns, and precludes
+     explicit queue association for synchronization purposes.
+  3. **Use a global default queue only.** `device_vector` does not accept a
      queue on construction. `device_pointer` holds only a raw `T*`, is device
      copyable, and host-side dereference uses the default queue. Simple, but
      limits users to a single device/queue.
 
-  CUDA-based Thrust avoids the problem entirely since `cudaMemcpy` is a
-  global function that doesn't require a queue object.
+  Among existing implementations, CUDA-based Thrust avoids the problem
+  entirely since `cudaMemcpy` is a global function that doesn't require a
+  queue object. Boost.Compute's explicit `command_queue` parameter on
+  constructors is the closest precedent for explicit queue association.
+  sycl-thrust's pointer-introspection approach demonstrates that the
+  device-optimal path (minimal pointer size) is viable when host-side
+  access is accepted as inherently slow.
+
+- **Should we support aligned allocation or a non-C++ allocator?**
+  sycl-thrust's `device_allocator<T, Alignment>` supports
+  `sycl::aligned_alloc_device` for types with specific alignment requirements.
+  Some GPU hardware benefits from aligned allocations (e.g. 128-byte or
+  256-byte alignment for coalesced memory access or cache line optimization).
+  We currently use `sycl::malloc_device` which has implementation-defined
+  alignment. More broadly, RMM's `device_uvector` demonstrates the value
+  of pluggable memory resources (`device_async_resource_ref`) for pool
+  allocation, arena allocation, etc. While a C++ `Allocator` in the
+  `std::vector` sense is not viable for device memory (see design decisions),
+  a non-C++ allocator concept — e.g. a type-erased memory resource similar
+  to `std::pmr::memory_resource` or RMM's `resource_ref` — could provide
+  both alignment control and pluggable allocation strategies without
+  requiring host-accessible memory semantics.
 
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
