@@ -266,8 +266,8 @@ std::sort(policy, d_vec2.begin(), d_vec2.end());
 float val = d_vec2[0];       // device-to-host transfer
 d_vec2[0] = 42.0f;           // host-to-device transfer
 
-// Extract device pointer for use in SYCL kernels
-oneapi::dpl::experimental::device_pointer<float> d_ptr = d_vec2.data();
+// Extract raw pointer for use in SYCL kernels
+float* d_ptr = d_vec2.data().get();
 
 // device_pointer or possibly device_iterator (see open question)
 auto d_iter = d_vec.begin();
@@ -283,6 +283,17 @@ std::vector<float> result = static_cast<std::vector<float>>(d_vec2);
 // Read the element at d_vec[5] on the host
 d_iter += 5;
 std::cout << *d_iter;
+
+// Uninitialized construction -- no memset, useful for output buffers
+oneapi::dpl::experimental::device_vector<float> d_output(1024, dpl::no_init, q);
+std::transform(policy, d_vec2.begin(), d_vec2.end(), d_output.begin(),
+               [](float x) { return x * 2.0f; });
+
+// Uninitialized resize -- grow without zeroing new elements
+output.resize(2048, dpl::no_init);
+
+std::vector<float> transform_out = static_cast<std::vector<float>>(d_output);
+
 ```
 
 ### Helper Types
