@@ -1062,8 +1062,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 {
     using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
-    auto __set_value = [&__temp_out, &__idx1, &__idx2](std::uint16_t __count, auto&& __ele) {
-
+    auto __set_value = [&](std::uint16_t __count, auto&& __ele) {
         if constexpr (std::decay_t<_TempOutput>::_CaptureIndexes)
             __temp_out.set(__count, std::forward<decltype(__ele)>(__ele), _TupleOfSizes{__idx1, __idx2});
         else
@@ -2961,7 +2960,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 constexpr bool __oob_replay_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
 
                 auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_replay_enabled>(__sub_group_carry_initialized, __sub_group_carry);
-                auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
+                [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 _TempDataNoCaptureIndexes __temp_out{};
                 _ProcessedInfo __processed_info{};
