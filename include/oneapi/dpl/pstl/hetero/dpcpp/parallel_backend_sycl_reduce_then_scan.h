@@ -92,17 +92,20 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
 
     using _TupleOfIndexes = std::tuple<_Sizes...>;
 
-    __temp_data_array(_TupleOfIndexes* __slm_sub_group_src_indexes_ptr)
-        : __slm_sub_group_src_indexes_ptr(__slm_sub_group_src_indexes_ptr)
+    __temp_data_array(_TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw)
+        : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
     {
+        //static_assert(false, "case 0 - setup __src_indexes_local_accessor_for_one_wi_raw");
     }
 
+    // The __idx parameter is zero-based for the current work-item
     template <typename _ValueT2>
     void
     set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
     {
+        //static_assert(false, "case 1 - setup indexes of source ranges");
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
-        __slm_sub_group_src_indexes_ptr[__idx] = __indexes;
+        __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
     }
 
     _ValueT
@@ -112,7 +115,7 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     }
 
     // Pointer to the SLM-based array with source indexes corresponding to the stored values
-    _TupleOfIndexes* __slm_sub_group_src_indexes_ptr = nullptr;
+    _TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
 
 template <typename... _Sizes>
@@ -147,6 +150,7 @@ struct __processed_info
     void
     set_oob_source_pos(const _TupleOfSizes& __source_oob_pos)
     {
+        //static_assert(false, "case 2 - using indexes of source ranges");
         __oob_source_pos_opt.emplace(__source_oob_pos);
     }
 
@@ -306,14 +310,20 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <bool _Bounded, typename _OutRng, typename _InSizeType, typename _OutSizeType, typename _Assigner,
-          typename _TempData, typename _ProcessedInfo>
+template <typename _T>
+inline constexpr _T __no_oob_capture_idx = static_cast<_T>(-1);
+
+// The __local_offset_to_src_indexes parameter is zero-based for each work-item inside sub-group, all states less than zero describes unknown state
+template <bool _Bounded, typename _OutRng, typename _LocalOffsetToSrcIndexes, typename _OutLocalSizeType,
+          typename _Assigner, typename _TempData, typename _ProcessedInfo>
 bool
-__write_if_in_bounds(const _OutRng& __out_rng, _InSizeType __in_idx, _OutSizeType __out_idx, _Assigner&& __assign,
-                     const _TempData& __temp_data, _ProcessedInfo& __processed_info)
+__write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_offset_to_src_indexes,
+                     _OutLocalSizeType __out_idx, _Assigner&& __assign, const _TempData& __temp_data,
+                     _ProcessedInfo& __processed_info)
 {
     if constexpr (_Bounded)
     {
+        //static_assert(false, "case 3 - writes data to output range");
         const auto __out_size = oneapi::dpl::__ranges::__size(__out_rng);
         if (__out_idx < __out_size)
         {
@@ -329,9 +339,9 @@ __write_if_in_bounds(const _OutRng& __out_rng, _InSizeType __in_idx, _OutSizeTyp
             // If we captured indexes for the temporary data, we can use the index of the first OOB element to fetch the source
             if constexpr (_TempData::_CaptureIndexes)
             {
-                if (__in_idx != -1)
+                if (__local_offset_to_src_indexes != __no_oob_capture_idx<_LocalOffsetToSrcIndexes>)
                 {
-                    const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.__slm_sub_group_src_indexes_ptr[__in_idx];
+                    const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.__src_indexes_local_accessor_for_one_wi_raw[__local_offset_to_src_indexes];
                     __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
                 }
             }
@@ -381,7 +391,7 @@ struct __simple_write_to_id
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
 
         return __write_if_in_bounds<_Bounded>(
-            __out_rng, /*TODO dummy __in_idx*/ -1, __id,
+            __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
             [&](auto __out_idx_arg) { __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v); }, __temp_data,
             __processed_info);
     }
@@ -426,7 +436,8 @@ struct __write_to_id_if
 
         return !std::get<1>(__v) ||
                __write_if_in_bounds<_Bounded>(
-                   __out_rng, /*TODO dummy __in_idx*/ -1, std::get<0>(__v) - 1 + __offset,
+                   __out_rng, __no_oob_capture_idx<decltype(std::get<0>(__v) - 1 + __offset)>,
+                   std::get<0>(__v) - 1 + __offset,
                    [&](auto __out_idx_arg) {
                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                    },
@@ -479,7 +490,7 @@ struct __write_to_id_if_else
         if (std::get<1>(__v))
         {
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, /*TODO dummy __in_idx*/ -1, std::get<0>(__v) - 1,
+                __out_rng, __no_oob_capture_idx<decltype(std::get<0>(__v) - 1)>, std::get<0>(__v) - 1,
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                 },
@@ -487,7 +498,7 @@ struct __write_to_id_if_else
         }
 
         return __write_if_in_bounds<_Bounded>(
-            __out_rng, /*TODO dummy __in_idx*/ -1, __id - std::get<0>(__v),
+            __out_rng, __no_oob_capture_idx<decltype(__id - std::get<0>(__v))>, __id - std::get<0>(__v),
             [&](auto __out_idx_arg) {
                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
             },
@@ -567,7 +578,7 @@ struct __write_red_by_seg
         if (__id == 0)
         {
             if (!__write_if_in_bounds<_Bounded>(
-                    __out_keys, /*TODO dummy __in_idx*/ -1, 0,
+                    __out_keys, __no_oob_capture_idx<decltype(0)>, 0,
                     [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __current_key; },
                     __temp_data, __processed_info))
                 return false;
@@ -576,7 +587,7 @@ struct __write_red_by_seg
         if (__is_seg_end)
         {
             if (!__write_if_in_bounds<_Bounded>(
-                    __out_values, /*TODO dummy __in_idx*/ -1, __out_idx,
+                    __out_values, __no_oob_capture_idx<decltype(__out_idx)>, __out_idx,
                     [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __current_value; }, __temp_data,
                     __processed_info))
             {
@@ -586,7 +597,7 @@ struct __write_red_by_seg
             if (__id != __n - 1)
             {
                 if (!__write_if_in_bounds<_Bounded>(
-                        __out_values, /*TODO dummy __in_idx*/ -1, __out_idx + 1,
+                        __out_values, __no_oob_capture_idx<decltype(__out_idx + 1)>, __out_idx + 1,
                         [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __next_key; },
                         __temp_data, __processed_info))
                 {
@@ -662,7 +673,7 @@ struct __write_scan_by_seg
                 "inclusive_scan_by_segment must not have an initial element");
 
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, /*TODO dummy __in_idx*/ -1, __id,
+                __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
                 [&](auto __out_idx_arg) {
                     __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
                 },
@@ -675,7 +686,7 @@ struct __write_scan_by_seg
                 "exclusive_scan_by_segment must have an initial element");
 
             return __write_if_in_bounds<_Bounded>(
-                __out_rng, /*TODO dummy __in_idx*/ -1, __id,
+                __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
                 [&](auto __out_idx_arg) {
                     __out_rng[__out_idx_arg] =
                         get<1>(__v)
@@ -740,7 +751,9 @@ struct __write_multiple_to_id
             auto&& __current_val = __temp_data.get_and_destroy(__i);
 
             __all_writes_succeeded = __all_writes_succeeded && __write_if_in_bounds<_Bounded>(
-                __out_rng, __i, __out_index,
+                __out_rng,
+                __i,        // _OffsetToSrcIndexes __offset_to_src_indexes
+                __out_index,
                 [&](auto __out_idx_arg) {
                     __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
                              __out_rng[__out_idx_arg]);
@@ -1053,12 +1066,12 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
 {
     using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
-    auto __set_value = [&__temp_out, &__idx1, &__idx2](std::uint16_t __idx, auto&& __ele) {
+    auto __set_value = [&__temp_out, &__idx1, &__idx2](std::uint16_t __count, auto&& __ele) {
 
         if constexpr (std::decay_t<_TempOutput>::_CaptureIndexes)
-            __temp_out.set(__idx, std::forward<decltype(__ele)>(__ele), _TupleOfSizes{__idx1, __idx2});
+            __temp_out.set(__count, std::forward<decltype(__ele)>(__ele), _TupleOfSizes{__idx1, __idx2});
         else
-            __temp_out.set(__idx, std::forward<decltype(__ele)>(__ele));
+            __temp_out.set(__count, std::forward<decltype(__ele)>(__ele));
     };
 
     if constexpr (_CheckBounds)
@@ -1178,6 +1191,7 @@ struct __set_generic_operation
                _TempOutput& __temp_out, _ProcessedInfo& __processed_info,
                const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2) const
     {
+        // This __count parameter is zero-based for each work-item inside sub-group
         std::uint16_t __count = 0;
 
         auto __call_set_generic_operation_iteration = [&](auto __check_bound_tag)
@@ -2002,10 +2016,10 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <bool _Bounded, bool _SkipSubGroupScan, std::uint8_t __sub_group_size, bool __is_inclusive,
-          bool __init_present, bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput,
-          typename _ScanInputTransform, typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng,
-          typename _OutRng, typename _TempData, typename _ProcessedInfo>
+template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
+          std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
+          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _TempData,
+          typename _ProcessedInfo>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -2037,11 +2051,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
     if (__is_full_thread)
     {
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
-        if constexpr (!_SkipSubGroupScan)
-        {
-            __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
-                                                                               __binary_op, __sub_group_carry);
-        }
+        __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
+                                                                            __binary_op, __sub_group_carry);
         __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
         if (__is_full_block)
@@ -2051,11 +2062,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             for (std::uint32_t __j = 1; __j < __max_inputs_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
-                if constexpr (!_SkipSubGroupScan)
-                {
-                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                }
+                __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
@@ -2066,11 +2074,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             for (std::uint32_t __j = 1; __j < __iters_per_item; __j++)
             {
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
-                if constexpr (!_SkipSubGroupScan)
-                {
-                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                }
+                __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
@@ -2087,12 +2092,9 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             {
                 std::size_t __local_id = (__start_id < __n) ? __start_id : __n - 1;
                 _GenInputType __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
-                if constexpr (!_SkipSubGroupScan)
-                {
-                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                        __n - __subgroup_start_id);
-                }
+                __sub_group_scan_partial<__sub_group_size, __is_inclusive, __init_present>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                    __n - __subgroup_start_id);
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
@@ -2102,34 +2104,25 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             else
             {
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
-                if constexpr (!_SkipSubGroupScan)
-                {
-                    __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                }
+                __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                 __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
                     std::size_t __local_id = __start_id + __j * __sub_group_size;
                     __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
-                    if constexpr (!_SkipSubGroupScan)
-                    {
-                        __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                            __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    }
+                    __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
                     __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
                 std::size_t __local_id = (__offset < __n) ? __offset : __n - 1;
                 __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
-                if constexpr (!_SkipSubGroupScan)
-                {
-                    __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
-                        __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
-                        __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
-                }
+                __sub_group_scan_partial<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
+                    __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry,
+                    __n - (__subgroup_start_id + (__iters - 1) * __sub_group_size));
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
@@ -2280,8 +2273,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper<_Bounded, /*_SkipSubGroupScan*/ false, __sub_group_size,
-                                                   __is_inclusive,
+                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
@@ -2527,22 +2519,51 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
-    template <typename _T>
     auto
-    __create_slm_sub_group_temp_out_src_indexes(sycl::handler& __cgh) const
+    __create_src_indexes_local_accessor_for_one_sg(sycl::handler& __cgh) const
     {
-        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_T>;
+        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
 
         if constexpr (_temp_data_capture_indexes_t::_CaptureIndexes)
         {
             using _TupleOfIndexes = typename _temp_data_capture_indexes_t::_TupleOfIndexes;
+
             constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
-            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements, __cgh);
+
+            // Each WI owns a contiguous region of _Elements slots:
+            //  +------------------+------------------+-----+--------------------------+
+            //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
+            //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
+            //  +------------------+------------------+-----+--------------------------+
+            //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
+
+            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements * __sub_group_size, __cgh);
         }
         else
         {
             return std::monostate{};
         }
+    }
+
+    template <typename _NDItem, typename _TupleOfIndexes>
+    _TupleOfIndexes*
+    __get_slm_sub_group_temp_out_src_indexes_wi(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi,
+                                                _TupleOfIndexes* __src_indexes_local_accessor_for_one_sg_raw) const
+    {
+        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
+
+        constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
+
+        // Get local linear id index representing work-item id within the sub-group
+        const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+
+            // Each WI owns a contiguous region of _Elements slots:
+        //  +------------------+------------------+-----+--------------------------+
+        //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
+        //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
+        //  +------------------+------------------+-----+--------------------------+
+        //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
+        return __src_indexes_local_accessor_for_one_sg_raw + __sub_group_local_id * _Elements;
     }
 
     template <bool _Create, typename _InitValueType>
@@ -2593,22 +2614,27 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _TempDataCaptureIndexes, typename _NDItem, typename _OutRng, typename _StopPosAcc,
-              typename _SlmSrcIndexes, typename _ProcessedInfo, typename _OobReplayCarryTuple, typename _CallScanHelper>
+              typename _SlmSrcIndexesLocalAccessorForOneSG, typename _ProcessedInfo, typename _OobReplayCarryTuple,
+              typename _CallScanHelper>
     void
-    __process_oob_and_final_pos(const _NDItem& __ndi, _OutRng& __out_rng, _StopPosAcc& __stop_pos_acc,
-                                _SlmSrcIndexes& __slm_sub_group_temp_out_src_indexes, _ProcessedInfo& __processed_info,
-                                _OobReplayCarryTuple& __oob_replay_carry_tuple,
+    __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
+                                _StopPosAcc& __stop_pos_acc,
+                                _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_sg,
+                                _ProcessedInfo& __processed_info, _OobReplayCarryTuple& __oob_replay_carry_tuple,
                                 _CallScanHelper& __call_scan_through_elements_helper) const
     {
-        if (__processed_info.get_oob_reached())
+        const bool __oob_reached_in_any_item_of_sub_group = __dpl_sycl::__any_of_group(__sub_group, __processed_info.get_oob_reached());
+        if (__oob_reached_in_any_item_of_sub_group)
         {
-            _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
+            auto __src_indexes_local_accessor_for_one_sg_raw =__dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_sg);
+            auto __src_indexes_local_accessor_for_one_wi_raw = __get_slm_sub_group_temp_out_src_indexes_wi(__sub_group, __ndi, __src_indexes_local_accessor_for_one_sg_raw);
+
+            _TempDataCaptureIndexes __temp_out_capture_indexes(__src_indexes_local_accessor_for_one_wi_raw);
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
             __call_scan_through_elements_helper(
-                /*_SkipSubGroupScan*/ std::true_type{}, __make_noop_output_range(__out_rng),
-                std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
-                __temp_out_capture_indexes, __processed_info);
+                __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
+                std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
 
             // First OOB pos is only one inside all source data set
             typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
@@ -2673,7 +2699,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             // Temporary data with indexes
             // - will be used only in one sub-group which reached OOB-position
-            auto __slm_sub_group_temp_out_src_indexes = __create_slm_sub_group_temp_out_src_indexes<_GenScanInput>(__cgh);
+            auto __slm_src_indexes_local_accessor_for_one_sg = __create_src_indexes_local_accessor_for_one_sg(__cgh);
 
             __cgh.depends_on(__prior_event);
 
@@ -2907,33 +2933,30 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 const std::size_t __subgroup_start_id = __group_start_id + (__sub_group_id * __sub_group_params.__inputs_per_sub_group);
                 const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
-                auto __call_scan_through_elements_helper = [&](auto __skip_sub_group_scan_tag, auto&& __out_rng_arg,
-                                                               bool __sub_group_carry_initialized_arg,
-                                                               auto& __sub_group_carry_arg, auto& __temp_out_arg,
-                                                               auto& __processed_info_arg) {
-                    constexpr bool _SkipSubGroupScan = decltype(__skip_sub_group_scan_tag)::value;
-
-                    if (__sub_group_carry_initialized_arg)
-                    {
-                        __scan_through_elements_helper<_Bounded, _SkipSubGroupScan, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/true,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
-                            __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __temp_out_arg, __processed_info_arg);
-                    }
-                    else // first group first block, no subgroup carry
-                    {
-                        __scan_through_elements_helper<_Bounded, _SkipSubGroupScan, __sub_group_size, __is_inclusive,
-                                                       /*__init_present=*/false,
-                                                       /*__capture_output=*/true, __max_inputs_per_item>(
-                            __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
-                            __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
-                            __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id, __sub_group_id,
-                            __active_subgroups, __temp_out_arg, __processed_info_arg);
-                    }
-                };
+                auto __call_scan_through_elements_helper =
+                    [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
+                        auto& __sub_group_carry_arg, auto& __temp_out_arg, auto& __processed_info_arg) {
+                        if (__sub_group_carry_initialized_arg)
+                        {
+                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                           /*__init_present=*/true,
+                                                           /*__capture_output=*/true, __max_inputs_per_item>(
+                                __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                                __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
+                                __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
+                                __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
+                        }
+                        else // first group first block, no subgroup carry
+                        {
+                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                                                           /*__init_present=*/false,
+                                                           /*__capture_output=*/true, __max_inputs_per_item>(
+                                __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
+                                __sub_group_carry_arg, __in_rng, std::forward<decltype(__out_rng_arg)>(__out_rng_arg),
+                                __start_id, __n, __sub_group_params.__inputs_per_item, __subgroup_start_id,
+                                __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
+                        }
+                    };
 
                 using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
                 using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
@@ -2948,15 +2971,14 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 _ProcessedInfo __processed_info{};
 
                 // The first normal call of __scan_through_elements_helper
-                __call_scan_through_elements_helper(/*_SkipSubGroupScan*/ std::false_type{}, __out_rng,
-                                                    __sub_group_carry_initialized, __sub_group_carry, __temp_out,
-                                                    __processed_info);
+                __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
+                                                    __sub_group_carry, __temp_out, __processed_info);
 
                 if constexpr (__oob_replay_enabled)
                 {
                     __process_oob_and_final_pos<_TempDataCaptureIndexes>(
-                        __ndi, __out_rng, __stop_pos_acc, __slm_sub_group_temp_out_src_indexes, __processed_info,
-                        __oob_replay_carry_tuple, __call_scan_through_elements_helper);
+                        __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_sg,
+                        __processed_info, __oob_replay_carry_tuple, __call_scan_through_elements_helper);
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
