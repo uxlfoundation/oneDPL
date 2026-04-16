@@ -29,6 +29,12 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 
 #### Thrust (`thrust::device_vector`) — Native CUDA Projects
 
+GitHub code search reports ~2,520 files containing `thrust::device_vector`
+across the platform, spanning AI/ML, HPC, scientific computing, robotics,
+graph analytics, and databases. A survey of notable projects follows.
+
+##### Sparse BLAS (spblas-reference)
+
 [spblas-reference](https://github.com/SparseBLAS/spblas-reference) (sparse
 BLAS standard reference implementation) demonstrates the minimal-but-dominant
 pattern: `device_vector` as an **RAII device memory manager and host-device
@@ -46,6 +52,97 @@ data shuttle**:
 
 Notably absent from spblas: element-level access (`operator[]`), `resize()`,
 `push_back()`, `insert()`/`erase()`, or device-side algorithms on iterators.
+
+##### AI/ML Projects
+
+**Notable finding:** The most performance-sensitive AI/ML codebases have
+**explicitly moved away from `thrust::device_vector`**, while mid-tier ML
+projects remain heavy users.
+
+- [CUTLASS](https://github.com/NVIDIA/cutlass) (NVIDIA, 9.5k stars) — Uses
+  `device_vector` in **30 files**, but only in examples and tests as
+  scaffolding. Pattern: construct from host data, extract raw pointer via
+  `.data().get()`, pass to GEMM kernels. Never used in hot-path
+  implementations.
+- [FAISS](https://github.com/facebookresearch/faiss) (Meta, 39.7k stars) —
+  **Rolled their own `DeviceVector<T>`** instead of using
+  `thrust::device_vector`. Reasons cited: control over streams, avoiding
+  unwanted `T()` initialization on `resize()`, and custom memory growth
+  strategy (power-of-2 below 4MB, 1.25x to 128MB, exact above).
+- [PaddlePaddle](https://github.com/PaddlePaddle/Paddle) (23.8k stars) —
+  Uses `device_vector` in **24 files** for GPU kernel implementations (mode,
+  graph reindex, CTC align, kron). Pattern: temporary containers within GPU
+  kernels combined with `thrust::sort_by_key`, `thrust::reduce_by_key`.
+- [cuDF](https://github.com/rapidsai/cudf) (RAPIDS, 9.6k stars) —
+  **Explicitly discourages `thrust::device_vector`** in developer guide.
+  Recommends `rmm::device_uvector` for uninitialized allocation and
+  stream-ordered operations.
+- [cuML](https://github.com/rapidsai/cuml) (RAPIDS, 5.2k stars) — Only **4
+  files** still using it. Developer guide discourages it in favor of
+  `MLCommon::device_buffer<T>` for stream-safe allocation.
+- [H2O4GPU](https://github.com/h2oai/h2o4gpu) (466 stars) — Heavy user
+  (**17 files**) for K-means, GLM, TSVD, ARIMA. Notable patterns: arrays of
+  `device_vector` pointers for multi-GPU (`thrust::device_vector<T>
+  *centroid_dots[n_gpu]`), `thrust::inner_product()` for convergence checks,
+  raw pointer extraction for cuBLAS/cuSOLVER calls.
+- [Zoph_RNN](https://github.com/isi-nlp/Zoph_RNN) (185 stars) — Neural
+  machine translation. Class members for softmax state (`thrust_d_outputdist`,
+  `thrust_d_normalization`) paired with host vector counterparts.
+
+##### HPC / Scientific Computing / Graph Analytics
+
+These domains remain the heaviest `thrust::device_vector` users:
+
+- [Gunrock](https://github.com/gunrock/gunrock) (1k stars) — **49 files**,
+  heaviest user among notable projects. Type alias
+  `device_vector_t = thrust::device_vector<type_t>`. Used for BFS outputs,
+  graph frontier data. Raw pointer via `.data().get()`.
+- [AmgX](https://github.com/NVIDIA/AMGX) (NVIDIA, 662 stars) — Custom
+  allocator wrapper using `cudaMallocAsync`/`cudaFreeAsync` for stream-ordered
+  allocation: `thrust::device_vector<T, thrust_amgx_allocator<T>>`.
+- [GPU-Voxels](https://github.com/fzi-forschungszentrum-informatik/gpu-voxels)
+  (315 stars) — **29 files**, robotics collision detection. Class members for
+  octree nodes, voxel lists. Tracks allocations via
+  `thrust::device_vector<void*>`.
+- [ISCE3](https://github.com/isce-framework/isce3) (204 stars) — SAR radar,
+  **21 files**. Class members for satellite orbit data
+  (`thrust::device_vector<Vec3> _position, _velocity`).
+- [Feltor](https://github.com/feltor-dev/feltor) (38 stars) — Plasma physics.
+  Type aliases as vocabulary types:
+  `using DVec = thrust::device_vector<double>`.
+
+##### Usage Patterns: AI/ML vs HPC
+
+| Aspect | AI/ML Workloads | HPC / Scientific |
+|---|---|---|
+| **Adoption trend** | Moving away | Steady, heavy use |
+| **Why moving away** | Stream safety, initialization overhead, header bloat | N/A |
+| **Replacement** | `rmm::device_uvector`, custom `DeviceVector` | N/A |
+| **Primary use** | Temp scratch buffers, test scaffolding | Persistent simulation state as class members |
+| **Custom allocators** | Common (RMM, stream-ordered) | Occasional (AmgX) |
+
+##### Consolidated Construction Patterns (ordered by frequency)
+
+1. `thrust::device_vector<T> d_v = h_v;` (copy from host_vector)
+2. `thrust::device_vector<T> d_v(N);` (sized, value-initialized)
+3. `thrust::device_vector<T> d_v(N, val);` (sized with fill value)
+4. `thrust::device_vector<T> d_v(ptr, ptr + N);` (from host pointer range)
+5. `new thrust::device_vector<T>(N);` (heap-allocated, multi-GPU)
+
+##### Why AI/ML Projects Rejected `thrust::device_vector`
+
+The reasons cited by FAISS, cuDF, and cuML for moving away are instructive
+for our design:
+
+1. **Unwanted value initialization** — `resize()` and sized construction
+   zero-initialize elements via device kernel. For large temporary buffers
+   this is wasted work. (Supports our open question on `no_init_t` tags.)
+2. **No stream/queue parameter** — Operations are synchronous or use a
+   default stream, preventing overlap with other work. (Our explicit
+   `sycl::queue` parameter addresses this directly.)
+3. **Header includes device code** — Forces `.cu` compilation even for host
+   code that just manages device_vectors. (Not applicable to our SYCL/USM
+   approach.)
 
 #### dpct (`dpct::device_vector`) — Migrated CUDA-to-SYCL Projects
 
@@ -108,16 +205,24 @@ spblas-minimal case:
 
 These patterns validate our design priorities:
 1. **Construction + bulk transfer + raw pointer extraction** are the core
-   operations — get these right first.
+   operations — get these right first. This is universal across all domains.
 2. **`begin()`/`end()` integration with oneDPL algorithms** is the
-   second-most critical capability.
+   second-most critical capability (Gunrock, PaddlePaddle, HeCBench all
+   rely on this).
 3. **Device memory (not shared)** is the right default — projects that need
    performance use device memory and explicit transfers.
-4. **Full `std::vector`-like modifier API** (`push_back`, `insert`, `erase`)
+4. **Explicit queue association** addresses the #1 complaint from mature
+   AI/ML projects (FAISS, cuDF, cuML all cite lack of stream parameter as
+   a reason for abandoning `thrust::device_vector`).
+5. **Full `std::vector`-like modifier API** (`push_back`, `insert`, `erase`)
    is a secondary convenience, rarely used in real workloads.
-5. Our choice to have **`device_pointer::get()` return a raw `T*`** directly
-   addresses the most common friction point in migrated code (`get_raw_pointer`
-   indirection).
+6. Our choice to have **`device_pointer::get()` return a raw `T*`** directly
+   addresses the most common friction point in migrated code
+   (`get_raw_pointer` / `raw_pointer_cast` indirection).
+7. **Uninitialized construction** (`no_init_t`) has real demand — FAISS
+   explicitly cited unwanted value initialization as a reason for building
+   a custom replacement. This strengthens the case for our open question on
+   supporting `no_init_t` tags.
 
 ## Comparison of Existing Implementations
 
