@@ -98,7 +98,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __ex
     if (__n1 == 0)
         return 0;
 
-    auto&& __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
+    auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ true>(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), std::forward<_Range1>(__rng1),
         std::forward<_Range2>(__rng2), __n1, __unary_op, __init, __binary_op, _Inclusive{});
 
