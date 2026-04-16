@@ -481,7 +481,7 @@ struct __write_to_id_if_else
             return __write_if_in_bounds<_Bounded>(
                 __out_rng, /*TODO dummy __in_idx*/ -1, std::get<0>(__v) - 1,
                 [&](auto __out_idx_arg) {
-                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[__out_idx_arg]));
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                 },
                 __temp_data, __processed_info);
         }
