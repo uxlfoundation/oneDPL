@@ -170,7 +170,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
         auto __buf2 = __keep2(__first_tmp, __last_tmp);
 
         // Run main algorithm and save data into temporary buffer
-        auto&& __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
+        auto __res = oneapi::dpl::__par_backend_hetero::__parallel_transform_scan</*_Bounded*/ false>(
             _BackendTag{}, __policy, __buf1.all_view(), __buf2.all_view(), __n, __unary_op, __init, __binary_op,
             _Inclusive{});
         std::get<0>(__res).wait_and_throw();
