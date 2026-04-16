@@ -2564,6 +2564,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <bool _Create, typename _InitValueType>
+    auto
+    __create_scoped_destroyer(auto& __oob_replay_carry_tuple) const
+    {
+        if constexpr (_Create)
+            return oneapi::dpl::__internal::__scoped_destroyer<_InitValueType>{std::get<1>(__oob_replay_carry_tuple),
+                                                                               std::get<0>(__oob_replay_carry_tuple)};
+        else
+            return std::monostate{};
+    }
+
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<
         _Bounded,
@@ -2879,7 +2890,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 constexpr bool __oob_detection_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
 
-                auto __carry_for_oob_replay = __save_carry_for_oob_replay<__oob_detection_enabled>(__sub_group_carry_initialized, __sub_group_carry);
+                auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_detection_enabled>(__sub_group_carry_initialized, __sub_group_carry);
+                auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_detection_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 _TempDataNoCaptureIndexes __temp_out{};
                 _ProcessedInfo __processed_info{};
@@ -2899,7 +2911,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         // The second replay call of __scan_through_elements_helper to detect OOB indexes
                         __call_scan_through_elements_helper(/*_SkipSubGroupScan*/ std::true_type{},
                                                             __make_noop_output_range(__out_rng),
-                                                            std::get<0>(__carry_for_oob_replay), std::get<1>(__carry_for_oob_replay),
+                                                            std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
                                                             __temp_out_capture_indexes, __processed_info);
 
                         /////////////////////////////////////////////////////////
@@ -2920,9 +2932,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                             __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
                         }
                     }
-
-                    if (std::get<0>(__carry_for_oob_replay))
-                        std::get<1>(__carry_for_oob_replay).__destroy();
 
                     /////////////////////////////////////////////////////////
                     // Final position evaluated in each work-item,
