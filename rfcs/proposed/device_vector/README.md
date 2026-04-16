@@ -19,6 +19,105 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
   SYCL buffers and pair them with raw pointers or iterators. A
   `device_vector` encapsulates allocation, sizing, and lifetime in a
   single object and integrates directly with oneDPL algorithms.
+- **Real-world usage patterns** - A survey of `thrust::device_vector` and
+  `dpct::device_vector` usage across open-source projects reveals consistent
+  patterns that validate our design priorities. The sections below detail
+  findings from two categories: native Thrust usage (CUDA projects) and
+  migrated dpct usage (SYCLomatic output).
+
+### Observed Usage Patterns
+
+#### Thrust (`thrust::device_vector`) — Native CUDA Projects
+
+[spblas-reference](https://github.com/SparseBLAS/spblas-reference) (sparse
+BLAS standard reference implementation) demonstrates the minimal-but-dominant
+pattern: `device_vector` as an **RAII device memory manager and host-device
+data shuttle**:
+
+1. **Constructing from `std::vector`** (~90% of uses) — bulk host-to-device
+   transfer at setup time.
+2. **Allocating output buffers by size** — e.g. after a symbolic phase
+   computes output NNZ, a `device_vector` is constructed with just a count.
+3. **Extracting raw device pointers** via `.data().get()` — every
+   `device_vector` is ultimately unwrapped to a raw pointer for passing
+   to library APIs (`csr_view`, `std::span`).
+4. **Copying results back to host** via `thrust::copy(d.begin(), d.end(),
+   host.begin())` — used in every test for verification.
+
+Notably absent from spblas: element-level access (`operator[]`), `resize()`,
+`push_back()`, `insert()`/`erase()`, or device-side algorithms on iterators.
+
+#### dpct (`dpct::device_vector`) — Migrated CUDA-to-SYCL Projects
+
+A broader survey of `dpct::device_vector` usage across ~18 repositories
+(111 code results on GitHub) shows additional patterns beyond the
+spblas-minimal case:
+
+**Projects surveyed include:**
+- [HeCBench](https://github.com/ORNL/HeCBench) (ORNL, 285+ stars) — HPC
+  benchmark suite
+- [oneAPI-samples](https://github.com/oneapi-src/oneAPI-samples) (Intel,
+  1139+ stars) — radix sort migration samples
+- [SYCLomatic-test](https://github.com/oneapi-src/SYCLomatic-test) —
+  official compatibility test suite
+- [OP-PIC](https://github.com/OP-DSL/OP-PIC) — particle-in-cell framework
+- Various sparse matrix, radio astronomy, and optimization codes
+
+**Consolidated operation frequency:**
+
+| Operation | Frequency | Example |
+|---|---|---|
+| Construction from size | Very high | `dpct::device_vector<T> v(N)` |
+| Assignment from `std::vector` | Very high | `d_vec = h_vec` (H2D) |
+| `begin()`/`end()` for algorithms | Very high | `sort(policy, dv.begin(), dv.end())` |
+| `data()` + raw pointer extraction | Very high | `get_raw_pointer(dv.data())` for kernels |
+| Copy back to host | High | `std::copy(policy, dv.begin(), dv.end(), h.begin())` or `h = d` |
+| Construction from `std::vector` | High | `dpct::device_vector<T> dv(host_vec)` |
+| `size()` | Medium | For bounds checks, kernel launch args |
+| `operator[]` | Medium | Host-side element access |
+| `resize()` | Medium | Output buffer sizing |
+| As class/struct member | Medium | Sparse matrices, particle systems |
+| `clear()`, `push_back()`, `insert()`, `erase()` | Low | Mostly in tests, not real workloads |
+
+**Notable real-world patterns:**
+- **Persistent class members** — OP-PIC stores `device_vector`s in `std::map`
+  keyed by MPI rank for inter-process communication buffers. Sparse matrix
+  libraries store CSR components (`data`, `row_ptr`, `col_ind`) as
+  `device_vector` struct members.
+- **Default-construct then assign** — oneAPI-samples shows a "reset and
+  re-sort" loop: `dpct::device_vector<T> d_keys;` then `d_keys = h_keys;`
+  each iteration.
+- **Raw pointer extraction is ubiquitous** — nearly every project that passes
+  data to SYCL kernels unwraps `device_vector` to a raw pointer. This
+  validates our `device_pointer::get()` and the importance of making
+  `device_pointer` device-copyable for direct kernel capture.
+
+**Pain points observed in the ecosystem:**
+- **`resize()` not filling new elements** — heimdall-astro (radio astronomy
+  pipeline) had to wrap `dpct::device_vector` with an explicit fill after
+  resize.
+- **Projects abandoning `device_vector`** — sycl-streamlines switched
+  entirely to raw `sycl::malloc_device` + `q.memcpy()` because the
+  `device_vector` + algorithm path was too problematic.
+- **`operator[]` lifetime/synchronization issues** — SYCLomatic's own test
+  suite has TODO comments about double-free errors with element access after
+  assignment, suggesting the proxy reference + shared memory model has
+  subtle lifetime issues.
+
+#### Design Validation
+
+These patterns validate our design priorities:
+1. **Construction + bulk transfer + raw pointer extraction** are the core
+   operations — get these right first.
+2. **`begin()`/`end()` integration with oneDPL algorithms** is the
+   second-most critical capability.
+3. **Device memory (not shared)** is the right default — projects that need
+   performance use device memory and explicit transfers.
+4. **Full `std::vector`-like modifier API** (`push_back`, `insert`, `erase`)
+   is a secondary convenience, rarely used in real workloads.
+5. Our choice to have **`device_pointer::get()` return a raw `T*`** directly
+   addresses the most common friction point in migrated code (`get_raw_pointer`
+   indirection).
 
 ## Comparison of Existing Implementations
 
@@ -497,5 +596,4 @@ following points that should be considered during productization:
   worth considering.
 
 
-## TODOs 
-- Gather motivating use cases
+## TODOs
