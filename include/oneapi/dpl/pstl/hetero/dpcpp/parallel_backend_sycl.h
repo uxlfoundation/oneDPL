@@ -1595,7 +1595,7 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
 
 template <bool _Bounded, typename _SetTag, typename _ExecutionPolicy, typename _Range1, typename _Range2,
           typename _Range3, typename _Compare, typename _Proj1, typename _Proj2>
-__parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>
+std::conditional_t<_Bounded, __parallel_rng_set_op_return_t<_Range1, _Range2, _Range3>, std::size_t>
 __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_tag, _ExecutionPolicy&& __exec,
                   _Range1&& __rng1, _Range2&& __rng2, _Range3&& __result, _Compare __comp, _Proj1 __proj1,
                   _Proj2 __proj2)
@@ -1603,9 +1603,15 @@ __parallel_set_op(oneapi::dpl::__internal::__device_backend_tag, _SetTag __set_t
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
-    return __set_op_impl<_Bounded, _CustomName>(__set_tag, __q_local, std::forward<_Range1>(__rng1),
-                                                std::forward<_Range2>(__rng2), std::forward<_Range3>(__result), __comp,
-                                                __proj1, __proj2);
+
+    auto __set_op_impl_res = __set_op_impl<_Bounded, _CustomName>(
+        __set_tag, __q_local, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        std::forward<_Range3>(__result), __comp, __proj1, __proj2);
+
+    if constexpr (_Bounded)
+        return __set_op_impl_res;
+    else
+        return std::get<2>(__set_op_impl_res);
 }
 
 //------------------------------------------------------------------------
