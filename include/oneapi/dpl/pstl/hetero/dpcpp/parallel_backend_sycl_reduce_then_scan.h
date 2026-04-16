@@ -2575,6 +2575,53 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             return std::monostate{};
     }
 
+    template <typename _TempDataCaptureIndexes, typename _NDItem, typename _OutRng, typename _StopPosAcc,
+              typename _SlmSrcIndexes, typename _ProcessedInfo, typename _OobReplayCarryTuple, typename _CallScanHelper>
+    void
+    __process_oob_and_final_pos(const _NDItem& __ndi, _OutRng& __out_rng, _StopPosAcc& __stop_pos_acc,
+                                _SlmSrcIndexes& __slm_sub_group_temp_out_src_indexes, _ProcessedInfo& __processed_info,
+                                _OobReplayCarryTuple& __oob_replay_carry_tuple,
+                                _CallScanHelper& __call_scan_through_elements_helper) const
+    {
+        if (__processed_info.get_oob_reached())
+        {
+            _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
+
+            // The second replay call of __scan_through_elements_helper to detect OOB indexes
+            __call_scan_through_elements_helper(
+                /*_SkipSubGroupScan*/ std::true_type{}, __make_noop_output_range(__out_rng),
+                std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
+                __temp_out_capture_indexes, __processed_info);
+
+            // First OOB pos is only one inside all source data set
+            typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
+            if (__processed_info.get_oob_source_pos(__oob_source_pos))
+            {
+                // OOB can be reached by at most one work-item per kernel invocation:
+                // output indices are monotonically increasing across all work-items,
+                // so only the single work-item that first crosses the output boundary
+                // can have get_oob_source_pos() return true.
+                // Therefore, no atomic fetch_min is needed here - at most one writer.
+                auto __scan_stop_pos = std::decay_t<decltype(*__stop_pos_acc.__data())>{};
+                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __oob_source_pos);
+                __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
+            }
+        }
+
+        // Final position evaluated in each work-item, so need to find the max across the work-group
+        const auto __max_final_pos_in_group =
+            _ProcessedInfo::reduce_max_pos_over_group(__ndi, __processed_info.get_final_pos());
+
+        // Writes from only one work-item
+        if (__ndi.get_local_id(0) == 0)
+        {
+            auto __scan_stop_pos = std::decay_t<decltype(*__stop_pos_acc.__data())>{};
+            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
+            _ProcessedInfo::fetch_max_pos(__stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eFinalPos],
+                                          __scan_stop_pos);
+        }
+    }
+
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<
         _Bounded,
@@ -2903,53 +2950,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 if constexpr (__oob_detection_enabled)
                 {
-                    // The second additional call of __scan_through_elements_helper to save OOB index
-                    if (__processed_info.get_oob_reached())
-                    {
-                        _TempDataCaptureIndexes __temp_out_capture_indexes(__dpl_sycl::__get_accessor_ptr(__slm_sub_group_temp_out_src_indexes));
-
-                        // The second replay call of __scan_through_elements_helper to detect OOB indexes
-                        __call_scan_through_elements_helper(/*_SkipSubGroupScan*/ std::true_type{},
-                                                            __make_noop_output_range(__out_rng),
-                                                            std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
-                                                            __temp_out_capture_indexes, __processed_info);
-
-                        /////////////////////////////////////////////////////////
-                        // First OOB pos is only one inside all source data set
-                        typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
-                        if (__processed_info.get_oob_source_pos(__oob_source_pos))
-                        {
-                            // OOB can be reached by at most one work-item per kernel invocation:
-                            // output indices are monotonically increasing across all work-items,
-                            // so only the single work-item that first crosses the output boundary
-                            // can have get_oob_source_pos() return true.
-                            // Therefore, no atomic fetch_min is needed here - at most one writer.
-
-                            typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __oob_source_pos);
-
-                            auto __stop_pos_ptr = __stop_pos_acc.__data();
-                            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
-                        }
-                    }
-
-                    /////////////////////////////////////////////////////////
-                    // Final position evaluated in each work-item,
-                    // so need to find the max across the work-group
-                    const typename _ProcessedInfo::_TupleOfSizes& __final_pos = __processed_info.get_final_pos();
-                            
-                    // Find max final position across the work-group
-                    const auto __max_final_pos_in_group = _ProcessedInfo::reduce_max_pos_over_group(__ndi, __final_pos);
-
-                    // Writes from only one work-item
-                    if (__ndi.get_local_id(0) == 0)
-                    {
-                        typename __scan_stop_pos_storage_t<_InRng>::_ValueType __scan_stop_pos{};
-                        oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
-
-                        auto __stop_pos_ptr = __stop_pos_acc.__data();
-                        _ProcessedInfo::fetch_max_pos(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos], __scan_stop_pos);
-                    }
+                    __process_oob_and_final_pos<_TempDataCaptureIndexes>(
+                        __ndi, __out_rng, __stop_pos_acc, __slm_sub_group_temp_out_src_indexes, __processed_info,
+                        __oob_replay_carry_tuple, __call_scan_through_elements_helper);
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
