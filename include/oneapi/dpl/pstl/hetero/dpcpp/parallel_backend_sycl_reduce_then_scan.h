@@ -95,7 +95,6 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     __temp_data_array(_TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw)
         : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
     {
-        //static_assert(false, "case 0 - setup __src_indexes_local_accessor_for_one_wi_raw");
     }
 
     // The __idx parameter is zero-based for the current work-item
@@ -103,7 +102,6 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     void
     set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
     {
-        //static_assert(false, "case 1 - setup indexes of source ranges");
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
         __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
     }
@@ -150,7 +148,6 @@ struct __processed_info
     void
     set_oob_source_pos(const _TupleOfSizes& __source_oob_pos)
     {
-        //static_assert(false, "case 2 - using indexes of source ranges");
         __oob_source_pos_opt.emplace(__source_oob_pos);
     }
 
@@ -323,7 +320,6 @@ __write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_
 {
     if constexpr (_Bounded)
     {
-        //static_assert(false, "case 3 - writes data to output range");
         const auto __out_size = oneapi::dpl::__ranges::__size(__out_rng);
         if (__out_idx < __out_size)
         {
