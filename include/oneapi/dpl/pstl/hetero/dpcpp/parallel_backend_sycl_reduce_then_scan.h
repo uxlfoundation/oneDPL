@@ -2194,6 +2194,9 @@ template <typename... _Name>
 class __reduce_then_scan_reduce_kernel;
 
 template <typename... _Name>
+class __reduce_then_scan_scan_kernel_init;
+
+template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
@@ -2408,14 +2411,15 @@ __create_scan_stop_pos_storage(sycl::queue& __q)
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
-          typename _KernelName>
+          typename _KernelNameInit, typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v,
           typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp,
-          typename _InitType, typename... _KernelName>
+          typename _InitType, typename... _KernelNameInit, typename... _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __is_inclusive, __is_unique_pattern_v,
                                                   _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+                                                  __internal::__optional_kernel_name<_KernelNameInit...>,
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
@@ -2474,6 +2478,52 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         {
             return std::monostate{};
         }
+    }
+
+    template <typename _InRng, typename _StopPosStorage>
+    sycl::event
+    __submit_stop_pos_init(sycl::queue& __q, _StopPosStorage& __stop_pos_payload,
+                           const sycl::event& __prior_event) const
+    {
+        return __q.submit([&](sycl::handler& __cgh) {
+
+            __cgh.depends_on(__prior_event);
+
+            auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
+
+            __cgh.single_task<_KernelNameInit...>([=]() {
+
+                auto __stop_pos_ptr = __stop_pos_acc.__data();
+
+                // Initialize final pos to zero - will be updated via fetch_max
+                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
+
+                // Initialize OOB pos to max sentinel - means "not yet found"
+                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                    oneapi::dpl::__internal::__tuple_max_sentinel<__scan_stop_pos_t<_InRng>>::__create();
+            });
+        });
+    }    
+
+    template <typename _NDItem, typename _TupleOfIndexes>
+    _TupleOfIndexes*
+    __get_slm_sub_group_temp_out_src_indexes_wi(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi,
+                                                _TupleOfIndexes* __src_indexes_local_accessor_for_one_sg_raw) const
+    {
+        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
+
+        constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
+
+        // Get local linear id index representing work-item id within the sub-group
+        const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
+
+            // Each WI owns a contiguous region of _Elements slots:
+        //  +------------------+------------------+-----+--------------------------+
+        //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
+        //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
+        //  +------------------+------------------+-----+--------------------------+
+        //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
+        return __src_indexes_local_accessor_for_one_sg_raw + __sub_group_local_id * _Elements;
     }
 
     template <bool _Create, typename _InitValueType>
@@ -2587,7 +2637,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         std::tuple<sycl::event>
     >
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
-               _TmpStorageAcc& __scratch_container, const sycl::event& __prior_event,
+               _TmpStorageAcc& __scratch_container, sycl::event __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
@@ -2602,6 +2652,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         // Real storage for _Bounded case, else - simple stub
         auto __stop_pos_payload = __create_scan_stop_pos_storage<_Bounded, _InRng>(__q);
+
+        if constexpr (_Bounded)
+        {
+            // Initialize real stop pos storage in separate submitter to ensure the kernel with this initialization is separate from the main scan kernel,
+            // which has more complex control flow and may be more expensive to compile.
+            __prior_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
+        }
 
         const _InitValueType __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
@@ -3014,6 +3071,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
+    using _ScanKernelInit = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __reduce_then_scan_scan_kernel_init<_CustomName>>;
     using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
@@ -3069,7 +3128,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     using _ScanSubmitter =
         __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
                                                    _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _ScanKernel>;
+                                                   _ScanKernelInit, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
