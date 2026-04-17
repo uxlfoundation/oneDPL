@@ -2484,6 +2484,16 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <typename _ProcessedInfo>
+    auto
+    __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
+    {
+        if constexpr (_Bounded)
+            return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
+        else
+            return std::monostate{};
+    }
+
     auto
     __create_src_indexes_local_accessor_for_one_wi(sycl::handler& __cgh) const
     {
@@ -2698,6 +2708,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             //   __num_sub_groups_local for each sub-group partial from the reduce kernel +
             //   1 element for the accumulated block-local carry-in from previous groups in the block
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
+
+            // Create local accessor for final position in the one sub-group
+            auto __wg_src_final_pos_local_accessor = __create_wg_src_final_pos_local_accessor<_ProcessedInfo>(__max_num_sub_groups_local, __cgh);
 
             // Temporary data with indexes
             // - will be used only in one work-item which reached OOB-position
