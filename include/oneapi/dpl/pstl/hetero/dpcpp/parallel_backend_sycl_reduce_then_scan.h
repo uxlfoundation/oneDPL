@@ -2476,7 +2476,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         if constexpr (_Bounded)
         {
             // By using this sycl::read_write option we implements source data initialization under this accessor
-            return __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
+            return __get_accessor(sycl::read_write, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
         }
         else
         {
