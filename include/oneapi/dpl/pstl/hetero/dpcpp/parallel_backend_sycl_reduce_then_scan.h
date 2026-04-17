@@ -2576,6 +2576,19 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             return std::monostate{};
     }
 
+    template <typename _ProcessedInfo, typename _InRng, typename _SubGroupSrcFinalPosLocalAccessor, typename _ActiveSubgroupsCounter>
+    typename _ProcessedInfo::_TupleOfSizes
+    __evaluate_max_src_final_pos_in_wg(_SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor,
+                                       const _ActiveSubgroupsCounter __active_subgroups) const
+    {
+        typename _ProcessedInfo::_TupleOfSizes ___max_src_final_pos_in_wg = {};
+
+        for (_ActiveSubgroupsCounter __i = 0; __i < __active_subgroups; ++__i)
+            __pos_operations::fetch_max_pos_local_elementwise(___max_src_final_pos_in_wg, __wg_src_final_pos_local_accessor[__i]);
+
+        return ___max_src_final_pos_in_wg;
+    }    
+
     template <typename _InRng, typename _NDItem, typename _StopPosAcc>
     void
     __init_stop_pos_storage(const _NDItem& __ndi, _StopPosAcc& __stop_pos_acc) const
