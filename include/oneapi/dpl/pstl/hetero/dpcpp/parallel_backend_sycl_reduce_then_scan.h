@@ -2543,28 +2543,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     oneapi::dpl::__internal::__tuple_max_sentinel<__scan_stop_pos_t<_InRng>>::__create();
             });
         });
-    }    
-
-    template <typename _NDItem, typename _TupleOfIndexes>
-    _TupleOfIndexes*
-    __get_slm_sub_group_temp_out_src_indexes_wi(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi,
-                                                _TupleOfIndexes* __src_indexes_local_accessor_for_one_sg_raw) const
-    {
-        using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
-
-        constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
-
-        // Get local linear id index representing work-item id within the sub-group
-        const std::uint8_t __sub_group_local_id = __sub_group.get_local_linear_id();
-
-            // Each WI owns a contiguous region of _Elements slots:
-        //  +------------------+------------------+-----+--------------------------+
-        //  | WI 0             | WI 1             | ... | WI(__sub_group_size - 1) |
-        //  | [0 .._Ele - 1]   | [0 .._Ele - 1]   |     | [0 .._Ele - 1]           |
-        //  +------------------+------------------+-----+--------------------------+
-        //   WI 0: [0 .. _Elements-1], WI 1: [_Elements .. 2*_Elements-1], etc.
-        return __src_indexes_local_accessor_for_one_sg_raw + __sub_group_local_id * _Elements;
     }
+
 
     template <bool _Create, typename _InitValueType>
     auto
