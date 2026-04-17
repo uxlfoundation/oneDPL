@@ -1580,18 +1580,15 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
 replace_copy_if(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, _UnaryPredicate __pred,
                 const _Tp& __new_value)
 {
-    const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec, __rng, __result);
-
-    auto __src = views::all_read(::std::forward<_Range1>(__rng));
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec),
-        oneapi::dpl::__internal::__replace_copy_functor<
+    auto __src = views::all_read(std::forward<_Range1>(__rng));
+    oneapi::dpl::experimental::ranges::transform(
+        std::forward<_ExecutionPolicy>(__exec), __src, std::forward<_Range2>(__result),
+        oneapi::dpl::__internal::__replace_copy_transformer<
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _Tp>,
-            ::std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>,
+            std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>,
                                  _UnaryPredicate,
                                  oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _UnaryPredicate>>>(
-            __new_value, __pred),
-        __src, views::all_write(::std::forward<_Range2>(__result)));
+            __new_value, __pred));
     return __src.size();
 }
 

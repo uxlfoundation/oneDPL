@@ -335,7 +335,7 @@ class __set_value
 };
 
 //TODO: to do the same fix  for output type (by re-using __transform_functor if applicable) for the other functor below:
-// __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor, __replace_copy_functor
+// __transform_if_unary_functor, __transform_if_binary_functor, __replace_functor
 template <typename _F, typename _RevTag = std::false_type>
 class __transform_functor
 {
@@ -435,19 +435,19 @@ class __replace_functor
 };
 
 template <typename _Tp, typename _Pred>
-class __replace_copy_functor
+class __replace_copy_transformer
 {
     const _Tp _M_value;
     _Pred _M_pred;
 
   public:
-    __replace_copy_functor(const _Tp& __value, _Pred __pred) : _M_value(__value), _M_pred(__pred) {}
+    __replace_copy_transformer(const _Tp& __value, _Pred __pred) : _M_value(__value), _M_pred(__pred) {}
 
-    template <typename _InputType, typename _OutputType>
-    void
-    operator()(const _InputType& __x, _OutputType& __y) const
+    template <typename _InputType>
+    auto
+    operator()(const _InputType& __x) const
     {
-        __y = _M_pred(__x) ? _M_value : __x;
+        return _M_pred(__x) ? _M_value : __x;
     }
 };
 

@@ -401,13 +401,11 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, _Forward
 replace_copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIterator1 __last,
                 _ForwardIterator2 __result, _UnaryPredicate __pred, const _Tp& __new_value)
 {
-    const auto __dispatch_tag = oneapi::dpl::__internal::__select_backend(__exec, __first, __result);
-
-    return oneapi::dpl::__internal::__pattern_walk2(
-        __dispatch_tag, ::std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
-        oneapi::dpl::__internal::__replace_copy_functor<
+    return oneapi::dpl::transform(
+        std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
+        oneapi::dpl::__internal::__replace_copy_transformer<
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _Tp>,
-            ::std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>,
+            std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>,
                                  _UnaryPredicate,
                                  oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _UnaryPredicate>>>(
             __new_value, __pred));
