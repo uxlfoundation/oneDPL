@@ -61,18 +61,18 @@ class philox_engine
     /* The size of the consts arrays */
     static constexpr std::size_t __array_size = _n / 2;
 
-    /* Methods for unpacking variadic of constants into two arrays */
-    template <std::size_t... _Is>
-    static constexpr auto
-    get_even_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    /* Method for unpacking even and odd elements of input constants into an array */
+    enum class __indices_offset : std::size_t
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2]...};
-    }
-    template <std::size_t... _Is>
+        __even_indices = 0,
+        __odd_indices = 1
+    };
+    template <__indices_offset _Offset, std::size_t... _Is>
     static constexpr auto
-    get_odd_element_array(std::array<scalar_type, _n> __input_array, std::index_sequence<_Is...>)
+    __get_consts_by(std::index_sequence<_Is...>)
     {
-        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + 1]...};
+        constexpr std::array __input_array{_consts...};
+        return std::array<scalar_type, sizeof...(_Is)>{__input_array[_Is * 2 + static_cast<std::size_t>(_Offset)]...};
     }
 
   public:
@@ -91,9 +91,9 @@ class philox_engine
     static_assert(std::is_unsigned_v<scalar_type>, "UIntType must be unsigned type or vector of unsigned types");
 
     static constexpr std::array<scalar_type, __array_size> multipliers =
-        get_even_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__even_indices>(std::make_index_sequence<__array_size>{});
     static constexpr std::array<scalar_type, __array_size> round_consts =
-        get_odd_element_array(std::array{_consts...}, std::make_index_sequence<__array_size>{});
+        __get_consts_by<__indices_offset::__odd_indices>(std::make_index_sequence<__array_size>{});
 
     static constexpr scalar_type
     min()
@@ -280,7 +280,7 @@ class philox_engine
         }
     }
 
-    /* generate_internal() specified for sycl_vec output 
+    /* generate_internal() specified for sycl_vec output
        and overload for result portion generation */
     template <unsigned int _N>
     std::enable_if_t<(_N > 0), result_type>
@@ -382,43 +382,44 @@ class philox_engine
     {
         if constexpr (word_count == 2)
         {
-            scalar_type __V0 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __K0 = state_.K[0];
+            scalar_type& __v0 = state_.Y[0];
+            scalar_type& __v1 = state_.Y[1];
+            __v0 = state_.X[0];
+            __v1 = state_.X[1];
+            scalar_type __k0 = state_.K[0];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                __V0 = __hi0 ^ __K0 ^ __V1;
-                __V1 = __lo0;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
+                auto [__hi0, __lo0] = mulhilo(__v0, multipliers[0]);
+                __v0 = __hi0 ^ __k0 ^ __v1;
+                __v1 = __lo0;
+                __k0 = (__k0 + round_consts[0]) & in_mask;
             }
-            state_.Y[0] = __V0;
-            state_.Y[1] = __V1;
         }
         else if constexpr (word_count == 4)
         {
-            // permute X to V
-            scalar_type __V2 = state_.X[0];
-            scalar_type __V1 = state_.X[1];
-            scalar_type __V0 = state_.X[2];
-            scalar_type __V3 = state_.X[3];
-            scalar_type __K0 = state_.K[0];
-            scalar_type __K1 = state_.K[1];
+            scalar_type& __v0 = state_.Y[2];
+            scalar_type& __v1 = state_.Y[1];
+            scalar_type& __v2 = state_.Y[0];
+            scalar_type& __v3 = state_.Y[3];
+
+            // permute __x to V
+            __v2 = state_.X[0];
+            __v1 = state_.X[1];
+            __v0 = state_.X[2];
+            __v3 = state_.X[3];
+            scalar_type __k0 = state_.K[0];
+            scalar_type __k1 = state_.K[1];
             for (std::size_t __i = 0; __i < round_count; ++__i)
             {
-                auto [__hi0, __lo0] = mulhilo(__V0, multipliers[0]);
-                auto [__hi1, __lo1] = mulhilo(__V2, multipliers[1]);
-                __V2 = __hi0 ^ __V1 ^ __K0;
-                __V1 = __lo0;
-                __V0 = __hi1 ^ __V3 ^ __K1;
-                __V3 = __lo1;
-                __K0 = (__K0 + round_consts[0]) & in_mask;
-                __K1 = (__K1 + round_consts[1]) & in_mask;
+                auto [__hi0, __lo0] = mulhilo(__v0, multipliers[0]);
+                auto [__hi1, __lo1] = mulhilo(__v2, multipliers[1]);
+                __v2 = __hi0 ^ __v1 ^ __k0;
+                __v1 = __lo0;
+                __v0 = __hi1 ^ __v3 ^ __k1;
+                __v3 = __lo1;
+                __k0 = (__k0 + round_consts[0]) & in_mask;
+                __k1 = (__k1 + round_consts[1]) & in_mask;
             }
-            state_.Y[0] = __V2;
-            state_.Y[1] = __V1;
-            state_.Y[2] = __V0;
-            state_.Y[3] = __V3;
         }
     }
 
@@ -447,13 +448,21 @@ class philox_engine
             scalar_type __y0 = __b & __word_mask<__chunk_size>;
             scalar_type __y1 = __b >> __chunk_size;
 
-            scalar_type __p11 = __x1 * __y1;
-            scalar_type __p01 = __x0 * __y1;
-            scalar_type __p10 = __x1 * __y0;
-            scalar_type __p00 = __x0 * __y0;
+            /* alias partial products to chunk variables to reduce register pressure */
+            scalar_type __p00;
+            scalar_type& __p01 = __x0;
+            scalar_type& __p10 = __y0;
+            scalar_type& __p11 = __x1;
+
+            /* calculate parts of the final multiplication result */
+            __p00 = __x0 * __y0;
+            __p01 = __x0 * __y1;
+            __p10 = __x1 * __y0;
+            __p11 = __x1 * __y1;
 
             /* addition of three 32-bit values to get the carry for the hi part */
-            scalar_type __carry_hi =
+            scalar_type& __carry_hi = __y1;
+            __carry_hi =
                 ((__p10 & __word_mask<__chunk_size>)+(__p00 >> __chunk_size) + (__p01 & __word_mask<__chunk_size>)) >>
                 __chunk_size;
 
