@@ -1202,7 +1202,6 @@ struct __final_pos_setter</*_Bounded*/ true>
     const std::size_t __idx2 = {};
 };
 
-
 // Set operation generic implementation, used for serial set operation of intersection, difference, union, and
 // symmetric difference.
 template <bool _Bounded, bool _CopyMatch, bool _CopyDiffSetA, bool _CopyDiffSetB>
