@@ -405,10 +405,9 @@ replace_copy_if(_ExecutionPolicy&& __exec, _ForwardIterator1 __first, _ForwardIt
         std::forward<_ExecutionPolicy>(__exec), __first, __last, __result,
         oneapi::dpl::__internal::__replace_copy_transformer<
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _Tp>,
-            std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>,
-                                 _UnaryPredicate,
-                                 oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _UnaryPredicate>>>(
-            __new_value, __pred));
+            std::conditional_t<oneapi::dpl::__internal::__is_const_callable_object_v<_UnaryPredicate>, _UnaryPredicate,
+                               oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _UnaryPredicate>>>
+            (__new_value, __pred));
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator1, class _ForwardIterator2, class _Tp>
