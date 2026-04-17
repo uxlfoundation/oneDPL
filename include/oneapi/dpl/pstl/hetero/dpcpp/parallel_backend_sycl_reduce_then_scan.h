@@ -2587,34 +2587,20 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __pos_operations::fetch_max_pos_local_elementwise(___max_src_final_pos_in_wg, __wg_src_final_pos_local_accessor[__i]);
 
         return ___max_src_final_pos_in_wg;
-    }    
-
-    template <typename _InRng, typename _NDItem, typename _StopPosAcc>
-    void
-    __init_stop_pos_storage(const _NDItem& __ndi, _StopPosAcc& __stop_pos_acc) const
-    {
-        if (__ndi.get_global_linear_id() == 0)
-        {
-            auto __stop_pos_ptr = __stop_pos_acc.__data();
-
-            // As far as later we will work with this state through fetch_max operations, we initialize this by zero states
-            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
-
-            // As far as we may have only one (or none) OOB position, we initialize this by max value
-            __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                oneapi::dpl::__internal::__tuple_max_sentinel<__scan_stop_pos_t<_InRng>>::__create();
-        }
     }
 
-    template <typename _TempDataCaptureIndexes, typename _ProcessedInfo, typename _NDItem, typename _OutRng,
-              typename _StopPosAcc, typename _SlmSrcIndexesLocalAccessorForOneSG, typename _OobReplayCarryTuple,
-              typename _CallScanHelper>
+    template <typename _TempDataCaptureIndexes, typename _ProcessedInfo, typename _InRng, typename _NDItem,
+              typename _OutRng, typename _StopPosAcc, typename _SlmSrcIndexesLocalAccessorForOneSG,
+              typename _OobReplayCarryTuple, typename _CallScanHelper, typename _SubGroupSrcFinalPosLocalAccessor,
+              typename _ActiveSubgroupsCounter>
     void
-    __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
-                                _StopPosAcc& __stop_pos_acc,
-                                _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
-                                const bool __oob_reached_in_in_this_wi, _OobReplayCarryTuple& __oob_replay_carry_tuple,
-                                _CallScanHelper& __call_scan_through_elements_helper) const
+    __process_oob_and_final_pos(
+        const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
+        _StopPosAcc& __stop_pos_acc, _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
+        const bool __oob_reached_in_in_this_wi, const typename _ProcessedInfo::_TupleOfSizes& __final_pos_on_this_wi,
+        _OobReplayCarryTuple& __oob_replay_carry_tuple, _CallScanHelper& __call_scan_through_elements_helper,
+        _SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor, const std::uint32_t __sub_group_id,
+        const _ActiveSubgroupsCounter __active_subgroups) const
     {
         _ProcessedInfo __processed_info{};
 
@@ -2638,28 +2624,46 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
             if (__processed_info.get_oob_source_pos(__oob_source_pos))
             {
+                auto __stop_pos_ptr = __stop_pos_acc.__data();
+
+                using __oob_pos_t = __scan_stop_pos_t<_InRng>;
+
+                __oob_pos_t __oob_source_pos_converted = {};
+                oneapi::dpl::__internal::__tuple_copy_prefix(__oob_source_pos_converted, __oob_source_pos);
+
                 // OOB can be reached by at most one work-item per kernel invocation:
                 // output indices are monotonically increasing across all work-items,
                 // so only the single work-item that first crosses the output boundary
                 // can have get_oob_source_pos() return true.
                 // Therefore, no atomic fetch_min is needed here - at most one writer.
-                auto __scan_stop_pos = std::decay_t<decltype(*__stop_pos_acc.__data())>{};
-                oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __oob_source_pos);
-                __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __scan_stop_pos;
+                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __oob_source_pos_converted;
             }
         }
 
         // Final position evaluated in each work-item, so need to find the max across the work-group
-        const auto __max_final_pos_in_group =
-            _ProcessedInfo::reduce_max_pos_over_group(__ndi, __processed_info.get_final_pos());
+        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_on_this_wi);//__processed_info.get_final_pos());
 
-        // Writes from only one work-item
-        if (__ndi.get_local_id(0) == 0)
+        // As far as each WG may have his own final position, we need to find the max across all WGs.
+        // This is because for unique patterns we can have final pos < OOB pos, so we can't rely on OOB pos to propagate final pos.
+        // _StopPosPayloadIndexes::eFinalPos
+        if (__ndi.get_sub_group().get_local_linear_id() == 0)
         {
-            auto __scan_stop_pos = std::decay_t<decltype(*__stop_pos_acc.__data())>{};
-            oneapi::dpl::__internal::__tuple_copy_prefix(__scan_stop_pos, __max_final_pos_in_group);
-            _ProcessedInfo::fetch_max_pos(__stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eFinalPos],
-                                          __scan_stop_pos);
+            __wg_src_final_pos_local_accessor[__sub_group_id] = __max_final_pos_in_sg;
+        }
+
+        __dpl_sycl::__group_barrier(__ndi);
+
+        if (__ndi.get_local_linear_id() == 0)
+        {
+            const typename _ProcessedInfo::_TupleOfSizes ___max_src_final_pos_in_wg = __evaluate_max_src_final_pos_in_wg<_ProcessedInfo, _InRng>(__wg_src_final_pos_local_accessor, __active_subgroups);
+
+            using __final_pos_t = __scan_stop_pos_t<_InRng>;
+            __final_pos_t ___max_final_pos_in_wg_converted = {};
+            oneapi::dpl::__internal::__tuple_copy_prefix(___max_final_pos_in_wg_converted, ___max_src_final_pos_in_wg);
+            auto __stop_pos_ptr = __stop_pos_acc.__data();
+
+            auto& __global_final_pos = __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
+            __pos_operations::fetch_max_pos_global_elementwise(__global_final_pos, ___max_final_pos_in_wg_converted);
         }
     }
 
@@ -2673,6 +2677,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                _TmpStorageAcc& __scratch_container, sycl::event __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
+        using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
+
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
         if constexpr (__is_unique_pattern_v)
@@ -2721,10 +2727,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __cgh.parallel_for<_KernelName...>(
                     __nd_range, [=, *this] (sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
 
-                // Initialize stop positions from the first item
-                if constexpr (_Bounded)
-                    __init_stop_pos_storage<_InRng>(__ndi, __stop_pos_acc);
-
                 // Compute work distribution fields dependent on sub-group size within the kernel. This is because we
                 // can only rely on the value of __sub_group_size provided in the device compilation phase within the
                 // kernel itself.
@@ -2746,6 +2748,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 std::size_t __group_start_id =
                     (__block_num * __max_block_size) + (__group_id * __sub_group_params.__inputs_per_sub_group *
                                                         __sub_group_params.__num_sub_groups_local);
+
                 if constexpr (__is_unique_pattern_v)
                 {
                     // for unique patterns, the first element is always copied to the output, so we need to skip it
@@ -2871,6 +2874,18 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     }
                 }
 
+                // Initialize stop positions from the first item of sub-group
+                if constexpr (_Bounded)
+                {
+                    // Each sub-group leader initializes its own slot
+                    if (__sub_group_local_id == 0 && __sub_group_id < __active_subgroups)
+                    {
+                        // As far as later we will work with this state through fetch_max operations, we initialize this by zero states
+                        // _StopPosPayloadIndexes::eFinalPos
+                        __wg_src_final_pos_local_accessor[__sub_group_id] = {};
+                    }
+                }
+
                 __dpl_sycl::__group_barrier(__ndi);
 
                 // Get inter-work group and adjusted for intra-work group prefix
@@ -2968,7 +2983,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
                 using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
-                using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
 
                 constexpr bool __oob_replay_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
 
@@ -2976,6 +2990,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 bool __oob_reached_in_in_this_wi = false;
+                typename _ProcessedInfo::_TupleOfSizes __final_pos_on_this_wi = {};
                 {
                     _TempDataNoCaptureIndexes __temp_out{};
                     _ProcessedInfo __processed_info{};
@@ -2987,14 +3002,22 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if constexpr (__oob_replay_enabled)
                     {
                         __oob_reached_in_in_this_wi = __processed_info.get_oob_reached();
+
+                        // KSATODO required to investigate why we have correct final_pos after the first __call_scan_through_elements_helper call
+                        // and haven't it inside __process_oob_and_final_pos after the second __call_scan_through_elements_helper call.
+                        // When this investigation will be done, we should consider to remove __final_pos_on_this_wi variable at all
+                        // and use only __processed_info.get_final_pos() in __process_oob_and_final_pos.
+                        __final_pos_on_this_wi = __processed_info.get_final_pos();
                     }
                 }
 
                 if constexpr (__oob_replay_enabled)
                 {
-                    __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo>(
+                    __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
                         __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
-                        __oob_reached_in_in_this_wi, __oob_replay_carry_tuple, __call_scan_through_elements_helper);
+                        __oob_reached_in_in_this_wi, __final_pos_on_this_wi, __oob_replay_carry_tuple,
+                        __call_scan_through_elements_helper, __wg_src_final_pos_local_accessor, __sub_group_id,
+                        __active_subgroups);
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
