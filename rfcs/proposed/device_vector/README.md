@@ -65,27 +65,12 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 
 [sycl-thrust](https://github.com/SparseBLAS/sycl-thrust) is a SYCL-native
 reimplementation of Thrust's `device_vector` API from the SparseBLAS project.
-It uses `sycl::malloc_device`, a `device_ptr<T>` iterator wrapping a raw
-`T*`, and a `device_reference<T>` proxy with `__SYCL_DEVICE_ONLY__`
-bifurcation.
-
-**Device & context vs queue.** sycl-thrust's allocator stores
-`sycl::device` + `sycl::context` rather than a `sycl::queue`. This is
-sufficient for allocation (`sycl::malloc_device` only requires device and
-context) and means the allocator doesn't tie the vector to a particular
-queue. When host-side `device_reference` needs a queue for memcpy, it
-resolves one at runtime via `sycl::get_pointer_device`, looping through a
-set of contexts saved in a inline global vector of all available device contexts.
-This configuration allows `device_ptr` and `device_ref` to be a single raw pointer
-(8 bytes) rather than carrying a queue or anything else in addition. It optimizes
-the hot path (device code), and requires extra steps to search for a context
-and create a queue for each host side operation. See [open question on queue association](#open-questions)
-for further discussion of this tradeoff.
-
-**Aligned allocation.** sycl-thrust's `device_allocator<T, Alignment>`
-supports `sycl::aligned_alloc_device` via a template parameter, allowing
-users to request specific alignment (e.g. 128 or 256 bytes for coalesced
-memory access) see [open question on aligned allocation](#open-questions).
+Two design choices are worth noting: it stores `sycl::device` + `sycl::context`
+rather than a queue (keeping `device_ptr` at 8 bytes, but requiring a global
+context registry for host-side memcpy — see
+[open question on queue association](#open-questions)), and it supports aligned
+allocation via a template parameter on its allocator (see
+[open question on aligned allocation](#open-questions)).
 
 ### 3. Alternatives Built by Projects That Rejected `thrust::device_vector`
 
