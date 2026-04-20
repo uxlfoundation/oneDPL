@@ -655,3 +655,7 @@ range support on the device.
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
   worth considering.
+
+- **Should we include lesser-used features for host side usage (push_back/insert/erase)?**
+  These are significant implementation complexity and not used in the field, but
+  provide more complete migration from thrust, and also closer alignment with `std::vector`.
