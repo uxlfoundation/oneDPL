@@ -176,6 +176,83 @@ namespace oneapi::dpl::experimental {
 struct no_init_t { /* ... */ };
 inline constexpr no_init_t no_init{};
 
+// =========================================================================
+// device_pointer<T>
+// =========================================================================
+
+template <typename T>
+class device_pointer {
+public:
+    // Iterator traits
+    using iterator_concept  = std::random_access_iterator_tag;
+    using value_type        = std::remove_cv_t<T>;
+    using difference_type   = std::ptrdiff_t;
+    using reference         = device_reference<T>;
+
+    device_pointer() = default;
+    explicit device_pointer(T* ptr);
+
+    // Raw pointer access
+    T* get() const;
+
+    // Dereference -- returns a proxy reference
+    reference operator*() const;
+    reference operator[](difference_type n) const;
+
+    // Arithmetic
+    device_pointer& operator++();
+    device_pointer  operator++(int);
+    device_pointer& operator--();
+    device_pointer  operator--(int);
+    device_pointer& operator+=(difference_type n);
+    device_pointer& operator-=(difference_type n);
+    friend device_pointer operator+(device_pointer p, difference_type n);
+    friend device_pointer operator+(difference_type n, device_pointer p);
+    friend device_pointer operator-(device_pointer p, difference_type n);
+    friend difference_type operator-(device_pointer a, device_pointer b);
+
+    // Comparison
+    friend bool operator==(device_pointer a, device_pointer b);
+    friend auto operator<=>(device_pointer a, device_pointer b);
+};
+
+// =========================================================================
+// device_reference<T>
+// =========================================================================
+
+template <typename T>
+class device_reference {
+public:
+    // Implicit conversion to T (device-to-host read)
+    operator T() const;
+    T read(sycl::queue q) const;              // explicit queue overload
+
+    // Assignment (host-to-device write)
+    const device_reference& operator=(const T& val) const;
+    const device_reference& operator=(const device_reference&) const;
+    void write(const T& val, sycl::queue q) const;  // explicit queue overload
+
+    // Compound assignment -- each is a synchronous read-modify-write.
+    const device_reference& operator+=(const T&) const;
+    // etc.  -=, *=, /= ...
+
+    // Increment / decrement
+    const device_reference& operator++() const;
+    T operator++(int) const;
+    const device_reference& operator--() const;
+    T operator--(int) const;
+
+    // Swap
+    friend void swap(const device_reference& a, const device_reference& b);
+
+    // Address-of returns device_pointer
+    device_pointer<T> operator&() const;
+};
+
+// =========================================================================
+// device_vector<T>
+// =========================================================================
+
 template <typename T>
 class device_vector {
 public:
@@ -240,22 +317,23 @@ public:
     explicit device_vector(const std::vector<T>&,
                            sycl::context ctx, sycl::device dev);
     explicit operator std::vector<T>() const;
+    std::vector<T> to_vector(sycl::queue q) const;   // explicit queue
 
-    // Element access (proxy references, implies host-device transfer)
+    // Element access (proxy references -- host-device transfer on host use)
     reference       operator[](size_type pos);
     const_reference operator[](size_type pos) const;
     reference       front();
     const_reference front() const;
     reference       back();
     const_reference back() const;
-    pointer         data() ;
+    pointer         data();
     const_pointer   data() const;
 
     // Iterators
     iterator begin();
     iterator end();
     // + const/reverse variants
-    
+
     // Views
     device_view<T> view();
     device_view<const T> view() const;
@@ -272,23 +350,40 @@ public:
     void reserve(size_type new_cap);
     void shrink_to_fit();
 
-    // Modifiers
+    // Modifiers -- operations that transfer data between host and device
+    // accept an optional sycl::queue. When provided, the transfer is
+    // submitted to that queue, enabling explicit synchronization (e.g.
+    // via an in-order queue shared with kernel submissions). When omitted,
+    // an internal queue is created from the stored context + device.
     void assign(size_type count, const T& value);
+    void assign(size_type count, const T& value, sycl::queue q);
     template <typename InputIt>
     void assign(InputIt first, InputIt last);
+    template <typename InputIt>
+    void assign(InputIt first, InputIt last, sycl::queue q);
     void assign(std::initializer_list<T> ilist);
+    void assign(std::initializer_list<T> ilist, sycl::queue q);
     void clear();
     void push_back(const T& value);
+    void push_back(const T& value, sycl::queue q);
     void pop_back();
     iterator insert(const_iterator pos, const T& value);
+    iterator insert(const_iterator pos, const T& value, sycl::queue q);
     iterator insert(const_iterator pos, size_type count, const T& value);
+    iterator insert(const_iterator pos, size_type count, const T& value,
+                    sycl::queue q);
     template <typename InputIt>
     iterator insert(const_iterator pos, InputIt first, InputIt last);
+    template <typename InputIt>
+    iterator insert(const_iterator pos, InputIt first, InputIt last,
+                    sycl::queue q);
     iterator erase(const_iterator pos);
     iterator erase(const_iterator first, const_iterator last);
     void resize(size_type count);
+    void resize(size_type count, sycl::queue q);
     void resize(size_type count, const T& value);
-    void resize(size_type count, no_init_t);  // new elements uninitialized
+    void resize(size_type count, const T& value, sycl::queue q);
+    void resize(size_type count, no_init_t);
     void swap(device_vector& other);
 };
 
@@ -351,18 +446,17 @@ std::vector<float> transform_out = static_cast<std::vector<float>>(d_output);
 
 ### Helper Types
 
-A `device_vector` requires two supporting types:
+A `device_vector` requires two supporting types, both shown in the API
+skeleton above:
 
-- **`device_pointer<T>`** -- wraps a raw device pointer; models random
-  access iterator; dereference returns `device_reference<T>`. Allows raw pointer
-  extraction via `.get()`.
+- **`device_pointer<T>`** -- wraps a raw device pointer; models
+  `std::random_access_iterator`; dereference returns `device_reference<T>`.
+  Allows raw pointer extraction via `.get()`.
 - **`device_reference<T>`** -- proxy reference for host-side element
   access; reads/writes trigger synchronous `memcpy` on the host path,
-  direct dereference on the device path. Existing implementations range
-  from full-featured (Thrust: all compound assignment and
-  increment/decrement operators) to minimal (Distributed Ranges: only
-  `operator T()` and `operator=`). Our proposal follows Thrust's
-  full-featured approach (see design decisions above).
+  direct dereference on the device path.
+  Our proposal follows Thrust's full-featured approach where all compound
+  assignment and increment/decrement operators are provided.
 
 ### Range Support
 
