@@ -596,45 +596,71 @@ range support on the device.
 
 ## Open Questions
 
-- ** Context & device vs Queue and synchronization**
-  Should we store context (and device) or queue with a device vector (also pointer, reference)?
-  `device_vector` (ptr, ref) in thrust has implicit synchronization across the
-  whole device upon host access. However, this seems to be a inconvenience for some
-  rather than a desired feature. Further, it is not possible to synchronize across
-  an entire sycl device without this [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc).
+- **What should `device_vector` store: context + device, or queue?**
+  `sycl::malloc_device` requires only a context and device, not a queue. Storing
+  a queue would tie the vector to a particular queue and imply synchronization
+  semantics (see synchronization question below). Storing context + device is
+  sufficient for allocation and deallocation, with queues provided per-operation
+  when needed.
 
-  If we stored an in-order queue in the `device_vector`, and a pointer to that queue
-  in `device_pointer` and `device_reference`, it would provide implicit synchronization
-  with that specific in-order queue. This is different from thrust which implicitly synchronizes
-  with the whole device, but is similar.
+  The API skeleton currently assumes context + device storage. Constructors
+  that accept a `sycl::queue` use it only to extract the context and device;
+  the queue is not retained. No-arg constructors default to
+  `sycl::device{sycl::gpu_selector_v}` and create a context from it. Note that
+  users who later want to provide a queue for explicit synchronization must
+  ensure the queue shares the same context as the allocation; if using a no-arg
+  constructor, they will need `get_context()` to create a compatible queue.
 
-  We may want to consider having no implicit synchronization and instead allowing
-  users to optionally provide an in-order queue to provide synchronization if desired.
-  If none is provided, a queue would be created from the context and device which created the pointer.
-  If providing a queue, users would have to provide a queue from the same context provided on allocation.
-  This would both alleviate a pain point for thrust's `device_vector`, and work better
-  with sycl.
+- **How should `device_pointer` / `device_reference` associate with a context?**
+  On the device, `device_pointer` dereferences directly as a raw pointer — no
+  context or queue is needed. On the host, dereferencing requires a queue for
+  memcpy. The question is how `device_pointer` / `device_reference` obtains one.
 
-  The skeleton above assumes we store a device and context with `device_vector`
-  and allow users to specify explicit queue for synchronization per host action.
-  It also provides constructors where no queue device or context is specified.
-  This uses `gpu_selector_v` to determine a device and creates a new context.
-  For users specifying a queue for explicit synchronization later, any provided
-  queue must be created on the same context used for allocation of the device
-  vector. If using the defaulted device / context constructor, you will need to
-  use `get_context()` to create your queue. We also have the option to remove these
-  constructors, with some impact to direct migration from thrust.
+  Options:
+  1. **Store a pointer to the context** (or to the owning vector) alongside
+     the raw pointer. Adds 8 bytes to `device_pointer` footprint but provides
+     direct access to the context for creating a queue.
+  2. **Store only the raw pointer** (sycl-thrust approach). Minimal footprint
+     (8 bytes), but host-side dereference must search a global registry of
+     contexts to find the one matching the pointer. Optimizes the device hot
+     path at the cost of host-path complexity and a global data structure.
+  3. **Store a pointer back to the owning `device_vector`**. Similar to
+     option 1 in footprint, but couples pointer lifetime to the vector and
+     may complicate standalone use of `device_pointer`. If we decide to store
+     a queue in the vector, this could allow use of that queue for implicit
+     synchronization.
 
-- **How should we associate `device_pointer` / `device_reference` to a context?**
-  We need some way to associate a pointer with a context and device for usage on the host.
-  Usage on the device is done directly on the pointer with no synchronization.
-  Usage on the host requires a queue to copy data. We can store a pointer to a
-  context, or to a vector (which has a device & context or queue). Another option is
-  what sycl-thrust has done, to just store the pointer, and loop through a global
-  vector of contexts associated with each device on the system, searching for the
-  appropriate one. This allows `device_pointer` and `device_reference` to have a minimal
-  footprint (just the pointer), and only the host path has overhead. However,
-  it requires a global vector of contexts which is not ideal.
+- **Synchronization model for host-side operations**
+  Thrust `device_vector` implicitly synchronizes with the whole device on every
+  host operation. For at least some, this seems to be an inconvenience rather than
+  a feature, see [usage study](usage_pattern_study.md#alternatives-built-by-projects-that-rejected-thrustdevice_vector).
+  Also, sycl has no official specified way to synchronize with a full device, only
+  with a queue via dependent events or via an in-order queue.  There is a
+  [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc)
+  for this purpose. We must decide how to deal with synchronization of host side
+  actions of the `device_vector` and helper classes.
+
+  For now the proposal in the API skeleton is as follows:
+
+  Host-side operations that transfer data (element access via `device_reference`,
+  `assign`, `resize`, `insert`, etc.) have two modes:
+
+  **Without an explicit queue:** the operation creates a temporary queue from the
+  stored context + device, submits the transfer, and **blocks** until complete.
+  The user is responsible for ensuring no concurrent operations on the same
+  memory are in flight before calling, and not starting any until after the
+  call returns.
+
+  **With an explicit queue:** the operation submits to the provided queue and
+  returns **without blocking**. The provided queue must share the same context
+  as the vector's allocation (`q.get_context() == dv.get_context()`);
+  implementations throw on mismatch. In-order queues are recommended for
+  simple implicit ordering, but out-of-order queues are permitted, they will not
+  provide synchronization, but will avoid a queue creation from device and context.
+
+  A possible extension would be queue + event overloads where the user provides
+  dependency events and receives a completion event, supporting out-of-order
+  queue patterns natively. This is not included in the current skeleton.
 
 
 - **Should we support aligned allocation or a non-C++ allocator?**
