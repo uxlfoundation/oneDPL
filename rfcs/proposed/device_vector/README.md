@@ -601,16 +601,19 @@ range support on the device.
   This would both alleviate a pain point for thrust's `device_vector`, and work better
   with sycl.
 
-   - Questions for `device_pointer` / `device_reference`:
-      We need some way to associate a pointer with a context and device for usage on the host.
-      Usage on the device is done directly on the pointer with no synchronization.
-      Usage on the host requires a queue to copy data. We can store a pointer to a
-      context, or to a vector (which has a device & context or queue). Another option is
-      what sycl-thrust has done, to just store the pointer, and loop through a global
-      vector of contexts associated with each device on the system, searching for the
-      appropriate one. This allows `device_pointer` and `device_reference` to have a minimal
-      footprint (just the pointer), and only the host path has overhead. However,
-      it requires a global vector of contexts which is not ideal.
+  The skeleton above assumes we store a device and context with `device_vector`
+  and allow users to specify explicit queue for synchronization per host action.
+
+- **How should we associate `device_pointer` / `device_reference` to a context?**
+  We need some way to associate a pointer with a context and device for usage on the host.
+  Usage on the device is done directly on the pointer with no synchronization.
+  Usage on the host requires a queue to copy data. We can store a pointer to a
+  context, or to a vector (which has a device & context or queue). Another option is
+  what sycl-thrust has done, to just store the pointer, and loop through a global
+  vector of contexts associated with each device on the system, searching for the
+  appropriate one. This allows `device_pointer` and `device_reference` to have a minimal
+  footprint (just the pointer), and only the host path has overhead. However,
+  it requires a global vector of contexts which is not ideal.
 
 
 - **Should we support aligned allocation or a non-C++ allocator?**
