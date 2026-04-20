@@ -58,7 +58,7 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
 | **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (explicit device-to-host copy) |
 | **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Constructor from `std::vector` | Explicit constructor + `operator std::vector()` |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
+| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Constructors accept either `sycl::queue` or `sycl::context` + `sycl::device`; queue created on demand if only context+device provided (see [open question](#open-questions)) |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | `no_init_t` tag for construction and resize |
 
 ### 2. sycl-thrust
@@ -191,9 +191,13 @@ public:
     using const_iterator  = /* const version */;
 
     // Constructors / assignment / destructor -- mirrors std::vector
-    // All constructors accept an optional sycl::queue argument currently,
-    // but this is an open question.
-    // (defaulted, e.g. to a global default queue).
+    // Each constructor has two overloads: one taking a sycl::queue (which
+    // provides context, device, and a submission target for transfers),
+    // and one taking a sycl::context + sycl::device (sufficient for
+    // allocation; a queue is created internally when transfers are needed).
+    // See open questions for discussion of this tradeoff.
+
+    // --- Queue overloads ---
     device_vector(sycl::queue q = /* default queue */);
     explicit device_vector(size_type count,
                            sycl::queue q = /* default queue */);
@@ -204,7 +208,21 @@ public:
                   sycl::queue q = /* default queue */);
     device_vector(std::initializer_list<T> init,
                   sycl::queue q = /* default queue */);
-    device_vector(const device_vector&); // also copies the queue
+
+    // --- Context + device overloads ---
+    device_vector(sycl::context ctx, sycl::device dev);
+    explicit device_vector(size_type count,
+                           sycl::context ctx, sycl::device dev);
+    device_vector(size_type count, const T& value,
+                  sycl::context ctx, sycl::device dev);
+    template <typename InputIt>
+    device_vector(InputIt first, InputIt last,
+                  sycl::context ctx, sycl::device dev);
+    device_vector(std::initializer_list<T> init,
+                  sycl::context ctx, sycl::device dev);
+
+    // --- Copy / move / destructor ---
+    device_vector(const device_vector&);
     device_vector(device_vector&&) noexcept;
     device_vector& operator=(const device_vector&);
     device_vector& operator=(device_vector&&) noexcept;
@@ -213,10 +231,14 @@ public:
     // Uninitialized construction -- allocates without memset/kernel launch
     explicit device_vector(size_type count, no_init_t,
                            sycl::queue q = /* default queue */);
+    explicit device_vector(size_type count, no_init_t,
+                           sycl::context ctx, sycl::device dev);
 
     // Interop with std::vector
     explicit device_vector(const std::vector<T>&,
                            sycl::queue q = /* default queue */);
+    explicit device_vector(const std::vector<T>&,
+                           sycl::context ctx, sycl::device dev);
     explicit operator std::vector<T>() const;
 
     // Element access (proxy references, implies host-device transfer)
@@ -238,8 +260,10 @@ public:
     device_view<T> view();
     device_view<const T> view() const;
 
-    // Queue access
-    sycl::queue get_queue();
+    // Queue / context / device access
+    sycl::queue get_queue();       // creates one from context+device if not stored
+    sycl::context get_context();
+    sycl::device get_device();
 
     // Capacity
     bool      empty()    const;
