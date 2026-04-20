@@ -28,7 +28,7 @@ main()
     {
         using Size = std::common_type_t<std::ranges::range_size_t<decltype(r_in)>,
             std::ranges::range_size_t<decltype(r_out)>>;
-        Size size = std::ranges::min<Size>(std::ranges::size(r_out), std::ranges::size(r_in));
+        Size size = std::ranges::min(std::ranges::size(r_in), std::ranges::size(r_out));
 
         std::ranges::replace_copy_if(std::ranges::take_view(r_in, size), std::ranges::begin(r_out),
                                      std::forward<decltype(args)>(args)...);
