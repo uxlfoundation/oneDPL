@@ -129,11 +129,7 @@ memory semantics.
   and increment/decrement (`++`, `--`). This makes host-side element access behave
   as close to a real `T&` as possible and eases migration from Thrust codebases
   where users expect expressions like `d_vec[i] += 1` to work. Each such operation
-  implies a synchronous round-trip (read-modify-write) to device memory. All
-  mutating operators (`operator=`, compound assignment, increment/decrement) are
-  **const-qualified** because `device_reference` is a proxy: `const` applies to
-  the handle, not the underlying device data. This is required by
-  `std::indirectly_writable` in C++20 (see [Range Support](#range-support)).
+  implies a synchronous round-trip (read-modify-write) to device memory.
 
 - **Support `no_init` tag for uninitialized construction and resizing**
   A `no_init_t` tag type allows users to skip value-initialization when
@@ -432,20 +428,6 @@ output.resize(2048, dpl::no_init);
 std::vector<float> transform_out = static_cast<std::vector<float>>(d_output);
 
 ```
-
-### Helper Types
-
-A `device_vector` requires two supporting types, both shown in the API
-skeleton above:
-
-- **`device_pointer<T>`** -- wraps a raw device pointer; models
-  `std::random_access_iterator`; dereference returns `device_reference<T>`.
-  Allows raw pointer extraction via `.get()`.
-- **`device_reference<T>`** -- proxy reference for host-side element
-  access; reads/writes trigger synchronous `memcpy` on the host path,
-  direct dereference on the device path.
-  Our proposal follows Thrust's full-featured approach where all compound
-  assignment and increment/decrement operators are provided.
 
 ### Range Support
 
