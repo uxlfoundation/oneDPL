@@ -642,25 +642,31 @@ range support on the device.
 
   For now the proposal in the API skeleton is as follows:
 
-  Host-side operations that transfer data (element access via `device_reference`,
-  `assign`, `resize`, `insert`, etc.) have two modes:
+  All host-side operations that transfer data (element access via
+  `device_reference`, `assign`, `resize`, `insert`, etc.) are **blocking** —
+  the call does not return until the data transfer is complete, regardless of
+  whether a queue is provided.
 
   **Without an explicit queue:** the operation creates a temporary queue from the
-  stored context + device, submits the transfer, and **blocks** until complete.
-  The user is responsible for ensuring no concurrent operations on the same
-  memory are in flight before calling, and not starting any until after the
-  call returns.
+  stored context + device, submits the transfer, and blocks until complete.
 
   **With an explicit queue:** the operation submits to the provided queue and
-  returns **without blocking**. The provided queue must share the same context
+  blocks until complete. The provided queue must share the same context
   as the vector's allocation (`q.get_context() == dv.get_context()`);
-  implementations throw on mismatch. In-order queues are recommended for
-  simple implicit ordering, but out-of-order queues are permitted, they will not
-  provide synchronization, but will avoid a queue creation from device and context.
+  implementations throw on mismatch. The queue overload is useful for avoiding
+  repeated temporary queue creation, or for ensuring operations go through a
+  specific queue for profiling/debugging purposes.
 
-  A possible extension would be queue + event overloads where the user provides
-  dependency events and receives a completion event, supporting out-of-order
-  queue patterns natively. This is not included in the current skeleton.
+  **Important:** These operations do **not** implicitly synchronize with
+  other work on the device or queue. The user is responsible for ensuring
+  that any kernels or operations modifying the same memory have completed
+  before calling host-side `device_vector` operations. This can be achieved
+  by using an in-order queue shared with kernel submissions, or by explicitly
+  waiting on events from prior work.
+
+  A possible future extension could add async overloads that return
+  `sycl::event` for users who need explicit dependency management, but this
+  is not included in the current proposal.
 
 
 - **Should we support aligned allocation or a non-C++ allocator?**
