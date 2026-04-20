@@ -215,7 +215,7 @@ struct __find_last_if_fn
 
         auto __res = oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), __reverse_r, __pred, __proj);
 
-        return {(__res == __reverse_r.end()) ? __last : __res.base(), __last};
+        return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
     }
 }; //__find_last_if_fn
 }  //__internal
