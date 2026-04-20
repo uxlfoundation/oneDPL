@@ -137,7 +137,7 @@ struct __transform_fn
 
 inline constexpr __internal::__transform_fn transform;
 
-// [alg.find_if]
+// [alg.find]
 
 namespace __internal
 {
@@ -159,8 +159,6 @@ struct __find_if_fn
 
 inline constexpr __internal::__find_if_fn find_if;
 
-// [alg.find_if_not]
-
 namespace __internal
 {
 struct __find_if_not_fn
@@ -177,14 +175,7 @@ struct __find_if_not_fn
             _Pred>>(__pred), __proj);
     }
 }; //__find_if_not_fn
-}  //__internal
 
-inline constexpr __internal::__find_if_not_fn find_if_not;
-
-// [alg.find]
-
-namespace __internal
-{
 struct __find_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
@@ -203,9 +194,10 @@ struct __find_fn
 }; //__find_fn
 }  //__internal
 
+inline constexpr __internal::__find_if_not_fn find_if_not;
 inline constexpr __internal::__find_fn find;
 
-// [alg.find_first_of]
+// [alg.find.first.of]
 
 namespace __internal
 {
@@ -232,7 +224,7 @@ struct __find_first_of_fn
 
 inline constexpr __internal::__find_first_of_fn find_first_of;
 
-// [alg.find_end]
+// [alg.find.end]
 
 namespace __internal
 {
@@ -1441,7 +1433,7 @@ find_end(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
                     ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
 }
 
-// [alg.find_first_of]
+// [alg.find.first.of]
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
