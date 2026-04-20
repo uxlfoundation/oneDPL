@@ -30,11 +30,11 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
      RAII device memory manager and host-device data shuttle.
   2. **`begin()`/`end()` integration with parallel algorithms** is the
      second-most critical capability.
-  3. **Top-tier AI/ML projects** (FAISS, cuDF, cuML) have **rejected
+  3. **Some popular AI/ML projects** (FAISS, cuDF, cuML) have **moved away from 
      `thrust::device_vector`** due to unwanted value initialization, lack of
      stream parameters, and header bloat — then built alternatives that
-     prioritize explicit async control and uninitialized allocation. HPC
-     and mid-tier ML projects remain heavy users.
+     prioritize explicit async control and uninitialized allocation. Other HPC
+     and ML projects remain heavy users.
   4. **Full `std::vector`-like modifiers** (`push_back`, `insert`, `erase`)
      are rarely used in real workloads.
   5. **Raw pointer extraction** (`data().get()` / `raw_pointer_cast`) is
@@ -58,7 +58,6 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
 | **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (explicit device-to-host copy) |
 | **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Constructor from `std::vector` | Explicit constructor + `operator std::vector()` |
-| **Multi-device** | No | No | Yes (`rank()` tracks owning device) | No | see [open question](#open-questions) |
 | **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Explicit `sycl::queue` parameter on constructors (see [open question](#open-questions)) |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | `no_init_t` tag for construction and resize |
 
@@ -68,27 +67,25 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 reimplementation of Thrust's `device_vector` API from the SparseBLAS project.
 It uses `sycl::malloc_device`, a `device_ptr<T>` iterator wrapping a raw
 `T*`, and a `device_reference<T>` proxy with `__SYCL_DEVICE_ONLY__`
-bifurcation — the same fundamental patterns as our proposal.
+bifurcation.
 
 **Device & context vs queue.** sycl-thrust's allocator stores
 `sycl::device` + `sycl::context` rather than a `sycl::queue`. This is
 sufficient for allocation (`sycl::malloc_device` only requires device and
 context) and means the allocator doesn't tie the vector to a particular
 queue. When host-side `device_reference` needs a queue for memcpy, it
-resolves one at runtime via `sycl::get_pointer_device`. The key tradeoff:
-`device_ptr` is a single raw pointer (8 bytes) since it doesn't carry a
-queue, making it half the size of our `device_pointer` (16 bytes with
-`T*` + `sycl::queue*`). The device-hot path — where pointers are captured
-into kernels — pays nothing for host-side bookkeeping. The host-side
-queue lookup cost is amortized against the synchronous memcpy that already
-dominates host access. See [open question on queue association](#open-questions)
+resolves one at runtime via `sycl::get_pointer_device`, looping through a
+set of contexts saved in a inline global vector of all available device contexts.
+This configuration allows `device_ptr` and `device_ref` to be a single raw pointer
+(8 bytes) rather than carrying a queue or anything else in addition. It optimizes
+the hot path (device code), and requires extra steps to search for a context
+and create a queue for each host side operation. See [open question on queue association](#open-questions)
 for further discussion of this tradeoff.
 
 **Aligned allocation.** sycl-thrust's `device_allocator<T, Alignment>`
 supports `sycl::aligned_alloc_device` via a template parameter, allowing
 users to request specific alignment (e.g. 128 or 256 bytes for coalesced
-memory access). This is a capability we currently lack — see
-[open question on aligned allocation](#open-questions).
+memory access) see [open question on aligned allocation](#open-questions).
 
 ### 3. Alternatives Built by Projects That Rejected `thrust::device_vector`
 
@@ -168,6 +165,9 @@ memory semantics.
   directly, keeping the implementation simpler.
 
 ### API Skeleton
+
+This skeleton is provided as a sample, and cannot be finalized until some of the
+open questions have been resolved.
 
 ```cpp
 namespace oneapi::dpl::experimental {
@@ -464,58 +464,36 @@ range support on the device.
 
 ## Open Questions
 
-- **Should we try to support multiple devices?**
-  Distributed ranges work has been halted, but is this an important use case to
-  preserve, or unnecessary complication for users?  We could always add another
-  type to support such use cases in the future.
+- ** Context & device vs Queue and synchronization**
+  Should we store context (and device) or queue with a device vector (also pointer, reference)?
+  `device_vector` (ptr, ref) in thrust has implicit synchronization across the
+  whole device upon host access. However, this seems to be a inconvenience for some
+  rather than a desired feature. Further, it is not possible to synchronize across
+  an entire sycl device without this [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc).
 
-- **Queue association model**
-  - Impact on `device_pointer`:
-  We want `device_pointer` to be device copyable so it can be used directly
-  in kernels and oneDPL algorithms. However, host-side dereference (returning
-  a proxy reference that does `memcpy`) requires a `sycl::queue`, and
-  `sycl::queue` is not device copyable. This creates a tension with several
-  possible resolutions, here are the leading 2:
-  - Device & context instead?:
-  All that is required to allocate is device & context, which can be dictated by a queue, but it is a many-to-one releationship in that many queues may exist on top of a device & context pair. However, If we want implicit synchronization between an in-order queue and host-side accesses of `device_vector`, we need the association with a queue. 
-  
-  Thrust has implicit synchronization with its default stream, which sychronizes its host access to either all streams or the default per-thread stream based upon compiliation settings.
+  If we stored an in-order queue in the `device_vector`, and a pointer to that queue
+  in `device_pointer` and `device_reference`, it would provide implicit synchronization
+  with that specific in-order queue. This is different from thrust which implicitly synchronizes
+  with the whole device, but is similar.
 
-  There is a [proposed extension](https://github.com/intel/llvm/blob/a27b442be0f3e72245846073b4ca254fe83246ca/sycl/doc/extensions/proposed/sycl_ext_oneapi_device_wait.asciidoc) to allow synchronizing with a whole device. Otherwise, we could make the synchronization the user's responsibility or tie it only to an associated in-order queue.  
+  We may want to consider having no implicit synchronization and instead allowing
+  users to optionally provide an in-order queue to provide synchronization if desired.
+  If none is provided, a queue would be created from the context and device which created the pointer.
+  If providing a queue, users would have to provide a queue from the same context provided on allocation.
+  This would both alleviate a pain point for thrust's `device_vector`, and work better
+  with sycl.
 
-  1. **Store a raw `sycl::queue*` in device_pointer.** `device_pointer`
-     holds `T*` + `sycl::queue*` — a struct of two raw pointers is trivially
-     copyable and therefore device copyable. On the host, the queue pointer
-     is dereferenced to obtain the queue for `memcpy`. On the device, the
-     queue pointer is unused dead bits. This preserves both device copyability
-     and host-side dereference with the correct queue. The queue must
-     outlive the pointer, but this is fine because it lives in the vector
-     the same as the memory itself, which will be freed if the vector leaves
-     scope. **Downside:** the queue pointer doubles the size of
-     `device_pointer` (16 bytes vs 8), and every kernel capture pays for
-     those extra 8 bytes even though the queue is never used on-device.
-  2. **Store only a raw `T*` in device_pointer; resolve the queue at
-     point of use on the host.** This is the approach taken by sycl-thrust,
-     where `device_ptr` is a single pointer and the queue is resolved via
-     `sycl::get_pointer_device` at runtime when host-side access is needed.
-     **Advantage:** `device_pointer` is minimal (8 bytes), optimizing the
-     device-hot path where pointers are captured into kernels. The queue
-     lookup cost on the host is amortized against the synchronous `memcpy`
-     that already dominates host-side access. **Downside:** requires either
-     a global/default queue mechanism or runtime pointer introspection,
-     which adds complexity, potential thread-safety concerns, and precludes
-     explicit queue association for synchronization purposes.
-  3. **Use a global default queue only.** `device_vector` does not accept a
-     queue on construction. `device_pointer` holds only a raw `T*`, is device
-     copyable, and host-side dereference uses the default queue. Simple, but
-     limits users to a single device/queue.
+   - Questions for `device_pointer` / `device_reference`:
+      We need some way to associate a pointer with a context and device for usage on the host.
+      Usage on the device is done directly on the pointer with no synchronization.
+      Usage on the host requires a queue to copy data. We can store a pointer to a
+      context, or to a vector (which has a device & context or queue). Another option is
+      what sycl-thrust has done, to just store the pointer, and loop through a global
+      vector of contexts associated with each device on the system, searching for the
+      appropriate one. This allows `device_pointer` and `device_reference` to have a minimal
+      footprint (just the pointer), and only the host path has overhead. However,
+      it requires a global vector of contexts which is not ideal.
 
-  Among existing implementations, CUDA-based Thrust avoids the problem
-  entirely since `cudaMemcpy` is a global function that doesn't require a
-  queue object. 
-  sycl-thrust's pointer-introspection approach demonstrates that the
-  device-optimal path (minimal pointer size) is viable when host-side
-  access is accepted as inherently slow.
 
 - **Should we support aligned allocation or a non-C++ allocator?**
   sycl-thrust's `device_allocator<T, Alignment>` supports
