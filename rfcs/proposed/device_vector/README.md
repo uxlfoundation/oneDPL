@@ -141,13 +141,6 @@ memory semantics.
   device memset/kernel launch for temporary buffers that will be immediately
   overwritten.
 
-- **No custom allocator template parameter; use `sycl::malloc_device` directly**
-  The SYCL 2020 spec intentionally excludes `sycl::usm_allocator` for device
-  memory because the C++ `Allocator` named requirement mandates host-accessible
-  memory, which device USM is not. A device memory allocator cannot satisfy
-  `Allocator`, so a custom allocator template parameter in the `std::vector`
-  sense is not meaningful here. We use `sycl::malloc_device` / `sycl::free`
-  directly, keeping the implementation simpler.
 
 ### API Skeleton
 
@@ -653,20 +646,22 @@ range support on the device.
   is not included in the current proposal.
 
 
-- **Should we support aligned allocation or a non-C++ allocator?**
-  sycl-thrust's `device_allocator<T, Alignment>` supports
-  `sycl::aligned_alloc_device` for types with specific alignment requirements.
-  Some GPU hardware benefits from aligned allocations (e.g. 128-byte or
-  256-byte alignment for coalesced memory access or cache line optimization).
-  We currently use `sycl::malloc_device` which has implementation-defined
-  alignment. More broadly, RMM's `device_uvector` demonstrates the value
-  of pluggable memory resources (`device_async_resource_ref`) for pool
-  allocation, arena allocation, etc. While a C++ `Allocator` in the
-  `std::vector` sense is not viable for device memory (see design decisions),
-  a non-C++ allocator concept — e.g. a type-erased memory resource similar
-  to `std::pmr::memory_resource` or RMM's `resource_ref` — could provide
-  both alignment control and pluggable allocation strategies without
-  requiring host-accessible memory semantics.
+- **Should we support aligned allocation, a custom allocator, or a memory resource?**
+  The current proposal uses `sycl::malloc_device` / `sycl::free` directly
+  with no allocator template parameter. A C++ `Allocator` in the `std::vector`
+  sense is not viable for device memory — the SYCL 2020 spec intentionally
+  excludes `sycl::usm_allocator` for device USM because the `Allocator` named
+  requirement mandates host-accessible memory.
+
+  However, there are use cases beyond the default allocation:
+  - **Aligned allocation:** sycl-thrust supports `sycl::aligned_alloc_device`
+    via a template parameter. Some GPU hardware benefits from specific alignment
+    (e.g. 128/256 bytes for coalesced access or cache line optimization).
+  - **Pluggable memory resources:** RMM's `device_uvector` demonstrates the
+    value of pool/arena allocation via a type-erased memory resource similar
+    to `std::pmr::memory_resource`. A non-C++ allocator concept could provide
+    both alignment control and pluggable strategies without requiring
+    host-accessible memory semantics.
 
 - **Should we use device_pointer as the device iterator?**
   It seems there is no use case for a separate device_iterator, but it's
