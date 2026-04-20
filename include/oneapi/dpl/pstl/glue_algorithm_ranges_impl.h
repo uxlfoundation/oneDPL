@@ -171,8 +171,8 @@ struct __find_if_not_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            _Pred>>(__pred), __proj);
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred),
+            __proj);
     }
 }; //__find_if_not_fn
 
@@ -188,8 +188,8 @@ struct __find_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            const _T>>(__value), __proj);
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
+                (__value), __proj);
     }
 }; //__find_fn
 }  //__internal
@@ -234,8 +234,8 @@ struct __find_last_if_not_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_last_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            _Pred>>(__pred), __proj);
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred),
+            __proj);
     }
 }; //__find_last_if_not_fn
 
@@ -251,14 +251,15 @@ struct __find_last_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_last_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            const _T>>(__value), __proj);
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
+                (__value), __proj);
     }
 }; //__find_last_fn
 }  //__internal
 
 inline constexpr __internal::__find_last_if_not_fn find_last_if_not;
 inline constexpr __internal::__find_last_fn find_last;
+
 // [alg.find.first.of]
 
 namespace __internal
