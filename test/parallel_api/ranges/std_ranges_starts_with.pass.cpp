@@ -9,8 +9,6 @@
 
 #include "std_ranges_test.h"
 
-#include "std_ranges_test.h"
-
 #if _ENABLE_STD_RANGES_TESTING
     template<int call_id, typename T, typename DataGen2 = std::identity>
     using launcher = test_std_ranges::test_range_algo<call_id, T, test_std_ranges::data_in_in,
