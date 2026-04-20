@@ -485,8 +485,8 @@ the pointed-to device memory is modified.
 
 #### `device_view<T>`
 
-`device_vector` itself is not device copyable, it owns a `sycl::queue`
-and manages device memory lifetime. `device_view<T>` is a lightweight,
+`device_vector` itself is not device copyable, holding at least a sycl context.
+It owns device memory and manages its lifetime. `device_view<T>` is a lightweight,
 device-copyable view that models `std::ranges::random_access_range` and
 `std::ranges::sized_range`:
 
