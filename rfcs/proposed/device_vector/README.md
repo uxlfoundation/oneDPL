@@ -58,7 +58,7 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
 | **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (explicit device-to-host copy) |
 | **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Constructor from `std::vector` | Explicit constructor + `operator std::vector()` |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Constructors accept either `sycl::queue` or `sycl::context` + `sycl::device`; queue created on demand if only context+device provided (see [open question](#open-questions)) |
+| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | see [open question](#open-questions) |
 | **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | `no_init_t` tag for construction and resize |
 
 ### 2. sycl-thrust
@@ -268,23 +268,28 @@ public:
     using const_iterator  = /* const version */;
 
     // Constructors / assignment / destructor -- mirrors std::vector
-    // Each constructor has two overloads: one taking a sycl::queue (which
-    // provides context, device, and a submission target for transfers),
-    // and one taking a sycl::context + sycl::device (sufficient for
-    // allocation; a queue is created internally when transfers are needed).
-    // See open questions for discussion of this tradeoff.
+    // Three overload sets:
+    //   1. Queue overloads -- the queue is used only to determine the target
+    //      device and context; it is not retained or used for synchronization.
+    //   2. Context + device overloads -- direct specification.
+    //   3. No-arg overloads -- selects sycl::device{sycl::gpu_selector_v}
+    //      and creates a context from it. Throws if no GPU is available.
 
-    // --- Queue overloads ---
-    device_vector(sycl::queue q = /* default queue */);
-    explicit device_vector(size_type count,
-                           sycl::queue q = /* default queue */);
-    device_vector(size_type count, const T& value,
-                  sycl::queue q = /* default queue */);
+    // --- No-arg overloads (default device: gpu_selector_v) ---
+    device_vector();
+    explicit device_vector(size_type count);
+    device_vector(size_type count, const T& value);
     template <typename InputIt>
-    device_vector(InputIt first, InputIt last,
-                  sycl::queue q = /* default queue */);
-    device_vector(std::initializer_list<T> init,
-                  sycl::queue q = /* default queue */);
+    device_vector(InputIt first, InputIt last);
+    device_vector(std::initializer_list<T> init);
+
+    // --- Queue overloads (queue used only to extract context + device) ---
+    explicit device_vector(sycl::queue q);
+    device_vector(size_type count, sycl::queue q);
+    device_vector(size_type count, const T& value, sycl::queue q);
+    template <typename InputIt>
+    device_vector(InputIt first, InputIt last, sycl::queue q);
+    device_vector(std::initializer_list<T> init, sycl::queue q);
 
     // --- Context + device overloads ---
     device_vector(sycl::context ctx, sycl::device dev);
@@ -306,14 +311,14 @@ public:
     ~device_vector();
 
     // Uninitialized construction -- allocates without memset/kernel launch
-    explicit device_vector(size_type count, no_init_t,
-                           sycl::queue q = /* default queue */);
+    explicit device_vector(size_type count, no_init_t);
+    explicit device_vector(size_type count, no_init_t, sycl::queue q);
     explicit device_vector(size_type count, no_init_t,
                            sycl::context ctx, sycl::device dev);
 
     // Interop with std::vector
-    explicit device_vector(const std::vector<T>&,
-                           sycl::queue q = /* default queue */);
+    explicit device_vector(const std::vector<T>&);
+    explicit device_vector(const std::vector<T>&, sycl::queue q);
     explicit device_vector(const std::vector<T>&,
                            sycl::context ctx, sycl::device dev);
     explicit operator std::vector<T>() const;
@@ -338,10 +343,9 @@ public:
     device_view<T> view();
     device_view<const T> view() const;
 
-    // Queue / context / device access
-    sycl::queue get_queue();       // creates one from context+device if not stored
-    sycl::context get_context();
-    sycl::device get_device();
+    // Context / device access (queue is never stored)
+    sycl::context get_context() const;
+    sycl::device get_device() const;
 
     // Capacity
     bool      empty()    const;
@@ -355,8 +359,13 @@ public:
     // submitted to that queue, enabling explicit synchronization (e.g.
     // via an in-order queue shared with kernel submissions). When omitted,
     // an internal queue is created from the stored context + device.
+    //
+    // Context constraint: any user-provided queue must share the same
+    // sycl::context as the vector's allocation (q.get_context() ==
+    // get_context()). Passing a queue with a different context is
+    // undefined behavior for USM operations; implementations throw
+    // sycl::exception if a context mismatch is detected.
     void assign(size_type count, const T& value);
-    void assign(size_type count, const T& value, sycl::queue q);
     template <typename InputIt>
     void assign(InputIt first, InputIt last);
     template <typename InputIt>
@@ -364,9 +373,11 @@ public:
     void assign(std::initializer_list<T> ilist);
     void assign(std::initializer_list<T> ilist, sycl::queue q);
     void clear();
+    void clear(sycl::queue q);
     void push_back(const T& value);
     void push_back(const T& value, sycl::queue q);
     void pop_back();
+    void pop_back(sycl::queue q);
     iterator insert(const_iterator pos, const T& value);
     iterator insert(const_iterator pos, const T& value, sycl::queue q);
     iterator insert(const_iterator pos, size_type count, const T& value);
@@ -378,12 +389,15 @@ public:
     iterator insert(const_iterator pos, InputIt first, InputIt last,
                     sycl::queue q);
     iterator erase(const_iterator pos);
+    iterator erase(const_iterator pos, sycl::queue q);
     iterator erase(const_iterator first, const_iterator last);
+    iterator erase(const_iterator first, const_iterator last, sycl::queue q);
     void resize(size_type count);
     void resize(size_type count, sycl::queue q);
     void resize(size_type count, const T& value);
     void resize(size_type count, const T& value, sycl::queue q);
     void resize(size_type count, no_init_t);
+    void resize(size_type count, no_init_t, sycl::queue q);
     void swap(device_vector& other);
 };
 
@@ -603,6 +617,13 @@ range support on the device.
 
   The skeleton above assumes we store a device and context with `device_vector`
   and allow users to specify explicit queue for synchronization per host action.
+  It also provides constructors where no queue device or context is specified.
+  This uses `gpu_selector_v` to determine a device and creates a new context.
+  For users specifying a queue for explicit synchronization later, any provided
+  queue must be created on the same context used for allocation of the device
+  vector. If using the defaulted device / context constructor, you will need to
+  use `get_context()` to create your queue. We also have the option to remove these
+  constructors, with some impact to direct migration from thrust.
 
 - **How should we associate `device_pointer` / `device_reference` to a context?**
   We need some way to associate a pointer with a context and device for usage on the host.
