@@ -1,17 +1,11 @@
 // -*- C++ -*-
-//===----------------------------------------------------------------------===//
+//===------------------------------------------------------===//
 //
-// Copyright (C) Intel Corporation
+// Copyright (C) UXL Foundation Contributors
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file incorporates work covered by the following copyright and permission
-// notice:
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-//
-//===----------------------------------------------------------------------===//
+//===------------------------------------------------------===//
 
 #include "std_ranges_test.h"
 
@@ -46,8 +40,10 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
+    auto less397 = [](auto&& val) { return val < 397; };
+
     test_range_algo<0>{big_sz}(dpl_ranges::find_last_if, checker, pred);
-    test_range_algo<1>{}(dpl_ranges::find_last_if, checker, pred, proj);
+    test_range_algo<1>{}(dpl_ranges::find_last_if, checker, less397, proj);
     test_range_algo<2, P2>{}(dpl_ranges::find_last_if, checker, pred3, &P2::x); // not found
     test_range_algo<3, P2>{}(dpl_ranges::find_last_if, checker, pred, &P2::proj);
 #endif //_ENABLE_STD_RANGES_TESTING
