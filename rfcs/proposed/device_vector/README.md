@@ -363,8 +363,7 @@ public:
     // Context constraint: any user-provided queue must share the same
     // sycl::context as the vector's allocation (q.get_context() ==
     // get_context()). Passing a queue with a different context is
-    // undefined behavior for USM operations; implementations throw
-    // sycl::exception if a context mismatch is detected.
+    // undefined behavior for USM operations.
     void assign(size_type count, const T& value);
     template <typename InputIt>
     void assign(InputIt first, InputIt last);
@@ -373,11 +372,9 @@ public:
     void assign(std::initializer_list<T> ilist);
     void assign(std::initializer_list<T> ilist, sycl::queue q);
     void clear();
-    void clear(sycl::queue q);
     void push_back(const T& value);
     void push_back(const T& value, sycl::queue q);
     void pop_back();
-    void pop_back(sycl::queue q);
     iterator insert(const_iterator pos, const T& value);
     iterator insert(const_iterator pos, const T& value, sycl::queue q);
     iterator insert(const_iterator pos, size_type count, const T& value);
@@ -609,7 +606,9 @@ range support on the device.
   `sycl::device{sycl::gpu_selector_v}` and create a context from it. Note that
   users who later want to provide a queue for explicit synchronization must
   ensure the queue shares the same context as the allocation; if using a no-arg
-  constructor, they will need `get_context()` to create a compatible queue.
+  constructor, they will need `get_context()` to create a compatible queue. We
+  could choose to remove the no-arg constructors to avoid confusion, at the cost
+  of some ability to migrate directly from thrust codes.
 
 - **How should `device_pointer` / `device_reference` associate with a context?**
   On the device, `device_pointer` dereferences directly as a raw pointer — no
