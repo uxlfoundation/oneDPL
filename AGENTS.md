@@ -60,7 +60,7 @@ ctest -L numeric
 oneDPL uses a three-tier architecture (see `IMPLEMENTATION_DETAILS.md` for details):
 
 1. **Public API Layer** (`include/oneapi/dpl/`) - Standard-like algorithm headers
-2. **Pattern Layer** (`include/oneapi/dpl/internal/`) - `__pattern_*()` implementations
+2. **Pattern Layer** (`include/oneapi/dpl/pstl/`, `include/oneapi/dpl/internal/`) - `__pattern_*()` implementations and extensions
 3. **Backend Layer** (`include/oneapi/dpl/pstl/`) - Parallel execution primitives
 
 **Key Pattern:** Algorithm → Pattern Function → Backend Primitive
