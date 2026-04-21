@@ -114,6 +114,12 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
         return _Base::get_and_destroy(__idx);
     }
 
+    const _TupleOfIndexes&
+    get_src_indexes(std::uint16_t __idx) const
+    {
+        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+    }
+
     // Pointer to the SLM-based array with source indexes corresponding to the stored values
     _TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
@@ -369,7 +375,7 @@ __write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_
             {
                 if (__local_offset_to_src_indexes != __no_oob_capture_idx<_LocalOffsetToSrcIndexes>)
                 {
-                    const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.__src_indexes_local_accessor_for_one_wi_raw[__local_offset_to_src_indexes];
+                    const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.get_src_indexes(__local_offset_to_src_indexes);
                     __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
                 }
             }
