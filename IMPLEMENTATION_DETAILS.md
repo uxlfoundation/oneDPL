@@ -82,9 +82,8 @@ Backends selected at **compile-time only** via CMake `ONEDPL_BACKEND`:
 ```
 
 Selection logic in `CMakeLists.txt`:
-- Auto-detects SYCL support
-- Sets the default backend to `dpcpp` when SYCL is available; otherwise defaults to `tbb`
-- Explicitly selected backends require their corresponding dependencies
+- When `ONEDPL_BACKEND` is not set, auto-detects SYCL support: defaults to `dpcpp` if SYCL is available, otherwise `tbb`
+- When `ONEDPL_BACKEND` is explicitly set, auto-detection is skipped; the specified backend's dependencies must be available
 - Namespace `__par_backend` points to active backend
 
 ### SYCL/DPC++ Backend
