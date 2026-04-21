@@ -20,7 +20,7 @@ Implementation in `glue_*.h` files:
 - Files split: `*_defs.h` (declarations), `*_impl.h` (implementations)
 
 ### 2. Pattern Implementation Layer
-**Location:** `include/oneapi/dpl/internal/`
+**Location:** `include/oneapi/dpl/pstl/` (e.g., `algorithm_impl.h`, `numeric_impl.h`)
 
 Core algorithm logic in `__pattern_*()` functions:
 - Polymorphic overloads based on:
@@ -28,6 +28,8 @@ Core algorithm logic in `__pattern_*()` functions:
   - Execution policy (serial, parallel, hetero)
   - Vectorization capability (`_IsVector` template parameter)
 - Enable single algorithm to serve multiple execution contexts
+
+Note: `include/oneapi/dpl/internal/` contains some extension implementations (scan-by-segment, binary search, dynamic selection, etc.).
 
 Example flow: `std::any_of()` → `__internal::__pattern_any_of()` → backend primitives
 
