@@ -33,7 +33,7 @@ Notably absent from spblas: element-level access (`operator[]`), `resize()`,
 
 ### AI/ML Projects
 
-**Notable finding:**  A few performance-sensitive AI/ML codebases have
+**Notable finding:**  A few high profile performance-sensitive AI/ML codebases have
 **explicitly moved away from `thrust::device_vector`**, while other ML
 projects remain heavy users.
 
@@ -89,16 +89,6 @@ These domains remain the heaviest `thrust::device_vector` users:
   Type aliases as vocabulary types:
   `using DVec = thrust::device_vector<double>`.
 
-### Usage Patterns: AI/ML vs HPC
-
-| Aspect | AI/ML Workloads | HPC / Scientific |
-|---|---|---|
-| **Adoption trend** | Moving away | Steady, heavy use |
-| **Why moving away** | Stream safety, initialization overhead, header bloat | N/A |
-| **Replacement** | `rmm::device_uvector`, custom `DeviceVector` | N/A |
-| **Primary use** | Temp scratch buffers, test scaffolding | Persistent simulation state as class members |
-| **Custom allocators** | Common (RMM, stream-ordered) | Occasional (AmgX) |
-
 ### Consolidated Construction Patterns (ordered by frequency)
 
 1. `thrust::device_vector<T> d_v = h_v;` (copy from host_vector)
@@ -116,13 +106,9 @@ for our design:
    zero-initialize elements via device kernel. For large temporary buffers
    this is wasted work. (Supports our open question on `no_init_t` tags.)
 2. **No stream/queue parameter** — Operations are synchronous or use a
-   default stream, preventing overlap with other work. (Our explicit
-   `sycl::queue` parameter addresses this directly, but is less flexible in
-   that it only allows a single stream / queue association rather than per
-   operation)
+   default stream, preventing overlap with other work.
 3. **Header includes device code** — Forces `.cu` compilation even for host
-   code that just manages device_vectors. (Not applicable to our SYCL/USM
-   approach.)
+   code that just manages device_vectors.
 
 ## dpct (`dpct::device_vector`) — Migrated CUDA-to-SYCL Projects
 
@@ -182,7 +168,7 @@ resize() initializes new space with T() (which we don't want), and control
 on how much the reserved space grows."* It is restricted to POD types only.
 
 **Key design choices:**
-- **Explicit `cudaStream_t` on every mutating operation** — `resize(n, stream)`,
+- **Explicit `cudaStream_t` on every host mutating operation** — `resize(n, stream)`,
   `append(ptr, n, stream)`, `setAt(i, val, stream)`, `getAt(i, stream)`,
   `reserve(n, stream)`, `reclaim(exact, stream)`.
 - **No initialization on `resize()`** — comment: *"Don't bother zero
@@ -255,27 +241,16 @@ Note: RMM also provides `rmm::device_vector<T>`, which is just a type alias
 for `thrust::device_vector<T, rmm::mr::thrust_allocator<T>>` — same Thrust
 interface but with RMM-backed allocation.
 
-### Comparison With Our Proposal
+## Summary
+Most usage seems to focus on `device_vector` as a convenient way to allocate and control lifetime of device memory.
+Usage largely focuses on:
+ * copies to and from host side vector all at once
+ * getting raw pointers to use directly on the device
+ * using begin() and end() iterators as input to algorithms
 
-| Aspect | FAISS `DeviceVector` | RMM `device_uvector` | Proposed (oneDPL) |
-|---|---|---|---|
-| **Stream/queue on operations** | Yes (every method) | Yes (every method) | Queue on construction only (see [open question](README.md#open-questions)) |
-| **Initialization on resize** | No | No | Yes (zero-fill) — consider `no_init_t` |
-| **Growth strategy** | Tiered (2x/1.25x/exact) | None (exact) | undetermined |
-| **Iterators** | None | Raw `T*` (device-only) | `device_pointer<T>` (host+device) |
-| **`operator[]`** | None | None | `device_reference<T>` proxy |
-| **Host↔device bulk transfer** | `append()`, `copyToHost()` | None | Constructor, `operator std::vector()` |
-| **Copy semantics** | Move-only | Move-only (copy needs stream) | Copy + move |
-| **Non-trivial types** | No (POD only) | No (`trivially_copyable`) | Yes (but must be device copyable) |
-| **Memory resource** | Custom (`GpuResources`) | Pluggable (`resource_ref`) | Direct `sycl::malloc_device` |
-| **STL compatibility** | None | Minimal (iterators, span) | Near-complete `std::vector` interface |
+Host side usage
+ * Largely not present
+ * If present, mostly used in tests / useful in debugging
+ * dpct migrations use `operator[]` in some cases, but this may be from CUDA migration patterns rather than intentional
+ * Cases which do need host access (FAISS, RMM) have replaced device_vector with alternatives that allow access with explicit stream synchronization.
 
-The key tension these alternatives highlight: **FAISS and RMM prioritize
-performance (no wasted initialization, explicit async control) at the cost
-of ergonomics, while our proposal prioritizes migration ease and
-`std::vector` familiarity.** Both approaches are valid for different
-audiences — performance-critical library internals vs. application-level
-code and CUDA migration. Our `no_init_t` open question could bridge this
-gap by offering both modes, and offering association with a (in order) queue
-provides some of the stream synchronization, but it does not offer the same
-flexibility of specifying the queue on each individual operation.
