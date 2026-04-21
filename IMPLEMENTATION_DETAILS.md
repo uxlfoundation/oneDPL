@@ -2,7 +2,7 @@
 
 This document describes the high-level architecture and development patterns in oneDPL.
 
-oneDPL is a header-only library, and has a c++17 minimum requirement.
+oneDPL is a header-only library, and has a C++17 minimum requirement.
 
 ## Three-Tier Design Pattern
 
@@ -83,7 +83,8 @@ Backends selected at **compile-time only** via CMake `ONEDPL_BACKEND`:
 
 Selection logic in `CMakeLists.txt`:
 - Auto-detects SYCL support
-- Falls back: dpcpp → tbb → serial
+- Sets the default backend to `dpcpp` when SYCL is available; otherwise defaults to `tbb`
+- Explicitly selected backends require their corresponding dependencies
 - Namespace `__par_backend` points to active backend
 
 ### SYCL/DPC++ Backend
