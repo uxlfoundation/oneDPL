@@ -19,16 +19,16 @@ oneDPL (oneAPI Data Parallel Library) is a header-only C++17 library implementin
 cmake -DCMAKE_CXX_COMPILER=icpx \
       -DCMAKE_CXX_STANDARD=17 \
       -DONEDPL_BACKEND=dpcpp \
-      -DCMAKE_BUILD_TYPE=release \
+      -DCMAKE_BUILD_TYPE=Release \
       -B build
 ```
 
 **Common CMake Variables:**
 - `ONEDPL_BACKEND`: tbb (default), dpcpp, dpcpp_only, omp, serial
-- `ONEDPL_DEVICE_BACKEND`: opencl, level_zero, cuda, hip, * (default)
 - `CMAKE_BUILD_TYPE`: Debug, Release, RelWithDebInfo, RelWithAsserts
 
 **Note:** `RelWithAsserts` is Release without `-DNDEBUG`, useful for testing assert-heavy code.
+**Device selection:** For SYCL/DPC++ device selection, use `ONEAPI_DEVICE_SELECTOR` as documented in the [Device Selection](#device-selection) section below.
 
 ### Build and Run Tests
 
@@ -90,9 +90,10 @@ SYCL/DPC++ device selection via environment variables:
 
 ```bash
 # Intel LLVM Compiler >= 2023.1
+# Uncomment exactly one of the following selectors:
 export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
-export ONEAPI_DEVICE_SELECTOR=opencl:gpu
-export ONEAPI_DEVICE_SELECTOR=*:cpu
+# export ONEAPI_DEVICE_SELECTOR=opencl:gpu
+# export ONEAPI_DEVICE_SELECTOR=*:cpu
 ```
 
 ## Code Review Guidelines
