@@ -2594,26 +2594,25 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
               typename _OobReplayCarryTuple, typename _CallScanHelper, typename _SubGroupSrcFinalPosLocalAccessor,
               typename _ActiveSubgroupsCounter>
     void
-    __process_oob_and_final_pos(
-        const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
-        _StopPosAcc& __stop_pos_acc, _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
-        const bool __oob_reached_in_in_this_wi, const typename _ProcessedInfo::_TupleOfSizes& __final_pos_on_this_wi,
-        _OobReplayCarryTuple& __oob_replay_carry_tuple, _CallScanHelper& __call_scan_through_elements_helper,
-        _SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor, const std::uint32_t __sub_group_id,
-        const _ActiveSubgroupsCounter __active_subgroups) const
+    __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
+                                _StopPosAcc& __stop_pos_acc,
+                                _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
+                                _OobReplayCarryTuple& __oob_replay_carry_tuple,
+                                _CallScanHelper& __call_scan_through_elements_helper,
+                                _SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor,
+                                const std::uint32_t __sub_group_id,
+                                const _ActiveSubgroupsCounter __active_subgroups,
+                                _ProcessedInfo& __processed_info) const
     {
-        _ProcessedInfo __processed_info{};
-
         // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
         // by replaying the scan with captured indexes in SLM
-        if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_in_this_wi))
+        const bool __oob_reached_in_this_wi = __processed_info.get_oob_reached();
+        if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_this_wi))
         {
-            auto __src_indexes_local_accessor_for_one_wi_raw =
-                __oob_reached_in_in_this_wi
-                    ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi)
-                    : nullptr;
-
-            _TempDataCaptureIndexes __temp_out_capture_indexes(__src_indexes_local_accessor_for_one_wi_raw);
+            // Only from one WI we fill SLM with source indexes for the second replay to detect OOB pos,
+            // as all WIs in the subgroup have the same OOB pos and we want to avoid redundant writes to SLM and potential conflicts.
+            _TempDataCaptureIndexes __temp_out_capture_indexes(
+                __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi) : nullptr);
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
             __call_scan_through_elements_helper(
@@ -2621,27 +2620,30 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
 
             // First OOB pos is only one inside all source data set
-            typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
-            if (__processed_info.get_oob_source_pos(__oob_source_pos))
+            if (__oob_reached_in_this_wi)
             {
-                auto __stop_pos_ptr = __stop_pos_acc.__data();
+                typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
+                if (__processed_info.get_oob_source_pos(__oob_source_pos))
+                {
+                    auto __stop_pos_ptr = __stop_pos_acc.__data();
 
-                using __oob_pos_t = __scan_stop_pos_t<_InRng>;
+                    using __oob_pos_t = __scan_stop_pos_t<_InRng>;
 
-                __oob_pos_t __oob_source_pos_converted = {};
-                oneapi::dpl::__internal::__tuple_copy_prefix(__oob_source_pos_converted, __oob_source_pos);
+                    __oob_pos_t __oob_source_pos_converted = {};
+                    oneapi::dpl::__internal::__tuple_copy_prefix(__oob_source_pos_converted, __oob_source_pos);
 
-                // OOB can be reached by at most one work-item per kernel invocation:
-                // output indices are monotonically increasing across all work-items,
-                // so only the single work-item that first crosses the output boundary
-                // can have get_oob_source_pos() return true.
-                // Therefore, no atomic fetch_min is needed here - at most one writer.
-                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __oob_source_pos_converted;
+                    // OOB can be reached by at most one work-item per kernel invocation:
+                    // output indices are monotonically increasing across all work-items,
+                    // so only the single work-item that first crosses the output boundary
+                    // can have get_oob_source_pos() return true.
+                    // Therefore, no atomic fetch_min is needed here - at most one writer.
+                    __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __oob_source_pos_converted;
+                }
             }
         }
 
         // Final position evaluated in each work-item, so need to find the max across the work-group
-        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_on_this_wi);//__processed_info.get_final_pos());
+        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __processed_info.get_final_pos());
 
         // As far as each WG may have his own final position, we need to find the max across all WGs.
         // This is because for unique patterns we can have final pos < OOB pos, so we can't rely on OOB pos to propagate final pos.
@@ -2989,35 +2991,23 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_replay_enabled>(__sub_group_carry_initialized, __sub_group_carry);
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
-                bool __oob_reached_in_in_this_wi = false;
-                typename _ProcessedInfo::_TupleOfSizes __final_pos_on_this_wi = {};
                 {
-                    _TempDataNoCaptureIndexes __temp_out{};
                     _ProcessedInfo __processed_info{};
+                    {
+                        _TempDataNoCaptureIndexes __temp_out{};
 
-                    // The first normal call of __scan_through_elements_helper
-                    __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
-                                                        __sub_group_carry, __temp_out, __processed_info);
+                        // The first normal call of __scan_through_elements_helper
+                        __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
+                                                            __sub_group_carry, __temp_out, __processed_info);
+                    }
 
                     if constexpr (__oob_replay_enabled)
                     {
-                        __oob_reached_in_in_this_wi = __processed_info.get_oob_reached();
-
-                        // KSATODO required to investigate why we have correct final_pos after the first __call_scan_through_elements_helper call
-                        // and haven't it inside __process_oob_and_final_pos after the second __call_scan_through_elements_helper call.
-                        // When this investigation will be done, we should consider to remove __final_pos_on_this_wi variable at all
-                        // and use only __processed_info.get_final_pos() in __process_oob_and_final_pos.
-                        __final_pos_on_this_wi = __processed_info.get_final_pos();
+                        __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
+                            __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
+                            __oob_replay_carry_tuple, __call_scan_through_elements_helper,
+                            __wg_src_final_pos_local_accessor, __sub_group_id, __active_subgroups, __processed_info);
                     }
-                }
-
-                if constexpr (__oob_replay_enabled)
-                {
-                    __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
-                        __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
-                        __oob_reached_in_in_this_wi, __final_pos_on_this_wi, __oob_replay_carry_tuple,
-                        __call_scan_through_elements_helper, __wg_src_final_pos_local_accessor, __sub_group_id,
-                        __active_subgroups);
                 }
 
                 // If within the last active group and sub-group of the block, use the 0th work-item of the sub-group
