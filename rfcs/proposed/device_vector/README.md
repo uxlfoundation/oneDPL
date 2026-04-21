@@ -339,6 +339,9 @@ public:
     // get_context()). Passing a queue with a different context is
     // undefined behavior for USM operations.
     void assign(size_type count, const T& value);
+    void assign(size_type count, const T& value, sycl::queue q);
+    void assign(size_type count, no_init_t);
+    void assign(size_type count, no_init_t, sycl::queue q);
     template <typename InputIt>
     void assign(InputIt first, InputIt last);
     template <typename InputIt>
@@ -383,13 +386,15 @@ public:
 #include <oneapi/dpl/execution>
 #include <sycl/sycl.hpp>
 
+namespace dpl_exp = oneapi::dpl::experimental;
+
 // Basic construction and algorithm use
 sycl::queue q;
-oneapi::dpl::experimental::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
+dpl_exp::device_vector<float> d_vec(1024, q);  // 1024 elements on q's device
 
 // Fill from host data (interop constructor)
 std::vector<float> host_data(1024, 3.14f);
-oneapi::dpl::experimental::device_vector<float> d_vec2(host_data, q);
+dpl_exp::device_vector<float> d_vec2(host_data, q);
 
 // Use with oneDPL algorithms -- iterators work directly
 auto policy = oneapi::dpl::execution::make_device_policy(q);
@@ -418,12 +423,12 @@ d_iter += 5;
 std::cout << *d_iter;
 
 // Uninitialized construction -- no memset, useful for output buffers
-oneapi::dpl::experimental::device_vector<float> d_output(1024, dpl::no_init, q);
+dpl_exp::device_vector<float> d_output(1024, dpl_exp::no_init, q);
 std::transform(policy, d_vec2.begin(), d_vec2.end(), d_output.begin(),
                [](float x) { return x * 2.0f; });
 
 // Uninitialized resize -- grow without zeroing new elements
-output.resize(2048, dpl::no_init);
+d_output.resize(2048, dpl_exp::no_init);
 
 std::vector<float> transform_out = static_cast<std::vector<float>>(d_output);
 
