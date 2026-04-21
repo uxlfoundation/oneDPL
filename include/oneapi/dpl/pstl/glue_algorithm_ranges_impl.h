@@ -1263,9 +1263,9 @@ struct __ends_with_fn
     operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
                _Proj2 __proj2 = {}) const
     {
-        using _Size = std::common_type_t<decltype(std::ranges::size(__r1)), decltype(std::ranges::size(__r2))>;
-        _Size __n1 = std::ranges::size(__r1);
-        _Size __n2 = std::ranges::size(__r2);
+        using _DistanceType = std::ranges::range_difference_t<_R1>;
+        _DistanceType __n1 = std::ranges::distance(__r1);
+        _DistanceType __n2 = std::ranges::distance(__r2);
         return !(__n1 < __n2) && oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec),
                                                             std::views::all(__r1) | std::views::drop(__n1 - __n2),
                                                             std::forward<_R2>(__r2), __pred, __proj1, __proj2);
