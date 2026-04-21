@@ -92,7 +92,11 @@ memory semantics.
   and increment/decrement (`++`, `--`). This makes host-side element access behave
   as close to a real `T&` as possible and eases migration from Thrust codebases
   where users expect expressions like `d_vec[i] += 1` to work. Each such operation
-  implies a synchronous round-trip (read-modify-write) to device memory.
+  implies a synchronous round-trip (read-modify-write) to device memory. All
+  mutating operators (`operator=`, compound assignment, increment/decrement) are
+  **const-qualified** because `device_reference` is a proxy: `const` applies to
+  the handle, not the underlying device data. This is required by
+  `std::indirectly_writable` in C++20 (see [Range Support](#range-support)).
 
 - **No custom allocator template parameter; use `sycl::malloc_device` directly**
   The SYCL 2020 spec intentionally excludes `sycl::usm_allocator` for device
@@ -256,6 +260,14 @@ A `device_vector` requires two supporting types:
 
 ### Range Support
 
+**Range support requires C++20.** The C++20 iterator concepts
+(`std::random_access_iterator`), range concepts (`std::ranges::random_access_range`,
+`std::ranges::sized_range`), and `std::basic_common_reference` are all required
+to make `device_view` usable with oneDPL's productized range algorithms and
+standard range adaptors. oneDPL's productized ranges API is C++20-only, so this
+is a natural fit. The core `device_vector`, `device_pointer`, and
+`device_reference` types work with C++17; range support is additive.
+
 The primary range interface for `device_vector` is through `device_view<T>`,
 a lightweight, device-copyable view. `device_vector` itself is not intended
 to be used directly as a range. Host-side iteration through proxy references
@@ -266,22 +278,60 @@ over a `device_vector` impractical. Instead, users obtain a device copyable
 #### Requirements on `device_reference` and `device_pointer`
 
 For `device_pointer<T>` to model `std::random_access_iterator` (and therefore
-for `device_view` to model `std::ranges::random_access_range`), the proxy
-reference type must satisfy the `common_reference_with` requirements. This
-requires a specialization of `std::basic_common_reference` for
-`device_reference<T>`:
+for `device_view` to model `std::ranges::random_access_range`), several
+requirements must be met:
+
+##### `basic_common_reference`
+
+The proxy reference type must satisfy the `common_reference_with` requirements.
+This requires specializations of `std::basic_common_reference` for
+`device_reference<T>`.
+
+**Important:** The common reference type must be a **value type** (e.g.
+`std::remove_cv_t<T>`), not a reference type (e.g. `T&`). Because
+`device_reference` is a proxy, converting `device_reference<T>&&` to `T&`
+would create a dangling reference to a temporary. The `indirectly_readable`
+concept checks `convertible_to<device_reference<T>&&, common_reference_type>`,
+which fails if the common reference is `T&` since `is_convertible_v<device_reference<T>&&, T&>`
+is false.
 
 ```cpp
+// device_reference<T> vs U (where T and U are the same unqualified type)
 template <typename T, typename U, template<class> class TQual, template<class> class UQual>
-struct std::basic_common_reference<oneapi::dpl::experimental::device_reference<T>, U, TQual, UQual> {
-    using type = std::common_reference_t<T&, UQual<U>>;
+    requires std::same_as<std::remove_cv_t<T>, std::remove_cv_t<U>>
+struct std::basic_common_reference<
+    oneapi::dpl::experimental::device_reference<T>, U, TQual, UQual> {
+    using type = std::remove_cv_t<T>;
 };
 
+// U vs device_reference<T> (symmetric)
 template <typename T, typename U, template<class> class TQual, template<class> class UQual>
-struct std::basic_common_reference<U, oneapi::dpl::experimental::device_reference<T>, TQual, UQual> {
-    using type = std::common_reference_t<TQual<U>, T&>;
+    requires std::same_as<std::remove_cv_t<T>, std::remove_cv_t<U>>
+struct std::basic_common_reference<
+    U, oneapi::dpl::experimental::device_reference<T>, TQual, UQual> {
+    using type = std::remove_cv_t<T>;
+};
+
+// device_reference<T> vs device_reference<U>
+template <typename T, typename U, template<class> class TQual, template<class> class UQual>
+struct std::basic_common_reference<
+    oneapi::dpl::experimental::device_reference<T>,
+    oneapi::dpl::experimental::device_reference<U>, TQual, UQual> {
+    using type = std::common_reference_t<T&, U&>;
 };
 ```
+
+##### Const-qualified operators on `device_reference`
+
+The `std::indirectly_writable` concept tests assignment through
+`const_cast<const iter_reference_t<I>&&>(*it) = value`. This means
+`device_reference::operator=` (and all compound assignment / increment /
+decrement operators) must be **const-qualified**. This is correct for a proxy
+type: `const` applies to the proxy handle itself, not the underlying device
+data. The proxy's pointer and queue members are unchanged by assignment; only
+the pointed-to device memory is modified.
+
+##### Iterator traits
 
 `device_pointer<T>` must also expose the correct iterator traits:
 - `iterator_concept = std::random_access_iterator_tag`
@@ -310,8 +360,16 @@ public:
 ```
 
 `device_view` is trivially copyable (and therefore device copyable) because
-it contains only a `device_pointer<T>` and a `size_t`. It is obtained via
-a member function:
+it contains only a `device_pointer<T>` and a `size_t`. It must also opt into
+`std::ranges::enable_borrowed_range` since it is a non-owning view:
+
+```cpp
+template <typename T>
+inline constexpr bool std::ranges::enable_borrowed_range<
+    oneapi::dpl::experimental::device_view<T>> = true;
+```
+
+It is obtained via a member function:
 
 ```cpp
 auto view = dv.view();  // returns device_view<T>
@@ -331,10 +389,62 @@ q.parallel_for(sycl::range<1>(512), [=](sycl::id<1> i) {
 });
 ```
 
+**Note on lambdas with proxy references:** When using range algorithms with
+`device_view`, lambdas should accept `auto&&` rather than `T&`, because the
+range element type is `device_reference<T>`, not `T&`:
+
+```cpp
+// Correct:
+oneapi::dpl::ranges::for_each(policy, dv.view(), [](auto&& x) { x *= 2; });
+
+// Will not compile -- device_reference<int> is not int&:
+oneapi::dpl::ranges::for_each(policy, dv.view(), [](int& x) { x *= 2; });
+```
+
 Separating usage as a range from `device_vector` itself allows us to keep the
 most of the convenience functionality modelling `std::vector` on the host side
 only, while allowing a simplified, lightweight, device_copyable view to enable
 range support on the device.
+
+## Implementation Notes from POC
+
+A proof-of-concept implementation validated the design and uncovered the
+following points that should be considered during productization:
+
+- **`device_reference` host/device bifurcation.** `device_reference::operator T()`
+  and `operator=` must use different code paths depending on whether they are
+  compiled for host or device. On the host, they use `sycl::queue::memcpy`
+  (synchronous). On the device, they dereference the raw USM pointer directly.
+  The `__SYCL_DEVICE_ONLY__` macro selects the correct path. This keeps the
+  API consistent across compilation passes (same type, same member functions)
+  while the implementation adapts.
+
+- **`operator std::vector<T>()` should be non-const.** `sycl::queue::memcpy`
+  is a non-const member function, so `operator std::vector<T>() const` does
+  not compile without `mutable` on the queue. Making the conversion operator
+  non-const is the simpler option, but const element access (`operator[] const`,
+  `begin() const`, etc.) still requires `mutable sycl::queue` since they
+  construct `device_reference`/`device_pointer` objects that hold a non-const
+  queue pointer.
+
+- **`sycl::queue::memcpy` requires `void*` casts.** The `sycl::queue::memcpy`
+  overload set includes template overloads for `device_global` types. Passing
+  typed pointers (e.g. `T*`) can be ambiguous. Explicit
+  `static_cast<void*>` / `static_cast<const void*>` on the source and
+  destination pointers resolves the ambiguity.
+
+- **oneDPL `__brick_fill` / `__brick_fill_n` incompatibility with proxy
+  references.** The hetero specializations of `__brick_fill` take their
+  target parameter by lvalue reference (`_TargetT& __target`). When the
+  iterator's `operator[]` returns a proxy reference prvalue (as
+  `device_pointer` does), the prvalue cannot bind to the lvalue reference.
+  Changing the parameter to a forwarding reference (`_TargetT&& __target`)
+  fixes this for all proxy reference types. This is a pre-existing oneDPL
+  bug, not specific to `device_vector`.
+
+- **POC location.** The POC header is at
+  `include/oneapi/dpl/experimental/device_vector.h` with tests at
+  `test/parallel_api/experimental/device_vector.pass.cpp`.
 
 ## Open Questions
 
