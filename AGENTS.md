@@ -57,7 +57,7 @@ ctest -L numeric
 
 ## Architecture Quick Reference
 
-oneDPL uses a three-tier architecture (see `ARCHITECTURE.md` for details):
+oneDPL uses a three-tier architecture (see `IMPLEMENTATION_DETAILS.md` for details):
 
 1. **Public API Layer** (`include/oneapi/dpl/`) - Standard-like algorithm headers
 2. **Pattern Layer** (`include/oneapi/dpl/internal/`) - `__pattern_*()` implementations
