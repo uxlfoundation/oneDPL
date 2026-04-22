@@ -55,6 +55,19 @@ ctest -L numeric
 
 **See `cmake/README.md` for complete testing options.**
 
+### Build Documentation
+
+```bash
+# Setup documentation
+cd documentation
+python3 -m venv docdpl
+source docdpl/bin/activate
+pip install -r _auxiliary/requirements.txt
+
+# Generate HTML in build/html
+make html
+```
+
 ## Architecture Quick Reference
 
 oneDPL uses a three-tier architecture (see `IMPLEMENTATION_DETAILS.md` for details):
