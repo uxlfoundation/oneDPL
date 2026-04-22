@@ -46,8 +46,7 @@ cmake --build build --target build-onedpl-algorithm-tests
 cd build && ctest -R ^sort.pass$
 
 # Run tests by category
-ctest -L algorithm
-ctest -L numeric
+ctest -L ^algorithm$
 
 # Run test executable directly
 ./build/test/sort.pass
