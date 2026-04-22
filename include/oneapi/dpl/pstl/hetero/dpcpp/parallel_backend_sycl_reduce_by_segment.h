@@ -91,9 +91,7 @@ __parallel_reduce_by_segment_fallback_has_known_identity(sycl::queue& __q, _Rang
                                                          _Range3&& __out_keys, _Range4&& __out_values,
                                                          _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
 {
-    // KSATODO required to implement _Bounded version if this __parallel_reduce_by_segment_fallback_has_known_identity()
-
-    static_assert(false);
+    static_assert(!_Bounded, "required to implement _Bounded version if this function");
 
     using _SegReduceCountKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
         _SegReduceCountPhase, _CustomName, _Range1, _Range2, _Range3, _Range4, _BinaryPredicate, _BinaryOperator>;
