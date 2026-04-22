@@ -104,7 +104,8 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     {
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
 
-        __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
+            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
     }
 
     _ValueT
@@ -2601,10 +2602,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         return ___max_src_final_pos_in_wg;
     }
 
-    template <typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes, typename _ProcessedInfo,
-              typename _InRng, typename _NDItem, typename _OutRng, typename _StopPosAcc,
-              typename _SlmSrcIndexesLocalAccessorForOneSG, typename _OobReplayCarryTuple, typename _CallScanHelper,
-              typename _SubGroupSrcFinalPosLocalAccessor, typename _ActiveSubgroupsCounter>
+    template <typename _TempDataCaptureIndexes, typename _ProcessedInfo, typename _InRng, typename _NDItem,
+              typename _OutRng, typename _StopPosAcc, typename _SlmSrcIndexesLocalAccessorForOneSG,
+              typename _OobReplayCarryTuple, typename _CallScanHelper, typename _SubGroupSrcFinalPosLocalAccessor,
+              typename _ActiveSubgroupsCounter>
     void
     __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
                                 _StopPosAcc& __stop_pos_acc,
@@ -2623,26 +2624,13 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         {
             // Only from one WI we fill SLM with source indexes for the second replay to detect OOB pos,
             // as all WIs in the subgroup have the same OOB pos and we want to avoid redundant writes to SLM and potential conflicts.
-            if (__oob_reached_in_this_wi)
-            {
-                // The second replay call of __scan_through_elements_helper to detect OOB indexes
-                //  - process with capture of source data indexes
-                _TempDataCaptureIndexes __temp_out(__dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi));
+            _TempDataCaptureIndexes __temp_out_capture_indexes(
+                __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi) : nullptr);
 
-                __call_scan_through_elements_helper(
-                    __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
-                    std::get<1>(__oob_replay_carry_tuple), __temp_out, __processed_info);
-            }
-            else
-            {
-                // The second replay call of __scan_through_elements_helper to detect OOB indexes
-                //  - process without capture of source data indexes
-                _TempDataNoCaptureIndexes __temp_out{};
-
-                __call_scan_through_elements_helper(
-                    __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
-                    std::get<1>(__oob_replay_carry_tuple), __temp_out, __processed_info);
-            }
+            // The second replay call of __scan_through_elements_helper to detect OOB indexes
+            __call_scan_through_elements_helper(
+                __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
+                std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
 
             // First OOB pos is only one inside all source data set
             if (__oob_reached_in_this_wi)
@@ -3028,7 +3016,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                     if constexpr (__oob_replay_enabled)
                     {
-                        __process_oob_and_final_pos<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
+                        __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
                             __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
                             __oob_replay_carry_tuple, __call_scan_through_elements_helper,
                             __wg_src_final_pos_local_accessor, __sub_group_id, __active_subgroups, __processed_info);
