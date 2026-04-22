@@ -3045,7 +3045,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         // as it may be used for the return value of the scan.
                         if constexpr (_Bounded)
                         {
-                            __res_ptr[0] = std::min(__res_ptr[0], __n_out);
+                            __res_ptr[0] = std::min<std::decay_t<decltype(__res_ptr[0])>>(__res_ptr[0], __n_out);
                         }
                     }
                     else
