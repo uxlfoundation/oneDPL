@@ -1454,14 +1454,12 @@ __set_write_a_only_op(oneapi::dpl::unseq_backend::_SymmetricDifferenceTag, _UseR
     auto __tmp_rng4 = __keep_tmp4(__buf_2, __buf_2 + __n_diff_2);
     auto __tmp_rng3 = __keep_tmp3(__buf_1, __buf_1 + __n_diff_1);
 
-    const auto [__merged_offset1, __merged_offset2] =
-        oneapi::dpl::__par_backend_hetero::__parallel_merge_impl</*_Bounded*/ false,
-                                                                 __set_symmetric_difference_merge_wrapper<_CustomName>>(
-            __q, __tmp_rng3.all_view(), __tmp_rng4.all_view(), std::forward<_Range3>(__result), __comp, __proj1,
-            __proj2)
-            .get();
+    oneapi::dpl::__par_backend_hetero::__parallel_merge_impl</*_Bounded*/ false,
+                                                             __set_symmetric_difference_merge_wrapper<_CustomName>>(
+        __q, __tmp_rng3.all_view(), __tmp_rng4.all_view(), std::forward<_Range3>(__result), __comp, __proj1, __proj2)
+        .wait();
 
-    return { __merged_offset1, __merged_offset2, __n_diff_1  + __n_diff_2};
+    return {__n_diff_1, __n_diff_2, __n_diff_1 + __n_diff_2};
 }
 
 template <bool _Bounded, typename _CustomName, typename _UseReduceThenScan, typename _Range1, typename _Range2,
