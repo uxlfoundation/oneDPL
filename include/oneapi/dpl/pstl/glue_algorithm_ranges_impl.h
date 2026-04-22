@@ -1266,9 +1266,16 @@ struct __ends_with_fn
         using _DistanceType = std::ranges::range_difference_t<_R1>;
         _DistanceType __n1 = std::ranges::distance(__r1);
         _DistanceType __n2 = std::ranges::distance(__r2);
-        return !(__n1 < __n2) && oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec),
-                                                            std::views::all(__r1) | std::views::drop(__n1 - __n2),
-                                                            std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+        if (__n1 < __n2)
+            return false;
+
+#if _ONEDPL_CPP20_RANGES_ADVANCE_SYCL_INCOMPATIBLE
+        oneapi::dpl::__ranges::drop_view_simple __r1_dropped {std::views::all(__r1), __n1 - __n2};
+#else
+        auto __r1_dropped = std::views::all(__r1) | std::views::drop(__n1 - __n2);
+#endif
+        return oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec), std::move(__r1_dropped),
+                                          std::forward<_R2>(__r2), __pred, __proj1, __proj2);
     }
 }; // __ends_with_fn
 } // __internal

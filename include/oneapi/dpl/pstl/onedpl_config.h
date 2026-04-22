@@ -307,6 +307,10 @@
 #    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_ONEDPL___cplusplus >= 202302L)
 #endif
 
+// The implementation of std::ranges::advance in GCC 10 uses throw expressions.
+// That prevents its use in SYCL kernels, as well as the use of std::ranges::next, std::views::drop, etc.
+#define _ONEDPL_CPP20_RANGES_ADVANCE_SYCL_INCOMPATIBLE (_ONEDPL_BACKEND_SYCL && _GLIBCXX_RELEASE == 10)
+
 // When C++20 concepts are available, we must use std::tuple as a proxy reference to satisfy iterator concepts, which
 // requires the changes to std::tuple in P2321R2 and the tuple-like basic_common_reference specialization in P2165R4.
 #define _ONEDPL_CAN_USE_STD_TUPLE_PROXY_ITERATOR                                                                       \
