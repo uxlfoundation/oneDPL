@@ -147,7 +147,7 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{});
 
-        auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)));
+        auto __f = __create_future(std::move(std::get<0>(__res)), std::move(std::get<1>(__res)));
         __f.__checked_deferrable_wait();
     }
     else
