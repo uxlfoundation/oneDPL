@@ -2693,6 +2693,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
         using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
+        using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
@@ -2714,7 +2715,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __prior_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
         }
 
-        const _InitValueType __n_out = oneapi::dpl::__ranges::__size(__out_rng);
+        const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
         sycl::event __event = __q.submit([&, this](sycl::handler& __cgh) {
 
