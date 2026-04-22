@@ -3190,7 +3190,7 @@ __pattern_inplace_merge(__parallel_tag<_IsVector>, _ExecutionPolicy&& __exec, _R
             return __internal::__brick_uninitialized_move(__first1, __last1, __first2, _IsVector{});
         };
 
-        __par_backend::__parallel_merge</*_Bounded*/ false>(
+        __par_backend::__parallel_merge(
             __backend_tag{}, ::std::forward<_ExecutionPolicy>(__exec), __first, __middle, __middle, __last, __r, __comp,
             [__n, __move_values, __move_sequences](_RandomAccessIterator __f1, _RandomAccessIterator __l1,
                                                    _RandomAccessIterator __f2, _RandomAccessIterator __l2, _Tp* __f3,
