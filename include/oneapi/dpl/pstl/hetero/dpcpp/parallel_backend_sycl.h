@@ -1054,15 +1054,6 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     return __ret;
 }
 
-template <typename _Size>
-_Size
-__settled_or(_Size __size, _Size __default)
-{
-    using _SizeUnsigned = std::make_unsigned_t<_Size>;
-
-    return static_cast<_SizeUnsigned>(__size) == std::numeric_limits<_SizeUnsigned>::max() ? __default : __size;
-}
-
 template <typename _Range1, typename _Range2, typename _Range3>
 using __parallel_rng_set_op_return_t = std::tuple<oneapi::dpl::__internal::__difference_t<_Range1>,
                                                   oneapi::dpl::__internal::__difference_t<_Range2>,
@@ -1133,8 +1124,8 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
         _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
         _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
 
-        __n1_stop = __settled_or(__n1_stop, __n1);
-        __n2_stop = __settled_or(__n2_stop, __n2);
+        __n1_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n1_stop, __n1);
+        __n2_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n2_stop, __n2);
 
         return {__n1_stop, __n2_stop, __output_res};
     }
@@ -1242,8 +1233,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
         _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
 
-        __n1_stop = __settled_or(__n1_stop, __n1);
-        __n2_stop = __settled_or(__n2_stop, __n2);
+        __n1_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n1_stop, __n1);
+        __n2_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n2_stop, __n2);
 
         return {__n1_stop, __n2_stop, __output_res};
     }

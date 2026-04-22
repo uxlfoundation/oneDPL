@@ -1257,6 +1257,15 @@ class __tuple_max_sentinel
     {
         return __convert_fields(_Tuple{});
     }
+
+    template <typename _Size>
+    static _Size
+    __settled_or(_Size __size, _Size __default)
+    {
+        using _SizeUnsigned = std::make_unsigned_t<_Size>;
+
+        return static_cast<_SizeUnsigned>(__size) == std::numeric_limits<_SizeUnsigned>::max() ? __default : __size;
+    }
 };
 
 } // namespace __internal
