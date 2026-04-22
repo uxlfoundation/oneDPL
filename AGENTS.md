@@ -76,6 +76,11 @@ Example: `std::any_of()` → `__pattern_any_of()` → `__parallel_or()`
 
 Tests use `.pass.cpp` suffix.
 
+# Code styling
+- Code should be self-documenting.
+- Only use comments when necessary to explain something that is unclear.
+- Do not create short 1-2 line functions only used once unless it improves understandability.
+
 ## Code Formatting
 
 **clang-format is required** for all code except tests:
@@ -100,7 +105,7 @@ export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
 
 ## Code Review Guidelines
 
-- **Formatting-only changes are frowned upon.** PRs should not include changes that are purely cosmetic (whitespace, brace style, reordering includes, etc.) without substantive functional changes. If a file is being modified for functional reasons, incidental formatting fixes in the same area are acceptable, but bulk reformatting unrelated to the PR's purpose should be flagged in reviews and requested to be removed.
+- **Formatting-only changes are frowned upon.** PRs should not include changes that are purely cosmetic (whitespace, brace style, etc.) without substantive functional changes. If a file is being modified for functional reasons, incidental formatting fixes in the same area are acceptable, but reformatting unrelated to the PR's purpose should be flagged in reviews and requested to be removed.
 
 ## Important Notes
 
