@@ -2476,8 +2476,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
+    template <typename _StopPosPayload>
     auto
-    __get_stop_pos_accessor(sycl::handler& __cgh, auto& __stop_pos_payload) const
+    __get_stop_pos_accessor(sycl::handler& __cgh, _StopPosPayload& __stop_pos_payload) const
     {
         if constexpr (_Bounded)
         {
