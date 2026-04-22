@@ -361,8 +361,8 @@ struct __sycl_scan_by_segment_impl
     }
 };
 
-template <typename _CustomName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1, typename _Range2,
-          typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
+template <bool /*_Bounded*/, typename _CustomName, bool __is_inclusive, typename _ExecutionPolicy, typename _Range1,
+          typename _Range2, typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 void
 __parallel_scan_by_segment_fallback(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec,
                                     _Range1&& __keys, _Range2&& __values, _Range3&& __out_values,

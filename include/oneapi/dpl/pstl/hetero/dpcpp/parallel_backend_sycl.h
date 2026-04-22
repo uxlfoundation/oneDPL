@@ -2711,7 +2711,7 @@ __parallel_scan_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Execu
 
     // Implicit synchronization in this call. We need to wrap the policy as the implementation may still call
     // reduce-then-scan and needs to avoid duplicate kernel names.
-    __parallel_scan_by_segment_fallback<_CustomName, __is_inclusive>(
+    __parallel_scan_by_segment_fallback<_Bounded, _CustomName, __is_inclusive>(
         oneapi::dpl::__internal::__device_backend_tag{},
         oneapi::dpl::__par_backend_hetero::make_wrapped_policy<__scan_by_seg_fallback>(
             std::forward<_ExecutionPolicy>(__exec)),
