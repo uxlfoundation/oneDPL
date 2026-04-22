@@ -1,10 +1,10 @@
-# Agents.md
+# AGENTS.md
 
 This file provides guidance to AI Agents when working with code in this repository.
 
 ## Project Overview
 
-oneDPL (oneAPI Data Parallel Library) is a header-only C++17 library implementing the [oneAPI specification](https://github.com/uxlfoundation/oneAPI-spec/tree/main/source/elements/oneDPL) for parallel algorithms. It provides C++ standard library-like parallel algorithms that work across heterogeneous devices (CPUs, GPUs, FPGAs) using different parallel backends (TBB, DPCPP/SYCL, OpenMP, serial).
+oneDPL (oneAPI Data Parallel Library) is a header-only C++17 library implementing the [oneAPI specification](https://github.com/uxlfoundation/oneAPI-spec/tree/main/source/elements/oneDPL) for parallel algorithms. It provides C++ standard library-like parallel algorithms that work across heterogeneous devices (CPUs, GPUs) using different parallel backends (TBB, DPCPP/SYCL, OpenMP, serial).
 
 **Key Resources:**
 - [IMPLEMENTATION_DETAILS.md](IMPLEMENTATION_DETAILS.md) - architecture, roadmap and development patterns
@@ -78,11 +78,13 @@ Tests use `.pass.cpp` suffix.
 
 ## Code Formatting
 
-**clang-format is strongly suggested** for all code except tests:
+**clang-format is required** for all code except tests:
 ```bash
 clang-format -i <file>
 ```
-Contributors can override clang-format suggestions for readability.
+Contributors can override clang-format suggestions for readability in exceptional cases.
+
+When touching existing code, migrate any `::std::` usages to `std::` within the functions touched.
 
 ## Device Selection
 
@@ -98,11 +100,12 @@ export ONEAPI_DEVICE_SELECTOR=level_zero:gpu
 
 ## Code Review Guidelines
 
-- **Formatting-only changes are frowned upon.** PRs should not include changes that are purely cosmetic (whitespace, brace style, reordering includes, etc.) without substantive functional changes. If a file is being modified for functional reasons, incidental formatting fixes in the same area are acceptable, but bulk reformatting unrelated to the PR's purpose should be flagged in reviews and requested to be removed or split into a separate PR.
+- **Formatting-only changes are frowned upon.** PRs should not include changes that are purely cosmetic (whitespace, brace style, reordering includes, etc.) without substantive functional changes. If a file is being modified for functional reasons, incidental formatting fixes in the same area are acceptable, but bulk reformatting unrelated to the PR's purpose should be flagged in reviews and requested to be removed.
 
 ## Important Notes
 
 - **Header-only library** - no binary artifacts
-- **C++17 minimum** required
+- **C++17 minimum** required; parallel ranges API requires **C++20**
 - **Backend selection is compile-time only** - zero runtime overhead
 - **Two-phase headers** - `*_defs.h` (declarations), `*_impl.h` (implementations)
+
