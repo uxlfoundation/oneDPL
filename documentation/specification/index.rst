@@ -7,7 +7,7 @@
 oneDPL Specification
 ====================
 
-This is the specification of |onedpl_long|, version 1.5-provisional.
+This is the specification of |onedpl_long|, version 1.5 revision 1.
 
 The |onedpl_long| (oneDPL) provides the functionality
 specified in the `C++ standard`_, with extensions to support data parallelism
