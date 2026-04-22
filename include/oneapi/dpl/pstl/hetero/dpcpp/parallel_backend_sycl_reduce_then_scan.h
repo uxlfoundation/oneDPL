@@ -2493,10 +2493,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     auto
     __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
     {
-        if constexpr (_Bounded)
-            return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
+        if constexpr (!std::is_same_v<_ProcessedInfo, __noop_processed_info>)
+        {
+            if constexpr (_Bounded)
+                return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
+            else
+                return std::monostate{};
+        }
         else
+        {
             return std::monostate{};
+        }
     }
 
     auto
@@ -2895,7 +2902,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 }
 
                 // Initialize stop positions from the first item of sub-group
-                if constexpr (_Bounded)
+                if constexpr (_Bounded && !std::is_same_v<decltype(__wg_src_final_pos_local_accessor), std::monostate>)
                 {
                     // Each sub-group leader initializes its own slot
                     if (__sub_group_local_id == 0 && __sub_group_id < __active_subgroups)
@@ -2978,7 +2985,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 auto __call_scan_through_elements_helper =
                     [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
-                        auto& __sub_group_carry_arg, auto& __temp_out_arg, auto& __processed_info_arg) {
+                        auto& __sub_group_carry_arg, auto&& __temp_out_arg, auto& __processed_info_arg) {
                         if (__sub_group_carry_initialized_arg)
                         {
                             __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
