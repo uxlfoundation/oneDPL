@@ -941,7 +941,11 @@ class _SetOpSourceDataPackUnpack
         // KSATODO required to think is it all really required or should be deleted
         //if constexpr (!_Bounded)
         {
-            return _UnpackedSourceZippedRangesUnbounded{
+            using _Rng1 = std::decay_t<decltype(std::get<0>(__tuple))>;
+            using _Rng2 = std::decay_t<decltype(std::get<1>(__tuple))>;
+            using _RngDiags = std::decay_t<decltype(std::get<2>(__tuple))>;
+
+            return _UnpackedSourceZippedRangesUnbounded<_Rng1, _Rng2, _RngDiags>{
                 std::get<0>(__tuple), // first sequence
                 std::get<1>(__tuple), // second sequence
                 std::get<2>(__tuple)  // temp diag sequence
