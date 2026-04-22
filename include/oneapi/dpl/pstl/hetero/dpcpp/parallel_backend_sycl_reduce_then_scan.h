@@ -1241,6 +1241,8 @@ struct __set_generic_operation
             }
         };
 
+        __final_pos_setter<_Bounded> __fp_setter(__idx1, __idx2);
+
         if (__idx1 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng1) &&
             __idx2 + __num_eles_min < oneapi::dpl::__ranges::__size(__in_rng2))
         {
@@ -1248,10 +1250,10 @@ struct __set_generic_operation
         }
         else
         {
-            __final_pos_setter<_Bounded> __fp_setter(__idx1, __idx2);
             __call_set_generic_operation_iteration(/*_CheckBounds*/ std::true_type{});
-            __fp_setter.__set_final_pos_if_changed(__processed_info, __idx1, __idx2);
         }
+
+        __fp_setter.__set_final_pos_if_changed(__processed_info, __idx1, __idx2);
 
         return __count;
     }
