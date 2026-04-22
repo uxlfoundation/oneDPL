@@ -210,11 +210,11 @@ struct __find_last_if_fn
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
-        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
-        std::ranges::reverse_view __reverse_r{std::forward<_R>(__r)};
+        std::ranges::reverse_view __reverse_r{__r};
 
         auto __res = oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), __reverse_r, __pred, __proj);
 
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
         return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
     }
 }; //__find_last_if_fn
