@@ -2587,13 +2587,15 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             }
         }
 
+        sycl::group_barrier(__sub_group);
+
         // Final position evaluated in each work-item, so need to find the max across the work-group
         const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __processed_info.get_final_pos());
 
         // As far as each WG may have his own final position, we need to find the max across all WGs.
         // This is because for unique patterns we can have final pos < OOB pos, so we can't rely on OOB pos to propagate final pos.
         // _StopPosPayloadIndexes::eFinalPos
-        if (__ndi.get_sub_group().get_local_linear_id() == 0)
+        if (__sub_group.get_local_linear_id() == 0)
         {
             __wg_src_final_pos_local_accessor[__sub_group_id] = __max_final_pos_in_sg;
         }
