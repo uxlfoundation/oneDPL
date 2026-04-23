@@ -711,11 +711,21 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
+template <typename... _Rng>
+auto
+__create_scan_stop_pos_storage_vector(__scan_stop_pos_storage_t<_Rng...>&& __item)
+{
+    std::vector<__scan_stop_pos_storage_t<_Rng...>> __vec;
+    __vec.emplace_back(std::move(__item));
+
+    return __vec;
+}
+
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_Range1>>,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, std::vector<__scan_stop_pos_storage_t<_Range1>>>,
     std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 >
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,
@@ -752,7 +762,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                     __init, __binary_op, _Inclusive{});
 
                 if constexpr (_Bounded)
-                    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+                    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
                 else
                     return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
             }
@@ -800,7 +810,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         /*apex*/ __ignore_op);
 
     if constexpr (_Bounded)
-        return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+        return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
     else
         return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
 }
@@ -809,7 +819,7 @@ template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng
           typename _WriteOp, typename _IsUniquePattern>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<_Size>, __scan_stop_pos_storage_t<_InRng>>,
+    std::tuple<sycl::event, __combined_storage<_Size>, std::vector<__scan_stop_pos_storage_t<_InRng>>>,
     std::tuple<sycl::event, __combined_storage<_Size>>
 >
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
@@ -928,7 +938,7 @@ template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range
           typename _BinaryPredicate, typename _BinaryOperator>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>, __scan_stop_pos_storage_t<_Range1, _Range2>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>, std::vector<__scan_stop_pos_storage_t<_Range1, _Range2>>>,
     std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 >
 __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
@@ -963,7 +973,7 @@ __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryPredicate>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>, __scan_stop_pos_storage_t<_Range1>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>, std::vector<__scan_stop_pos_storage_t<_Range1>>>,
     std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::__difference_t<_Range1>>>
 >
 __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __rng,
@@ -992,7 +1002,7 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
         if constexpr (_Bounded) 
-            return {std::move(__event), std::move(__payload), __create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local)};
+            return {std::move(__event), std::move(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
         else
             return {std::move(__event), std::move(__payload)};
     }
@@ -1110,10 +1120,16 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     }
     else
     {
-        using _StopPosPayload = std::decay_t<decltype(std::get<2>(__res))>;
-        using _StopPos = typename _StopPosPayload::_ValueType;
+        auto& __stop_pos_payloads = std::get<2>(__res);
 
-        auto& __stop_pos_payload = std::get<2>(__res);
+        assert(!__stop_pos_payloads.empty());
+
+        // To extend lifetime we returns from __parallel_transform_reduce_then_scan() vector of stop pos payloads,
+        // in which the last payload contains real result, and we need to get it to extract stop positions.
+        auto& __stop_pos_payload = __stop_pos_payloads.back();
+
+        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payload)>;
+        using _StopPos = typename _StopPosPayload::_ValueType;
 
         _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
         __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
@@ -1219,10 +1235,16 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     }
     else
     {
-        using _StopPosPayload = std::decay_t<decltype(std::get<2>(__res))>;
-        using _StopPos = typename _StopPosPayload::_ValueType;
+        auto& __stop_pos_payloads = std::get<2>(__res);
 
-        auto& __stop_pos_payload = std::get<2>(__res);
+        assert(!__stop_pos_payloads.empty());
+
+        // To extend lifetime we returns from __parallel_transform_reduce_then_scan() vector of stop pos payloads,
+        // in which the last payload contains real result, and we need to get it to extract stop positions.
+        auto& __stop_pos_payload = __stop_pos_payloads.back();
+
+        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payload)>;
+        using _StopPos = typename _StopPosPayload::_ValueType;
 
         _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
         __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
@@ -2541,7 +2563,7 @@ template <bool _Bounded, typename _CustomName, bool __is_inclusive, typename _Ra
           typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>, __scan_stop_pos_storage_t<_Range1, _Range2>>,
+    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>, std::vector<__scan_stop_pos_storage_t<_Range1, _Range2>>>,
     std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>
 >
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,

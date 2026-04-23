@@ -2373,6 +2373,25 @@ __create_scan_stop_pos_storage(sycl::queue& __q)
     }
 }
 
+template <bool _Bounded, typename _InRng>
+auto
+__create_scan_stop_pos_storages(sycl::queue& __q, std::size_t __num_blocks)
+{
+    if constexpr (_Bounded)
+    {
+        using _StopPosPayloadT = decltype(__create_scan_stop_pos_storage<_Bounded, _InRng>(__q));
+
+        std::vector<_StopPosPayloadT> __stop_pos_storages;
+        __stop_pos_storages.reserve(__num_blocks);
+
+        return __stop_pos_storages;
+    }
+    else
+    {
+        return __scan_stop_pos_storage_stub_t{};
+    }
+}
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _KernelNameInit, typename _KernelName>
@@ -3064,7 +3083,7 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _IsUniquePattern>
 std::conditional_t<
     _Bounded,
-    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, __scan_stop_pos_storage_t<_InRng>>,
+    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, std::vector<__scan_stop_pos_storage_t<_InRng>>>,
     std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
 >
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
@@ -3123,7 +3142,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
     // Real storage for _Bounded case, else - simple stub
-    auto __stop_pos_payload = __create_scan_stop_pos_storage<_Bounded, _InRng>(__q);
+    auto __stop_pos_payloads = __create_scan_stop_pos_storages<_Bounded, _InRng>(__q, __num_blocks);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
@@ -3173,9 +3192,15 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto&& __scan_res = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
                                              __prior_event, __inputs_remaining, __b);
         if constexpr (_Bounded)
-            std::tie(__prior_event, __stop_pos_payload) = std::forward<decltype(__scan_res)>(__scan_res);
+        {
+            auto [__event, __stop_pos_payload] = std::forward<decltype(__scan_res)>(__scan_res);            
+            __prior_event = __event;
+            __stop_pos_payloads.emplace_back(std::move(__stop_pos_payload));
+        }
         else
+        {
             std::tie(__prior_event) = std::forward<decltype(__scan_res)>(__scan_res);
+        }
 
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
@@ -3187,7 +3212,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     }
 
     if constexpr (_Bounded)
-        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payload)};
+        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payloads)};
     else
         return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
