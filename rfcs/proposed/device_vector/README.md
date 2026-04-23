@@ -440,16 +440,11 @@ std::vector<float> transform_out = static_cast<std::vector<float>>(d_output);
 (`std::random_access_iterator`), range concepts (`std::ranges::random_access_range`,
 `std::ranges::sized_range`), and `std::basic_common_reference` are all required
 to make `device_view` usable with oneDPL's productized range algorithms and
-standard range adaptors. oneDPL's productized ranges API is C++20-only, so this
-is a natural fit. The core `device_vector`, `device_pointer`, and
-`device_reference` types work with C++17; range support is additive.
+standard range adaptors.
 
 The primary range interface for `device_vector` is through `device_view<T>`,
 a lightweight, device-copyable view. `device_vector` itself is not intended
-to be used directly as a range. Host-side iteration through proxy references
-is a synchronous memcpy per element, making host-policy range algorithms
-over a `device_vector` impractical. Instead, users obtain a device copyable
-`device_view` and pass it to oneDPL range algorithms with a device policy.
+to be used directly as a range.
 
 #### Requirements on `device_reference` and `device_pointer`
 
@@ -499,6 +494,8 @@ class device_view {
     device_pointer<T> __begin;
     std::size_t __size;
 public:
+    //likely some constructors from device_pointer(s)
+
     auto begin() const { return __begin; }
     auto end()   const { return __begin + __size; }
     auto size()  const { return __size; }
