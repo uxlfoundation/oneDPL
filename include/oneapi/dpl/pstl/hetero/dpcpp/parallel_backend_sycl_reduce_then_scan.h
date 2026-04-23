@@ -2535,7 +2535,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     template <typename _TempDataCaptureIndexes, typename _ProcessedInfo, typename _InRng, typename _NDItem,
               typename _OutRng, typename _StopPosAcc, typename _SlmSrcIndexesLocalAccessorForOneSG,
               typename _OobReplayCarryTuple, typename _CallScanHelper, typename _SubGroupSrcFinalPosLocalAccessor,
-              typename _ActiveSubgroupsCounter>
+              typename _ActiveSubgroupsCounter, typename _FinalPos>
     void
     __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
                                 _StopPosAcc& __stop_pos_acc,
@@ -2545,13 +2545,12 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 _SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor,
                                 const std::uint32_t __sub_group_id,
                                 const _ActiveSubgroupsCounter __active_subgroups,
-                                _ProcessedInfo& __processed_info) const
+                                const bool __oob_reached_in_this_wi, const _FinalPos& __final_pos_wi) const
     {
         using oneapi::dpl::__internal::__pos_operations;
 
         // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
         // by replaying the scan with captured indexes in SLM
-        const bool __oob_reached_in_this_wi = __processed_info.get_oob_reached();
         if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_this_wi))
         {
             // Only from one WI we fill SLM with source indexes for the second replay to detect OOB pos,
@@ -2560,6 +2559,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi) : nullptr);
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
+            _ProcessedInfo __processed_info{};
             __call_scan_through_elements_helper(
                 __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
                 std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
@@ -2590,7 +2590,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         sycl::group_barrier(__sub_group);
 
         // Final position evaluated in each work-item, so need to find the max across the work-group
-        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __processed_info.get_final_pos());
+        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
 
         // As far as each WG may have his own final position, we need to find the max across all WGs.
         // This is because for unique patterns we can have final pos < OOB pos, so we can't rely on OOB pos to propagate final pos.
@@ -2940,13 +2940,20 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 {
-                    _ProcessedInfo __processed_info{};
+                    using _FinalPosT = std::decay_t<decltype(std::declval<_ProcessedInfo>().get_final_pos())>;
+
+                    bool __oob_reached_in_this_wi = false;
+                    _FinalPosT __final_pos_wi = {};
+
                     {
                         _TempDataNoCaptureIndexes __temp_out{};
+                        _ProcessedInfo __processed_info{};
 
                         // The first normal call of __scan_through_elements_helper
                         __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
                                                             __sub_group_carry, __temp_out, __processed_info);
+                        __oob_reached_in_this_wi = __processed_info.get_oob_reached();
+                        __final_pos_wi = __processed_info.get_final_pos();
                     }
 
                     if constexpr (__oob_replay_enabled)
@@ -2954,7 +2961,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
                             __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
                             __oob_replay_carry_tuple, __call_scan_through_elements_helper,
-                            __wg_src_final_pos_local_accessor, __sub_group_id, __active_subgroups, __processed_info);
+                            __wg_src_final_pos_local_accessor, __sub_group_id, __active_subgroups,
+                            __oob_reached_in_this_wi, __final_pos_wi);
                     }
                 }
 
