@@ -537,12 +537,14 @@ struct drop_view_simple
         assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
     }
 
-    auto begin() const
+    auto
+    begin() const
     {
         return __begin(__r) + __n;
     }
 
-    auto end() const
+    auto
+    end() const
     {
         return __end(__r);
     }
