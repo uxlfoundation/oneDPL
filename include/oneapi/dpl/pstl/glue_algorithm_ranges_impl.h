@@ -1229,8 +1229,7 @@ struct __mismatch_fn
 
 inline constexpr __internal::__mismatch_fn mismatch;
 
-// [alg.starts.with] [alg.ends.with]
-
+// [alg.starts.with]
 struct __internal::__starts_with_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
@@ -1247,8 +1246,11 @@ struct __internal::__starts_with_fn
         return std::ranges::end(__r2) == oneapi::dpl::ranges::mismatch(std::forward<_ExecutionPolicy>(__exec), __r1,
                                                                        __r2, __pred, __proj1, __proj2).in2;
     }
-}; // __starts_with_fn
+};
 
+inline constexpr __internal::__starts_with_fn starts_with;
+
+// [alg.ends.with]
 struct __internal::__ends_with_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
@@ -1275,9 +1277,8 @@ struct __internal::__ends_with_fn
         return oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec), std::move(__r1_dropped),
                                           std::forward<_R2>(__r2), __pred, __proj1, __proj2);
     }
-}; // __ends_with_fn
+};
 
-inline constexpr __internal::__starts_with_fn starts_with;
 inline constexpr __internal::__ends_with_fn ends_with;
 
 // [alg.remove_if]

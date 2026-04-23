@@ -28,9 +28,9 @@ namespace dpl
 // forward declarations of function objects allow to simplify implementation code
 namespace ranges::__internal
 {
-    struct __starts_with_fn;
-    struct __ends_with_fn;
-}
+struct __starts_with_fn;
+struct __ends_with_fn;
+} // namespace ranges::__internal
 #endif
 
 namespace experimental
