@@ -39,6 +39,14 @@
 #include "../../utils_ranges.h"
 #include "../utils_hetero.h"
 
+#ifdef __SYCL_DEVICE_ONLY__
+#    define __SYCL_CONSTANT_AS __attribute__((opencl_constant))
+#else
+#    define __SYCL_CONSTANT_AS
+#endif
+
+const __SYCL_CONSTANT_AS char fmtPrintMsgAndPos[] = "%s : %d, %d\n";
+
 namespace oneapi
 {
 namespace dpl
@@ -153,11 +161,14 @@ struct __processed_info
     set_final_pos(const _TupleOfSizes& __pos)
     {
         __final_pos = __pos;
+        sycl::ext::oneapi::experimental::printf(fmtPrintMsgAndPos, "struct __processed_info::set_final_pos() <- ",
+                                                std::get<0>(__pos), std::get<1>(__pos));
     }
 
     const _TupleOfSizes&
     get_final_pos() const
     {
+        sycl::ext::oneapi::experimental::printf(fmtPrintMsgAndPos, "struct __processed_info::get_final_pos() -> ", std::get<0>(__final_pos), std::get<1>(__final_pos));
         return __final_pos;
     }
 

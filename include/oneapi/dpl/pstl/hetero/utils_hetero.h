@@ -25,6 +25,14 @@
 
 #include <type_traits> // for std::decay_t
 
+#ifdef __SYCL_DEVICE_ONLY__
+#    define __SYCL_CONSTANT_AS __attribute__((opencl_constant))
+#else
+#    define __SYCL_CONSTANT_AS
+#endif
+
+const __SYCL_CONSTANT_AS char fmtPrintMsgAndPos1[] = "%s : %d, %d\n";
+
 namespace oneapi
 {
 namespace dpl
