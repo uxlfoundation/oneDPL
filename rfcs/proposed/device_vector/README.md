@@ -52,14 +52,14 @@ users a familiar, RAII-managed container for data that lives on an accelerator.
 | **sycl-thrust** (`thrust::device_vector`) | [SparseBLAS/sycl-thrust - device_vector.h](https://github.com/SparseBLAS/sycl-thrust/blob/main/include/thrust/device_vector.h) |
 ### 1. How They Differ
 
-| Aspect | Thrust | SYCLomatic | Distributed Ranges | sycl-thrust | Proposed (oneDPL) |
+| Aspect | Proposed (oneDPL) | Thrust | sycl-thrust | SYCLomatic | Distributed Ranges |
 |---|---|---|---|---|---|
-| **Default Allocator** | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | N/A; Always uses `sycl::malloc_device` directly |
-| **Memory Model** | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
-| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (explicit device-to-host copy) |
-| **std::vector Interop** | Copy constructors from/to `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop | Constructor from `std::vector` | Explicit constructor + `operator std::vector()` |
-| **Queue Association** | Implicit (CUDA stream) | Global default queue | Global default queue | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | see [open question](#open-questions) |
-| **Uninitialized Construction** | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported | `no_init_t` tag for construction and resize |
+| **Default Allocator** | N/A; Always uses `sycl::malloc_device` directly | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` | None (must be specified; typically `device_allocator<T>`) |
+| **Memory Model** | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers |
+| **Host Element Access** | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) | Via `device_ref` proxy (explicit `queue.memcpy().wait()`) |
+| **std::vector Interop** | Explicit constructor + `operator std::vector()` | Copy constructors from/to `std::vector` | Constructor from `std::vector` | Copy/move + implicit `operator std::vector()` | No direct interop |
+| **Queue Association** | see [open question](#open-questions) | Implicit (CUDA stream) | Allocator stores `device` + `context`; queue resolved at runtime via pointer introspection | Global default queue | Global default queue |
+| **Uninitialized Construction** | `no_init_t` tag for construction and resize | `default_init_t`, `no_init_t` tags | Not supported | Not supported | Not supported |
 
 ### 2. sycl-thrust
 
