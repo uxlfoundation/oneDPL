@@ -1231,9 +1231,7 @@ inline constexpr __internal::__mismatch_fn mismatch;
 
 // [alg.starts.with] [alg.ends.with]
 
-namespace __internal
-{
-struct __starts_with_fn
+struct __internal::__starts_with_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -1251,7 +1249,7 @@ struct __starts_with_fn
     }
 }; // __starts_with_fn
 
-struct __ends_with_fn
+struct __internal::__ends_with_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -1278,7 +1276,6 @@ struct __ends_with_fn
                                           std::forward<_R2>(__r2), __pred, __proj1, __proj2);
     }
 }; // __ends_with_fn
-} // __internal
 
 inline constexpr __internal::__starts_with_fn starts_with;
 inline constexpr __internal::__ends_with_fn ends_with;

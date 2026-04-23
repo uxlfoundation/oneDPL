@@ -24,6 +24,15 @@ namespace oneapi
 {
 namespace dpl
 {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+// forward declarations of function objects allow to simplify implementation code
+namespace ranges::__internal
+{
+    struct __starts_with_fn;
+    struct __ends_with_fn;
+}
+#endif
+
 namespace experimental
 {
 namespace ranges
