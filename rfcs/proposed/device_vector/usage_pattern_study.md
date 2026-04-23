@@ -50,7 +50,9 @@ projects remain heavy users.
 - [PaddlePaddle](https://github.com/PaddlePaddle/Paddle) (23.8k stars) —
   Uses `device_vector` in **24 files** for GPU kernel implementations (mode,
   graph reindex, CTC align, kron). Pattern: temporary containers within GPU
-  kernels combined with `thrust::sort_by_key`, `thrust::reduce_by_key`.
+  kernels combined with `thrust::sort_by_key`, `thrust::reduce_by_key`. Use
+  raw pointers or begin() directly into thrust. Some (usage of element access
+  after a thrust API)[https://github.com/PaddlePaddle/Paddle/blob/d6e489cc39412ac278bbc1dda352742dddb7e57d/paddle/phi/kernels/funcs/mode.h#L189]
 - [cuDF](https://github.com/rapidsai/cudf) (RAPIDS, 9.6k stars) —
   **Explicitly discourages `thrust::device_vector`** in developer guide.
   Recommends `rmm::device_uvector` for uninitialized allocation and
@@ -62,10 +64,8 @@ projects remain heavy users.
   (**17 files**) for K-means, GLM, TSVD, ARIMA. Notable patterns: arrays of
   `device_vector` pointers for multi-GPU (`thrust::device_vector<T>
   *centroid_dots[n_gpu]`), `thrust::inner_product()` for convergence checks,
-  raw pointer extraction for cuBLAS/cuSOLVER calls.
-- [Zoph_RNN](https://github.com/isi-nlp/Zoph_RNN) (185 stars) — Neural
-  machine translation. Class members for softmax state (`thrust_d_outputdist`,
-  `thrust_d_normalization`) paired with host vector counterparts.
+  raw pointer extraction for cuBLAS/cuSOLVER calls. Used via raw pointers, or
+  [c]begin() going into thrust APIs, element-wise host access to print.
 
 ### HPC / Scientific Computing / Graph Analytics
 
@@ -74,17 +74,20 @@ These domains remain the heaviest `thrust::device_vector` users:
 - [Gunrock](https://github.com/gunrock/gunrock) (1k stars) — **49 files**,
   heaviest user among notable projects. Type alias
   `device_vector_t = thrust::device_vector<type_t>`. Used for BFS outputs,
-  graph frontier data. Raw pointer via `.data().get()`.
+  graph frontier data. Raw pointer via `.data().get()`, uses resize() and
+  begin(), end() with thrust API. Copies to ostream from device_ptr for print.
 - [AmgX](https://github.com/NVIDIA/AMGX) (NVIDIA, 662 stars) — Custom
   allocator wrapper using `cudaMallocAsync`/`cudaFreeAsync` for stream-ordered
-  allocation: `thrust::device_vector<T, thrust_amgx_allocator<T>>`.
+  allocation: `thrust::device_vector<T, thrust_amgx_allocator<T>>`. Extract raw
+  pointers, some direct element access after thrust APIs.
 - [GPU-Voxels](https://github.com/fzi-forschungszentrum-informatik/gpu-voxels)
   (315 stars) — **29 files**, robotics collision detection. Class members for
   octree nodes, voxel lists. Tracks allocations via
   `thrust::device_vector<void*>`.
 - [ISCE3](https://github.com/isce-framework/isce3) (204 stars) — SAR radar,
   **21 files**. Class members for satellite orbit data
-  (`thrust::device_vector<Vec3> _position, _velocity`).
+  (`thrust::device_vector<Vec3> _position, _velocity`). Extract raw pointers to
+  pass to kernels directly. Use of resize().
 - [Feltor](https://github.com/feltor-dev/feltor) (38 stars) — Plasma physics.
   Type aliases as vocabulary types:
   `using DVec = thrust::device_vector<double>`.
