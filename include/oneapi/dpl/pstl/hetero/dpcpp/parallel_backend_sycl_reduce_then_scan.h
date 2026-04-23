@@ -36,7 +36,7 @@
 
 #include "../../tuple_impl.h"
 #include "../../utils_ranges.h"
-#include "../../utils.h"
+#include "../utils_hetero.h"
 
 namespace oneapi
 {
@@ -176,84 +176,6 @@ struct __processed_info
 
     // Whether an OOB position was reached + the index of the first OOB position in the output range.
     bool __oob_reached = false;
-};
-
-struct __pos_operations
-{
-    // We should call this operation without any runtime condition checks to avoid deadlocks
-    template <typename _NDGroup, typename _TupleOfSizes>
-    static _TupleOfSizes
-    reduce_max_pos_over_group_elementwise(const _NDGroup& __group, const _TupleOfSizes& __pos)
-    {
-        return std::apply(
-            [&](const auto&... __local_pos_field) {
-                return std::make_tuple(__reduce_max_pos_over_group_elementwise_impl(__group, __local_pos_field)...);
-            },
-            __pos);
-    }
-
-    template <typename _Tuple>
-    static void
-    fetch_max_pos_global_elementwise(_Tuple& __global_max_pos, const _Tuple& __local_max_pos)
-    {
-        __fetch_max_pos_global_elementwise_impl(__global_max_pos, __local_max_pos,
-                                                std::make_index_sequence<std::tuple_size_v<_Tuple>>{});
-    }
-
-    template <typename _Tuple>
-    static void
-    fetch_max_pos_local_elementwise(_Tuple& __global_max_pos, const _Tuple& __local_max_pos)
-    {
-        std::apply(
-            [&](auto&... __fields) {
-                std::apply(
-                    [&](const auto&... __local_fields) { (..., (__fields = std::max(__fields, __local_fields))); },
-                    __local_max_pos);
-            },
-            __global_max_pos);
-    }
-
-  protected:
-
-    template <typename _Group, typename _Value>
-    static _Value
-    __reduce_max_pos_over_group_elementwise_impl(const _Group& __group, _Value __local_index_state)
-    {
-        return __dpl_sycl::__reduce_over_group(__group, __local_index_state, __dpl_sycl::__maximum<_Value>());
-    }
-
-    template <typename _Tuple, std::size_t... _Is>
-    static void
-    __fetch_max_pos_global_elementwise_impl(_Tuple& __global_max_pos, const _Tuple& __local_max_pos,
-                                            std::index_sequence<_Is...>)
-    {
-        // eFinalPos is a tuple of independent per-dimension source positions (e.g., idx1, idx2 for set operations).
-        // The semantic contract is that the caller needs the element-wise maximum across all work-groups,
-        // not an atomically consistent tuple from a single work-group. Each field is therefore updated
-        // independently via its own atomic fetch_max, which is correct and sufficient for this use case.
-        (..., __atomic_fetch_max_field_global(std::get<_Is>(__global_max_pos), std::get<_Is>(__local_max_pos)));
-    }
-
-    template <typename _Value>
-    static void
-    __atomic_fetch_max_field_global(_Value& __global_max_value, const _Value& __local_max_value)
-    {
-        // memory_order::relaxed is sufficient here because:
-        //   - the atomic fetch_max itself is the only operation that must be race-free;
-        //   - no other memory (output data, SLM, etc.) is being published through this atomic,
-        //     so no acquire/release ordering is needed between work-groups;
-        //   - the host reads the result only after the kernel completes, and kernel completion
-        //     provides a full device-to-host memory barrier unconditionally.
-        //
-        // memory_scope::device is required because work item 0 of each work-group writes to the
-        // same global location concurrently with work item 0 of every other work-group,
-        // so the atomic must be visible across the entire device, not just within one work-group.
-        using _AtomicValueT = sycl::atomic_ref<_Value, sycl::memory_order::relaxed, sycl::memory_scope::device,
-                                               sycl::access::address_space::global_space>;
-
-        _AtomicValueT __atomic(__global_max_value);
-        __atomic.fetch_max(__local_max_value);
-    }
 };
 
 struct __noop_processed_info
@@ -2601,6 +2523,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     __evaluate_max_src_final_pos_in_wg(_SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor,
                                        const _ActiveSubgroupsCounter __active_subgroups) const
     {
+        using oneapi::dpl::__internal::__pos_operations;
         typename _ProcessedInfo::_TupleOfSizes ___max_src_final_pos_in_wg = {};
 
         for (_ActiveSubgroupsCounter __i = 0; __i < __active_subgroups; ++__i)
@@ -2624,6 +2547,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 const _ActiveSubgroupsCounter __active_subgroups,
                                 _ProcessedInfo& __processed_info) const
     {
+        using oneapi::dpl::__internal::__pos_operations;
+
         // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
         // by replaying the scan with captured indexes in SLM
         const bool __oob_reached_in_this_wi = __processed_info.get_oob_reached();

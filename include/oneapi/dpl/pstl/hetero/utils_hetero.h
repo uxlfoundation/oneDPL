@@ -22,7 +22,10 @@
 #define _ONEDPL_UTILS_HETERO_H
 
 #include "../utils.h"
-#include <tuple>
+
+#include <algorithm>   // for std::max
+#include <tuple>       // for std::apply
+#include <type_traits> // for std::decay_t
 
 namespace oneapi
 {
@@ -123,6 +126,82 @@ struct __pattern_min_element_transform_fn
     operator()(_TGroupIdx __gidx, _TAcc __acc) const
     {
         return _ReduceValueType{__gidx, __acc[__gidx]};
+    }
+};
+
+struct __pos_operations
+{
+    // We should call this operation without any runtime condition checks to avoid deadlocks
+    template <typename _NDGroup, typename _TupleOfSizes>
+    static _TupleOfSizes
+    reduce_max_pos_over_group_elementwise(const _NDGroup& __group, const _TupleOfSizes& __pos)
+    {
+        _TupleOfSizes __result = __pos;
+
+        __for_each_field(__result, [__group](auto& __field) {
+            using _Value = std::decay_t<decltype(__field)>;
+            __field = __dpl_sycl::__reduce_over_group(__group, __field, __dpl_sycl::__maximum<_Value>());
+        });
+
+        return __result;
+    }
+
+    template <typename _Tuple>
+    static void
+    fetch_max_pos_local_elementwise(_Tuple& __max_pos, const _Tuple& __pos)
+    {
+        __for_each_pair_of_fields(__max_pos, __pos, [](auto& __max_pos_field, const auto& __pos_field) {
+            __max_pos_field = std::max(__max_pos_field, __pos_field);
+        });
+    }
+
+    // Precondition: __global_max_pos must refer to device global memory (e.g., a USM global allocation
+    // or a SYCL buffer accessor with global_space). Passing a stack variable is undefined behavior
+    // because sycl::atomic_ref requires global address space.
+    template <typename _Tuple>
+    static void
+    fetch_max_pos_global_elementwise(_Tuple& __global_max_pos, const _Tuple& __pos)
+    {
+        // memory_order::relaxed is sufficient here because:
+        //   - the atomic fetch_max itself is the only operation that must be race-free;
+        //   - no other memory (output data, SLM, etc.) is being published through this atomic,
+        //     so no acquire/release ordering is needed between work-groups;
+        //   - the host reads the result only after the kernel completes, and kernel completion
+        //     provides a full device-to-host memory barrier unconditionally.
+        //
+        // memory_scope::device is required because work item 0 of each work-group writes to the
+        // same global location concurrently with work item 0 of every other work-group,
+        // so the atomic must be visible across the entire device, not just within one work-group.
+
+        __for_each_pair_of_fields(
+            __global_max_pos, __pos, [](auto& __global_max_pos_field, const auto& __pos_field) {
+                using _Value = std::decay_t<decltype(__global_max_pos_field)>;
+                using _AtomicValueT = sycl::atomic_ref<_Value, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                                       sycl::access::address_space::global_space>;
+
+                _AtomicValueT __atomic(__global_max_pos_field);
+                __atomic.fetch_max(__pos_field);
+            });
+    }
+
+  protected:
+
+    template <typename _Tuple, typename _F>
+    static void
+    __for_each_field(_Tuple& __tuple, _F&& __f)
+    {
+        std::apply([&](auto&... __fields) { (..., __f(__fields)); }, __tuple);
+    }
+
+    template <typename _Tuple1, typename _Tuple2, typename _F>
+    static void
+    __for_each_pair_of_fields(_Tuple1& __tuple1, const _Tuple2& __tuple2, _F&& __f)
+    {
+        std::apply(
+            [&](auto&... __fields1) {
+                std::apply([&](const auto&... __fields2) { (..., __f(__fields1, __fields2)); }, __tuple2);
+            },
+            __tuple1);
     }
 };
 
