@@ -2581,9 +2581,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     auto __stop_pos_ptr = __stop_pos_acc.__data();
 
                     using __oob_pos_t = __scan_stop_pos_t<_InRng>;
-
-                    __oob_pos_t __oob_source_pos_converted = {};
-                    oneapi::dpl::__internal::__tuple_copy_prefix(__oob_source_pos_converted, __oob_source_pos);
+                    __oob_pos_t __oob_source_pos_converted = oneapi::dpl::__internal::__convert_tuple_to<__oob_pos_t>(__oob_source_pos);
 
                     // OOB can be reached by at most one work-item per kernel invocation:
                     // output indices are monotonically increasing across all work-items,
@@ -2625,8 +2623,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         if (__sg_id == 0 && __sg_lid == 0)
         {
             using __final_pos_t = __scan_stop_pos_t<_InRng>;
-            __final_pos_t ___max_final_pos_in_wg_converted = {};
-            oneapi::dpl::__internal::__tuple_copy_prefix(___max_final_pos_in_wg_converted, ___max_src_final_pos_in_wg);
+            __final_pos_t ___max_final_pos_in_wg_converted = oneapi::dpl::__internal::__convert_tuple_to<__final_pos_t>(___max_src_final_pos_in_wg);
+
             auto __stop_pos_ptr = __stop_pos_acc.__data();
 
             auto& __global_final_pos = __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
