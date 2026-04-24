@@ -553,8 +553,8 @@ struct __write_red_by_seg
             if (__id != __n - 1)
             {
                 if (!__write_if_in_bounds<_Bounded>(
-                        __out_values, __no_oob_capture_idx<decltype(__out_idx + 1)>, __out_idx + 1,
-                        [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __next_key; },
+                        __out_keys, __no_oob_capture_idx<decltype(__out_idx + 1)>, __out_idx + 1,
+                        [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __next_key; },
                         __temp_data, __processed_info))
                 {
                     return false;
