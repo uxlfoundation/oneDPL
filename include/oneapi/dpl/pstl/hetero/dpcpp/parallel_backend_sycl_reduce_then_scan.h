@@ -2550,85 +2550,91 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 const _ActiveSubgroupsCounter __active_subgroups,
                                 const bool __oob_reached_in_this_wi, const _FinalPos& __final_pos_wi) const
     {
+        using __result_pos_t = __scan_stop_pos_t<_InRng>;
+
         using oneapi::dpl::__internal::__pos_operations;
 
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
         const std::size_t __sg_id = __sub_group.get_group_linear_id();
         const std::size_t __sg_lid = __sub_group.get_local_linear_id();
 
-        // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
-        // by replaying the scan with captured indexes in SLM
+        // OOB pos reached in any work-item in the sub-group: replay the scan with captured indexes in SLM
+        // to detect the exact source OOB position.
         if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_this_wi))
         {
-            // Only from one WI we fill SLM with source indexes for the second replay to detect OOB pos,
-            // as all WIs in the subgroup have the same OOB pos and we want to avoid redundant writes to SLM and potential conflicts.
+            // Only one WI fills SLM with source indexes; others pass nullptr to skip SLM writes.
             _TempDataCaptureIndexes __temp_out_capture_indexes(
                 __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi)
                                          : nullptr);
 
-            // The second replay call of __scan_through_elements_helper to detect OOB indexes
             _ProcessedInfo __processed_info{};
             __call_scan_through_elements_helper(
                 __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
                 std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
 
-            // First OOB pos is only one inside all source data set
+            // OOB can be reached by at most one WI per kernel invocation � no atomic needed.
             if (__oob_reached_in_this_wi)
             {
                 typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
                 if (__processed_info.get_oob_source_pos(__oob_source_pos))
                 {
-                    auto __stop_pos_ptr = __stop_pos_acc.__data();
-
-                    using __oob_pos_t = __scan_stop_pos_t<_InRng>;
-                    __oob_pos_t __oob_source_pos_converted = oneapi::dpl::__internal::__convert_tuple_to<__oob_pos_t>(__oob_source_pos);
-
                     // OOB can be reached by at most one work-item per kernel invocation:
                     // output indices are monotonically increasing across all work-items,
                     // so only the single work-item that first crosses the output boundary
                     // can have get_oob_source_pos() return true.
                     // Therefore, no atomic fetch_min is needed here - at most one writer.
-                    __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] = __oob_source_pos_converted;
+                    __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                        oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
                 }
             }
         }
 
-        // Final position evaluated in each work-item, so need to find the max across the work-group
+        // Step 1: Reduce final_pos within each sub-group.
+        // Must be called unconditionally by all WIs to avoid sub-group collective deadlocks.
         const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
 
-        // For each sub-group:
-        //  - save data from the first work-item inside each sub-group
+        // Step 2: Each sub-group leader saves the per-sub-group max to SLM.
         if (__sg_lid == 0 && __sg_id < __active_subgroups)
-        {
             __wg_src_final_pos_local_accessor[__sg_id] = __max_final_pos_in_sg;
-        }
 
         // Wait for all sub-groups to save their final pos before we can reduce them
         // to find the max final pos in the work-group, which is the final pos for the whole work-group
         __dpl_sycl::__group_barrier(__ndi);
 
-        // Read data in all work-items of first sub-group
-        _FinalPos __final_pos_sg = {};
-
-        // For each work-item in the first sub-group:
-        //  - read final pos of corresponding sub-group
-        if (__sg_id == 0 && __sg_lid < __active_subgroups)
-            __final_pos_sg = __wg_src_final_pos_local_accessor[__sg_lid];
-
-        // Find max final pos inside sub-group
-        const auto ___max_src_final_pos_in_wg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_sg);
-    
-        // For each work-group:
-        //  - save data from the first work-item inside the first sub-group
-        if (__sg_id == 0 && __sg_lid == 0)
+        // Step 3: Sub-Group 0 reduces all per-sub-group values from SLM.
+        // Multi-iteration approach correctly handles __active_subgroups > __sub_group_size.
+        if (__sg_id == 0)
         {
-            using __final_pos_t = __scan_stop_pos_t<_InRng>;
-            __final_pos_t ___max_final_pos_in_wg_converted = oneapi::dpl::__internal::__convert_tuple_to<__final_pos_t>(___max_src_final_pos_in_wg);
+            const std::uint32_t __iters =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, std::uint32_t{__sub_group_size});
 
-            auto __stop_pos_ptr = __stop_pos_acc.__data();
+            // First iteration: load from SLM, zero out WIs beyond active range
+            const std::uint32_t __first_count = std::min(__active_subgroups, std::uint32_t{__sub_group_size});
+            _FinalPos __v = (__sg_lid < __first_count)
+                                ? static_cast<_FinalPos>(__wg_src_final_pos_local_accessor[__sg_lid])
+                                : _FinalPos{};
+            _FinalPos __max_final_pos_in_wg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __v);
 
-            auto& __global_final_pos = __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
-            __pos_operations::fetch_max_pos_global_elementwise(__global_final_pos, ___max_final_pos_in_wg_converted);
+            // Subsequent iterations (only when __active_subgroups > __sub_group_size)
+            for (std::uint32_t __i = 1; __i < __iters; ++__i)
+            {
+                const std::uint32_t __base = __i * std::uint32_t{__sub_group_size};
+                const std::uint32_t __load_id = __base + __sg_lid;
+                __v = (__load_id < __active_subgroups)
+                          ? static_cast<_FinalPos>(__wg_src_final_pos_local_accessor[__load_id])
+                          : _FinalPos{};
+
+                const auto __iter_max = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __v);
+                __pos_operations::fetch_max_pos_local_elementwise(__max_final_pos_in_wg, __iter_max);
+            }
+
+            // Step 4: WI 0 of Sub-Group 0 writes the work-group max to global memory via atomic fetch_max.
+            if (__sg_lid == 0)
+            {
+                __pos_operations::fetch_max_pos_global_elementwise(
+                    __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eFinalPos],
+                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__max_final_pos_in_wg));
+            }
         }
     }
 
