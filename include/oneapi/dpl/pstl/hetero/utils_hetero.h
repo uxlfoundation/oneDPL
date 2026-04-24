@@ -146,6 +146,15 @@ struct __pos_operations
 
     template <typename _Tuple>
     static void
+    fetch_min_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos)
+    {
+        __for_each_pair_of_fields(__min_pos, __pos, [](auto& __min_pos_field, const auto& __pos_field) {
+            __min_pos_field = std::min(__min_pos_field, __pos_field);
+        });
+    }
+
+    template <typename _Tuple>
+    static void
     fetch_max_pos_local_elementwise(_Tuple& __max_pos, const _Tuple& __pos)
     {
         __for_each_pair_of_fields(__max_pos, __pos, [](auto& __max_pos_field, const auto& __pos_field) {
