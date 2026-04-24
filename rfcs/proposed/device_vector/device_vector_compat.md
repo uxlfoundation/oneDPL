@@ -371,19 +371,9 @@ arr.write(5, v * 2.0f, q);          // explicit
 std::vector<float> out = arr.to_vector(q);
 ```
 
-## Migration Path
+## Open Questions
 
-```
-thrust::device_vector<T>  →  compat::device_vector<T>  →  device_array<T>
-         (CUDA)                (SYCL, Thrust-like API)     (SYCL, explicit API)
-```
-
-1. **Mechanical migration** — replace `thrust::device_vector` with
-   `compat::device_vector`, add queue to constructors. `device_pointer`,
-   `device_reference`, and `raw_pointer_cast` map directly. SYCLomatic could
-   target this namespace.
-2. **Incremental cleanup** — use `d.base()` to access explicit `read`/`write`,
-   replace `device_pointer` iteration with raw `T*` via `.get()` or
-   `d.base().begin()`.
-3. **Full migration** — switch to `device_array<T>` for the clean, explicit
-   API with no proxy overhead.
+- **No-arg constructors for `compat::device_vector`?** Thrust allows
+  `device_vector<T> d(N)` without specifying a device. We currently require
+  a queue or context+device. Adding no-arg constructors would ease migration
+  but introduces implicit default device selection.
