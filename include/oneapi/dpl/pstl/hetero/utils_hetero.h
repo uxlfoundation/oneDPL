@@ -134,16 +134,14 @@ struct __pos_operations
     // We should call this operation without any runtime condition checks to avoid deadlocks
     template <typename _NDGroup, typename _TupleOfSizes>
     static _TupleOfSizes
-    reduce_max_pos_over_group_elementwise(const _NDGroup& __group, const _TupleOfSizes& __pos)
+    reduce_max_pos_over_group_elementwise(const _NDGroup& __group, _TupleOfSizes __pos)
     {
-        _TupleOfSizes __result = __pos;
-
-        __for_each_field(__result, [__group](auto& __field) {
+        __for_each_field(__pos, [__group](auto& __field) {
             using _Value = std::decay_t<decltype(__field)>;
             __field = __dpl_sycl::__reduce_over_group(__group, __field, __dpl_sycl::__maximum<_Value>());
         });
-
-        return __result;
+        
+        return __pos;
     }
 
     template <typename _Tuple>
