@@ -2959,7 +2959,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
 
                 {
-                    using _FinalPosT = std::decay_t<decltype(std::declval<_ProcessedInfo>().get_final_pos())>;
+                    using _FinalPosT =
+                        std::conditional_t<!std::is_same_v<_ProcessedInfo, __noop_processed_info>,
+                                           std::decay_t<decltype(std::declval<_ProcessedInfo>().get_final_pos())>,
+                                           std::monostate>;
 
                     bool __oob_reached_in_this_wi = false;
                     _FinalPosT __final_pos_wi = {};
