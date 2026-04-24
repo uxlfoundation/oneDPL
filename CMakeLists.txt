@@ -354,7 +354,6 @@ target_include_directories(oneDPL
 # Setup tests
 ###############################################################################
 if (NOT _onedpl_is_subproject)
-    enable_testing()
     add_subdirectory(test)
 endif()
 
