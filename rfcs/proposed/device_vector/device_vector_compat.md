@@ -8,6 +8,12 @@ See the [usage study](usage_pattern_study.md) for evidence on which Thrust APIs
 are actually used, and [device_array](device_array.md) for the underlying
 container.
 
+We should not try to support more than `thrust::device_vector` to fix its'
+deficiencies, but rather rely upon `device_array`. We also should do our best to
+keep the semantics and API for this compatibility layer the same as
+`thrust::device_vector` as the goal here is a drop-in replacement for the
+functionality that people actually use.
+
 ## Relationship to `device_array`
 
 `compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>`. Like
