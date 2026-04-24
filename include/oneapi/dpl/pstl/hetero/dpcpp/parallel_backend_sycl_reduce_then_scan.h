@@ -2971,8 +2971,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         // The first normal call of __scan_through_elements_helper
                         __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
                                                             __sub_group_carry, __temp_out, __processed_info);
-                        __oob_reached_in_this_wi = __processed_info.get_oob_reached();
-                        __final_pos_wi = __processed_info.get_final_pos();
+                        if constexpr (__oob_replay_enabled)
+                        {
+                            __oob_reached_in_this_wi = __processed_info.get_oob_reached();
+                            __final_pos_wi = __processed_info.get_final_pos();
+                        }
                     }
 
                     if constexpr (__oob_replay_enabled)
