@@ -1079,8 +1079,8 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
     using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
 
-    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
 
     // fill in reduce then scan impl
     using _GenMaskReduce = oneapi::dpl::__par_backend_hetero::__gen_set_mask<_SetTag, _Compare, _Proj1, _Proj2>;
@@ -1114,37 +1114,12 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
     auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
     auto __output_res = __f.get();
 
-    if constexpr (!_Bounded)
+    if constexpr (_Bounded)
     {
-        return {__n1, __n2, __output_res};
+        std::tie(__n1, __n2) = __get_finish_pos_from_stop_pos_payloads_container(std::get<2>(__res), __n1, __n2);
     }
-    else
-    {
-        auto& __stop_pos_payloads = std::get<2>(__res);
 
-        assert(!__stop_pos_payloads.empty());
-
-        // To extend lifetime we returns from __parallel_transform_reduce_then_scan() vector of stop pos payloads,
-        // in which the last payload contains real result, and we need to get it to extract stop positions.
-        auto& __stop_pos_payload = __stop_pos_payloads.back();
-
-        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payload)>;
-        using _StopPos = typename _StopPosPayload::_ValueType;
-
-        _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
-        __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
-
-        const _StopPos& __final_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
-        const _StopPos& __oob_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eOOBPos];
-
-        _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
-        _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
-
-        __n1_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n1_stop, __n1);
-        __n2_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n2_stop, __n2);
-
-        return {__n1_stop, __n2_stop, __output_res};
-    }
+    return {__n1, __n2, __output_res};
 }
 
 // balanced path
@@ -1177,8 +1152,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
-    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
     const auto __total_size = __n1 + __n2;
 
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
@@ -1229,37 +1204,12 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
     auto __output_res = __f.get();
 
-    if constexpr (!_Bounded)
+    if constexpr (_Bounded)
     {
-        return {__n1, __n2, __output_res};
+        std::tie(__n1, __n2) = __get_finish_pos_from_stop_pos_payloads_container(std::get<2>(__res), __n1, __n2);
     }
-    else
-    {
-        auto& __stop_pos_payloads = std::get<2>(__res);
 
-        assert(!__stop_pos_payloads.empty());
-
-        // To extend lifetime we returns from __parallel_transform_reduce_then_scan() vector of stop pos payloads,
-        // in which the last payload contains real result, and we need to get it to extract stop positions.
-        auto& __stop_pos_payload = __stop_pos_payloads.back();
-
-        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payload)>;
-        using _StopPos = typename _StopPosPayload::_ValueType;
-
-        _StopPos __stop_pos[(std::size_t)_StopPosPayloadIndexes::eLast];
-        __stop_pos_payload.__copy_result(__stop_pos, (std::size_t)_StopPosPayloadIndexes::eLast);
-
-        const _StopPos& __final_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eFinalPos];
-        const _StopPos& __oob_pos = __stop_pos[(std::size_t)_StopPosPayloadIndexes::eOOBPos];
-
-        _Size1 __n1_stop = std::min(std::get<0>(__final_pos), std::get<0>(__oob_pos));
-        _Size2 __n2_stop = std::min(std::get<1>(__final_pos), std::get<1>(__oob_pos));
-
-        __n1_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n1_stop, __n1);
-        __n2_stop = oneapi::dpl::__internal::__tuple_max_sentinel<_StopPos>::__settled_or(__n2_stop, __n2);
-
-        return {__n1_stop, __n2_stop, __output_res};
-    }
+    return {__n1, __n2, __output_res};
 }
 
 template <bool _Bounded, typename _CustomName, typename _SetTag, typename _Range1, typename _Range2, typename _Range3,
