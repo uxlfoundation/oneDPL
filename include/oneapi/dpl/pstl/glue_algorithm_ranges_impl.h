@@ -840,9 +840,6 @@ struct __internal::__set_union_fn
                _Proj1 __proj1 = {}, _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-
-        std::cout << "------------ set_union call : -----------" << std::endl;
-
         return oneapi::dpl::__internal::__ranges::__pattern_set_union(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
