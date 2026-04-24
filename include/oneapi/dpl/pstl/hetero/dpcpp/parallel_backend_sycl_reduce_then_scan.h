@@ -2444,12 +2444,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     auto
     __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
     {
-        if constexpr (!std::is_same_v<_ProcessedInfo, __noop_processed_info>)
+        if constexpr (_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>)
         {
-            if constexpr (_Bounded)
-                return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
-            else
-                return std::monostate{};
+            return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
         }
         else
         {
