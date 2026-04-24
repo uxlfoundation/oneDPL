@@ -25,6 +25,12 @@ document only describes where `device_array` diverges.
 - **Stores `sycl::context` + `sycl::device`**, not a queue. Operations that
   need a queue accept one optionally; when omitted, a temporary queue is
   created internally.
+- **Uninitialized by default** — sized construction and `resize()` do not
+  value-initialize new elements (no kernel launch or memset). Pass an explicit
+  value to opt in: `device_array(1024, T{}, q)`. This encourages good practices
+  when dealing with device memory, and  matches the behavior chosen by FAISS and
+  RMM, which moved away from Thrust partially because of unwanted initialization
+  overhead.
 
 ## Allocator
 
@@ -83,9 +89,6 @@ the relevant expressions rather than a concept.
 ```cpp
 namespace oneapi::dpl::experimental {
 
-struct no_init_t {};
-inline constexpr no_init_t no_init{};
-
 template <typename T, typename Alloc = device_allocator<T>>
 class device_array {
 public:
@@ -102,38 +105,33 @@ public:
     // Construction
     // =====================================================================
 
+    // Allocate uninitialized device memory (default — no kernel launch or memset)
     // From queue (extracts context + device; queue is not retained)
-    explicit device_array(size_type count, sycl::queue q);
-    device_array(size_type count, const T& value, sycl::queue q);
-    device_array(size_type count, no_init_t, sycl::queue q);
-
+    device_array(size_type count, sycl::queue q);
     // From context + device
-    explicit device_array(size_type count,
-                          sycl::context ctx, sycl::device dev);
+    device_array(size_type count, sycl::context ctx, sycl::device dev);
+
+    // Allocate and fill with value (requires kernel launch or memset)
+    device_array(size_type count, const T& value, sycl::queue q);
     device_array(size_type count, const T& value,
-                 sycl::context ctx, sycl::device dev);
-    device_array(size_type count, no_init_t,
                  sycl::context ctx, sycl::device dev);
 
     // Construct from host data (upload)
     template <typename InputIt>
     device_array(InputIt first, InputIt last, sycl::queue q);
     device_array(std::initializer_list<T> init, sycl::queue q);
-    explicit device_array(const std::vector<T>& src, sycl::queue q);
+    device_array(const std::vector<T>& src, sycl::queue q);
 
     template <typename InputIt>
-    device_array(InputIt first, InputIt last,
-                 sycl::context ctx, sycl::device dev);
-    device_array(std::initializer_list<T> init,
-                 sycl::context ctx, sycl::device dev);
-    explicit device_array(const std::vector<T>& src,
-                          sycl::context ctx, sycl::device dev);
+    device_array(InputIt first, InputIt last, sycl::context ctx, sycl::device dev);
+    device_array(std::initializer_list<T> init, sycl::context ctx, sycl::device dev);
+    device_array(const std::vector<T>& src, sycl::context ctx, sycl::device dev);
 
     // Copy / move
     device_array(const device_array&);
-    device_array(device_array&&) noexcept;
+    device_array(device_array&&);
     device_array& operator=(const device_array&);
-    device_array& operator=(device_array&&) noexcept;
+    device_array& operator=(device_array&&);
 
     ~device_array();
 
@@ -151,11 +149,12 @@ public:
     void assign(const std::vector<T>& src);
     void assign(const std::vector<T>& src, sycl::queue q);
 
-    // Single-element host access (explicit, blocking, optional queue is used for copy submissions, to provide synchronizing with queue)
+    // Single-element host access (blocking, creates queue from context & device)
     T read(size_type pos) const;
-    T read(size_type pos, sycl::queue q) const;
-
     void write(size_type pos, const T& value);
+
+    // Single-element host access (blocking, provided queue is used for copy submissions)
+    T read(size_type pos, sycl::queue q) const;
     void write(size_type pos, const T& value, sycl::queue q);
 
     // Asynchronous single-element access, events allow synchronization with event driven workloads
@@ -193,12 +192,12 @@ public:
     size_type capacity() const;
     bool      empty()    const;
 
+    // Resize — new elements are uninitialized by default
     void resize(size_type count);
     void resize(size_type count, sycl::queue q);
+    // Resize — new elements filled with value
     void resize(size_type count, const T& value);
     void resize(size_type count, const T& value, sycl::queue q);
-    void resize(size_type count, no_init_t);
-    void resize(size_type count, no_init_t, sycl::queue q);
 
     void reserve(size_type new_cap);
     void clear();
@@ -342,16 +341,19 @@ d.write(0, 42.0f, q);         // synchronous write
 
 // --- Async transfer with dependency ---
 float result;
-sycl::event e = d.read(0, result, q, {some_prior_event});
+sycl::event e = d.async_read(0, result, q, {some_prior_event});
 e.wait();
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);
 
-// --- Uninitialized allocation (output buffer) ---
-dpl::device_array<float> output(1024, dpl::no_init, q);
+// --- Output buffer (uninitialized by default — no memset) ---
+dpl::device_array<float> output(1024, q);
 std::transform(policy, d.begin(), d.end(), output.begin(),
                [](float x) { return x * 2.0f; });
+
+// --- Zero-initialized allocation (opt-in) ---
+dpl::device_array<float> zeroed(1024, 0.0f, q);
 
 // --- Range usage (C++20) ---
 // device_array itself works with range algorithms on the host side:
