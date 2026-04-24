@@ -2556,17 +2556,20 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
               typename _OobReplayCarryTuple, typename _CallScanHelper, typename _SubGroupSrcFinalPosLocalAccessor,
               typename _ActiveSubgroupsCounter, typename _FinalPos>
     void
-    __process_oob_and_final_pos(const __dpl_sycl::__sub_group& __sub_group, const _NDItem& __ndi, _OutRng& __out_rng,
+    __process_oob_and_final_pos(const _NDItem& __ndi, _OutRng& __out_rng,
                                 _StopPosAcc& __stop_pos_acc,
                                 _SlmSrcIndexesLocalAccessorForOneSG& __slm_src_indexes_local_accessor_for_one_wi,
                                 _OobReplayCarryTuple& __oob_replay_carry_tuple,
                                 _CallScanHelper& __call_scan_through_elements_helper,
                                 _SubGroupSrcFinalPosLocalAccessor& __wg_src_final_pos_local_accessor,
-                                const std::uint32_t __sub_group_id,
                                 const _ActiveSubgroupsCounter __active_subgroups,
                                 const bool __oob_reached_in_this_wi, const _FinalPos& __final_pos_wi) const
     {
         using oneapi::dpl::__internal::__pos_operations;
+
+        __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
+        const std::size_t __sg_id = __sub_group.get_group_linear_id();
+        const std::size_t __sg_lid = __sub_group.get_local_linear_id();
 
         // OOB pos reached in any work-item in the sub-group, we need to detect exact OOB pos
         // by replaying the scan with captured indexes in SLM
@@ -2575,7 +2578,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             // Only from one WI we fill SLM with source indexes for the second replay to detect OOB pos,
             // as all WIs in the subgroup have the same OOB pos and we want to avoid redundant writes to SLM and potential conflicts.
             _TempDataCaptureIndexes __temp_out_capture_indexes(
-                __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi) : nullptr);
+                __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi)
+                                         : nullptr);
 
             // The second replay call of __scan_through_elements_helper to detect OOB indexes
             _ProcessedInfo __processed_info{};
@@ -2606,24 +2610,35 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             }
         }
 
-        sycl::group_barrier(__sub_group);
-
         // Final position evaluated in each work-item, so need to find the max across the work-group
         const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
 
-        // Save data from the first work-item inside sub-group
-        if (__sub_group.get_local_linear_id() == 0)
+        // For each sub-group:
+        //  - save data from the first work-item inside each sub-group
+        if (__sg_lid == 0 && __sg_id < __active_subgroups)
         {
-            __wg_src_final_pos_local_accessor[__sub_group_id] = __max_final_pos_in_sg;
+            __wg_src_final_pos_local_accessor[__sg_id] = __max_final_pos_in_sg;
         }
 
+        // Wait for all sub-groups to save their final pos before we can reduce them
+        // to find the max final pos in the work-group, which is the final pos for the whole work-group
         __dpl_sycl::__group_barrier(__ndi);
 
-        // Save data from the first work-item inside group
-        if (__ndi.get_local_linear_id() == 0)
-        {
-            const typename _ProcessedInfo::_TupleOfSizes ___max_src_final_pos_in_wg = __evaluate_max_src_final_pos_in_wg<_ProcessedInfo, _InRng>(__wg_src_final_pos_local_accessor, __active_subgroups);
+        // Read data in all work-items of first sub-group
+        _FinalPos __final_pos_sg = {};
 
+        // For each work-item in the first sub-group:
+        //  - read final pos of corresponding sub-group
+        if (__sg_id == 0 && __sg_lid < __active_subgroups)
+            __final_pos_sg = __wg_src_final_pos_local_accessor[__sg_lid];
+
+        // Find max final pos inside sub-group
+        const auto ___max_src_final_pos_in_wg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_sg);
+    
+        // For each work-group:
+        //  - save data from the first work-item inside the first sub-group
+        if (__sg_id == 0 && __sg_lid == 0)
+        {
             using __final_pos_t = __scan_stop_pos_t<_InRng>;
             __final_pos_t ___max_final_pos_in_wg_converted = {};
             oneapi::dpl::__internal::__tuple_copy_prefix(___max_final_pos_in_wg_converted, ___max_src_final_pos_in_wg);
@@ -2977,10 +2992,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if constexpr (__oob_replay_enabled)
                     {
                         __process_oob_and_final_pos<_TempDataCaptureIndexes, _ProcessedInfo, _InRng>(
-                            __sub_group, __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
+                            __ndi, __out_rng, __stop_pos_acc, __slm_src_indexes_local_accessor_for_one_wi,
                             __oob_replay_carry_tuple, __call_scan_through_elements_helper,
-                            __wg_src_final_pos_local_accessor, __sub_group_id, __active_subgroups,
-                            __oob_reached_in_this_wi, __final_pos_wi);
+                            __wg_src_final_pos_local_accessor, __active_subgroups, __oob_reached_in_this_wi,
+                            __final_pos_wi);
                     }
                 }
 
