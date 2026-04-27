@@ -1101,7 +1101,7 @@ struct __internal::__unique_copy_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
             std::forward<_OutRange>(__out_r), __comp, __proj);
     }
-}; //__unique_fn
+}; //__unique_copy_fn
 inline constexpr __internal::__unique_copy_fn unique_copy;
 
 } //ranges
