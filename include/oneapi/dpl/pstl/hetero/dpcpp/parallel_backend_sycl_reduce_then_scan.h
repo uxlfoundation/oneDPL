@@ -45,20 +45,7 @@
 #    define __SYCL_CONSTANT_AS
 #endif
 
-const __SYCL_CONSTANT_AS char fmtPrintMsg[] = "%s\n";
 const __SYCL_CONSTANT_AS char fmtPrintMsgAndPos[] = "%s : %d, %d\n";
-const __SYCL_CONSTANT_AS char fmtPrintMsgIdxAndPos[] = "%s (%d): %d, %d\n";
-const __SYCL_CONSTANT_AS char fmtPrintMsgIdxIdx[] = "%s (%5d) - (%d)\n";
-
-#define LOG_OP 1
-#if LOG_OP
-#    define LOG_OP_SET_GET_FINAL_POS                    0
-#    define LOG_OP_SET_OOB_REACHED                      0
-#    define LOG_OP_SET_OOB_SOURCE_POS                   0
-#    define LOG_OP_SET_WG_SRC_FINAL_POS_LOCAL_ACCESSOR  1
-#    define LOG_OP_GET_WG_SRC_FINAL_POS_LOCAL_ACCESSOR  1
-#    define LOG_OP_SET__GLOBAL_FINAL_POS                1
-#endif
 
 namespace oneapi
 {
@@ -174,18 +161,14 @@ struct __processed_info
     set_final_pos(const _TupleOfSizes& __pos)
     {
         __final_pos = __pos;
-#if LOG_OP_SET_GET_FINAL_POS
         sycl::ext::oneapi::experimental::printf(fmtPrintMsgAndPos, "struct __processed_info::set_final_pos() <- ",
                                                 std::get<0>(__pos), std::get<1>(__pos));
-#endif
     }
 
     const _TupleOfSizes&
     get_final_pos() const
     {
-#if LOG_OP_SET_GET_FINAL_POS
         sycl::ext::oneapi::experimental::printf(fmtPrintMsgAndPos, "struct __processed_info::get_final_pos() -> ", std::get<0>(__final_pos), std::get<1>(__final_pos));
-#endif
         return __final_pos;
     }
 
@@ -193,9 +176,6 @@ struct __processed_info
     set_oob_reached()
     {
         __oob_reached = true;
-#if LOG_OP_SET_OOB_REACHED
-        sycl::ext::oneapi::experimental::printf(fmtPrintMsg, "OOB pos reached");
-#endif
     }
 
     bool
@@ -208,16 +188,7 @@ struct __processed_info
     std::enable_if_t<std::is_same_v<std::decay_t<_TupleOfSizesArg>, _TupleOfSizes>, void>
     set_oob_source_pos(_TupleOfSizesArg&& __source_oob_pos)
     {
-#if LOG_OP_SET_OOB_SOURCE_POS
-        if (!__oob_reached)
-        {
-            sycl::ext::oneapi::experimental::printf(fmtPrintMsg, "ERROR in __processed_info state : we setup oob_source_pos but __oob_reached is FALSE!");
-        }
-#endif
         __oob_source_pos = std::forward<_TupleOfSizesArg>(__source_oob_pos);
-#if LOG_OP_SET_OOB_SOURCE_POS
-        sycl::ext::oneapi::experimental::printf(fmtPrintMsgAndPos, "struct __processed_info::set_oob_source_pos() -> ", std::get<0>(__oob_source_pos), std::get<1>(__oob_source_pos));
-#endif        
     }
 
     bool
@@ -2535,12 +2506,10 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     {
         if constexpr (_Bounded && __is_defined<_TupleOfSizes>)
         {
-            std::cout << "Creating wg src final pos local accessor of count " << __count << std::endl;
             return __dpl_sycl::__local_accessor<_TupleOfSizes>(__count, __cgh);
         }
         else
         {
-            std::cout << "Creating wg src final pos local accessor - std::monostate" << std::endl;
             return std::monostate{};
         }
     }
@@ -2613,16 +2582,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     // Initialize OOB pos to max sentinel - means "not yet found"
                     __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
                         oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
-
-                sycl::ext::oneapi::experimental::printf(
-                    fmtPrintMsgAndPos, "Stage #OOB.1 - final pos",
-                    std::get<0>(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos]),
-                    std::get<1>(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos]));
-
-                sycl::ext::oneapi::experimental::printf(
-                    fmtPrintMsgAndPos, "Stage #OOB.1 - OOB pos",
-                    std::get<0>(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos]),
-                    std::get<1>(__stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos]));
                 });
             });
         else
@@ -2720,33 +2679,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     // Therefore, no atomic fetch_min is needed here - at most one writer.
                     __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
                         oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
-
-                    sycl::ext::oneapi::experimental::printf(
-                        fmtPrintMsgIdxAndPos, "Stage #OOB.2", __ndi.get_global_linear_id(),
-                        std::get<0>(__stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos]),
-                        std::get<1>(__stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos]));
                 }
             }
         }
 
-        sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxAndPos, "Stage #1", __ndi.get_global_linear_id(),
-                                                std::get<0>(__final_pos_wi), std::get<1>(__final_pos_wi));
-
         // Step 1: Reduce final_pos within each sub-group.
         // Must be called unconditionally by all WIs to avoid sub-group collective deadlocks.
         const auto __max_final_pos_in_sg = __pos_operations_sycl::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
-        sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxAndPos, "Stage #2", __ndi.get_global_linear_id(),
-                                                std::get<0>(__max_final_pos_in_sg), std::get<1>(__max_final_pos_in_sg));
 
         // Step 2: Each sub-group leader saves the per-sub-group max to SLM.
         if (__sg_lid == 0 && __sg_id < __active_subgroups)
-        {
             __wg_src_final_pos_local_accessor[__sg_id] = __max_final_pos_in_sg;
-
-            sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxAndPos, "Stage #3", __ndi.get_global_linear_id(),
-                                                        std::get<0>(__max_final_pos_in_sg),
-                                                        std::get<1>(__max_final_pos_in_sg));
-        }
 
         // Wait for all sub-groups to save their final pos before we can reduce them
         // to find the max final pos in the work-group, which is the final pos for the whole work-group
@@ -2781,21 +2724,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 __pos_operations_sycl::fetch_extremum_pos_local_elementwise(__max_final_pos_in_wg, __iter_max, std::greater<>{});
             }
 
-            sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxAndPos, "Stage #4", __ndi.get_global_linear_id(),
-                                                    std::get<0>(__max_final_pos_in_wg),
-                                                    std::get<1>(__max_final_pos_in_wg));
-
             // Step 4: WI 0 of Sub-Group 0 writes the work-group max to global memory via atomic fetch_max.
             if (__sg_lid == 0)
-            {
-                auto __pos = oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__max_final_pos_in_wg);
                 __pos_operations_sycl::fetch_max_pos_global_elementwise(
                     __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eFinalPos],
-                    __pos);
-
-                sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxAndPos, "Stage #5", __ndi.get_global_linear_id(),
-                                                        std::get<0>(__pos), std::get<1>(__pos));
-            }
+                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__max_final_pos_in_wg));
         }
     }
 
@@ -3011,8 +2944,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     if (__wg_local_id < __max_num_sub_groups_local)
                     {
                         __wg_src_final_pos_local_accessor[__wg_local_id] = {};
-
-                        sycl::ext::oneapi::experimental::printf(fmtPrintMsgIdxIdx, "Stage #0", __ndi.get_global_linear_id(), __wg_local_id);
                     }
                 }
 
