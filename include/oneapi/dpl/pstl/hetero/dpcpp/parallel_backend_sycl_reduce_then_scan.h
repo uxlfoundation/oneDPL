@@ -2354,78 +2354,80 @@ enum class _StopPosPayloadIndexes
     eLast
 };
 
+// __atomic_result_storage is used instead of __result_storage because the scan kernel performs
+// GPU atomic operations (sycl::atomic_ref with global_space) on this buffer in
+// __process_oob_and_final_pos (fetch_max for eFinalPos, direct write for eOOBPos).
+// __result_storage preferentially allocates host USM memory, which is banned for atomic
+// access on most GPU hardware (AtomicAccessViolation, banned: 1).
+// __atomic_result_storage always uses device USM or sycl::buffer, both of which
+// reside in GPU global address space and support atomic operations.
 template <typename... _InRng>
-using __scan_stop_pos_storage_t = __result_storage<__scan_stop_pos_t<_InRng...>>;
+using __scan_stop_pos_storage_t = __atomic_result_storage<__scan_stop_pos_t<_InRng...>>;
 
-struct __scan_stop_pos_storage_stub_t
+template <bool _Bounded>
+struct __stop_pos_payloads_tools
 {
+    template <typename _InRng>
+    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_InRng>, std::monostate>
+    __create_storage(sycl::queue& __q)
+    {
+        if constexpr (_Bounded)
+            return __scan_stop_pos_storage_t<_InRng>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
+        else
+            return std::monostate{};
+    }
+
+    template <typename _InRng>
+    static std::conditional_t<_Bounded, std::vector<__scan_stop_pos_storage_t<_InRng>>, std::monostate>
+    __create_container(sycl::queue& __q, std::size_t __capacity)
+    {
+        if constexpr (_Bounded)
+        {
+            std::vector<__scan_stop_pos_storage_t<_InRng>> __stop_pos_payloads_container;
+            __stop_pos_payloads_container.reserve(__capacity);
+
+            return __stop_pos_payloads_container;
+        }
+        else
+        {
+            return std::monostate{};
+        }
+    }
+
+    template <typename _InRng, typename _Size1, typename _Size2>
+    static std::tuple<_Size1, _Size2>
+    __get_finish_pos(std::vector<__scan_stop_pos_storage_t<_InRng>>& __stop_pos_payloads_container, _Size1 __n1,
+                     _Size2 __n2)
+    {
+        using oneapi::dpl::__internal::__pos_operations;
+
+        assert(!__stop_pos_payloads_container.empty());
+
+        using _StopPosPayload = std::decay_t<decltype(__stop_pos_payloads_container.front())>;
+        using _StopPos = typename _StopPosPayload::_ValueType;
+
+        _StopPos __final_pos = {};
+        _StopPos __oob_pos = {};
+        std::get<0>(__oob_pos) = __n1;
+        std::get<1>(__oob_pos) = __n2;
+
+        for (auto& __payload : __stop_pos_payloads_container)
+        {
+            _StopPos __pos_local[(std::size_t)_StopPosPayloadIndexes::eLast];
+            __payload.__copy_result(__pos_local, (std::size_t)_StopPosPayloadIndexes::eLast);
+
+            __pos_operations::fetch_max_pos_local_elementwise(
+                __final_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eFinalPos]);
+            __pos_operations::fetch_min_pos_local_elementwise(
+                __oob_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eOOBPos]);
+        }
+
+        _StopPos __result = __final_pos;
+        __pos_operations::fetch_min_pos_local_elementwise(__result, __oob_pos);
+
+        return {std::get<0>(__result), std::get<1>(__result)};
+    }
 };
-
-template <bool _Bounded, typename _InRng>
-auto
-__create_scan_stop_pos_storage(sycl::queue& __q)
-{
-    if constexpr (_Bounded)
-    {
-        return __scan_stop_pos_storage_t<_InRng>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
-    }
-    else
-    {
-        return __scan_stop_pos_storage_stub_t{};
-    }
-}
-
-template <bool _Bounded, typename _InRng>
-auto
-__create_stop_pos_payloads_container(sycl::queue& __q, std::size_t __num_blocks)
-{
-    if constexpr (_Bounded)
-    {
-        using _StopPosPayloadT = decltype(__create_scan_stop_pos_storage<_Bounded, _InRng>(__q));
-
-        std::vector<_StopPosPayloadT> __stop_pos_payloads_container;
-        __stop_pos_payloads_container.reserve(__num_blocks);
-
-        return __stop_pos_payloads_container;
-    }
-    else
-    {
-        return __scan_stop_pos_storage_stub_t{};
-    }
-}
-
-template <typename _Size1, typename _Size2>
-std::tuple<_Size1, _Size2>
-__get_finish_pos_from_stop_pos_payloads_container(auto& __stop_pos_payloads_container, _Size1 __n1, _Size2 __n2)
-{
-    using oneapi::dpl::__internal::__pos_operations;
-
-    assert(!__stop_pos_payloads_container.empty());
-
-    using _StopPosPayload = std::decay_t<decltype(__stop_pos_payloads_container.front())>;
-    using _StopPos = typename _StopPosPayload::_ValueType;
-
-    _StopPos __final_pos = {};
-    _StopPos __oob_pos = {};
-    std::get<0>(__oob_pos) = __n1;
-    std::get<1>(__oob_pos) = __n2;
-
-    for (auto& __payload : __stop_pos_payloads_container)
-    {
-        _StopPos __pos_local[(std::size_t)_StopPosPayloadIndexes::eLast];
-        __payload.__copy_result(__pos_local, (std::size_t)_StopPosPayloadIndexes::eLast);
-
-        __pos_operations::fetch_max_pos_local_elementwise(__final_pos,
-                                                          __pos_local[(std::size_t)_StopPosPayloadIndexes::eFinalPos]);
-        __pos_operations::fetch_min_pos_local_elementwise(__oob_pos,
-                                                          __pos_local[(std::size_t)_StopPosPayloadIndexes::eOOBPos]);
-    }
-
-    _StopPos __result = __final_pos;
-    __pos_operations::fetch_min_pos_local_elementwise(__result, __oob_pos);
-
-    return {std::get<0>(__result), std::get<1>(__result)};
-}
 
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
@@ -2692,8 +2694,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        // Real storage for _Bounded case, else - simple stub
-        auto __stop_pos_payload = __create_scan_stop_pos_storage<_Bounded, _InRng>(__q);
+        auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage<_InRng>(__q);
 
         if constexpr (_Bounded)
         {
@@ -3176,8 +3177,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
-    // Real storage for _Bounded case, else - simple stub
-    auto __stop_pos_payloads_container = __create_stop_pos_payloads_container<_Bounded, _InRng>(__q, __num_blocks);
+    auto __stop_pos_payloads_container =
+        __stop_pos_payloads_tools<_Bounded>::template __create_container<_InRng>(__q, __num_blocks);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,

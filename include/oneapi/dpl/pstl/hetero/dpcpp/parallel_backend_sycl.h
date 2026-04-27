@@ -762,7 +762,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
                     __init, __binary_op, _Inclusive{});
 
                 if constexpr (_Bounded)
-                    return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
+                    return {std::move(__event), std::forward<decltype(__payload)>(__payload),
+                            __create_scan_stop_pos_storage_vector<_Range1>(
+                                __stop_pos_payloads_tools<_Bounded>::template __create_storage<_Range1>(__q_local))};
                 else
                     return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
             }
@@ -810,7 +812,9 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         /*apex*/ __ignore_op);
 
     if constexpr (_Bounded)
-        return {std::move(__event), std::forward<decltype(__payload)>(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
+        return {std::move(__event), std::forward<decltype(__payload)>(__payload),
+                __create_scan_stop_pos_storage_vector<_Range1>(
+                    __stop_pos_payloads_tools<_Bounded>::template __create_storage<_Range1>(__q_local))};
     else
         return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
 }
@@ -1002,7 +1006,9 @@ __parallel_partition_copy(oneapi::dpl::__internal::__device_backend_tag, _Execut
             oneapi::dpl::__internal::__pred_at_index{__pred}, unseq_backend::__partition_by_mask{});
 
         if constexpr (_Bounded) 
-            return {std::move(__event), std::move(__payload), __create_scan_stop_pos_storage_vector<_Range1>(__create_scan_stop_pos_storage<_Bounded, _Range1>(__q_local))};
+            return {std::move(__event), std::move(__payload),
+                    __create_scan_stop_pos_storage_vector<_Range1>(
+                        __stop_pos_payloads_tools<_Bounded>::template __create_storage<_Range1>(__q_local))};
         else
             return {std::move(__event), std::move(__payload)};
     }
@@ -1116,7 +1122,9 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     if constexpr (_Bounded)
     {
-        std::tie(__n1, __n2) = __get_finish_pos_from_stop_pos_payloads_container(std::get<2>(__res), __n1, __n2);
+        std::tie(__n1, __n2) =
+            __stop_pos_payloads_tools<_Bounded>::template __get_finish_pos<decltype(__packed_src_view)>(
+                std::get<2>(__res), __n1, __n2);
     }
 
     return {__n1, __n2, __output_res};
@@ -1206,7 +1214,9 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
 
     if constexpr (_Bounded)
     {
-        std::tie(__n1, __n2) = __get_finish_pos_from_stop_pos_payloads_container(std::get<2>(__res), __n1, __n2);
+        std::tie(__n1, __n2) =
+            __stop_pos_payloads_tools<_Bounded>::template __get_finish_pos<decltype(__in_in_tmp_rng_phase2)>(
+                std::get<2>(__res), __n1, __n2);
     }
 
     return {__n1, __n2, __output_res};
