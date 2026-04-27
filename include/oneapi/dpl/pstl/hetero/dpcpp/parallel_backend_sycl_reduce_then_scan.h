@@ -1530,7 +1530,9 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __reduce_then_scan_sub_group_params __sub_group_params(
                     __work_group_size, __sub_group_size, __max_num_work_groups, __max_block_size, __inputs_remaining);
 
-                _InitValueType* __temp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                auto __temp_ptr =
+                    sycl::address_space_cast<sycl::access::address_space::global_space, sycl::access::decorated::no>(
+                        _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc));
                 std::size_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
@@ -1656,8 +1658,11 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     using _InitValueType = typename _InitType::__value_type;
     static constexpr std::uint8_t __sub_group_size = __get_reduce_then_scan_actual_sg_sz_device();
 
+    using __global_ptr_t =
+        sycl::multi_ptr<_InitValueType, sycl::access::address_space::global_space, sycl::access::decorated::no>;
+
     _InitValueType
-    __get_block_carry_in(const std::size_t __block_num, _InitValueType* __tmp_ptr,
+    __get_block_carry_in(const std::size_t __block_num, __global_ptr_t __tmp_ptr,
                          const std::size_t __num_sub_groups_global) const
     {
         return __tmp_ptr[__num_sub_groups_global + (__block_num % 2)];
@@ -1665,7 +1670,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
     template <typename _ValueType>
     void
-    __set_block_carry_out(const std::size_t __block_num, _InitValueType* __tmp_ptr, const _ValueType __block_carry_out,
+    __set_block_carry_out(const std::size_t __block_num, __global_ptr_t __tmp_ptr, const _ValueType __block_carry_out,
                           const std::size_t __num_sub_groups_global) const
     {
         __tmp_ptr[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
@@ -1708,9 +1713,12 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     __inputs_in_block,
                     __sub_group_params.__inputs_per_sub_group * __sub_group_params.__num_sub_groups_local);
 
-                _InitValueType* __tmp_ptr = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-                _InitValueType* __res_ptr =
-                    _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
+                auto __tmp_ptr =
+                    sycl::address_space_cast<sycl::access::address_space::global_space, sycl::access::decorated::no>(
+                        _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc));
+                auto __res_ptr =
+                    sycl::address_space_cast<sycl::access::address_space::global_space, sycl::access::decorated::no>(
+                        _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2));
                 std::uint32_t __group_id = __ndi.get_group(0);
                 __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
                 std::uint32_t __sub_group_id = __sub_group.get_group_linear_id();
