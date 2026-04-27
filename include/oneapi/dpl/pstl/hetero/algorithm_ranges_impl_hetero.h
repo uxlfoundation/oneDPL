@@ -251,6 +251,42 @@ __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&
 #endif //_ONEDPL_CPP20_RANGES_PRESENT
 
 //------------------------------------------------------------------------
+// pattern_lexicographical_compare
+//------------------------------------------------------------------------
+
+#if _ONEDPL_CPP20_RANGES_PRESENT
+template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+         typename _Proj2>
+bool
+__pattern_lexicographical_compare(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+                                  _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
+{
+    namespace __dplr = oneapi::dpl::__ranges;
+    using _CommonSize = __dplr::__common_size_t<_R1, _R2>;
+    const _CommonSize __n2 = __dplr::__size(__r2);
+    if (__n2 == 0)
+        return false;
+    const _CommonSize __n1 = __dplr::__size(__r1);
+    if (__n1 == 0)
+        return true;
+    _CommonSize __shared_size = std::min<_CommonSize>(__n1, __n2);
+
+    using _ReduceValueType = std::int32_t;
+    __pattern_lexicographical_compare_reduce_fn<_ReduceValueType> __reduce_fn;
+    __pattern_lexicographical_compare_transform_fn<__binary_op<_Comp, _Proj1, _Proj2>, _ReduceValueType>
+        __transform_fn{__binary_op{__comp, __proj1, __proj2}};
+
+    auto __ret_idx = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
+                                                                                    std::false_type /*is_commutative*/>(
+        __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn, unseq_backend::__no_init_value{},
+        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
+        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size)).get(); // blocking
+
+    return __ret_idx ? __ret_idx == 1 : __n1 < __n2;
+}
+#endif //_ONEDPL_CPP20_RANGES_PRESENT
+
+//------------------------------------------------------------------------
 // find_if
 //------------------------------------------------------------------------
 
