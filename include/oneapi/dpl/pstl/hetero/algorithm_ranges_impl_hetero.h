@@ -928,9 +928,13 @@ std::pair<oneapi::dpl::__internal::__difference_t<_Range1>, oneapi::dpl::__inter
 __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2,
                 _Range3&& __rng3, _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    const auto __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    const auto __n2 = oneapi::dpl::__ranges::__size(__rng2);
-    const auto __n3 = oneapi::dpl::__ranges::__size(__rng3);
+    using _Size1 = oneapi::dpl::__internal::__difference_t<_Range1>;
+    using _Size2 = oneapi::dpl::__internal::__difference_t<_Range2>;
+    using _Size3 = oneapi::dpl::__internal::__difference_t<_Range3>;
+
+    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const _Size3 __n3 = oneapi::dpl::__ranges::__size(__rng3);
 
     if ((__n1 == 0 && __n2 == 0) || __n3 == 0)
     {
@@ -965,12 +969,20 @@ __pattern_merge(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _Ran
         return {__res, 0};
     }
 
-    const auto [__offset1, __offset2] = __par_backend_hetero::__parallel_merge<_Bounded>(
+    auto __f = __par_backend_hetero::__parallel_merge<_Bounded>(
         _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range1>(__rng1)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range2>(__rng2)),
         oneapi::dpl::__ranges::__get_subscription_view(std::forward<_Range3>(__rng3)),
-        __comp, __proj1, __proj2).get();
+        __comp, __proj1, __proj2);
+
+    _Size1 __offset1 = __n1;
+    _Size2 __offset2 = __n2;
+
+    if constexpr (_Bounded)
+        std::tie(__offset1, __offset2) = __f.get();
+    else
+        __f.wait();
 
     return {__offset1, __offset2};
 }
