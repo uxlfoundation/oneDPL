@@ -143,7 +143,7 @@ class device_span
 } // namespace oneapi
 
 #if __cplusplus >= 202002L
-#include <ranges>
+#    include <ranges>
 template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<oneapi::dpl::experimental::device_span<T>> = true;
 
@@ -300,11 +300,9 @@ class device_array
         __fill_on_device(__data, __count, __value, __q);
     }
 
-    template <typename InputIt,
-              typename = std::enable_if_t<!std::is_same_v<std::decay_t<InputIt>, sycl::queue> &&
-                                          !std::is_integral_v<InputIt>>>
-    device_array(InputIt __first, InputIt __last, sycl::queue __q)
-        : __ctx(__q.get_context()), __dev(__q.get_device())
+    template <typename InputIt, typename = std::enable_if_t<!std::is_same_v<std::decay_t<InputIt>, sycl::queue> &&
+                                                            !std::is_integral_v<InputIt>>>
+    device_array(InputIt __first, InputIt __last, sycl::queue __q) : __ctx(__q.get_context()), __dev(__q.get_device())
     {
         std::vector<T> __tmp(__first, __last);
         __size = __tmp.size();
@@ -327,11 +325,9 @@ class device_array
         __memcpy_to_device(__data, __src.data(), __size, __q);
     }
 
-    template <typename InputIt,
-              typename = std::enable_if_t<!std::is_same_v<std::decay_t<InputIt>, sycl::queue> &&
-                                          !std::is_integral_v<InputIt>>>
-    device_array(InputIt __first, InputIt __last, sycl::context __c, sycl::device __d)
-        : __ctx(__c), __dev(__d)
+    template <typename InputIt, typename = std::enable_if_t<!std::is_same_v<std::decay_t<InputIt>, sycl::queue> &&
+                                                            !std::is_integral_v<InputIt>>>
+    device_array(InputIt __first, InputIt __last, sycl::context __c, sycl::device __d) : __ctx(__c), __dev(__d)
     {
         std::vector<T> __tmp(__first, __last);
         __size = __tmp.size();
@@ -503,22 +499,19 @@ class device_array
     }
 
     sycl::event
-    async_read(size_type __pos, T& __out, sycl::queue __q,
-               const std::vector<sycl::event>& __depends_on = {}) const
+    async_read(size_type __pos, T& __out, sycl::queue __q, const std::vector<sycl::event>& __depends_on = {}) const
     {
         return __q.memcpy(&__out, __data + __pos, sizeof(T), __depends_on);
     }
 
     sycl::event
-    async_write(size_type __pos, const T& __value, sycl::queue __q,
-                const std::vector<sycl::event>& __depends_on = {})
+    async_write(size_type __pos, const T& __value, sycl::queue __q, const std::vector<sycl::event>& __depends_on = {})
     {
         return __q.memcpy(__data + __pos, &__value, sizeof(T), __depends_on);
     }
 
     sycl::event
-    async_to_vector(std::vector<T>& __out, sycl::queue __q,
-                    const std::vector<sycl::event>& __depends_on = {}) const
+    async_to_vector(std::vector<T>& __out, sycl::queue __q, const std::vector<sycl::event>& __depends_on = {}) const
     {
         __out.resize(__size);
         if (__size == 0)
@@ -527,8 +520,7 @@ class device_array
     }
 
     sycl::event
-    async_assign(const T* __first, const T* __last, sycl::queue __q,
-                 const std::vector<sycl::event>& __depends_on = {})
+    async_assign(const T* __first, const T* __last, sycl::queue __q, const std::vector<sycl::event>& __depends_on = {})
     {
         size_type __new_size = static_cast<size_type>(__last - __first);
         if (__new_size > __capacity)

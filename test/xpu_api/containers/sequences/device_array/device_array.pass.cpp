@@ -14,7 +14,7 @@
 #include _PSTL_TEST_HEADER(numeric)
 
 #if _ENABLE_RANGES_TESTING
-#include <oneapi/dpl/ranges>
+#    include <oneapi/dpl/ranges>
 #endif
 
 #include "support/utils.h"
@@ -22,10 +22,10 @@
 #include <vector>
 #include <numeric>
 #if _ENABLE_STD_RANGES_TESTING
-#include <ranges>
-#if TEST_CPP20_SPAN_PRESENT
-#include <span>
-#endif
+#    include <ranges>
+#    if TEST_CPP20_SPAN_PRESENT
+#        include <span>
+#    endif
 #endif
 
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -322,9 +322,7 @@ test_data_pointer_in_kernel()
     dpl_experimental::device_array<int> d(10, 1, q);
 
     int* ptr = d.data();
-    q.parallel_for<KernelDataPointer>(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
-         ptr[i] *= 2;
-     }).wait();
+    q.parallel_for<KernelDataPointer>(sycl::range<1>(d.size()), [=](sycl::id<1> i) { ptr[i] *= 2; }).wait();
 
     std::vector<int> result = d.to_vector(q);
     bool all_correct = true;
@@ -360,8 +358,7 @@ test_resize_grow()
     EXPECT_TRUE(d.size() == 6, "resize grow: wrong size");
 
     std::vector<int> result = d.to_vector(q);
-    EXPECT_TRUE(result[0] == 1 && result[1] == 2 && result[2] == 3,
-                "resize grow: original elements changed");
+    EXPECT_TRUE(result[0] == 1 && result[1] == 2 && result[2] == 3, "resize grow: original elements changed");
     return true;
 }
 
@@ -495,7 +492,7 @@ test_span_const_in_kernel()
     return true;
 }
 
-#if _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
+#    if _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
 bool
 test_std_span_in_kernel()
 {
@@ -533,9 +530,9 @@ test_std_span_const_in_kernel()
     EXPECT_TRUE(result == expected, "std::span const in kernel: wrong result");
     return true;
 }
-#endif // _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
+#    endif // _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
 
-#if _ENABLE_RANGES_TESTING
+#    if _ENABLE_RANGES_TESTING
 bool
 test_span_range_sort()
 {
@@ -579,21 +576,20 @@ test_span_range_transform()
     auto policy = oneapi::dpl::execution::make_device_policy<KernelSpanTransform>(q);
     auto s_in = d_in.span();
     auto s_out = d_out.span();
-    oneapi::dpl::experimental::ranges::transform(policy, s_in, s_out,
-                                                  [](int x) { return x * 3; });
+    oneapi::dpl::experimental::ranges::transform(policy, s_in, s_out, [](int x) { return x * 3; });
 
     std::vector<int> result = d_out.to_vector(q);
     std::vector<int> expected = {3, 6, 9, 12, 15};
     EXPECT_TRUE(result == expected, "span range transform: wrong result");
     return true;
 }
-#endif // _ENABLE_RANGES_TESTING
+#    endif // _ENABLE_RANGES_TESTING
 
 // =====================================================================
 // C++20 std ranges tests (oneapi::dpl::ranges)
 // =====================================================================
 
-#if _ENABLE_STD_RANGES_TESTING
+#    if _ENABLE_STD_RANGES_TESTING
 
 // --- Rvalue usage (span returned directly from .span()) ---
 
@@ -636,8 +632,7 @@ test_span_std_ranges_transform()
     dpl_experimental::device_array<int> d_out(5, q);
 
     auto policy = oneapi::dpl::execution::make_device_policy<KernelStdRangesTransform>(q);
-    oneapi::dpl::ranges::transform(policy, d_in.span(), d_out.span(),
-                                   [](int x) { return x * 3; });
+    oneapi::dpl::ranges::transform(policy, d_in.span(), d_out.span(), [](int x) { return x * 3; });
 
     std::vector<int> result = d_out.to_vector(q);
     std::vector<int> expected = {3, 6, 9, 12, 15};
@@ -691,8 +686,7 @@ test_span_std_ranges_transform_lvalue()
     auto policy = oneapi::dpl::execution::make_device_policy<KernelStdRangesTransformLvalue>(q);
     auto s_in = d_in.span();
     auto s_out = d_out.span();
-    oneapi::dpl::ranges::transform(policy, s_in, s_out,
-                                   [](int x) { return x * 3; });
+    oneapi::dpl::ranges::transform(policy, s_in, s_out, [](int x) { return x * 3; });
 
     std::vector<int> result = d_out.to_vector(q);
     std::vector<int> expected = {3, 6, 9, 12, 15};
@@ -726,8 +720,7 @@ test_span_std_ranges_for_each_reverse()
     dpl_experimental::device_array<int> d({1, 2, 3, 4, 5}, q);
 
     auto policy = oneapi::dpl::execution::make_device_policy<KernelStdRangesForEachReverse>(q);
-    oneapi::dpl::ranges::for_each(policy, d.span() | std::views::reverse,
-                                  [](int& x) { x *= 10; });
+    oneapi::dpl::ranges::for_each(policy, d.span() | std::views::reverse, [](int& x) { x *= 10; });
 
     std::vector<int> result = d.to_vector(q);
     std::vector<int> expected = {10, 20, 30, 40, 50};
@@ -735,7 +728,7 @@ test_span_std_ranges_for_each_reverse()
     return true;
 }
 
-#if !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
+#        if !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
 bool
 test_span_std_ranges_count_if_drop()
 {
@@ -743,17 +736,16 @@ test_span_std_ranges_count_if_drop()
     dpl_experimental::device_array<int> d({1, 2, 3, 4, 5}, q);
 
     auto policy = oneapi::dpl::execution::make_device_policy<KernelStdRangesCountIfDrop>(q);
-    auto count = oneapi::dpl::ranges::count_if(policy, d.span() | std::views::drop(2),
-                                               [](int x) { return x > 3; });
+    auto count = oneapi::dpl::ranges::count_if(policy, d.span() | std::views::drop(2), [](int x) { return x > 3; });
 
     EXPECT_TRUE(count == 2, "span std ranges count_if | drop: wrong result");
     return true;
 }
-#endif // !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
+#        endif // !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
 
 // --- std::span with raw USM device pointer (C++20 baseline comparison) ---
 
-#if TEST_CPP20_SPAN_PRESENT
+#        if TEST_CPP20_SPAN_PRESENT
 bool
 test_std_span_with_usm_sort()
 {
@@ -786,9 +778,9 @@ test_std_span_with_usm_for_each()
     EXPECT_TRUE(result == expected, "std::span with USM for_each: wrong result");
     return true;
 }
-#endif // TEST_CPP20_SPAN_PRESENT
+#        endif // TEST_CPP20_SPAN_PRESENT
 
-#endif // _ENABLE_STD_RANGES_TESTING
+#    endif // _ENABLE_STD_RANGES_TESTING
 
 // =====================================================================
 // Context / device access tests
@@ -818,8 +810,7 @@ test_transform()
     dpl_experimental::device_array<int> output(100, q);
 
     auto policy = oneapi::dpl::execution::make_device_policy<KernelTransformOut>(q);
-    std::transform(policy, input.begin(), input.end(), output.begin(),
-                   [](int x) { return x * 2; });
+    std::transform(policy, input.begin(), input.end(), output.begin(), [](int x) { return x * 2; });
 
     std::vector<int> result = output.to_vector(q);
     bool all_correct = true;
@@ -948,17 +939,17 @@ main()
     test_span_subspan();
     test_span_in_kernel();
     test_span_const_in_kernel();
-#if _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
+#    if _ENABLE_STD_RANGES_TESTING && TEST_CPP20_SPAN_PRESENT
     test_std_span_in_kernel();
     test_std_span_const_in_kernel();
-#endif
-#if _ENABLE_RANGES_TESTING
+#    endif
+#    if _ENABLE_RANGES_TESTING
     test_span_range_sort();
     test_span_range_for_each();
     test_span_range_transform();
-#endif // _ENABLE_RANGES_TESTING
+#    endif // _ENABLE_RANGES_TESTING
 
-#if _ENABLE_STD_RANGES_TESTING
+#    if _ENABLE_STD_RANGES_TESTING
     // Productized C++20 ranges — rvalue
     test_span_std_ranges_sort();
     test_span_std_ranges_for_each();
@@ -972,16 +963,16 @@ main()
     // Productized C++20 ranges — pipeline composition
     test_span_std_ranges_sort_take();
     test_span_std_ranges_for_each_reverse();
-#if !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
+#        if !_PSTL_LIBSTDCXX_XPU_DROP_VIEW_BROKEN
     test_span_std_ranges_count_if_drop();
-#endif
+#        endif
 
-#if TEST_CPP20_SPAN_PRESENT
+#        if TEST_CPP20_SPAN_PRESENT
     // std::span with raw USM device pointer (baseline comparison)
     test_std_span_with_usm_sort();
     test_std_span_with_usm_for_each();
-#endif // TEST_CPP20_SPAN_PRESENT
-#endif // _ENABLE_STD_RANGES_TESTING
+#        endif // TEST_CPP20_SPAN_PRESENT
+#    endif     // _ENABLE_STD_RANGES_TESTING
 
     // Context / device
     test_context_device_access();

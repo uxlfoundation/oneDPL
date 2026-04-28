@@ -424,9 +424,7 @@ test_raw_pointer_in_kernel()
     compat::device_vector<int> d(10, 1, q);
 
     int* ptr = d.data().get();
-    q.parallel_for<KernelRawPointer>(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
-         ptr[i] *= 3;
-     }).wait();
+    q.parallel_for<KernelRawPointer>(sycl::range<1>(d.size()), [=](sycl::id<1> i) { ptr[i] *= 3; }).wait();
 
     std::vector<int> result = static_cast<std::vector<int>>(d);
     bool all_correct = true;
@@ -465,8 +463,7 @@ test_transform_via_iterators()
     compat::device_vector<int> output(50, 0, q);
 
     auto policy = oneapi::dpl::execution::make_device_policy<KernelVecTransform>(q);
-    std::transform(policy, input.begin(), input.end(), output.begin(),
-                   [](int x) { return x * 2; });
+    std::transform(policy, input.begin(), input.end(), output.begin(), [](int x) { return x * 2; });
 
     std::vector<int> result = static_cast<std::vector<int>>(output);
     bool all_correct = true;
