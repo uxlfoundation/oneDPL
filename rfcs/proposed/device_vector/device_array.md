@@ -205,7 +205,7 @@ non-owning views, and range composition, use `device_span<T>` via `.span()`.
 
 `device_span` is guaranteed trivially copyable (and therefore device copyable),
 has `enable_borrowed_range = true` and `enable_view = true`, and models
-`contiguous_range` + `sized_range`. 
+`contiguous_range` + `sized_range`.
 
 ### Definition
 

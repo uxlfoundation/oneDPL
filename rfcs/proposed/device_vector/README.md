@@ -18,14 +18,14 @@ a `std::vector`-like interface for managing device memory.
   `device_vector` encapsulates allocation, sizing, and lifetime in a
   single object and integrates directly with oneDPL algorithms.
 - **Real-world usage patterns** - A [detailed survey](usage_pattern_study.md)
-  Key findings:
+  of real-world usage informed the design. Key findings:
 
   1. **Construction + bulk transfer + raw pointer extraction** are the core
      operations across all domains. `device_vector` is primarily used as an
      RAII device memory manager and host-device data shuttle.
   2. **`begin()`/`end()` integration with parallel algorithms** is the
      second-most critical capability.
-  3. **Some popular AI/ML projects** (FAISS, cuDF, cuML) have **moved away from 
+  3. **Some popular AI/ML projects** (FAISS, cuDF, cuML) have **moved away from
      `thrust::device_vector`** due to unwanted value initialization, lack of
      stream parameters, and header bloat — then built alternatives that
      prioritize explicit async control and uninitialized allocation. Other HPC
@@ -128,7 +128,6 @@ classDiagram
   provide other flavors of vector / iterator which would have different tags,
   which would be required to dispatch based upon tag.
 
-
 - **Custom `DeviceAllocator` concept for pluggable allocation.**
   A minimal allocator interface — just `allocate(n, ctx, dev)` and
   `deallocate(p, n, ctx, dev)` — that avoids the `std::allocator` named
@@ -139,7 +138,6 @@ classDiagram
 - **No `push_back`, `insert`, `erase`.**
   Rarely used in practice (see [usage study](usage_pattern_study.md)),
   high implementation complexity for device memory.
-
 
 - **Host-side operations block but do not synchronize with prior work.**
   The user is responsible for ensuring prior kernels have completed before
@@ -153,7 +151,7 @@ classDiagram
   deferred?**
   see [device_array](device_array.md).
 
-- **Header organization?** 
+- **Header organization?**
   - We could have a `<oneapi/dpl/compat>` header and automatically include `device_array` with other includes?
   Alternatives:
   - Individual headers:

@@ -13,7 +13,7 @@ the functionality that is actually used in practice, adapted to fit within SYCL.
 
 ## Relationship to `device_array`
 
-`compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>`, adding features like and std::vector-like functions.
+`compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>` for core functionality.
 
 It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory, and reference type, `device_reference`, as a reference proxy type to enable host-side usage with implicit memory transfers. These types hold a pointer to a `sycl::context` to facilitate creation of a queue for memcpy.
 
