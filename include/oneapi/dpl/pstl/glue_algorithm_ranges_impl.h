@@ -369,7 +369,7 @@ struct __internal::__contains_subrange_fn
                _Proj2 __proj2 = {}) const
     {
         // To ensure no dangling subrange is returned, __r1 may not be forwarded
-        return __r2.size() == 0 || !(oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+        return std::ranges::empty(__r2) || !(oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
                                                                  __pred, __proj1, __proj2).empty());
     }
 };
