@@ -893,12 +893,10 @@ struct __result_storage : public __device_storage<_T>
                        __result_sz < __n ? __result_sz : __n, /*offset*/ 0);
     }
 
-    template <typename _Forwarding>
-    friend std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __result_storage<_T>>,
-                            __copyable_storage_state<_T>>
-    __move_state_from(_Forwarding&& __src)
+    __copyable_storage_state<_T>
+    __move_state_from() &&
     {
-        return {std::move(__src.__usm_buf), {}, std::move(__src.__sycl_buf), 0, __src.__kind};
+        return {std::move(this->__usm_buf), {}, std::move(this->__sycl_buf), 0, __kind};
     }
 };
 
@@ -963,13 +961,10 @@ struct __combined_storage : public __device_storage<_T>
         }
     }
 
-    template <typename _Forwarding>
-    friend
-    std::enable_if_t<std::is_same_v<std::decay_t<_Forwarding>, __combined_storage<_T>>, __copyable_storage_state<_T>>
-    __move_state_from(_Forwarding&& __src)
+    __copyable_storage_state<_T>
+    __move_state_from() &&
     {
-        return {std::move(__src.__result_buf), std::move(__src.__usm_buf), std::move(__src.__sycl_buf),
-                __src.__sz, __src.__kind};
+        return {std::move(__result_buf), std::move(this->__usm_buf), std::move(this->__sycl_buf), __sz, __kind};
     }
 };
 
@@ -1105,7 +1100,7 @@ __create_future(_Event&& __event, _Payload&& __payload)
     using _ValueType = typename std::decay_t<_Payload>::_ValueType;
 
     return __future(std::forward<_Event>(__event),
-                    __result_and_scratch_storage<_ValueType>(__move_state_from(std::forward<_Payload>(__payload))));
+                    __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
 }
 
 template <typename _Event, typename _ValueType>
