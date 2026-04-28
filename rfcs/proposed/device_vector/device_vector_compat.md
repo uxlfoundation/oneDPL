@@ -20,9 +20,10 @@ It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory,
 ## Differences from Thrust
 
 1. **Context + device (or queue) always required** — no implicit default device.
-2. **No `push_back`, `insert`, `erase`** — rarely used, unnecessary complexity.
-3. **No `host_vector` type** — use `std::vector<T>` directly.
-4. **No system tag dispatch** — execution policies determine where algorithms run.
+2. **No default constructor** — a device association is always required.
+3. **No `push_back`, `insert`, `erase`** — rarely used, unnecessary complexity.
+4. **No `host_vector` type** — use `std::vector<T>` directly.
+5. **No system tag dispatch** — execution policies determine where algorithms run.
 
 ## Namespace
 We are using `oneapi::dpl::experimental::compat` for these compatibility classes. The intention would be to promote
