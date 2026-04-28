@@ -390,10 +390,10 @@ bool
 test_find_balanced_path_impl(_Rng1 __rng1, _Rng2 __rng2, _Comp __comp)
 {
     using _SetOperation = oneapi::dpl::__par_backend_hetero::__get_set_operation<_Bounded, oneapi::dpl::unseq_backend::_IntersectionTag>;
-    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple<_Bounded>;
+    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_simple;
 
     using _GenReduceInput =
-        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded, _SetOperation, _BoundsProvider, _Comp, oneapi::dpl::identity, oneapi::dpl::identity>;
+        oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider, _Comp, oneapi::dpl::identity, oneapi::dpl::identity>;
 
     std::uint16_t __diagonal_spacing = 16; // arbitrary value, should not matter for the test
 

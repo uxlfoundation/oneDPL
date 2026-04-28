@@ -1102,10 +1102,10 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
 
     oneapi::dpl::__par_backend_hetero::__buffer<std::int32_t> __mask_buf(__n1);
 
-    auto __packed_src_view = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(
-        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
-        oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
-            __mask_buf.get_buffer()));
+    auto __packed_src_view = oneapi::dpl::__ranges::make_zip_view(
+            std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+            oneapi::dpl::__ranges::all_view<std::int32_t, __par_backend_hetero::access_mode::read_write>(
+                __mask_buf.get_buffer()));
 
     auto __res = __parallel_transform_reduce_then_scan<_Bounded, sizeof(oneapi::dpl::__internal::__value_t<_Range1>),
                                                        _CustomName>(
@@ -1148,12 +1148,12 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _TempDataCaptureIndexes = __temp_data_array</*_CaptureIndexes*/ true, __diagonal_spacing, _OutValueT, _Size1, _Size2>;
     using _ProcessedInfo = __processed_info<_Size1, _Size2>;
     using _ReduceOp = std::plus<_Size3>;
-    using _BoundsProviderPhase1 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned</*_Bounded*/ false>;
-    using _BoundsProviderPhase2 = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned<_Bounded>;
+    using _BoundsProvider = oneapi::dpl::__par_backend_hetero::__get_bounds_partitioned;
 
-    using _GenReduceInputPhase1 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path</*_Bounded*/ false, _SetOperation, _BoundsProviderPhase1, _Compare, _Proj1, _Proj2>;
-    using _GenReduceInputPhase2 = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_Bounded,           _SetOperation, _BoundsProviderPhase2, _Compare, _Proj1, _Proj2>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<_Bounded, _SetOperation, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo, _Compare, _Proj1, _Proj2>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_set_balanced_path<_SetOperation, _BoundsProvider,
+                                                                                       _Compare, _Proj1, _Proj2>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_set_op_from_known_balanced_path<
+        _SetOperation, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo, _Compare, _Proj1, _Proj2>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
@@ -1169,9 +1169,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _TemporaryType = std::remove_const_t<std::make_signed_t<decltype(__n1)>>;
 
     //TODO: limit to diagonals per block, and only write to a block based index of temporary data
-    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __split_diags_buf(__num_diagonals);
+    oneapi::dpl::__par_backend_hetero::__buffer<_TemporaryType> __temp_diags(__num_diagonals);
 
-    // KSATODO : the average element size is used to heuristically determine how many diagonals to process per block for the balanced path partitioning.
     constexpr std::uint32_t __average_input_ele_size = (sizeof(_In1ValueT) + sizeof(_In2ValueT)) / 2;
 
     // Partition into blocks based on SLM size. We want this to fit within L1 cache, and SLM is a related concept and
@@ -1179,31 +1178,33 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     const std::size_t __partition_size =
         __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
 
-    _BoundsProviderPhase1 __bounds_provider_phase1{__diagonal_spacing, __partition_size, __partition_threshold};
-    _BoundsProviderPhase2 __bounds_provider_phase2{__diagonal_spacing, __partition_size, __partition_threshold};
-    _GenReduceInputPhase1 __gen_reduce_input_phase1{_SetOperation{}, __diagonal_spacing, __bounds_provider_phase1, __comp, __proj1, __proj2};
-    _GenReduceInputPhase2 __gen_reduce_input_phase2{_SetOperation{}, __diagonal_spacing, __bounds_provider_phase2, __comp, __proj1, __proj2};
+    _GenReduceInput __gen_reduce_input{_SetOperation{},
+                                       __diagonal_spacing,
+                                       _BoundsProvider{__diagonal_spacing, __partition_size, __partition_threshold},
+                                       __comp,
+                                       __proj1,
+                                       __proj2};
 
-    constexpr std::uint32_t __bytes_per_work_item_iter = __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
+    constexpr std::uint32_t __bytes_per_work_item_iter =
+        __average_input_ele_size * (__diagonal_spacing + 1) + sizeof(_TemporaryType);
 
-    auto __split_diags_view = oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::write>(__split_diags_buf.get_buffer());
-
-    auto __in_in_tmp_rng_phase1 = _SetOpSourceDataPackUnpack::__pack</*_Bounded*/ false>(__rng1, __rng2, __split_diags_view);
-    auto __in_in_tmp_rng_phase2 = _SetOpSourceDataPackUnpack::__pack<_Bounded          >(__rng1, __rng2, __split_diags_view);
-
+    auto __in_in_tmp_rng = oneapi::dpl::__ranges::make_zip_view(
+        std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
+        oneapi::dpl::__ranges::all_view<_TemporaryType, __par_backend_hetero::access_mode::read_write>(
+            __temp_diags.get_buffer()));
     sycl::event __partition_event;
 
     if (__total_size >= __partition_threshold)
-        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, std::move(__in_in_tmp_rng_phase1), __num_diagonals, __gen_reduce_input_phase1);
-
-    _WriteOp __write_op{};
+    {
+        __partition_event = __parallel_set_balanced_path_partition<_CustomName>(__q, __in_in_tmp_rng, __num_diagonals,
+                                                                                __gen_reduce_input);
+    }
 
     // KSATODO we pass real temporary container in _GenScanInput 
     auto __res = __parallel_transform_reduce_then_scan<_Bounded, __bytes_per_work_item_iter, _CustomName>(
-        __q, __num_diagonals, std::move(__in_in_tmp_rng_phase2), std::forward<_Range3>(__result),
-        __gen_reduce_input_phase2, _ReduceOp{},
-        _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2}, _ScanInputTransform{}, __write_op,
-        oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
+        __q, __num_diagonals, std::move(__in_in_tmp_rng), std::forward<_Range3>(__result), __gen_reduce_input,
+        _ReduceOp{}, _GenScanInput{_SetOperation{}, __diagonal_spacing, __comp, __proj1, __proj2},
+        _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 
     auto __output_res = __wait_and_get_result(__res);
@@ -1211,7 +1212,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     if constexpr (_Bounded)
     {
         std::tie(__n1, __n2) =
-            __stop_pos_payloads_tools<_Bounded>::template __get_finish_pos<decltype(__in_in_tmp_rng_phase2)>(
+            __stop_pos_payloads_tools<_Bounded>::template __get_finish_pos<decltype(__in_in_tmp_rng)>(
                 std::get<2>(__res), __n1, __n2);
     }
 
