@@ -3,7 +3,7 @@
 ## Introduction
 
 This RFC proposes adding a container to oneDPL that provides
-a `std::vector`-like interface for managing device memory. 
+a `std::vector`-like interface for managing device memory.
 
 ### Motivation
 

@@ -51,8 +51,8 @@ projects remain heavy users.
   Uses `device_vector` in **24 files** for GPU kernel implementations (mode,
   graph reindex, CTC align, kron). Pattern: temporary containers within GPU
   kernels combined with `thrust::sort_by_key`, `thrust::reduce_by_key`. Use
-  raw pointers or begin() directly into thrust. Some (usage of element access
-  after a thrust API)[https://github.com/PaddlePaddle/Paddle/blob/d6e489cc39412ac278bbc1dda352742dddb7e57d/paddle/phi/kernels/funcs/mode.h#L189]
+  raw pointers or begin() directly into thrust. Some [usage of element access
+  after a thrust API](https://github.com/PaddlePaddle/Paddle/blob/d6e489cc39412ac278bbc1dda352742dddb7e57d/paddle/phi/kernels/funcs/mode.h#L189).
 - [cuDF](https://github.com/rapidsai/cudf) (RAPIDS, 9.6k stars) —
   **Explicitly discourages `thrust::device_vector`** in developer guide.
   Recommends `rmm::device_uvector` for uninitialized allocation and

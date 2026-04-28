@@ -123,7 +123,7 @@ public:
     //construction from initializer_list
     device_vector(std::initializer_list<T> init,
                   sycl::context ctx, sycl::device dev);
-    construction from std::vector
+    // construction from std::vector
     explicit device_vector(const std::vector<T>& src,
                            sycl::context ctx, sycl::device dev);
 
