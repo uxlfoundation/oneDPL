@@ -1,4 +1,5 @@
 .. SPDX-FileCopyrightText: 2019-2022 Intel Corporation
+.. SPDX-FileCopyrightText: Contributors to the oneAPI Specification project.
 ..
 .. SPDX-License-Identifier: CC-BY-4.0
 

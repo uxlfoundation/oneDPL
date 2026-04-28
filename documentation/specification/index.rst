@@ -3,15 +3,13 @@
 ..
 .. SPDX-License-Identifier: CC-BY-4.0
 
-.. _oneDPL-section:
+====================
+oneDPL Specification
+====================
 
-======
-oneDPL
-======
+This is the specification of |onedpl_long|, version 1.5 revision 1.
 
-This is the specification of |dpl_full_name|, part of the oneAPI Specification version |dpl_version|.
-
-The |dpl_full_name| (oneDPL) provides the functionality
+The |onedpl_long| (oneDPL) provides the functionality
 specified in the `C++ standard`_, with extensions to support data parallelism
 and offloading to devices, and with extensions to simplify its usage for 
 implementing data parallel algorithms.
