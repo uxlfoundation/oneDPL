@@ -1252,7 +1252,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
-    auto&& [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_Bounded, _CustomName>(
+    auto [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_Bounded, _CustomName>(
         __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1269,7 +1269,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 
-    auto __f = __create_future(std::move(__event), std::forward<decltype(__payload)>(__payload));
+    auto __f = __create_future(std::move(__event), std::move(__payload));
     auto __output_res = __f.get();
 
     // KSATODO this return looks incorrect
