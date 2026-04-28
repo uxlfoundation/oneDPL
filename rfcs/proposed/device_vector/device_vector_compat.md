@@ -17,44 +17,18 @@ the functionality that is actually used in practice, adapted to fit within SYCL.
 
 It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory, and reference type, `device_reference`, as a reference proxy type to enable host-side usage with implicit memory transfers. These types hold a pointer to a `sycl::context` to facilitate creation of a queue for memcpy.
 
+## Differences from Thrust
+
+1. **Context + device (or queue) always required** — no implicit default device.
+2. **No `push_back`, `insert`, `erase`** — rarely used, unnecessary complexity.
+3. **No `host_vector` type** — use `std::vector<T>` directly.
+4. **No system tag dispatch** — execution policies determine where algorithms run.
+
 ## Namespace
-
-```cpp
-namespace oneapi::dpl::experimental::compat {
-
-template <typename T, typename Alloc = device_allocator<T>>
-class device_vector;
-
-template <typename T>
-class device_pointer;
-
-template <typename T>
-class device_reference;
-
-
-} // namespace oneapi::dpl::experimental::compat
-```
-
-## Supported Thrust Patterns
-
-| Thrust Pattern | Supported | Notes |
-|---|---|---|
-| `device_vector<T> d(N)` | Yes | Context + device (or queue) required |
-| `device_vector<T> d(N, val)` | Yes | |
-| `device_vector<T> d = host_vec` | Yes | |
-| `device_vector<T> d(ptr, ptr+N)` | Yes | Host pointer range |
-| `device_vector<T> d2(d1.begin(), d1.end())` | Yes | `device_pointer` distinguishes D2D copy |
-| `d.begin()` / `d.end()` in algorithms | Yes | Returns `device_pointer<T>` |
-| `d.data().get()` / `raw_pointer_cast` | Yes | `device_pointer::get()` returns raw `T*` |
-| `d[i]` (host read) | Yes | `device_reference` proxy |
-| `d[i] = val` (host write) | Yes | |
-| `d[i] += val` (compound assign) | Yes | Synchronous read-modify-write |
-| `d.resize(N)` | Yes | |
-| `d.size()` / `d.empty()` | Yes |  |
-| `d.clear()` | Yes |  |
-| `h_vec = d` / `d = h_vec` | Yes | Bulk transfer |
-| Custom allocator | Yes | `Alloc` forwarded to `device_array<T, Alloc>` |
-| `push_back` / `insert` / `erase` | **No** | Rarely used in practice |
+We are using `oneapi::dpl::experimental::compat` for these compatibility classes. The intention would be to promote
+these to `oneapi::dpl::compat` as they exit experimental. We could add `ext` as well, but this further elongates the
+already long name. Other elements which graduate from SYCLomatic, but don't belong in oneDPL proper may end up living
+in this `compat` namespace in the future.
 
 ## API
 
@@ -216,13 +190,6 @@ public:
 
 } // namespace oneapi::dpl::experimental::compat
 ```
-
-## Key Differences from Thrust
-
-1. **Context + device (or queue) always required** — no implicit default device.
-2. **No `push_back`, `insert`, `erase`** — rarely used, high complexity.
-3. **No `host_vector` type** — use `std::vector<T>` directly.
-4. **No tag dispatch** — execution policies determine where algorithms run.
 
 ## Usage Example
 
