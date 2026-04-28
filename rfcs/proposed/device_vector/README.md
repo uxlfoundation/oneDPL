@@ -45,7 +45,7 @@ a `std::vector`-like interface for managing device memory.
 ### How They Differ
 
 | Aspect | Proposed (oneDPL) | Thrust | sycl-thrust | SYCLomatic |
-|---|---|---|---|---|---|
+|---|---|---|---|---|
 | **Default Allocator** | `device_allocator<T>` wrapping `sycl::malloc_device`; custom `DeviceAllocator` concept | `thrust::device_allocator<T>` (CUDA `cudaMalloc`) | `device_allocator<T>` (`sycl::malloc_device`); supports alignment template parameter | USM: `sycl::usm_allocator<T, shared>` / Buffer: `__buffer_allocator<T>` |
 | **Memory Model** | **Device memory** via `sycl::malloc_device`; host access triggers explicit transfers | **Device memory** via `cudaMalloc`; host access triggers explicit transfers | **Device memory** via `sycl::malloc_device`; explicit transfers | **Shared memory** via USM shared or SYCL buffer/accessor; runtime manages placement |
 | **Host Element Access** | `device_array`: explicit `read()`/`write()`; compat `device_vector`: `device_reference` proxy | Via `device_reference` proxy (explicit device-to-host copy) | Via `device_reference` proxy (`__SYCL_DEVICE_ONLY__` bifurcation) | Via `device_reference` proxy (runtime-managed migration) |
