@@ -316,7 +316,7 @@ q.parallel_for(sycl::range<1>(s2.size()), [=](sycl::id<1> i) {
 
 ## Open Questions
 
-- **Should async overloads be in the initial proposal or deferred?** The
-  `depends_on` + return-event pattern adds API surface. Could ship the
-  synchronous forms first and add async later, since users who need async
-  control can use `sycl::memcpy` directly on `data()`.
+- **Should async overloads be in the initial proposal or deferred?** 
+    This provides more control over synchronization than merely an in-order queue,
+    but it is unclear whether users who are wanting this would just want to work
+    with USM memory and memcpy directly.
