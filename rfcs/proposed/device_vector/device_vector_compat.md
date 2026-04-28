@@ -1,6 +1,6 @@
 # `device_vector<T>` Compatibility Layer
 
-A Thrust-compatible wrapper layered on `device_array<T, Alloc>`, living in a
+A Thrust-compatible device-memory vector, living in a
 compatibility namespace. Adds `device_pointer`, `device_reference`, and
 implicit host-access semantics on top of `device_array`'s explicit API.
 
@@ -8,29 +8,15 @@ See the [usage study](usage_pattern_study.md) for evidence on which Thrust APIs
 are actually used, and [device_array](device_array.md) for the underlying
 container.
 
-We should not try to support more than `thrust::device_vector` to fix its'
-deficiencies, but rather rely upon `device_array`. We also should do our best to
-keep the semantics and API for this compatibility layer the same as
-`thrust::device_vector` as the goal here is a drop-in replacement for the
-functionality that people actually use.
+The target for this compatibility layer is to be as close to a 
+drop-in replacement as we can have for `thrust::device_vector` for the
+functionality that people actually use, and in a way that fits within SYCL.
 
 ## Relationship to `device_array`
 
-`compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>`. Like
-`device_array`, it stores `sycl::context` + `sycl::device`, not a queue. It adds:
+`compat::device_vector<T, Alloc>` contains a `device_array<T, Alloc>`, adding features like and std::vector-like functions.
 
-- **`device_pointer<T>`** — wraps the raw `T*` from `device_array::begin()/end()`
-  to provide a typed pointer that distinguishes device memory from host memory.
-  Stores a pointer to the owning context (8 bytes overhead), which together with
-  the USM pointer is sufficient to look up the device and create a temporary
-  queue for host-side transfers.
-- **`device_reference<T>`** — proxy returned by `operator[]` and
-  `device_pointer` dereference, enabling Thrust-style `d[i] += 1` on the host
-- **Host/device pointer dispatch** — `device_pointer` in range constructors
-  enables automatic detection of device-to-device vs host-to-device copies
-
-The raw `T*` iterators from the underlying `device_array` are wrapped into
-`device_pointer<T>` on their way out of `device_vector`.
+It uses an iterator/pointer type, `device_pointer`, as a wrapper for USM memory, and reference type, `device_reference`, as a reference proxy type to enable host-side usage with implicit memory transfers. These types hold a pointer to a `sycl::context` to facilitate creation of a queue for memcpy.
 
 ## Namespace
 
@@ -46,12 +32,6 @@ class device_pointer;
 template <typename T>
 class device_reference;
 
-// Pointer cast utilities
-template <typename T>
-T* raw_pointer_cast(device_pointer<T> ptr);
-
-template <typename T>
-device_pointer<T> device_pointer_cast(T* ptr);
 
 } // namespace oneapi::dpl::experimental::compat
 ```
@@ -70,9 +50,9 @@ device_pointer<T> device_pointer_cast(T* ptr);
 | `d[i]` (host read) | Yes | `device_reference` proxy |
 | `d[i] = val` (host write) | Yes | |
 | `d[i] += val` (compound assign) | Yes | Synchronous read-modify-write |
-| `d.resize(N)` | Yes | Forwards to `device_array::resize` |
-| `d.size()` / `d.empty()` | Yes | Forwards directly |
-| `d.clear()` | Yes | Forwards directly |
+| `d.resize(N)` | Yes | |
+| `d.size()` / `d.empty()` | Yes |  |
+| `d.clear()` | Yes |  |
 | `h_vec = d` / `d = h_vec` | Yes | Bulk transfer |
 | Custom allocator | Yes | `Alloc` forwarded to `device_array<T, Alloc>` |
 | `push_back` / `insert` / `erase` | **No** | Rarely used in practice |
@@ -85,11 +65,7 @@ namespace oneapi::dpl::experimental::compat {
 // =========================================================================
 // device_pointer<T>
 // =========================================================================
-// Wraps a raw T* from device_array. On the device, dereferences directly
-// as a USM pointer. On the host, dereference produces a device_reference
-// that uses the stored context pointer to look up the device (via
-// sycl::get_pointer_device) and create a temporary queue for transfers.
-// This adds 8 bytes over a raw pointer (the context pointer).
+// Wraps a raw T* from device_array. Dereference provides device_reference.
 
 template <typename T>
 class device_pointer {
@@ -111,24 +87,8 @@ public:
     reference operator*() const;
     reference operator[](difference_type n) const;
 
-    // Full random access iterator arithmetic + comparison
-    device_pointer& operator++();
-    device_pointer  operator++(int);
-    device_pointer& operator--();
-    device_pointer  operator--(int);
-    device_pointer& operator+=(difference_type n);
-    device_pointer& operator-=(difference_type n);
-    friend device_pointer operator+(device_pointer p, difference_type n);
-    friend device_pointer operator+(difference_type n, device_pointer p);
-    friend device_pointer operator-(device_pointer p, difference_type n);
-    friend difference_type operator-(device_pointer a, device_pointer b);
+    /* Full random access iterator arithmetic + comparison*/
 
-    friend bool operator==(device_pointer a, device_pointer b);
-    friend bool operator!=(device_pointer a, device_pointer b);
-    friend bool operator<(device_pointer a, device_pointer b);
-    friend bool operator>(device_pointer a, device_pointer b);
-    friend bool operator<=(device_pointer a, device_pointer b);
-    friend bool operator>=(device_pointer a, device_pointer b);
 };
 
 // =========================================================================
@@ -144,15 +104,7 @@ public:
 
     // Compound assignment (each is a synchronous read-modify-write)
     const device_reference& operator+=(const T&) const;
-    const device_reference& operator-=(const T&) const;
-    const device_reference& operator*=(const T&) const;
-    const device_reference& operator/=(const T&) const;
-    const device_reference& operator%=(const T&) const;
-    const device_reference& operator&=(const T&) const;
-    const device_reference& operator|=(const T&) const;
-    const device_reference& operator^=(const T&) const;
-    const device_reference& operator<<=(const T&) const;
-    const device_reference& operator>>=(const T&) const;
+    /* all other compound assignments... */
 
     const device_reference& operator++() const;
     T operator++(int) const;
@@ -184,35 +136,26 @@ public:
     using iterator        = device_pointer<T>;
     using const_iterator  = device_pointer<const T>;
 
-    // --- Construction from queue (extracts context + device) ---
-    explicit device_vector(sycl::queue q);
-    device_vector(size_type count, sycl::queue q);
-    device_vector(size_type count, const T& value, sycl::queue q);
-    device_vector(size_type count, no_init_t, sycl::queue q);
-    template <typename InputIt>
-    device_vector(InputIt first, InputIt last, sycl::queue q);
-    device_vector(std::initializer_list<T> init, sycl::queue q);
-    explicit device_vector(const std::vector<T>& src, sycl::queue q);
 
-    // --- Construction from context + device ---
-    explicit device_vector(sycl::context ctx, sycl::device dev);
+    // construction from size
     device_vector(size_type count, sycl::context ctx, sycl::device dev);
+    // construction from size and value
     device_vector(size_type count, const T& value,
                   sycl::context ctx, sycl::device dev);
-    device_vector(size_type count, no_init_t,
-                  sycl::context ctx, sycl::device dev);
+
+    //construction from iterators
     template <typename InputIt>
     device_vector(InputIt first, InputIt last,
                   sycl::context ctx, sycl::device dev);
+    //construction from initializer_list
     device_vector(std::initializer_list<T> init,
                   sycl::context ctx, sycl::device dev);
+    construction from std::vector
     explicit device_vector(const std::vector<T>& src,
                            sycl::context ctx, sycl::device dev);
 
-    // Allocator-aware construction
-    device_vector(size_type count, sycl::queue q, const Alloc& alloc);
-    device_vector(size_type count, sycl::context ctx, sycl::device dev,
-                  const Alloc& alloc);
+    /* Copy of all above constructors for `sycl::queue` (extracts context + device), using no_init_t to avoid initialization, and with explicit allocator */
+
 
     // Copy / move
     device_vector(const device_vector&);
@@ -282,58 +225,6 @@ public:
 3. **No `host_vector` type** — use `std::vector<T>` directly.
 4. **No tag dispatch** — execution policies determine where algorithms run.
 
-## Design Notes
-
-**Layering on `device_array`:**
-`device_vector` delegates all memory management, capacity logic, and bulk
-transfers to its contained `device_array`. The compat layer's job is limited
-to:
-- Wrapping `T*` → `device_pointer<T>` for begin/end/data
-- Providing `operator[]` → `device_reference<T>` proxy
-- Handling host vs device pointer dispatch in range constructors
-
-This keeps the RAII and allocation logic in one place (`device_array`) and the
-Thrust compatibility surface as a thin adapter.
-
-**`device_pointer` context association for host dereference:**
-`device_pointer` stores a non-owning pointer to the `sycl::context` from
-the owning `device_vector` (via its `device_array`). On host-side dereference,
-`device_reference` uses this context pointer along with the USM pointer to:
-1. Look up the device via `sycl::get_pointer_device(ptr, ctx)`
-2. Create a temporary queue from the context + device
-3. Perform the memcpy transfer
-
-This adds 8 bytes to `device_pointer` over a raw pointer. No queue is stored
-anywhere — queues are created on demand for host-side transfers. This matches
-the sycl-thrust approach (which also stores context, not queue) and aligns
-with `device_array`'s design of not retaining a queue.
-
-**`resize()` semantics differ from `device_array`:**
-`device_array::resize(n)` leaves new elements uninitialized (no kernel launch).
-`device_vector::resize(n)` default-initializes new elements (fills with `T{}`),
-matching Thrust's behavior. This is an intentional semantic divergence — the
-compat layer prioritizes Thrust compatibility over `device_array`'s
-uninitialized-by-default philosophy. Users who want uninitialized resize can
-use `resize(n, no_init)` or access `base().resize(n)` directly.
-
-**Allocator forwarding:**
-The `Alloc` template parameter is forwarded directly to `device_array<T, Alloc>`.
-`device_vector` does not interact with the allocator itself — all allocation
-goes through `device_array`. The same `DeviceAllocator` requirements apply
-(see [device_array allocator section](device_array.md#allocator)).
-
-**`base()` for incremental migration:**
-Exposes the underlying `device_array` so users can mix proxy and explicit
-access during migration:
-
-```cpp
-compat::device_vector<float> d(host_data, q);
-// Thrust-style
-float val = d[0];
-// Explicit via device_array
-float val2 = d.base().read(0, q);
-```
-
 ## Usage Example
 
 ```cpp
@@ -382,10 +273,3 @@ float v = arr.read(5, q);           // explicit, no proxy
 arr.write(5, v * 2.0f, q);          // explicit
 std::vector<float> out = arr.to_vector(q);
 ```
-
-## Open Questions
-
-- **No-arg constructors for `compat::device_vector`?** Thrust allows
-  `device_vector<T> d(N)` without specifying a device. This proposal requires
-  a queue or context+device. Adding no-arg constructors would ease migration
-  but introduces implicit default device selection.
