@@ -856,7 +856,7 @@ __get_accessor(_ModeTagT, __device_storage<_T>& __st, sycl::handler& __cgh, cons
     return __st.template __get_accessor<__access_mode_resolver_v<_ModeTagT>>(__cgh, __prop_list);
 }
 
-template <typename _T>
+template <typename _T, bool _CanUseUSMHostMemory = true>
 struct __result_storage : public __device_storage<_T>
 {
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __result_storage.");
@@ -869,17 +869,20 @@ struct __result_storage : public __device_storage<_T>
     __result_storage(const sycl::queue& __q, std::size_t __n) : __result_sz(__n)
     {
         assert(__result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-        if (__ptr)
+
+        if constexpr (_CanUseUSMHostMemory)
         {
-            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            __kind = sycl::usm::alloc::host;
+            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+            if (__ptr)
+            {
+                this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+                __kind = sycl::usm::alloc::host;
+                return;
+            }
         }
-        else
-        {
-            this->__initialize(__q, __n);
-            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        }
+
+        this->__initialize(__q, __n);
+        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
