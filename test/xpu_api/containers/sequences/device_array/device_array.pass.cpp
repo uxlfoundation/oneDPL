@@ -28,9 +28,31 @@
 #    endif
 #endif
 
+#include <deque>
+#include <list>
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
 namespace dpl_experimental = oneapi::dpl::experimental;
+
+struct point_t
+{
+    float x;
+    float y;
+    float z;
+    int id;
+
+    bool
+    operator==(const point_t& o) const
+    {
+        return x == o.x && y == o.y && z == o.z && id == o.id;
+    }
+    bool
+    operator!=(const point_t& o) const
+    {
+        return !(*this == o);
+    }
+};
 
 class KernelDataPointer;
 class KernelSpanInKernel;
@@ -58,6 +80,8 @@ class KernelStdSpanForEach;
 class KernelSpanConstInKernel;
 class KernelStdSpanInKernel;
 class KernelStdSpanConstInKernel;
+class KernelStructScale;
+class KernelStructTransform;
 
 // =====================================================================
 // Construction tests
@@ -896,6 +920,184 @@ test_large_allocation()
     return true;
 }
 
+// =====================================================================
+// Struct type tests
+// =====================================================================
+
+bool
+test_struct_construct_and_transfer()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}, {4.0f, 5.0f, 6.0f, 2}, {7.0f, 8.0f, 9.0f, 3}};
+    dpl_experimental::device_array<point_t> d(src, q);
+    std::vector<point_t> result = d.to_vector(q);
+    EXPECT_TRUE(result == src, "struct construction + to_vector: data mismatch");
+    return true;
+}
+
+bool
+test_struct_read_write()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 10}, {4.0f, 5.0f, 6.0f, 20}};
+    dpl_experimental::device_array<point_t> d(src, q);
+
+    point_t p = d.read(0, q);
+    EXPECT_TRUE(p == src[0], "struct read: wrong value");
+
+    point_t new_p = {99.0f, 88.0f, 77.0f, 42};
+    d.write(1, new_p, q);
+    point_t p2 = d.read(1, q);
+    EXPECT_TRUE(p2 == new_p, "struct write then read: wrong value");
+    return true;
+}
+
+bool
+test_struct_copy_move()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}, {4.0f, 5.0f, 6.0f, 2}};
+    dpl_experimental::device_array<point_t> d1(src, q);
+
+    dpl_experimental::device_array<point_t> d2(d1);
+    std::vector<point_t> r2 = d2.to_vector(q);
+    EXPECT_TRUE(r2 == src, "struct copy: data mismatch");
+    EXPECT_TRUE(d1.data() != d2.data(), "struct copy: should be separate allocations");
+
+    dpl_experimental::device_array<point_t> d3(std::move(d1));
+    std::vector<point_t> r3 = d3.to_vector(q);
+    EXPECT_TRUE(r3 == src, "struct move: data mismatch");
+    EXPECT_TRUE(d1.empty(), "struct move: source should be empty");
+    return true;
+}
+
+bool
+test_struct_in_kernel()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}, {4.0f, 5.0f, 6.0f, 2}, {7.0f, 8.0f, 9.0f, 3}};
+    dpl_experimental::device_array<point_t> d(src, q);
+
+    point_t* ptr = d.data();
+    q.parallel_for<KernelStructScale>(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
+         ptr[i].x *= 2.0f;
+         ptr[i].y *= 2.0f;
+         ptr[i].z *= 2.0f;
+     }).wait();
+
+    std::vector<point_t> result = d.to_vector(q);
+    for (std::size_t i = 0; i < src.size(); ++i)
+    {
+        EXPECT_TRUE(result[i].x == src[i].x * 2.0f, "struct kernel: x wrong");
+        EXPECT_TRUE(result[i].y == src[i].y * 2.0f, "struct kernel: y wrong");
+        EXPECT_TRUE(result[i].z == src[i].z * 2.0f, "struct kernel: z wrong");
+        EXPECT_TRUE(result[i].id == src[i].id, "struct kernel: id should be unchanged");
+    }
+    return true;
+}
+
+bool
+test_struct_resize()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    point_t fill_val = {0.0f, 0.0f, 0.0f, -1};
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}};
+    dpl_experimental::device_array<point_t> d(src, q);
+
+    d.resize(3, fill_val, q);
+    EXPECT_TRUE(d.size() == 3, "struct resize: wrong size");
+
+    std::vector<point_t> result = d.to_vector(q);
+    EXPECT_TRUE(result[0] == src[0], "struct resize: original element changed");
+    EXPECT_TRUE(result[1] == fill_val, "struct resize: new element not filled");
+    EXPECT_TRUE(result[2] == fill_val, "struct resize: new element not filled");
+    return true;
+}
+
+// =====================================================================
+// Reserve data integrity test
+// =====================================================================
+
+bool
+test_reserve_preserves_data()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<int> src = {10, 20, 30, 40, 50};
+    dpl_experimental::device_array<int> d(src, q);
+
+    d.reserve(1000);
+    EXPECT_TRUE(d.size() == 5, "reserve preserves data: wrong size");
+    EXPECT_TRUE(d.capacity() >= 1000, "reserve preserves data: capacity too small");
+
+    std::vector<int> result = d.to_vector(q);
+    EXPECT_TRUE(result == src, "reserve preserves data: data changed after reserve");
+
+    d.reserve(500);
+    result = d.to_vector(q);
+    EXPECT_TRUE(result == src, "reserve preserves data: data changed after smaller reserve");
+    return true;
+}
+
+bool
+test_reserve_with_queue()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<int> src = {1, 2, 3};
+    dpl_experimental::device_array<int> d(src, q);
+
+    d.reserve(500, q);
+    EXPECT_TRUE(d.size() == 3, "reserve(q): size should not change");
+    EXPECT_TRUE(d.capacity() >= 500, "reserve(q): capacity too small");
+
+    std::vector<int> result = d.to_vector(q);
+    EXPECT_TRUE(result == src, "reserve(q): data changed");
+    return true;
+}
+
+// =====================================================================
+// General iterator assign tests
+// =====================================================================
+
+bool
+test_assign_from_deque_iterators()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    dpl_experimental::device_array<int> d(3, 0, q);
+    std::deque<int> src = {100, 200, 300, 400};
+    d.assign(src.begin(), src.end(), q);
+    std::vector<int> result = d.to_vector(q);
+    std::vector<int> expected(src.begin(), src.end());
+    EXPECT_TRUE(result == expected, "assign from deque iterators: data mismatch");
+    EXPECT_TRUE(d.size() == 4, "assign from deque iterators: wrong size");
+    return true;
+}
+
+bool
+test_assign_from_list_iterators()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    dpl_experimental::device_array<int> d(2, 0, q);
+    std::list<int> src = {5, 10, 15};
+    d.assign(src.begin(), src.end(), q);
+    std::vector<int> result = d.to_vector(q);
+    std::vector<int> expected(src.begin(), src.end());
+    EXPECT_TRUE(result == expected, "assign from list iterators: data mismatch");
+    return true;
+}
+
+bool
+test_assign_from_deque_no_queue()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    dpl_experimental::device_array<int> d(3, 0, q);
+    std::deque<int> src = {7, 8, 9};
+    d.assign(src.begin(), src.end());
+    std::vector<int> result = d.to_vector(q);
+    std::vector<int> expected(src.begin(), src.end());
+    EXPECT_TRUE(result == expected, "assign from deque (no queue): data mismatch");
+    return true;
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -986,6 +1188,22 @@ main()
     // Edge cases
     test_zero_size();
     test_large_allocation();
+
+    // Struct types
+    test_struct_construct_and_transfer();
+    test_struct_read_write();
+    test_struct_copy_move();
+    test_struct_in_kernel();
+    test_struct_resize();
+
+    // Reserve data integrity
+    test_reserve_preserves_data();
+    test_reserve_with_queue();
+
+    // General iterator assign
+    test_assign_from_deque_iterators();
+    test_assign_from_list_iterators();
+    test_assign_from_deque_no_queue();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done();

@@ -458,6 +458,24 @@ class device_array
         __memcpy_to_device(__data, __first, __size, __q);
     }
 
+    template <typename InputIt,
+              typename = std::enable_if_t<!std::is_pointer_v<std::decay_t<InputIt>> && !std::is_integral_v<InputIt>>>
+    void
+    assign(InputIt __first, InputIt __last)
+    {
+        sycl::queue __q = __make_queue();
+        assign(__first, __last, __q);
+    }
+
+    template <typename InputIt,
+              typename = std::enable_if_t<!std::is_pointer_v<std::decay_t<InputIt>> && !std::is_integral_v<InputIt>>>
+    void
+    assign(InputIt __first, InputIt __last, sycl::queue __q)
+    {
+        std::vector<T> __tmp(__first, __last);
+        assign(__tmp.data(), __tmp.data() + __tmp.size(), __q);
+    }
+
     void
     assign(const std::vector<T>& __src)
     {
@@ -645,6 +663,14 @@ class device_array
         if (__new_cap <= __capacity)
             return;
         sycl::queue __q = __make_queue();
+        reserve(__new_cap, __q);
+    }
+
+    void
+    reserve(size_type __new_cap, sycl::queue __q)
+    {
+        if (__new_cap <= __capacity)
+            return;
         T* __new_data = __allocate(__new_cap);
         if (__size > 0)
             __q.memcpy(__new_data, __data, __size * sizeof(T)).wait();

@@ -19,15 +19,38 @@
 #include <vector>
 #include <numeric>
 
+#include <deque>
+#include <list>
+
 #if TEST_DPCPP_BACKEND_PRESENT
 
 namespace compat = oneapi::dpl::experimental::compat;
 namespace dpl_experimental = oneapi::dpl::experimental;
 
+struct point_t
+{
+    float x;
+    float y;
+    float z;
+    int id;
+
+    bool
+    operator==(const point_t& o) const
+    {
+        return x == o.x && y == o.y && z == o.z && id == o.id;
+    }
+    bool
+    operator!=(const point_t& o) const
+    {
+        return !(*this == o);
+    }
+};
+
 class KernelRawPointer;
 class KernelVecSort;
 class KernelVecTransform;
 class KernelVecReduce;
+class KernelStructRawPtr;
 
 // =====================================================================
 // device_pointer tests
@@ -519,6 +542,147 @@ test_context_device()
     return true;
 }
 
+// =====================================================================
+// Struct type tests
+// =====================================================================
+
+bool
+test_struct_construct_and_transfer()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}, {4.0f, 5.0f, 6.0f, 2}, {7.0f, 8.0f, 9.0f, 3}};
+    compat::device_vector<point_t> d(src, q);
+    std::vector<point_t> result = static_cast<std::vector<point_t>>(d);
+    EXPECT_TRUE(result == src, "struct construction + conversion: data mismatch");
+    return true;
+}
+
+bool
+test_struct_reference_access()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 10}, {4.0f, 5.0f, 6.0f, 20}};
+    compat::device_vector<point_t> d(src, q);
+
+    point_t p = d[0];
+    EXPECT_TRUE(p == src[0], "struct reference read: wrong value");
+
+    point_t new_p = {99.0f, 88.0f, 77.0f, 42};
+    d[1] = new_p;
+    point_t p2 = d[1];
+    EXPECT_TRUE(p2 == new_p, "struct reference write: wrong value");
+    return true;
+}
+
+bool
+test_struct_raw_pointer_in_kernel()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<point_t> src = {{1.0f, 2.0f, 3.0f, 1}, {4.0f, 5.0f, 6.0f, 2}};
+    compat::device_vector<point_t> d(src, q);
+
+    point_t* ptr = d.data().get();
+    q.parallel_for<KernelStructRawPtr>(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
+         ptr[i].x *= 10.0f;
+         ptr[i].y *= 10.0f;
+         ptr[i].z *= 10.0f;
+     }).wait();
+
+    std::vector<point_t> result = static_cast<std::vector<point_t>>(d);
+    for (std::size_t i = 0; i < src.size(); ++i)
+    {
+        EXPECT_TRUE(result[i].x == src[i].x * 10.0f, "struct kernel: x wrong");
+        EXPECT_TRUE(result[i].y == src[i].y * 10.0f, "struct kernel: y wrong");
+        EXPECT_TRUE(result[i].z == src[i].z * 10.0f, "struct kernel: z wrong");
+        EXPECT_TRUE(result[i].id == src[i].id, "struct kernel: id unchanged");
+    }
+    return true;
+}
+
+// =====================================================================
+// Reserve data integrity test
+// =====================================================================
+
+bool
+test_reserve_preserves_data()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    compat::device_vector<int> d({10, 20, 30, 40, 50}, q);
+
+    d.reserve(1000);
+    EXPECT_TRUE(d.size() == 5, "reserve preserves data: wrong size");
+    EXPECT_TRUE(d.capacity() >= 1000, "reserve preserves data: capacity too small");
+
+    std::vector<int> expected = {10, 20, 30, 40, 50};
+    std::vector<int> result = static_cast<std::vector<int>>(d);
+    EXPECT_TRUE(result == expected, "reserve preserves data: data changed");
+    return true;
+}
+
+bool
+test_reserve_with_queue()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    compat::device_vector<int> d({1, 2, 3}, q);
+
+    d.reserve(500, q);
+    EXPECT_TRUE(d.size() == 3, "reserve(q): size should not change");
+    EXPECT_TRUE(d.capacity() >= 500, "reserve(q): capacity too small");
+
+    std::vector<int> expected = {1, 2, 3};
+    std::vector<int> result = static_cast<std::vector<int>>(d);
+    EXPECT_TRUE(result == expected, "reserve(q): data changed");
+    return true;
+}
+
+// =====================================================================
+// D2D bulk copy construction test
+// =====================================================================
+
+bool
+test_d2d_construction_bulk_copy()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::vector<int> src(200);
+    std::iota(src.begin(), src.end(), 0);
+    compat::device_vector<int> d1(src, q);
+    compat::device_vector<int> d2(d1.begin(), d1.end(), q);
+    std::vector<int> r1 = static_cast<std::vector<int>>(d1);
+    std::vector<int> r2 = static_cast<std::vector<int>>(d2);
+    EXPECT_TRUE(r1 == r2, "D2D bulk copy: data mismatch");
+    EXPECT_TRUE(d1.data().get() != d2.data().get(), "D2D bulk copy: should be separate allocations");
+    EXPECT_TRUE(r2 == src, "D2D bulk copy: values wrong");
+    return true;
+}
+
+// =====================================================================
+// General iterator construction tests
+// =====================================================================
+
+bool
+test_construct_from_deque_iterators()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::deque<int> src = {10, 20, 30, 40};
+    compat::device_vector<int> d(src.begin(), src.end(), q);
+    std::vector<int> result = static_cast<std::vector<int>>(d);
+    std::vector<int> expected(src.begin(), src.end());
+    EXPECT_TRUE(result == expected, "construct from deque: data mismatch");
+    return true;
+}
+
+bool
+test_construct_from_list_iterators()
+{
+    sycl::queue q = TestUtils::get_test_queue();
+    std::list<int> src = {5, 10, 15, 20};
+    compat::device_vector<int> d(src.begin(), src.end(), q);
+    std::vector<int> result = static_cast<std::vector<int>>(d);
+    std::vector<int> expected(src.begin(), src.end());
+    EXPECT_TRUE(result == expected, "construct from list: data mismatch");
+    return true;
+}
+
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 int
@@ -573,6 +737,22 @@ main()
 
     // Context / device
     test_context_device();
+
+    // Struct types
+    test_struct_construct_and_transfer();
+    test_struct_reference_access();
+    test_struct_raw_pointer_in_kernel();
+
+    // Reserve data integrity
+    test_reserve_preserves_data();
+    test_reserve_with_queue();
+
+    // D2D bulk copy
+    test_d2d_construction_bulk_copy();
+
+    // General iterator construction
+    test_construct_from_deque_iterators();
+    test_construct_from_list_iterators();
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
     return TestUtils::done();

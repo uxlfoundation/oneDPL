@@ -29,7 +29,20 @@ namespace compat
 {
 
 template <typename T>
+class device_pointer;
+
+template <typename T>
 class device_reference;
+
+template <typename>
+struct __is_device_pointer : std::false_type
+{
+};
+
+template <typename T>
+struct __is_device_pointer<device_pointer<T>> : std::true_type
+{
+};
 
 // =========================================================================
 // device_pointer<T>
@@ -379,9 +392,20 @@ class device_vector
 
     device_vector(size_type __count, no_init_t, sycl::queue __q) : __impl(__count, __q) {}
 
-    template <typename InputIt, typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
+    template <typename InputIt, typename = std::enable_if_t<!std::is_integral_v<InputIt> &&
+                                                            !__is_device_pointer<std::decay_t<InputIt>>::value>>
     device_vector(InputIt __first, InputIt __last, sycl::queue __q) : __impl(__first, __last, __q)
     {
+    }
+
+    template <typename U>
+    device_vector(device_pointer<U> __first, device_pointer<U> __last, sycl::queue __q)
+        : __impl(static_cast<size_type>(__last - __first), __q)
+    {
+        if (__first != __last)
+        {
+            __q.memcpy(__impl.data(), __first.get(), static_cast<size_type>(__last - __first) * sizeof(T)).wait();
+        }
     }
 
     device_vector(std::initializer_list<T> __init, sycl::queue __q) : __impl(__init, __q) {}
@@ -400,10 +424,22 @@ class device_vector
 
     device_vector(size_type __count, no_init_t, sycl::context __c, sycl::device __d) : __impl(__count, __c, __d) {}
 
-    template <typename InputIt, typename = std::enable_if_t<!std::is_integral_v<InputIt>>>
+    template <typename InputIt, typename = std::enable_if_t<!std::is_integral_v<InputIt> &&
+                                                            !__is_device_pointer<std::decay_t<InputIt>>::value>>
     device_vector(InputIt __first, InputIt __last, sycl::context __c, sycl::device __d)
         : __impl(__first, __last, __c, __d)
     {
+    }
+
+    template <typename U>
+    device_vector(device_pointer<U> __first, device_pointer<U> __last, sycl::context __c, sycl::device __d)
+        : __impl(static_cast<size_type>(__last - __first), __c, __d)
+    {
+        if (__first != __last)
+        {
+            sycl::queue __q{__c, __d};
+            __q.memcpy(__impl.data(), __first.get(), static_cast<size_type>(__last - __first) * sizeof(T)).wait();
+        }
     }
 
     device_vector(std::initializer_list<T> __init, sycl::context __c, sycl::device __d) : __impl(__init, __c, __d) {}
@@ -549,6 +585,11 @@ class device_vector
     reserve(size_type __new_cap)
     {
         __impl.reserve(__new_cap);
+    }
+    void
+    reserve(size_type __new_cap, sycl::queue __q)
+    {
+        __impl.reserve(__new_cap, __q);
     }
     void
     clear()
