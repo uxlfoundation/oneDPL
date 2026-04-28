@@ -302,10 +302,6 @@ std::transform(policy, d.begin(), d.end(), output.begin(),
 // --- Zero-initialized allocation (opt-in) ---
 dpl::device_array<float> zeroed(1024, 0.0f, q);
 
-// --- Range usage (C++20) ---
-// device_array itself works with range algorithms on the host side:
-oneapi::dpl::ranges::sort(policy, d);
-
 // For kernel capture or composition with range adaptors, use device_span:
 auto s = d.span();  // returns device_span<float>
 auto pipeline = s | std::views::take(100);
