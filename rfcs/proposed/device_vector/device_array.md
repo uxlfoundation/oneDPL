@@ -53,13 +53,26 @@ public:
     device_array(std::initializer_list<T> init, sycl::context ctx, sycl::device dev);
     device_array(const std::vector<T>& src, sycl::context ctx, sycl::device dev);
 
-    // Copy / move
-    device_array(const device_array&);
+    // Deleted Copy — use copy_from for explicit device-to-device copies)
+    device_array(const device_array&) = delete;
+    device_array& operator=(const device_array&) = delete;
+
+    // Move
     device_array(device_array&&);
-    device_array& operator=(const device_array&);
     device_array& operator=(device_array&&);
 
     ~device_array();
+
+    // Device-to-device copy (allocates on the provided context+device)
+    // Supports cross-device copies: source and destination may be on different devices
+    static device_array copy_from(const device_array& src, sycl::queue q);
+    static device_array copy_from(const device_array& src,
+                                  size_type offset, size_type count, sycl::queue q);
+    static device_array copy_from(const device_array& src,
+                                  sycl::context ctx, sycl::device dev);
+    static device_array copy_from(const device_array& src,
+                                  size_type offset, size_type count,
+                                  sycl::context ctx, sycl::device dev);
 
     // Host-device transfer
 
@@ -119,6 +132,7 @@ public:
 
     void reserve(size_type new_cap);
     void clear();
+    void swap(device_array& other);
 
     // Views
     device_span<T>       span();
