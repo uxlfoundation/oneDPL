@@ -51,10 +51,7 @@ namespace ranges
 
 // [alg.foreach]
 
-namespace __internal
-{
-
-struct __for_each_fn
+struct __internal::__for_each_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirectly_unary_invocable<std::projected<std::ranges::iterator_t<_R>, _Proj>>  _Fun>
@@ -70,15 +67,11 @@ struct __for_each_fn
         return {std::ranges::begin(__r) + std::ranges::size(__r)};
     }
 }; //__for_each_fn
-}  //__internal
-
 inline constexpr __internal::__for_each_fn for_each;
 
 // [alg.transform]
 
-namespace __internal
-{
-struct __transform_fn
+struct __internal::__transform_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R,
              std::ranges::random_access_range _OutRange, std::copy_constructible _F, typename _Proj = std::identity>
@@ -133,15 +126,11 @@ struct __transform_fn
         return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size, std::ranges::begin(__out_r) + __size};
     }
 }; //__transform_fn
-}  //__internal
-
 inline constexpr __internal::__transform_fn transform;
 
 // [alg.find]
 
-namespace __internal
-{
-struct __find_if_fn
+struct __internal::__find_if_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -155,13 +144,9 @@ struct __find_if_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
     }
 }; //__find_if_fn
-}  //__internal
-
 inline constexpr __internal::__find_if_fn find_if;
 
-namespace __internal
-{
-struct __find_if_not_fn
+struct __internal::__find_if_not_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -175,8 +160,9 @@ struct __find_if_not_fn
             __proj);
     }
 }; //__find_if_not_fn
+inline constexpr __internal::__find_if_not_fn find_if_not;
 
-struct __find_fn
+struct __internal::__find_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
@@ -192,16 +178,11 @@ struct __find_fn
                 (__value), __proj);
     }
 }; //__find_fn
-}  //__internal
-
-inline constexpr __internal::__find_if_not_fn find_if_not;
 inline constexpr __internal::__find_fn find;
 
 // [alg.find.last]
 
-namespace __internal
-{
-struct __find_last_if_fn
+struct __internal::__find_last_if_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -218,13 +199,9 @@ struct __find_last_if_fn
         return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
     }
 }; //__find_last_if_fn
-}  //__internal
-
 inline constexpr __internal::__find_last_if_fn find_last_if;
 
-namespace __internal
-{
-struct __find_last_if_not_fn
+struct __internal::__find_last_if_not_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -238,8 +215,9 @@ struct __find_last_if_not_fn
             __proj);
     }
 }; //__find_last_if_not_fn
+inline constexpr __internal::__find_last_if_not_fn find_last_if_not;
 
-struct __find_last_fn
+struct __internal::__find_last_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
@@ -255,16 +233,11 @@ struct __find_last_fn
                 (__value), __proj);
     }
 }; //__find_last_fn
-}  //__internal
-
-inline constexpr __internal::__find_last_if_not_fn find_last_if_not;
 inline constexpr __internal::__find_last_fn find_last;
 
 // [alg.find.first.of]
 
-namespace __internal
-{
-struct __find_first_of_fn
+struct __internal::__find_first_of_fn
 {
 
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
@@ -283,15 +256,11 @@ struct __find_first_of_fn
             __pred, __proj1, __proj2);
     }
 }; //__find_first_of_fn
-}  //__internal
-
 inline constexpr __internal::__find_first_of_fn find_first_of;
 
 // [alg.find.end]
 
-namespace __internal
-{
-struct __find_end_fn
+struct __internal::__find_end_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -309,15 +278,11 @@ struct __find_end_fn
             __pred, __proj1, __proj2);
     }
 }; //__find_end_fn
-}  //__internal
-
 inline constexpr __internal::__find_end_fn find_end;
 
-// [alg.any_of]
+// [alg.any.of]
 
-namespace __internal
-{
-struct __any_of_fn
+struct __internal::__any_of_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -330,15 +295,11 @@ struct __any_of_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
     }
 }; //__any_of_fn
-}  //__internal
-
 inline constexpr __internal::__any_of_fn any_of;
 
-// [alg.all_of]
+// [alg.all.of]
 
-namespace __internal
-{
-struct __all_of_fn
+struct __internal::__all_of_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -351,15 +312,11 @@ struct __all_of_fn
             __proj);
     }
 }; //__all_of_fn
-}  //__internal
-
 inline constexpr __internal::__all_of_fn all_of;
 
-// [alg.none_of]
+// [alg.none.of]
 
-namespace __internal
-{
-struct __none_of_fn
+struct __internal::__none_of_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -371,15 +328,11 @@ struct __none_of_fn
             __pred, __proj);
     }
 }; //__none_of_fn
-}  //__internal
-
 inline constexpr __internal::__none_of_fn none_of;
 
-// [alg.adjacent_find]
+// [alg.adjacent.find]
 
-namespace __internal
-{
-struct __adjacent_find_fn
+struct __internal::__adjacent_find_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_binary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>,
@@ -395,15 +348,11 @@ struct __adjacent_find_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
     }
 }; //__adjacent_find_fn
-}  //__internal
-
 inline constexpr __internal::__adjacent_find_fn adjacent_find;
 
 // [alg.search]
 
-namespace __internal
-{
-struct __search_fn
+struct __internal::__search_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -421,15 +370,9 @@ struct __search_fn
             __proj2);
     }
 }; //__search_fn
-}  //__internal
-
 inline constexpr __internal::__search_fn search;
 
-// [alg.search_n]
-
-namespace __internal
-{
-struct __search_n_fn
+struct __internal::__search_n_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Pred = std::ranges::equal_to,
               typename _Proj = std::identity,
@@ -446,15 +389,11 @@ struct __search_n_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __count, __value, __pred, __proj);
     }
 }; //__search_n_fn
-}  //__internal
-
 inline constexpr __internal::__search_n_fn search_n;
 
-// [alg.count_if]
+// [alg.count]
 
-namespace __internal
-{
-struct __count_if_fn
+struct __internal::__count_if_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -468,16 +407,9 @@ struct __count_if_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
     }
 }; //__count_if_fn
-}  //__internal
-
 inline constexpr __internal::__count_if_fn count_if;
 
-// [alg.count]
-
-namespace __internal
-{
-
-struct __count_fn
+struct __internal::__count_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
@@ -492,15 +424,11 @@ struct __count_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value, __proj);
     }
 }; //__count_fn
-}  //__internal
-
 inline constexpr __internal::__count_fn count;
 
 // [alg.equal]
 
-namespace __internal
-{
-struct __equal_fn
+struct __internal::__equal_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -523,15 +451,11 @@ struct __equal_fn
         }
     }
 }; //__equal_fn
-}  //__internal
-
 inline constexpr __internal::__equal_fn equal;
 
-// [alg.is_sorted]
+// [is.sorted]
 
-namespace __internal
-{
-struct __is_sorted_fn
+struct __internal::__is_sorted_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
@@ -545,15 +469,30 @@ struct __is_sorted_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 }; //__is_sorted_fn
-}  //__internal
-
 inline constexpr __internal::__is_sorted_fn is_sorted;
 
-// [alg.stable_sort]
-
-namespace __internal
+struct __internal::__is_sorted_until_fn
 {
-struct __stable_sort_fn_pred
+    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
+             _Comp = std::ranges::less>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
+
+    std::ranges::borrowed_iterator_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
+    {
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+
+        auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), __r,
+                                                       oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
+        return __it == __last ? __last : ++__it;
+    }
+}; //__is_sorted_until_fn
+inline constexpr __internal::__is_sorted_until_fn is_sorted_until;
+
+// [stable.sort]
+
+struct __internal::__stable_sort_leaf
 {
     template <typename... Args>
     auto
@@ -563,7 +502,7 @@ struct __stable_sort_fn_pred
     }
 };
 
-struct __stable_sort_fn
+struct __internal::__stable_sort_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
               typename _Proj = std::identity>
@@ -575,18 +514,14 @@ struct __stable_sort_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
-            __internal::__stable_sort_fn_pred{});
+            __internal::__stable_sort_leaf{});
     }
 }; //__stable_sort_fn
-}  //__internal
-
 inline constexpr __internal::__stable_sort_fn stable_sort;
 
-// [alg.sort]
+// [sort]
 
-namespace __internal
-{
-struct __sort_fn_pred
+struct __internal::__sort_leaf
 {
     template <typename... Args>
     auto
@@ -596,7 +531,7 @@ struct __sort_fn_pred
     }
 };
 
-struct __sort_fn
+struct __internal::__sort_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Comp = std::ranges::less,
               typename _Proj = std::identity>
@@ -608,18 +543,14 @@ struct __sort_fn
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
         return oneapi::dpl::__internal::__ranges::__pattern_sort_ranges(
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj,
-            __internal::__sort_fn_pred{});
+            __internal::__sort_leaf{});
     }
 }; //__sort_fn
-}  //__internal
-
 inline constexpr __internal::__sort_fn sort;
 
-// [alg.min_element]
+// [alg.min.max]
 
-namespace __internal
-{
-struct __min_element_fn
+struct __internal::__min_element_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
@@ -634,15 +565,9 @@ struct __min_element_fn
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 }; //__min_element_fn
-}  //__internal
-
 inline constexpr __internal::__min_element_fn min_element;
 
-// [alg.max_element]
-
-namespace __internal
-{
-struct __max_element_fn
+struct __internal::__max_element_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
@@ -655,15 +580,9 @@ struct __max_element_fn
             oneapi::dpl::__internal::__reorder_pred(__comp), __proj);
     }
 }; //__max_element_fn
-}  //__internal
-
 inline constexpr __internal::__max_element_fn max_element;
 
-// [alg.minmax_element]
-
-namespace __internal
-{
-struct __minmax_element_fn
+struct __internal::__minmax_element_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
          std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
@@ -680,16 +599,9 @@ struct __minmax_element_fn
         return {__min, __max};
     }
 }; //__minmax_element_fn
-} //__internal
-
 inline constexpr __internal::__minmax_element_fn minmax_element;
 
-// [alg.min]
-
-namespace __internal
-{
-
-struct __min_fn
+struct __internal::__min_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
@@ -707,16 +619,9 @@ struct __min_fn
     }
 
 }; //__min_fn
-} //__internal
-
 inline constexpr __internal::__min_fn min;
 
-// [alg.max]
-
-namespace __internal
-{
-
-struct __max_fn
+struct __internal::__max_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
@@ -733,16 +638,9 @@ struct __max_fn
     }
 
 }; //__max_fn
-} //__internal
-
 inline constexpr __internal::__max_fn max;
 
-// [alg.minmax]
-
-namespace __internal
-{
-
-struct __minmax_fn
+struct __internal::__minmax_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp = std::ranges::less>
@@ -762,15 +660,11 @@ struct __minmax_fn
     }
 
 }; //__minmax_fn
-} //__internal
-
 inline constexpr __internal::__minmax_fn minmax;
 
 // [alg.copy]
 
-namespace __internal
-{
-struct __copy_fn
+struct __internal::__copy_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
              std::ranges::random_access_range _OutRange>
@@ -792,15 +686,9 @@ struct __copy_fn
         return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
     }
 }; //__copy_fn
-}  //__internal
-
 inline constexpr __internal::__copy_fn copy;
 
-// [alg.copy_if]
-
-namespace __internal
-{
-struct __copy_if_fn
+struct __internal::__copy_if_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
               std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
@@ -817,15 +705,11 @@ struct __copy_if_fn
             std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r), __pred, __proj);
     }
 }; //__copy_if_fn
-}  //__internal
-
 inline constexpr __internal::__copy_if_fn copy_if;
 
 // [alg.merge]
 
-namespace __internal
-{
-struct __merge_fn
+struct __internal::__merge_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
@@ -847,14 +731,11 @@ struct __merge_fn
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__merge_fn
-}  //__internal
-
 inline constexpr __internal::__merge_fn merge;
 
 // [includes]
-namespace __internal
-{
-struct __includes_fn
+
+struct __internal::__includes_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               typename _Proj1 = std::identity, typename _Proj2 = std::identity,
@@ -874,14 +755,11 @@ struct __includes_fn
             __comp, __proj1, __proj2);
     }
 }; //__includes_fn
-} // namespace __internal
-
 inline constexpr __internal::__includes_fn includes;
 
 // [set.union]
-namespace __internal
-{
-struct __set_union_fn
+
+struct __internal::__set_union_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
@@ -903,15 +781,11 @@ struct __set_union_fn
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__set_union_fn
-} // namespace __internal
-
 inline constexpr __internal::__set_union_fn set_union;
 
 // [set.intersection]
 
-namespace __internal
-{
-struct __set_intersection_fn
+struct __internal::__set_intersection_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
@@ -933,15 +807,11 @@ struct __set_intersection_fn
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__set_intersection_fn
-} // namespace __internal
-
 inline constexpr __internal::__set_intersection_fn set_intersection;
 
 // [set.difference]
 
-namespace __internal
-{
-struct __set_difference_fn
+struct __internal::__set_difference_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
@@ -963,15 +833,11 @@ struct __set_difference_fn
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__set_difference_fn
-} // namespace __internal
-
 inline constexpr __internal::__set_difference_fn set_difference;
 
 // [set.symmetric.difference]
 
-namespace __internal
-{
-struct __set_symmetric_difference_fn
+struct __internal::__set_symmetric_difference_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
               std::ranges::random_access_range _OutRange, typename _Comp = std::ranges::less,
@@ -994,16 +860,11 @@ struct __set_symmetric_difference_fn
             std::forward<_OutRange>(__out_r), __comp, __proj1, __proj2);
     }
 }; //__set_symmetric_difference_fn
-} // namespace __internal
-
 inline constexpr __internal::__set_symmetric_difference_fn set_symmetric_difference;
 
 // [alg.fill]
 
-namespace __internal
-{
-
-struct __fill_fn
+struct __internal::__fill_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _T = std::ranges::range_value_t<_R>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -1017,17 +878,11 @@ struct __fill_fn
             std::forward<_R>(__r), __value);
     }
 }; //__fill_fn
-
-} //__internal
-
 inline constexpr __internal::__fill_fn fill;
 
 // [alg.move]
 
-namespace __internal
-{
-
-struct __move_fn
+struct __internal::__move_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _InRange, std::ranges::random_access_range _OutRange>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
@@ -1048,15 +903,11 @@ struct __move_fn
         return {std::ranges::begin(__r) + __size, std::ranges::begin(__out_r) + __size};
     }
 }; //__move_fn
-} //__internal
-
 inline constexpr __internal::__move_fn move;
 
 // [alg.swap]
-namespace __internal
-{
 
-struct __swap_ranges_fn
+struct __internal::__swap_ranges_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -1076,17 +927,12 @@ struct __swap_ranges_fn
 
         return {std::ranges::begin(__r1) + __size, std::ranges::begin(__r2) + __size};
     }
-
 }; //__swap_ranges_fn
-} // namespace __internal
-
 inline constexpr __internal::__swap_ranges_fn swap_ranges;
 
 // [alg.replace]
 
-namespace __internal
-{
-struct __replace_if_fn
+struct __internal::__replace_if_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               typename _T = std::ranges::range_value_t<_R>,
@@ -1105,13 +951,9 @@ struct __replace_if_fn
                 __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}));
     }
 }; //__replace_if_fn
-} //__internal
-
 inline constexpr __internal::__replace_if_fn replace_if;
 
-namespace __internal
-{
-struct __replace_fn
+struct __internal::__replace_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               typename _T1 = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>,
@@ -1132,15 +974,11 @@ struct __replace_fn
             __new_value, __proj);
     }
 }; //__replace_fn
-} //__internal
-
 inline constexpr __internal::__replace_fn replace;
 
 // [alg.reverse]
 
-namespace __internal
-{
-struct __reverse_fn
+struct __internal::__reverse_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R>
         requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
@@ -1155,17 +993,10 @@ struct __reverse_fn
                                                              __r);
         return std::ranges::begin(__r) + std::ranges::size(__r);
     }
-
 }; //__reverse_fn
-} // namespace __internal
-
 inline constexpr __internal::__reverse_fn reverse;
 
-// [alg.reverse_copy]
-
-namespace __internal
-{
-struct __reverse_copy_fn
+struct __internal::__reverse_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
               std::ranges::random_access_range _OutRange>
@@ -1198,44 +1029,12 @@ struct __reverse_copy_fn
 
         return {__last_in, __stop_in, __stop_out};
     }
-
 }; //__reverse_copy_fn
-} // namespace __internal
-
 inline constexpr __internal::__reverse_copy_fn reverse_copy;
-
-// [alg.is_sorted_until]
-
-namespace __internal
-{
-
-struct __is_sorted_until_fn
-{
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R>, _Proj>>
-             _Comp = std::ranges::less>
-    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> && std::ranges::sized_range<_R>
-
-    std::ranges::borrowed_iterator_t<_R>
-    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Comp __comp = {}, _Proj __proj = {}) const
-    {
-        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
-
-        auto __it = oneapi::dpl::ranges::adjacent_find(std::forward<_ExecutionPolicy>(__exec), __r,
-                                                       oneapi::dpl::__internal::__reorder_pred<_Comp>(__comp), __proj);
-        return __it == __last ? __last : ++__it;
-    }
-}; //__is_sorted_until_fn
-} //__internal
-
-inline constexpr __internal::__is_sorted_until_fn is_sorted_until;
 
 // [alg.mismatch]
 
-namespace __internal
-{
-
-struct __mismatch_fn
+struct __internal::__mismatch_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
@@ -1278,18 +1077,12 @@ struct __mismatch_fn
             return {__it_1, std::ranges::begin(__r2) + (__it_2 - __sized_range.begin())};
         }
     }
-
 }; //__mismatch_fn
-} //__internal
-
 inline constexpr __internal::__mismatch_fn mismatch;
 
-// [alg.remove_if]
+// [alg.remove]
 
-namespace __internal
-{
-
-struct __remove_if_fn
+struct __internal::__remove_if_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
          std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
@@ -1303,18 +1096,10 @@ struct __remove_if_fn
         return oneapi::dpl::__internal::__ranges::__pattern_remove_if(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __pred, __proj);
     }
-
 }; //__remove_if_fn
-} //__internal
-
 inline constexpr __internal::__remove_if_fn remove_if;
 
-// [alg.remove]
-
-namespace __internal
-{
-
-struct __remove_fn
+struct __internal::__remove_fn
 {
     template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
@@ -1328,17 +1113,12 @@ struct __remove_fn
         return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
     }
-
 }; //__remove_fn
-} //__internal
-
 inline constexpr __internal::__remove_fn remove;
 
 // [alg.unique]
 
-namespace __internal
-{
-struct __unique_fn
+struct __internal::__unique_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
               std::indirect_equivalence_relation<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Comp =
@@ -1354,13 +1134,9 @@ struct __unique_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __comp, __proj);
     }
 }; //__unique_fn
-} // namespace __internal
-
 inline constexpr __internal::__unique_fn unique;
 
-namespace __internal
-{
-struct __unique_copy_fn
+struct __internal::__unique_copy_fn
 {
     template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
               std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
@@ -1380,9 +1156,7 @@ struct __unique_copy_fn
             __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r),
             std::forward<_OutRange>(__out_r), __comp, __proj);
     }
-}; //__unique_fn
-} // namespace __internal
-
+}; //__unique_copy_fn
 inline constexpr __internal::__unique_copy_fn unique_copy;
 
 } //ranges
@@ -1395,7 +1169,7 @@ namespace experimental
 namespace ranges
 {
 
-// [alg.any_of]
+// [alg.any.of]
 
 template <typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
@@ -1407,7 +1181,7 @@ any_of(_ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __pred)
                                                                views::all_read(::std::forward<_Range>(__rng)), __pred);
 }
 
-// [alg.all_of]
+// [alg.all.of]
 
 template <typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
@@ -1419,7 +1193,7 @@ all_of(_ExecutionPolicy&& __exec, _Range&& __rng, _Predicate __pred)
             __pred));
 }
 
-// [alg.none_of]
+// [alg.none.of]
 
 template <typename _ExecutionPolicy, typename _Range, typename _Predicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, bool>
@@ -1519,7 +1293,7 @@ find_first_of(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
                          ::std::forward<_Range2>(__rng2), oneapi::dpl::__internal::__pstl_equal());
 }
 
-// [alg.adjacent_find]
+// [alg.adjacent.find]
 
 template <typename _ExecutionPolicy, typename _Range, typename _BinaryPredicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy, oneapi::dpl::__internal::__difference_t<_Range>>
@@ -1645,6 +1419,8 @@ swap_ranges(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2)
                                                              views::all(std::forward<_Range2>(__rng2)));
 }
 
+// [alg.transform]
+
 namespace __internal
 {
 template <typename _UnaryOperation>
@@ -1662,8 +1438,6 @@ struct __transform_fn
     }
 };
 } // namespace __internal
-
-// [alg.transform]
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
@@ -1889,7 +1663,7 @@ replace_copy(_ExecutionPolicy&& __exec, _Range1&& __rng, _Range2&& __result, con
         __new_value);
 }
 
-// [alg.sort]
+// [sort]
 
 template <typename _ExecutionPolicy, typename _Range, typename _Compare, typename _Proj>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy>
@@ -2097,6 +1871,8 @@ minmax_element(_ExecutionPolicy&& __exec, _Range&& __rng)
     return minmax_element(::std::forward<_ExecutionPolicy>(__exec), ::std::forward<_Range>(__rng),
                           oneapi::dpl::__internal::__pstl_less());
 }
+
+// oneDPL reduce_by_segment
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>

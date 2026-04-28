@@ -24,6 +24,64 @@ namespace oneapi
 {
 namespace dpl
 {
+#if _ONEDPL_CPP20_RANGES_PRESENT
+// forward declarations of function objects allow to simplify implementation code
+namespace ranges::__internal
+{
+struct __for_each_fn;
+struct __transform_fn;
+struct __find_if_fn;
+struct __find_if_not_fn;
+struct __find_fn;
+struct __find_last_if_fn;
+struct __find_last_if_not_fn;
+struct __find_last_fn;
+struct __find_first_of_fn;
+struct __find_end_fn;
+struct __any_of_fn;
+struct __all_of_fn;
+struct __none_of_fn;
+struct __adjacent_find_fn;
+struct __search_fn;
+struct __search_n_fn;
+struct __count_if_fn;
+struct __count_fn;
+struct __equal_fn;
+struct __is_sorted_fn;
+struct __is_sorted_until_fn;
+struct __stable_sort_leaf;
+struct __stable_sort_fn;
+struct __sort_leaf;
+struct __sort_fn;
+struct __min_element_fn;
+struct __max_element_fn;
+struct __minmax_element_fn;
+struct __min_fn;
+struct __max_fn;
+struct __minmax_fn;
+struct __copy_fn;
+struct __copy_if_fn;
+struct __merge_fn;
+struct __includes_fn;
+struct __set_union_fn;
+struct __set_intersection_fn;
+struct __set_difference_fn;
+struct __set_symmetric_difference_fn;
+struct __fill_fn;
+struct __move_fn;
+struct __swap_ranges_fn;
+struct __replace_if_fn;
+struct __replace_fn;
+struct __reverse_fn;
+struct __reverse_copy_fn;
+struct __mismatch_fn;
+struct __remove_if_fn;
+struct __remove_fn;
+struct __unique_fn;
+struct __unique_copy_fn;
+} // namespace ranges::__internal
+#endif
+
 namespace experimental
 {
 namespace ranges
