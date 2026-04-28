@@ -86,7 +86,7 @@ classDiagram
         }
     }
 
-    namespace experimental::compat {
+    namespace experimental_compat {
         class device_vector~T, Alloc~ {
             Thrust compat layer
         }
