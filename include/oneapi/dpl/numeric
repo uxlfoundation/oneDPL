@@ -20,6 +20,11 @@
 // ATTENTION!!! Include the header from the C++ standard library before the oneDPL config header to see whether the _PSTL_VERSION macro is defined
 #include <numeric>
 #include "oneapi/dpl/pstl/onedpl_config.h"
+
+#if _ONEDPL_BACKEND_SYCL
+#    include "oneapi/dpl/internal/device_array_impl.h"
+#endif // _ONEDPL_BACKEND_SYCL
+
 #include "oneapi/dpl/internal/gcd_impl.h"
 #include "oneapi/dpl/internal/serial_numeric_impl.h"
 

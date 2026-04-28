@@ -25,6 +25,11 @@
 #endif     // _ONEDPL___cplusplus >= 201703L
 
 #include "oneapi/dpl/pstl/onedpl_config.h"
+
+#if _ONEDPL_BACKEND_SYCL
+#    include "oneapi/dpl/internal/device_array_impl.h"
+#endif // _ONEDPL_BACKEND_SYCL
+
 #include "oneapi/dpl/pstl/execution_defs.h"
 
 #define _ONEDPL_EXECUTION_POLICIES_DEFINED 1

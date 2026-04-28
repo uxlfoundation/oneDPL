@@ -1,0 +1,16 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) UXL Foundation Contributors
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _ONEDPL_COMPAT
+#define _ONEDPL_COMPAT
+
+#include "oneapi/dpl/internal/common_config.h"
+#include "oneapi/dpl/internal/device_vector_impl.h"
+
+#endif // _ONEDPL_COMPAT
