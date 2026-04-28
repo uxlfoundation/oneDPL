@@ -307,7 +307,7 @@
 #    define _ONEDPL_CPP20_OWNING_VIEW_PRESENT (_ONEDPL___cplusplus >= 202302L)
 #endif
 
-// The implementation of std::ranges::advance in GCC 10 uses throw expressions.
+// The implementation of std::ranges::advance in libstdc++ 10 uses throw expressions.
 // That prevents its use in SYCL kernels, as well as the use of std::ranges::next, std::views::drop, etc.
 #define _ONEDPL_CPP20_RANGES_ADVANCE_SYCL_INCOMPATIBLE (_ONEDPL_BACKEND_SYCL && _GLIBCXX_RELEASE == 10)
 
