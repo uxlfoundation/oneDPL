@@ -8,9 +8,8 @@ See the [usage study](usage_pattern_study.md) for evidence on which Thrust APIs
 are actually used, and [device_array](device_array.md) for the underlying
 container.
 
-The target for this compatibility layer is to be as close to a 
-drop-in replacement as we can have for `thrust::device_vector` for the
-functionality that people actually use, and in a way that fits within SYCL.
+The goal is a near drop-in replacement for `thrust::device_vector`, covering
+the functionality that is actually used in practice, adapted to fit within SYCL.
 
 ## Relationship to `device_array`
 
