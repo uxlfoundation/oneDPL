@@ -74,26 +74,30 @@ implementation:
 classDiagram
     direction LR
 
-    class device_array~T, Alloc~ {
-        iterators: T*
-        host access: read() / write()
+    namespace experimental {
+        class device_array~T, Alloc~ {
+            iterators: T*
+            host access: read() / write()
+        }
+
+        class device_span~T~ {
+            non-owning view
+            trivially copyable
+        }
     }
 
-    class device_span~T~ {
-        non-owning view
-        trivially copyable
-    }
+    namespace experimental::compat {
+        class device_vector~T, Alloc~ {
+            Thrust compat layer
+        }
 
-    class device_vector~T, Alloc~ {
-        Thrust compat layer
-    }
+        class device_pointer~T~ {
+            wraps T* + context*
+        }
 
-    class device_pointer~T~ {
-        wraps T* + context*
-    }
-
-    class device_reference~T~ {
-        proxy for host access
+        class device_reference~T~ {
+            proxy for host access
+        }
     }
 
     device_array --> device_span : .span()
