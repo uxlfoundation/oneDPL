@@ -47,6 +47,7 @@ struct __search_n_fn;
 struct __count_if_fn;
 struct __count_fn;
 struct __equal_fn;
+struct __lex_compare_fn;
 struct __is_sorted_fn;
 struct __is_sorted_until_fn;
 struct __stable_sort_leaf;
