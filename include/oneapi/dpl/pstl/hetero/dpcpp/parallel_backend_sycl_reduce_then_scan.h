@@ -36,6 +36,16 @@
 #include "../../utils_ranges.h"
 #include "../../utils.h"
 
+// Debug instrumentation for Windows CPU scan failures.
+// Define _ONEDPL_REDUCE_THEN_SCAN_DEBUG=1 to enable diagnostic output.
+#ifndef _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+#    define _ONEDPL_REDUCE_THEN_SCAN_DEBUG 1
+#endif
+
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+#    include <cstdio>
+#endif
+
 namespace oneapi
 {
 namespace dpl
@@ -1572,6 +1582,19 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
 
         if (__sub_group_id < __active_subgroups)
         {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+            if (__sub_group_local_id == 0 && __group_id == 0 && __block_num == 0)
+            {
+                sycl::ext::oneapi::experimental::printf(
+                    "[RTS_DEBUG REDUCE] gid=%u sg_id=%u sg_size=%u inputs_per_item=%u "
+                    "inputs_per_sg=%u num_sg_local=%u active_sg=%u n=%zu "
+                    "group_start=%zu subgroup_start=%zu block=%zu\n",
+                    (unsigned)__group_id, (unsigned)__sub_group_id, (unsigned)__sub_group_size,
+                    (unsigned)__sub_group_params.__inputs_per_item, (unsigned)__sub_group_params.__inputs_per_sub_group,
+                    (unsigned)__sub_group_params.__num_sub_groups_local, (unsigned)__active_subgroups, __n,
+                    __group_start_id, __subgroup_start_id, __block_num);
+            }
+#endif
             // adjust for lane-id
             // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
             __scan_through_elements_helper<__use_subgroup_ops, __is_inclusive,
@@ -1594,6 +1617,17 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
         {
             __start_id = (__group_id * __sub_group_params.__num_sub_groups_local);
             std::uint8_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+            if (__sub_group_local_id == 0 && __block_num == 0 && __group_id == 0)
+            {
+                sycl::ext::oneapi::experimental::printf(
+                    "[RTS_DEBUG REDUCE_WG] gid=%u iters=%u active_sg=%u "
+                    "start_id=%zu num_sg_local=%u scratch_bound=%u\n",
+                    (unsigned)__group_id, (unsigned)__iters, (unsigned)__active_subgroups, __start_id,
+                    (unsigned)__sub_group_params.__num_sub_groups_local,
+                    (unsigned)(__max_num_work_groups * (__work_group_size / __sub_group_size)));
+            }
+#endif
             if (__iters == 1)
             {
                 // fill with unused dummy values to avoid overrunning input
@@ -1602,7 +1636,20 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __sub_group_scan_partial<__use_subgroup_ops, /*__is_inclusive=*/true, /*__init_present=*/false>(
                     __sub_group, __v, __reduce_op, __sub_group_carry, __active_subgroups, __comm_slm_ptr);
                 if (__sub_group_local_id < __active_subgroups)
+                {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    std::size_t __write_idx = __start_id + __sub_group_local_id;
+                    if (__write_idx >= (__max_num_work_groups * (__work_group_size / __sub_group_size)))
+                    {
+                        sycl::ext::oneapi::experimental::printf(
+                            "[RTS_DEBUG OOB] REDUCE_WRITE_1 gid=%u lane=%u "
+                            "write_idx=%zu scratch_bound=%u\n",
+                            (unsigned)__group_id, (unsigned)__sub_group_local_id, __write_idx,
+                            (unsigned)(__max_num_work_groups * (__work_group_size / __sub_group_size)));
+                    }
+#endif
                     __tmp_acc[__start_id + __sub_group_local_id] = __v;
+                }
             }
             else
             {
@@ -1611,6 +1658,19 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 _InitValueType __v = __sub_group_partials[__reduction_scan_id];
                 __sub_group_scan<__use_subgroup_ops, /*__is_inclusive=*/true, /*__init_present=*/false>(
                     __sub_group, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                {
+                    std::size_t __write_idx = __start_id + __reduction_scan_id;
+                    if (__write_idx >= (__max_num_work_groups * (__work_group_size / __sub_group_size)))
+                    {
+                        sycl::ext::oneapi::experimental::printf(
+                            "[RTS_DEBUG OOB] REDUCE_WRITE_M0 gid=%u lane=%u "
+                            "write_idx=%zu scratch_bound=%u\n",
+                            (unsigned)__group_id, (unsigned)__sub_group_local_id, __write_idx,
+                            (unsigned)(__max_num_work_groups * (__work_group_size / __sub_group_size)));
+                    }
+                }
+#endif
                 __tmp_acc[__start_id + __reduction_scan_id] = __v;
                 __reduction_scan_id += __sub_group_size;
 
@@ -1619,6 +1679,19 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __v = __sub_group_partials[__reduction_scan_id];
                     __sub_group_scan<__use_subgroup_ops, /*__is_inclusive=*/true, /*__init_present=*/true>(
                         __sub_group, __v, __reduce_op, __sub_group_carry, __comm_slm_ptr);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    {
+                        std::size_t __write_idx = __start_id + __reduction_scan_id;
+                        if (__write_idx >= (__max_num_work_groups * (__work_group_size / __sub_group_size)))
+                        {
+                            sycl::ext::oneapi::experimental::printf(
+                                "[RTS_DEBUG OOB] REDUCE_WRITE_MI gid=%u lane=%u iter=%u "
+                                "write_idx=%zu scratch_bound=%u\n",
+                                (unsigned)__group_id, (unsigned)__sub_group_local_id, (unsigned)__i, __write_idx,
+                                (unsigned)(__max_num_work_groups * (__work_group_size / __sub_group_size)));
+                        }
+                    }
+#endif
                     __tmp_acc[__start_id + __reduction_scan_id] = __v;
                     __reduction_scan_id += __sub_group_size;
                 }
@@ -1633,7 +1706,22 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                     __sub_group, __v, __reduce_op, __sub_group_carry,
                     __active_subgroups - ((__iters - 1) * __sub_group_size), __comm_slm_ptr);
                 if (__reduction_scan_id < __sub_group_params.__num_sub_groups_local)
+                {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    {
+                        std::size_t __write_idx = __start_id + __reduction_scan_id;
+                        if (__write_idx >= (__max_num_work_groups * (__work_group_size / __sub_group_size)))
+                        {
+                            sycl::ext::oneapi::experimental::printf(
+                                "[RTS_DEBUG OOB] REDUCE_WRITE_MF gid=%u lane=%u "
+                                "write_idx=%zu scratch_bound=%u\n",
+                                (unsigned)__group_id, (unsigned)__sub_group_local_id, __write_idx,
+                                (unsigned)(__max_num_work_groups * (__work_group_size / __sub_group_size)));
+                        }
+                    }
+#endif
                     __tmp_acc[__start_id + __reduction_scan_id] = __v;
+                }
             }
 
             __sub_group_carry.__destroy();
@@ -1772,15 +1860,70 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             std::uint8_t __iters = oneapi::dpl::__internal::__dpl_ceiling_div(__active_subgroups, __sub_group_size);
             std::size_t __subgroups_before_my_group = __group_id * __sub_group_params.__num_sub_groups_local;
             std::uint32_t __load_reduction_id = __sub_group_local_id;
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+            if (__sub_group_local_id == 0 && __block_num == 0 && __group_id == 0)
+            {
+                sycl::ext::oneapi::experimental::printf("[RTS_DEBUG SCAN_S1] gid=%u iters=%u active_sg=%u "
+                                                        "subgroups_before=%zu num_sg_local=%u num_sg_global=%u "
+                                                        "slm_size=%u block=%zu\n",
+                                                        (unsigned)__group_id, (unsigned)__iters,
+                                                        (unsigned)__active_subgroups, __subgroups_before_my_group,
+                                                        (unsigned)__sub_group_params.__num_sub_groups_local,
+                                                        (unsigned)__sub_group_params.__num_sub_groups_global,
+                                                        (unsigned)__max_num_sub_groups_local, __block_num);
+            }
+#endif
             std::uint8_t __i = 0;
             for (; __i < __iters - 1; __i++)
             {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                {
+                    std::size_t __read_idx = __subgroups_before_my_group + __load_reduction_id;
+                    if (__read_idx >= __sub_group_params.__num_sub_groups_global)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S1_LOAD gid=%u lane=%u iter=%u "
+                                                                "read_idx=%zu scratch_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                (unsigned)__i, __read_idx,
+                                                                (unsigned)__sub_group_params.__num_sub_groups_global);
+                    }
+                    if (__load_reduction_id >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S1_SLM gid=%u lane=%u iter=%u "
+                                                                "slm_idx=%u slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                (unsigned)__i, (unsigned)__load_reduction_id,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+                }
+#endif
                 __sub_group_partials[__load_reduction_id] =
                     __tmp_acc[__subgroups_before_my_group + __load_reduction_id];
                 __load_reduction_id += __sub_group_size;
             }
             if (__load_reduction_id < __active_subgroups)
             {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                {
+                    std::size_t __read_idx = __subgroups_before_my_group + __load_reduction_id;
+                    if (__read_idx >= __sub_group_params.__num_sub_groups_global)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S1_LOAD_LAST gid=%u lane=%u "
+                                                                "read_idx=%zu scratch_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                __read_idx,
+                                                                (unsigned)__sub_group_params.__num_sub_groups_global);
+                    }
+                    if (__load_reduction_id >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S1_SLM_LAST gid=%u lane=%u "
+                                                                "slm_idx=%u slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                (unsigned)__load_reduction_id,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+                }
+#endif
                 __sub_group_partials[__load_reduction_id] =
                     __tmp_acc[__subgroups_before_my_group + __load_reduction_id];
             }
@@ -1797,6 +1940,21 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     __subgroups_before_my_group / __sub_group_params.__num_sub_groups_local;
                 const std::size_t __pre_carry_iters =
                     oneapi::dpl::__internal::__dpl_ceiling_div(__elements_to_process, __sub_group_size);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                if (__sub_group_local_id == 0 && __block_num == 0 &&
+                    (__group_id == 1 || __group_id == __active_groups - 1))
+                {
+                    sycl::ext::oneapi::experimental::printf(
+                        "[RTS_DEBUG SCAN] gid=%u sg_size=%u sg_local=%u "
+                        "subgroups_before=%zu elements_to_process=%zu "
+                        "pre_carry_iters=%zu active_subgroups=%u "
+                        "num_sg_local=%u num_sg_global=%u block=%zu\n",
+                        (unsigned)__group_id, (unsigned)__sub_group_size, (unsigned)__sub_group_local_id,
+                        __subgroups_before_my_group, __elements_to_process, __pre_carry_iters,
+                        (unsigned)__active_subgroups, (unsigned)__sub_group_params.__num_sub_groups_local,
+                        (unsigned)__sub_group_params.__num_sub_groups_global, __block_num);
+                }
+#endif
                 if (__pre_carry_iters == 1)
                 {
                     // single partial scan
@@ -1805,6 +1963,16 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     std::size_t __remaining_elements = __elements_to_process;
                     std::size_t __reduction_id =
                         (__proposed_id < __subgroups_before_my_group) ? __proposed_id : __subgroups_before_my_group - 1;
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__reduction_id >= __sub_group_params.__num_sub_groups_global)
+                    {
+                        sycl::ext::oneapi::experimental::printf(
+                            "[RTS_DEBUG OOB] SINGLE gid=%u lane=%u reduction_id=%zu "
+                            "scratch_bound=%u proposed_id=%zu\n",
+                            (unsigned)__group_id, (unsigned)__sub_group_local_id, __reduction_id,
+                            (unsigned)__sub_group_params.__num_sub_groups_global, __proposed_id);
+                    }
+#endif
                     _InitValueType __value = __tmp_acc[__reduction_id];
                     __sub_group_scan_partial<__use_subgroup_ops, /*__is_inclusive=*/true,
                                              /*__init_present=*/false>(__sub_group, __value, __reduce_op, __carry_last,
@@ -1818,6 +1986,16 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                         __sub_group_params.__num_sub_groups_local * __sub_group_local_id + __offset;
                     std::uint32_t __reduction_id_increment =
                         __sub_group_params.__num_sub_groups_local * __sub_group_size;
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__reduction_id >= __sub_group_params.__num_sub_groups_global)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] MULTI iter=0 gid=%u lane=%u "
+                                                                "reduction_id=%u scratch_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                (unsigned)__reduction_id,
+                                                                (unsigned)__sub_group_params.__num_sub_groups_global);
+                    }
+#endif
                     _InitValueType __value = __tmp_acc[__reduction_id];
                     __sub_group_scan<__use_subgroup_ops, /*__is_inclusive=*/true, /*__init_present=*/false>(
                         __sub_group, __value, __reduce_op, __carry_last, __comm_slm_ptr);
@@ -1825,6 +2003,16 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     // then some number of full iterations
                     for (std::uint32_t __i = 1; __i < __pre_carry_iters - 1; __i++)
                     {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                        if (__reduction_id >= __sub_group_params.__num_sub_groups_global)
+                        {
+                            sycl::ext::oneapi::experimental::printf(
+                                "[RTS_DEBUG OOB] MULTI iter=%u gid=%u lane=%u "
+                                "reduction_id=%u scratch_bound=%u\n",
+                                (unsigned)__i, (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                (unsigned)__reduction_id, (unsigned)__sub_group_params.__num_sub_groups_global);
+                        }
+#endif
                         __value = __tmp_acc[__reduction_id];
                         __sub_group_scan<__use_subgroup_ops, /*__is_inclusive=*/true, /*__init_present=*/true>(
                             __sub_group, __value, __reduce_op, __carry_last, __comm_slm_ptr);
@@ -1838,6 +2026,19 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     // fill with unused dummy values to avoid overrunning input
                     std::size_t __final_reduction_id =
                         std::min(std::size_t{__reduction_id}, __subgroups_before_my_group - 1);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__final_reduction_id >= __sub_group_params.__num_sub_groups_global)
+                    {
+                        sycl::ext::oneapi::experimental::printf(
+                            "[RTS_DEBUG OOB] MULTI final gid=%u lane=%u "
+                            "final_reduction_id=%zu raw_reduction_id=%u "
+                            "subgroups_before=%zu scratch_bound=%u "
+                            "remaining=%zu\n",
+                            (unsigned)__group_id, (unsigned)__sub_group_local_id, __final_reduction_id,
+                            (unsigned)__reduction_id, __subgroups_before_my_group,
+                            (unsigned)__sub_group_params.__num_sub_groups_global, __remaining_elements);
+                    }
+#endif
                     __value = __tmp_acc[__final_reduction_id];
                     __sub_group_scan_partial<__use_subgroup_ops, /*__is_inclusive=*/true,
                                              /*__init_present=*/true>(__sub_group, __value, __reduce_op, __carry_last,
@@ -1853,18 +2054,49 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                 std::uint8_t __i = 0;
                 for (; __i < __iters - 1; ++__i)
                 {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__carry_offset >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S34 gid=%u lane=%u iter=%u "
+                                                                "carry_offset=%zu slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                (unsigned)__i, __carry_offset,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+#endif
                     __sub_group_partials[__carry_offset] =
                         __reduce_op(__carry_last.__v, __sub_group_partials[__carry_offset]);
                     __carry_offset += __sub_group_size;
                 }
                 if (__i * __sub_group_size + __sub_group_local_id < __active_subgroups)
                 {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__carry_offset >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S34_LAST gid=%u lane=%u "
+                                                                "carry_offset=%zu slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_local_id,
+                                                                __carry_offset,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+#endif
                     __sub_group_partials[__carry_offset] =
                         __reduce_op(__carry_last.__v, __sub_group_partials[__carry_offset]);
                     __carry_offset += __sub_group_size;
                 }
                 if (__sub_group_local_id == 0)
+                {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                    if (__active_subgroups >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_S34_CARRY gid=%u "
+                                                                "active_sg=%u slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__active_subgroups,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+#endif
                     __sub_group_partials[__active_subgroups] = __carry_last.__v;
+                }
                 __carry_last.__destroy();
             }
         }
@@ -1873,16 +2105,48 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
         // Get inter-work group and adjusted for intra-work group prefix
         bool __sub_group_carry_initialized = true;
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+        if (__sub_group_local_id == 0 && __sub_group_id == 0 && __block_num == 0 && __group_id == 0)
+        {
+            sycl::ext::oneapi::experimental::printf("[RTS_DEBUG SCAN_CARRY] gid=%u sg_id=%u active_sg=%u "
+                                                    "slm_bound=%u block=%zu\n",
+                                                    (unsigned)__group_id, (unsigned)__sub_group_id,
+                                                    (unsigned)__active_subgroups,
+                                                    (unsigned)(__max_num_sub_groups_local + 1), __block_num);
+        }
+#endif
         if (__block_num == 0)
         {
             if (__sub_group_id > 0)
             {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                {
+                    std::uint32_t __read_idx = std::min(__sub_group_id - 1, __active_subgroups - 1);
+                    if (__read_idx >= __max_num_sub_groups_local + 1)
+                    {
+                        sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_CARRY_B0_SG gid=%u sg_id=%u "
+                                                                "read_idx=%u slm_bound=%u\n",
+                                                                (unsigned)__group_id, (unsigned)__sub_group_id,
+                                                                (unsigned)__read_idx,
+                                                                (unsigned)(__max_num_sub_groups_local + 1));
+                    }
+                }
+#endif
                 _InitValueType __value = __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
                 oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
                 __sub_group_carry.__setup(__value);
             }
             else if (__group_id > 0)
             {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                if (__active_subgroups >= __max_num_sub_groups_local + 1)
+                {
+                    sycl::ext::oneapi::experimental::printf("[RTS_DEBUG OOB] SCAN_CARRY_B0_WG gid=%u "
+                                                            "active_sg=%u slm_bound=%u\n",
+                                                            (unsigned)__group_id, (unsigned)__active_subgroups,
+                                                            (unsigned)(__max_num_sub_groups_local + 1));
+                }
+#endif
                 _InitValueType __value = __sub_group_partials[__active_subgroups];
                 oneapi::dpl::unseq_backend::__init_processing<_InitValueType>{}(__init, __value, __reduce_op);
                 __sub_group_carry.__setup(__value);
@@ -1912,6 +2176,16 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
         }
         else
         {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+            if (__sub_group_local_id == 0 && __sub_group_id == 0 && __group_id == 0)
+            {
+                std::size_t __carry_idx = __sub_group_params.__num_sub_groups_global + (__block_num % 2);
+                sycl::ext::oneapi::experimental::printf("[RTS_DEBUG SCAN_BLOCK_CARRY] block=%zu carry_read_idx=%zu "
+                                                        "scratch_total=%u\n",
+                                                        __block_num, __carry_idx,
+                                                        (unsigned)(__sub_group_params.__num_sub_groups_global + 2));
+            }
+#endif
             if (__sub_group_id > 0)
             {
                 _InitValueType __value = __sub_group_partials[std::min(__sub_group_id - 1, __active_subgroups - 1)];
@@ -1973,6 +2247,15 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             }
             else
             {
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+                {
+                    std::size_t __carry_out_idx = __sub_group_params.__num_sub_groups_global + 1 - (__block_num % 2);
+                    sycl::ext::oneapi::experimental::printf("[RTS_DEBUG SCAN_BLOCK_CARRY_OUT] block=%zu "
+                                                            "carry_write_idx=%zu scratch_total=%u\n",
+                                                            __block_num, __carry_out_idx,
+                                                            (unsigned)(__sub_group_params.__num_sub_groups_global + 2));
+                }
+#endif
                 // capture the last carry out for the next block
                 __set_block_carry_out(__block_num, __tmp_acc, __sub_group_carry.__v,
                                       __sub_group_params.__num_sub_groups_global);
@@ -2118,6 +2401,37 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+    {
+        static bool __first_call = true;
+        if (__first_call || __num_blocks > 1)
+        {
+            auto __dev = __q.get_device();
+            auto __sg_sizes = __dev.template get_info<sycl::info::device::sub_group_sizes>();
+            std::printf("[RTS_DEBUG HOST] n=%zu, num_work_groups=%u, work_group_size=%u\n", __n, __num_work_groups,
+                        __work_group_size);
+            std::printf("[RTS_DEBUG HOST] min_sg_size=%u, max_sg_size=%u, supported_sg_sizes=",
+                        (unsigned)__min_sub_group_size, (unsigned)__max_sub_group_size);
+            for (auto __s : __sg_sizes)
+                std::printf("%zu ", __s);
+            std::printf("\n");
+            std::printf("[RTS_DEBUG HOST] max_num_sub_groups_local=%u, max_num_sub_groups_global=%u\n",
+                        __max_num_sub_groups_local, __max_num_sub_groups_global);
+            std::printf("[RTS_DEBUG HOST] max_inputs_per_item=%u, max_inputs_per_block=%u\n",
+                        (unsigned)__max_inputs_per_item, __max_inputs_per_block);
+            std::printf("[RTS_DEBUG HOST] inputs_per_item=%u, block_size=%zu, num_blocks=%zu\n", __inputs_per_item,
+                        __block_size, __num_blocks);
+            std::printf("[RTS_DEBUG HOST] scratch_size=%u, sizeof(ValueType)=%zu\n", __max_num_sub_groups_global + 2,
+                        sizeof(_ValueType));
+            std::printf("[RTS_DEBUG HOST] is_gpu=%d, max_compute_units=%u\n", (int)__dev.is_gpu(),
+                        __dev.template get_info<sycl::info::device::max_compute_units>());
+            std::printf("[RTS_DEBUG HOST] device=%s\n", __dev.template get_info<sycl::info::device::name>().c_str());
+            std::fflush(stdout);
+            __first_call = false;
+        }
+    }
+#endif
+
     // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
     // (where native sub-group operations are slow).
     const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__q.get_device().is_gpu();
@@ -2164,6 +2478,13 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
         auto __local_range = sycl::range<1>(__work_group_size);
         auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
+#if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
+        std::printf("[RTS_DEBUG HOST] block=%zu/%zu inputs_remaining=%zu inputs_per_item=%u "
+                    "workitems=%u global_range=%u\n",
+                    __b, __num_blocks, __inputs_remaining, __inputs_per_item, __workitems_in_block,
+                    __workitems_in_block_round_up_workgroup);
+        std::fflush(stdout);
+#endif
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                            __inputs_remaining, __b);
