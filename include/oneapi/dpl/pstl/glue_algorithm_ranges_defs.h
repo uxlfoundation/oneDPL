@@ -33,6 +33,9 @@ struct __transform_fn;
 struct __find_if_fn;
 struct __find_if_not_fn;
 struct __find_fn;
+struct __find_last_if_fn;
+struct __find_last_if_not_fn;
+struct __find_last_fn;
 struct __find_first_of_fn;
 struct __find_end_fn;
 struct __any_of_fn;
@@ -134,7 +137,7 @@ oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
                                                       oneapi::dpl::__internal::__difference_t<_Range1>>
 find_end(_ExecutionPolicy&& __exec, _Range1&& __rng1, _Range2&& __rng2);
 
-// [alg.find_first_of]
+// [alg.find.first.of]
 
 template <typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _BinaryPredicate>
 oneapi::dpl::__internal::__enable_if_execution_policy<_ExecutionPolicy,
