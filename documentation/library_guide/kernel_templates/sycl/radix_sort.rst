@@ -11,13 +11,19 @@ Both in-place and out-of-place overloads are provided. Out-of-place overloads do
 
 The functions implement a Onesweep* [#fnote1]_ algorithm variant.
 
+.. note::
+   ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
+   Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
+   |dpcpp_device_selection|_.
+
 A synopsis of the ``radix_sort`` function is provided below:
 
 .. code:: cpp
 
    // defined in <oneapi/dpl/experimental/kernel_templates>
 
-   namespace oneapi::dpl::experimental::kt::gpu::esimd {
+   namespace oneapi::dpl::experimental::kt::gpu {
 
    // Sort in-place
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
@@ -30,7 +36,6 @@ A synopsis of the ``radix_sort`` function is provided below:
              typename KernelParam, typename Range>
    sycl::event
    radix_sort (sycl::queue q, Range&& r, KernelParam param = {}); // (2)
-
 
    // Sort out-of-place
    template <bool IsAscending = true, std::uint8_t RadixBits = 8,
@@ -46,14 +51,6 @@ A synopsis of the ``radix_sort`` function is provided below:
    radix_sort (sycl::queue q, Range1&& r, Range2&& r_out,
                KernelParam param = {}); // (4)
    }
-
-.. note::
-   The ``radix_sort`` is currently available only for Intel® Data Center GPU Max Series,
-   and requires Intel® oneAPI DPC++/C++ Compiler 2023.2 or newer.
-
-.. note::
-   For broader platform support and similar performance,
-   consider using the :doc:`SYCL radix sort KT <../sycl/radix_sort>`.
 
 Template Parameters
 --------------------
@@ -92,7 +89,6 @@ Parameters
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
 | ``param``                                     | A :doc:`kernel_param <../kernel_configuration>` object.             |
-|                                               | Its ``data_per_workitem`` must be a positive multiple of 32.        |
 |                                               |                                                                     |
 |                                               |                                                                     |
 +-----------------------------------------------+---------------------------------------------------------------------+
@@ -107,9 +103,9 @@ Parameters
 
    Current limitations:
 
-   - Number of elements to sort must not exceed `2^30`.
+   - Number of elements to sort must not exceed 2\ :sup:`30`.
    - ``RadixBits`` can only be `8`.
-   - ``param.workgroup_size`` can only be `64`.
+   - ``param.workgroup_size`` can be `512` or `1024`.
 
 Return Value
 ------------
@@ -147,7 +143,7 @@ In-Place Example
       keys[0] = 3, keys[1] = 2, keys[2] = 1, keys[3] = 5, keys[4] = 3, keys[5] = 3;
 
       // sort
-      auto e = kt::gpu::esimd::radix_sort<false, 8>(q, keys, keys + n, kt::kernel_param<416, 64>{}); // (1)
+      auto e = kt::gpu::radix_sort<false, 8>(q, keys, keys + n, kt::kernel_param<10, 512>{}); // (1)
       e.wait();
 
       // print
@@ -192,7 +188,7 @@ Out-of-Place Example
       keys[0] = 3, keys[1] = 2, keys[2] = 1, keys[3] = 5, keys[4] = 3, keys[5] = 3;
 
       // sort
-      auto e = kt::gpu::esimd::radix_sort<false, 8>(q, keys, keys + n, keys_out, kt::kernel_param<416, 64>{}); // (3)
+      auto e = kt::gpu::radix_sort<false, 8>(q, keys, keys + n, keys_out, kt::kernel_param<10, 512>{}); // (3)
       e.wait();
 
       // print
@@ -214,7 +210,7 @@ Out-of-Place Example
    5 3 3 3 2 1
 
 
-.. _radix-sort-memory-requirements:
+.. _sycl-radix-sort-memory-requirements:
 
 -------------------
 Memory Requirements
@@ -237,21 +233,15 @@ The amount used depends on many parameters; below is an upper bound approximatio
 
 where the sequence with keys takes N\ :sub:`keys` space, and the additional space is C * N\ :sub:`keys`.
 
-The value of `C` depends on ``param.data_per_workitem``, ``param.workgroup_size``, and ``RadixBits``.
-For ``param.data_per_workitem`` set to `32`, ``param.workgroup_size`` to `64`, and ``RadixBits`` to `8`,
-`C` approximately equals to `1`.
+The value of `C` depends on ``param.data_per_workitem``,  ``param.workgroup_size`` and ``RadixBits``.
+For ``param.data_per_workitem`` set to `10`, ``param.workgroup_size`` to `512`, and ``RadixBits`` to `8`,
+`C` is typically less than `1`.
 Doubling either ``param.data_per_workitem`` or ``param.workgroup_size`` leads to a halving of `C`.
-
-.. note::
-
-   If the number of elements to sort does not exceed ``param.data_per_workitem * param.workgroup_size``,
-   ``radix_sort`` is executed by a single work-group and does not use any global memory.
 
 ..
    The estimation above is not very precise and it seems it is not necessary for the global memory.
-   The C coefficient base is actually 0.53 instead of 1.
+   The C coefficient varies with parameters and decreases as the product of data_per_workitem and workgroup_size increases.
    An increment of RadixBits multiplies C by the factor of ~1.5 on average.
-
 
 Local Memory Requirements
 -------------------------
@@ -265,19 +255,19 @@ The amount used depends on many parameters; below is an upper bound approximatio
 where N\ :sub:`keys_per_workgroup` is the amount of memory to store keys.
 `C` is some additional space for storing internal data.
 
-N\ :sub:`keys_per_workgroup` equals to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``,
+N\ :sub:`keys_per_workgroup` is equal to ``sizeof(key_type) * param.data_per_workitem * param.workgroup_size``,
 `C` does not exceed `4KB`.
 
 ..
    C as 4KB stands on these points:
-   1) Extra space is needed to store a histogram to distribute keys. It's size is 4 * (2^RadixBits).
+   1) Extra space is needed to store a histogram to distribute keys. Its size is 4 * (2^RadixBits).
    The estimation is correct for RadixBits 9 (2KB) and smaller. Support of larger RadixBits is not expected.
-   1) N_keys + N_values is rounded up at 2KB border (temporarily as a workaround for a GPU driver bug).
+   2) The group histogram and global incoming offsets add a small fixed overhead.
 
 ..
-   The estimation assumes that reordering keys/pairs takes more space than ranking keys.
-   The ranking takes approximatelly "2 * workgroup_size * (2^RadixBits)" bytes.
-   It suprpasses Intel Data Center GPU Max SLM capacity in only marginal cases,
+   The estimation assumes that reordering keys takes more space than ranking keys.
+   The ranking takes approximately "(workgroup_size / sub_group_size) * (2^RadixBits) * sizeof(uint16_t)" bytes.
+   It surpasses Intel Data Center GPU / BMG Max SLM capacity in only marginal cases,
    e.g., when RadixBits is 10 and workgroup_size is 64, or when RadixBits is 9 and workgroup_size is 128.
    It is ignored as an unrealistic case.
 
@@ -288,32 +278,43 @@ Recommended Settings for Best Performance
 The general advice is to choose kernel parameters based on performance measurements and profiling information.
 The initial configuration may be selected according to these high-level guidelines:
 
-..
-   TODO: add this part when param.workgroup_size supports more than one value:
-   Increasing ``param.data_per_workitem`` should usually be preferred to increasing ``param.workgroup_size``,
-   to avoid extra synchronization overhead within a work-group.
+- When the number of elements to sort ``N`` is small (e.g., less than ~1M), utilizing all available
+  compute cores may improve performance. Experiment with creating enough work chunks to feed all
+  X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``
+  in addition to the next configuration which maximizes data per work-group. The optimal settings may differ between
+  hardware depending on the cost of inter-work group synchronization.
 
-- When the number of elements to sort (N) is small (~16K or less) and the algorithm is ``radix_sort``,
-  generally sorting is done more efficiently by a single work-group.
-  Increase the ``param`` values to make ``N <= param.data_per_workitem * param.workgroup_size``.
-
-- When the number of elements to sort ``N`` is between 16K and 1M, utilizing all available
-  compute cores is key for better performance. Allow creating enough work chunks to feed all
-  X\ :sup:`e`-cores [#fnote2]_ on a GPU: ``param.data_per_workitem * param.workgroup_size ≈ N / xe_core_count``.
-
-- When the number of elements to sort is large (more than ~1M), maximizing the number of elements
+- When the number of elements to sort is large (e.g., more than ~1M), maximizing the number of elements
   processed by a work-group, which equals to ``param.data_per_workitem * param.workgroup_size``,
   reduces synchronization overheads between work-groups and usually benefits the overall performance.
 
-.. note::
+The following table provides starting points for ``param.data_per_workitem`` and ``param.workgroup_size``
+for large input sizes. This configuration performs well when sorting 2\ :sup:`28` ``std::uint32_t`` input
+elements uniformly distributed over the range [0, UINT32_MAX]:
 
-  ``param.data_per_workitem`` is the only available parameter to tune performance since ``param.workgroup_size`` currently
-  supports only one value (`64`).
+.. table:: Sample Parameters for ``std::uint32_t`` Sort
+
+    +---------------------------+----------------------------+----------------------------+
+    | Platform                  | ``data_per_workitem``      | ``workgroup_size``         |
+    +===========================+============================+============================+
+    | Intel Data Center GPU Max | 28                         | 512                        |
+    +---------------------------+----------------------------+----------------------------+
+    | Intel Arc B-Series        | 10                         | 512                        |
+    +---------------------------+----------------------------+----------------------------+
+
+When tuning your own parameters, these ``param.data_per_workitem`` values may serve as a good initial starting point and can be thought of as an upper-bound of
+values to test with during experimentation. For smaller inputs, a lower ``param.data_per_workitem`` generally performs better.
 
 .. tip::
 
+   - Optimal parameters may differ by the data type and the entropy of the underlying data, so it is important
+     that this is reflected in your tuning experiments.
+
    - Avoid setting too large ``param.data_per_workitem`` and ``param.workgroup_size`` values
-     by ensuring that :ref:`Memory requirements <radix-sort-memory-requirements>` are satisfied.
+     by ensuring that :ref:`Memory requirements <sycl-radix-sort-memory-requirements>` are satisfied.
+
+   - Maximizing ``param.data_per_workitem`` generally improves scalable performance as long as private memory usage does not
+     exceed available register capacity.
 
    - Large performance drops with an increase to ``param.data_per_workitem`` are indicative of excessive register spillage.
      `Ahead-of-Time (AOT) Compilation <https://www.intel.com/content/www/us/en/developer/articles/technical/ahead-of-time-compilation.html>`_
@@ -321,5 +322,6 @@ The initial configuration may be selected according to these high-level guidelin
 
 .. [#fnote1] Andy Adinets and Duane Merrill (2022). Onesweep: A Faster Least Significant Digit Radix Sort for GPUs. https://arxiv.org/abs/2206.01784.
 .. [#fnote2] The X\ :sup:`e`-core term is described in the |xe_gpu_architecture|_.
-   Check the number of cores in the device specification, such as `Intel® Data Center GPU Max specification
-   <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/max-series/products.html>`_.
+   Check the number of cores in the device specification, such as `Intel Arc B580 specification
+   <https://www.intel.com/content/www/us/en/products/sku/241598/intel-arc-b580-graphics/specifications.html>`_.
+

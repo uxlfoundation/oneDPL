@@ -16,6 +16,9 @@
 #ifndef _ONEDPL_SUBTRACT_WITH_CARRY_ENGINE_H
 #define _ONEDPL_SUBTRACT_WITH_CARRY_ENGINE_H
 
+#include "random_common.h"
+#include "linear_congruential_engine.h"
+
 namespace oneapi
 {
 namespace dpl
