@@ -973,6 +973,14 @@ struct __combined_storage : public __device_storage<_T>
     }
 };
 
+// Storage for values that require GPU atomic operations inside a kernel,
+// with host-side read after kernel completion via __copy_result.
+// This type never allocates host USM:
+//  - host USM is banned for atomic access on most GPU hardware
+//  - must be used when sycl::atomic_ref<..., global_space> is required.
+template <typename _T>
+using __atomic_result_storage = __result_storage<_T, /*_CanUseUSMHostMemory*/ false>;
+
 // Tag __async_mode describe a pattern call mode which should be executed asynchronously
 struct __async_mode
 {
