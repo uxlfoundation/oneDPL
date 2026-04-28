@@ -1103,6 +1103,14 @@ __create_future(_Event&& __event, _Payload&& __payload)
                     __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
 }
 
+template <typename _Tuple>
+auto
+__wait_and_get_result(_Tuple&& __tuple)
+{
+    auto __f = __create_future(std::move(std::get<0>(__tuple)), std::move(std::get<1>(__tuple)));
+    return __f.get();
+}
+
 template <typename _Event, typename _ValueType>
 auto
 __create_future(_Event&& __event, __result_and_scratch_storage<_ValueType>&& __payload)

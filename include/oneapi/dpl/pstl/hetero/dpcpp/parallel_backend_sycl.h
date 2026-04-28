@@ -915,8 +915,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
-        _Size __stop_out = __f.get();
+        _Size __stop_out = __wait_and_get_result(__res);
 
         __ret = {__stop_out, __n};
     }
@@ -1048,8 +1047,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
-        auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
-        _Size __stop_out = __f.get();
+        _Size __stop_out = __wait_and_get_result(__res);
 
         __ret = {__stop_out, __n};
     }
@@ -1117,8 +1115,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 
-    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
-    auto __output_res = __f.get();
+    auto __output_res = __wait_and_get_result(__res);
 
     if constexpr (_Bounded)
     {
@@ -1209,8 +1206,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 
-    auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
-    auto __output_res = __f.get();
+    auto __output_res = __wait_and_get_result(__res);
 
     if constexpr (_Bounded)
     {
@@ -1252,7 +1248,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
     // temporary buffer to store boolean mask
     oneapi::dpl::__par_backend_hetero::__buffer<int32_t> __mask_buf(__n1);
 
-    auto [__event, __payload] = __par_backend_hetero::__parallel_transform_scan_base<_Bounded, _CustomName>(
+    auto __res = __par_backend_hetero::__parallel_transform_scan_base<_Bounded, _CustomName>(
         __q,
         oneapi::dpl::__ranges::make_zip_view(
             std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
@@ -1269,8 +1265,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 
-    auto __f = __create_future(std::move(__event), std::move(__payload));
-    auto __output_res = __f.get();
+    auto __output_res = __wait_and_get_result(__res);
 
     // KSATODO this return looks incorrect
     return {__n1, __n2, __output_res};
@@ -2502,10 +2497,11 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
                 oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment_reduce_then_scan<_Bounded, _CustomName>(
                     __q_local, std::forward<_Range1>(__keys), std::forward<_Range2>(__values),
                     std::forward<_Range3>(__out_keys), std::forward<_Range4>(__out_values), __binary_pred, __binary_op);
+
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
-            auto __f = __create_future(/*event*/ std::move(std::get<0>(__res)), /*result*/ std::move(std::get<1>(__res)));
-            return std::get<0>(__f.get()) + 1;
+            auto __output_res = __wait_and_get_result(__res);
+            return std::get<0>(__output_res) + 1;
         }
     }
 #endif

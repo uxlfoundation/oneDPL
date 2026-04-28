@@ -147,6 +147,13 @@ __pattern_transform_scan_base(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&
             _BackendTag{}, ::std::forward<_ExecutionPolicy>(__exec), __buf1.all_view(), __buf2.all_view(), __n,
             __unary_op, __init, __binary_op, _Inclusive{});
 
+#if ONEDPL_ALLOW_DEFERRED_WAITING
+        static_assert(
+            std::tuple_size_v<std::decay_t<decltype(__res)>> == 2,
+            "__parallel_transform_scan<_Bounded=false> must return a 2-element tuple."
+            "A 3-element tuple would cause the stop_pos storage to be destroyed before the kernel completes.");
+#endif
+
         auto __f = __create_future(std::move(std::get<0>(__res)), std::move(std::get<1>(__res)));
         __f.__checked_deferrable_wait();
     }
