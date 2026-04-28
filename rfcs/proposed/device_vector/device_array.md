@@ -232,9 +232,10 @@ public:
 non-owning views, and range composition, use `device_span<T>` via `.span()`.
 
 `device_span` is guaranteed trivially copyable (and therefore device copyable),
-has `enable_borrowed_range = true`, and models `contiguous_range` +
-`sized_range`. It replaces the `device_view` from the `device_vector` proposal
-without proxy reference types or `basic_common_reference` specializations.
+has `enable_borrowed_range = true` and `enable_view = true`, and models
+`contiguous_range` + `sized_range`. It replaces the `device_view` from the
+`device_vector` proposal without proxy reference types or
+`basic_common_reference` specializations.
 
 ### Definition
 
@@ -292,6 +293,10 @@ template <typename T>
 inline constexpr bool std::ranges::enable_borrowed_range<
     oneapi::dpl::experimental::device_span<T>> = true;
 
+template <typename T>
+inline constexpr bool std::ranges::enable_view<
+    oneapi::dpl::experimental::device_span<T>> = true;
+
 #endif
 ```
 
@@ -307,7 +312,18 @@ Since `begin()`/`end()` return raw `T*`, `device_array` is already a
 machinery needed for use with oneDPL range algorithms.
 
 For kernel capture or composition with range adaptors, use `device_span`
-via `.span()`:
+via `.span()`. Both `enable_borrowed_range` and `enable_view` must be
+specialized for `device_span` — the latter is critical because without it,
+`std::views::all` wraps lvalues in `std::ranges::ref_view`, which oneDPL
+rejects in SYCL kernel code (the `ref_view` contains a host pointer that
+cannot be captured by a device kernel). With `enable_view = true`,
+`std::views::all` returns the `device_span` by copy, and view adaptor
+pipelines (e.g., `span | std::views::take(n)`, `span | std::views::reverse`)
+work correctly because the base range is the span itself, not a `ref_view`.
+
+This matches `std::span`'s own trait specializations and means that
+`device_span` and `std::span` (backed by USM pointers) behave identically
+with oneDPL range algorithms and C++20 view adaptors.
 
 ## Usage Examples
 
