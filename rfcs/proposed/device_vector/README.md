@@ -178,3 +178,23 @@ implementation:
 
 - **No-arg constructors for `compat::device_vector`?** 
   see [device_vector_compat](device_vector_compat.md)
+
+- **Header organization?** 
+  - We could have a `<oneapi/dpl/compat>` header and automatically include `device_array` with other includes?
+  Alternatives:
+  - Individual headers:
+  `<oneapi/dpl/device_array>` and `<oneapi/dpl/device_vector>`.. `device_vector`
+  would transitively include `device_array` since it depends on it.
+  - We could have a `compat` header and a individual `device_array` header. However, if we intend to use `device_array` within our own sycl implementations, that may impact our decision here.
+
+- **Compatibility namespace naming?** This proposal places the
+  Thrust-compatible types in `oneapi::dpl::experimental::compat`. Several
+  aspects are worth discussing:
+  - Should `compat` be nested under `experimental`, or should it be
+    `oneapi::dpl::compat` directly? Or alternatively `oneapi::dpl::ext::compat`.
+  - Is `compat` the right name? Alternatives: `thrust_compat`, `migration`,
+    `legacy`. `compat` is concise but doesn't indicate what it's compatible
+    *with*. `thrust_compat` is more explicit but ties the namespace to a
+    specific vendor's API.
+  - Moreover, is this repository where we want the compatibility headers?  I think yes, otherwise they will be too cumbersome to use, but it worth raising.
+
