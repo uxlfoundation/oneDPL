@@ -124,7 +124,11 @@ public:
     friend difference_type operator-(device_pointer a, device_pointer b);
 
     friend bool operator==(device_pointer a, device_pointer b);
-    friend auto operator<=>(device_pointer a, device_pointer b);
+    friend bool operator!=(device_pointer a, device_pointer b);
+    friend bool operator<(device_pointer a, device_pointer b);
+    friend bool operator>(device_pointer a, device_pointer b);
+    friend bool operator<=(device_pointer a, device_pointer b);
+    friend bool operator>=(device_pointer a, device_pointer b);
 };
 
 // =========================================================================
@@ -304,6 +308,14 @@ anywhere — queues are created on demand for host-side transfers. This matches
 the sycl-thrust approach (which also stores context, not queue) and aligns
 with `device_array`'s design of not retaining a queue.
 
+**`resize()` semantics differ from `device_array`:**
+`device_array::resize(n)` leaves new elements uninitialized (no kernel launch).
+`device_vector::resize(n)` default-initializes new elements (fills with `T{}`),
+matching Thrust's behavior. This is an intentional semantic divergence — the
+compat layer prioritizes Thrust compatibility over `device_array`'s
+uninitialized-by-default philosophy. Users who want uninitialized resize can
+use `resize(n, no_init)` or access `base().resize(n)` directly.
+
 **Allocator forwarding:**
 The `Alloc` template parameter is forwarded directly to `device_array<T, Alloc>`.
 `device_vector` does not interact with the allocator itself — all allocation
@@ -374,6 +386,6 @@ std::vector<float> out = arr.to_vector(q);
 ## Open Questions
 
 - **No-arg constructors for `compat::device_vector`?** Thrust allows
-  `device_vector<T> d(N)` without specifying a device. We currently require
+  `device_vector<T> d(N)` without specifying a device. This proposal requires
   a queue or context+device. Adding no-arg constructors would ease migration
   but introduces implicit default device selection.
