@@ -361,6 +361,18 @@ class zip_view
     explicit zip_view(_Ranges... __args) : __m_ranges(__args...) {}
 
     auto
+    begin() const
+    {
+        return __make_begin(::std::make_index_sequence<__num_ranges>());
+    }
+
+    auto
+    end() const
+    {
+        return __make_end(::std::make_index_sequence<__num_ranges>());
+    }
+
+    auto
     size() const
     {
         return oneapi::dpl::__ranges::__size(std::get<0>(__m_ranges));
@@ -387,6 +399,20 @@ class zip_view
     }
 
   private:
+    template <::std::size_t... _Ip>
+    auto
+    __make_begin(::std::index_sequence<_Ip...>) const
+    {
+        return oneapi::dpl::make_zip_iterator(oneapi::dpl::__ranges::__begin(std::get<_Ip>(__m_ranges))...);
+    }
+
+    template <::std::size_t... _Ip>
+    auto
+    __make_end(::std::index_sequence<_Ip...>) const
+    {
+        return oneapi::dpl::make_zip_iterator(oneapi::dpl::__ranges::__end(std::get<_Ip>(__m_ranges))...);
+    }
+
     _tuple_ranges_t __m_ranges;
 };
 
@@ -537,16 +563,14 @@ struct drop_view_simple
         assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
     }
 
-    template <typename _Rng = _R>
     auto
-    begin() const -> decltype(__begin(std::declval<const _Rng&>()) + __n)
+    begin() const
     {
         return __begin(__r) + __n;
     }
 
-    template <typename _Rng = _R>
     auto
-    end() const -> decltype(__end(std::declval<const _Rng&>()))
+    end() const
     {
         return __end(__r);
     }
