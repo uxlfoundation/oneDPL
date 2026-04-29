@@ -747,6 +747,21 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<oneapi::dpl::__in
 
     permutation_view_simple(_Source __data, _M __m, _Size __s) : __src(__data), __map_fn(__m), __size(__s) {}
 
+    auto
+    begin() const
+    {
+        if constexpr (oneapi::dpl::__internal::__is_random_access_iterator_v<_Source>)
+            return oneapi::dpl::make_permutation_iterator(__src, __map_fn);
+        else
+            return oneapi::dpl::make_permutation_iterator(__begin(__src), __map_fn);
+    }
+
+    auto
+    end() const
+    {
+        return begin() + __size;
+    }
+
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
     decltype(auto)
@@ -785,6 +800,21 @@ struct permutation_view_simple<_Source, _M, ::std::enable_if_t<is_map_view<_M>::
     _M __map;      //permutation range
 
     permutation_view_simple(_Source __data, _M __m) : __src(__data), __map(__m) {}
+
+    auto
+    begin() const
+    {
+        if constexpr (oneapi::dpl::__internal::__is_random_access_iterator_v<_Source>)
+            return oneapi::dpl::make_permutation_iterator(__src, __begin(__map));
+        else
+            return oneapi::dpl::make_permutation_iterator(__begin(__src), __begin(__map));
+    }
+
+    auto
+    end() const
+    {
+        return begin() + size();
+    }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
