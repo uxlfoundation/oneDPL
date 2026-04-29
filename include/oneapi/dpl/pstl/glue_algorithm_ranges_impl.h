@@ -979,6 +979,7 @@ struct __internal::__replace_copy_if_fn
             oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}, __proj);
 
         return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
+    }
 }; //__replace_copy_if_fn
 inline constexpr __internal::__replace_copy_if_fn replace_copy_if;
 
