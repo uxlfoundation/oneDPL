@@ -2523,6 +2523,12 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                            __inputs_remaining, __b);
 #endif
 
+#ifdef _ONEDPL_RTS_WAIT_BETWEEN_KERNELS
+        // Debug: force hard synchronization between reduce and scan kernels.
+        // If this prevents the crash, the issue is insufficient event-based synchronization.
+        __prior_event.wait();
+#endif
+
 #ifdef _ONEDPL_RTS_DUMP_SCRATCH
         // Debug: copy scratch buffer to host and print all values after reduce kernel.
         {
