@@ -2502,6 +2502,25 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
         __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
                                            __inputs_remaining, __b);
 #endif
+
+#ifdef _ONEDPL_RTS_ZERO_SCRATCH_BETWEEN_KERNELS
+        // Debug: zero all scratch memory between reduce and scan kernels to determine
+        // whether the scan kernel crash depends on values written by the reduce kernel.
+        {
+            using _ScratchStorage = __result_and_scratch_storage<_ValueType>;
+            __prior_event = __q.submit([&](sycl::handler& __cgh) {
+                __cgh.depends_on(__prior_event);
+                auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::write>(
+                    __cgh, __dpl_sycl::__no_init{});
+                const std::uint32_t __scratch_size = __max_num_sub_groups_global + 2;
+                __cgh.parallel_for(sycl::range<1>(__scratch_size), [=](sycl::item<1> __it) {
+                    auto* __ptr = _ScratchStorage::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                    __ptr[__it.get_id(0)] = _ValueType{};
+                });
+            });
+        }
+#endif
+
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
 #ifndef _ONEDPL_RTS_SKIP_SCAN
         __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,

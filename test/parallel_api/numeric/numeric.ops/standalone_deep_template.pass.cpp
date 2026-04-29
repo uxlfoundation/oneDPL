@@ -63,18 +63,17 @@ __helper_level2(sycl::sub_group __sg, _ValueType __v, _BinaryOp __op, _ValueType
 template <bool __use_subgroup_ops, std::uint16_t __max_iters, typename _ValueType, typename _BinaryOp,
           typename _GenInput>
 void
-__helper_level1(sycl::sub_group __sg, _GenInput __gen, _BinaryOp __op, _ValueType& __carry,
-                const _ValueType* __in, _ValueType* __out, std::size_t __start, std::size_t __n,
-                std::uint32_t __iters, _ValueType* __slm)
+__helper_level1(sycl::sub_group __sg, _GenInput __gen, _BinaryOp __op, _ValueType& __carry, const _ValueType* __in,
+                _ValueType* __out, std::size_t __begin_idx, std::size_t __n, std::uint32_t __iters, _ValueType* __slm)
 {
     std::uint32_t __sg_size = __sg.get_max_local_range()[0];
-    _ValueType __v = __gen(__in, __start);
+    _ValueType __v = __gen(__in, __begin_idx);
     __v = __helper_level2<__use_subgroup_ops>(__sg, __v, __op, __carry, __slm);
-    __out[__start] = __v;
+    __out[__begin_idx] = __v;
 
     for (std::uint32_t __j = 1; __j < __iters; ++__j)
     {
-        std::size_t __id = __start + __j * __sg_size;
+        std::size_t __id = __begin_idx + __j * __sg_size;
         if (__id < __n)
         {
             __v = __gen(__in, __id);
@@ -108,17 +107,17 @@ struct deep_template_submitter
                     std::uint32_t __sg_lid = __sg.get_local_linear_id();
                     std::uint32_t __gid = __ndi.get_group(0);
 
-                    std::size_t __group_start = __gid * __wg_size * __iters_per_item;
-                    std::size_t __start = __group_start + __sg_id * __iters_per_item * __sg_size + __sg_lid;
+                    std::size_t __group_begin = __gid * __wg_size * __iters_per_item;
+                    std::size_t __begin_idx = __group_begin + __sg_id * __iters_per_item * __sg_size + __sg_lid;
 
                     _ValueType __carry{};
                     _ValueType* __slm_ptr = &__slm[0];
 
-                    if (__start < __n)
+                    if (__begin_idx < __n)
                     {
-                        __helper_level1<false, __max_inputs_per_item>(
-                            __sg, __gen_input, __binary_op, __carry, __in_usm, __out_usm,
-                            __start, __n, __iters_per_item, __slm_ptr);
+                        __helper_level1<false, __max_inputs_per_item>(__sg, __gen_input, __binary_op, __carry, __in_usm,
+                                                                      __out_usm, __begin_idx, __n, __iters_per_item,
+                                                                      __slm_ptr);
                     }
 
                     // Write sub-group partial
