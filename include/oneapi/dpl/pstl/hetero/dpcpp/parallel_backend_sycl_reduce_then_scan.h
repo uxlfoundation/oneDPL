@@ -2467,7 +2467,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <bool _Create, typename _InitValueType, typename _OOBReplayCarryTuple>
-    auto
+    std::conditional_t<_Create,
+                       oneapi::dpl::__internal::__scoped_destroyer<_InitValueType, /*_CallDestroyOptional*/ true>,
+                       std::monostate>
     __create_scoped_destroyer(_OOBReplayCarryTuple& __oob_replay_carry_tuple) const
     {
         if constexpr (_Create)
