@@ -538,13 +538,13 @@ struct drop_view_simple
     }
 
     auto
-    begin() const
+    begin() const -> decltype(__begin(__r) + __n)
     {
         return __begin(__r) + __n;
     }
 
     auto
-    end() const
+    end() const -> decltype(__end(__r))
     {
         return __end(__r);
     }
