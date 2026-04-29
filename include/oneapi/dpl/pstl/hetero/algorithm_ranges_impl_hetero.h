@@ -805,10 +805,10 @@ __pattern_replace_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __
     oneapi::dpl::__internal::__replace_copy_functor<const _T, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>
         __f{__new_value, {__pred, __proj}};
 
-    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec),
-        __f, oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__r)),
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__r)),
         oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
-  }
+}
 
 //------------------------------------------------------------------------
 // move

@@ -1329,7 +1329,7 @@ __pattern_replace_copy_if(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r,
 
 template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _T, typename _Proj>
 void
-__pattern_replace_copy_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
+__pattern_replace_copy_if(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
                           _OutRange&& __out_r, _Pred __pred, const _T& __new_value, _Proj __proj)
 {
     std::ranges::replace_copy_if(std::forward<_InRange>(__r), std::ranges::begin(__out_r), __pred, __new_value, __proj);
