@@ -1030,7 +1030,7 @@ union __lazy_ctor_storage
 // Note: Should only be used *after* the storage has been initialized with __setup or some other method to ensure that
 //       data is not destroyed before it is initialized. This is relevant for exception handling which may change the
 //       control flow unexpectedly.
-template <typename _DataType>
+template <typename _DataType, bool _CallDestroyOptional = false>
 struct __scoped_destroyer
 {
     oneapi::dpl::__internal::__lazy_ctor_storage<_DataType>& ___lazy_ctor_storage_ref;
@@ -1038,10 +1038,13 @@ struct __scoped_destroyer
 
     ~__scoped_destroyer()
     {
-        // Explicitly call destructor of __lazy_ctor_storage
-        if (__destroy_on_destruction)
+        if constexpr (_CallDestroyOptional)
         {
-            ___lazy_ctor_storage_ref.__destroy();
+            // Explicitly call destructor of __lazy_ctor_storage
+            if (__destroy_on_destruction)
+            {
+                ___lazy_ctor_storage_ref.__destroy();
+            }
         }
     }
 };

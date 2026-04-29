@@ -2469,8 +2469,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     __create_scoped_destroyer(_OOBReplayCarryTuple& __oob_replay_carry_tuple) const
     {
         if constexpr (_Create)
-            return oneapi::dpl::__internal::__scoped_destroyer<_InitValueType>{std::get<1>(__oob_replay_carry_tuple),
-                                                                               std::get<0>(__oob_replay_carry_tuple)};
+            return oneapi::dpl::__internal::__scoped_destroyer<_InitValueType, /*_CallDestroyOptional*/ true>{
+                std::get<1>(__oob_replay_carry_tuple), std::get<0>(__oob_replay_carry_tuple)};
         else
             return std::monostate{};
     }
