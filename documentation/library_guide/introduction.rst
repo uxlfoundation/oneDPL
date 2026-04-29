@@ -23,7 +23,7 @@ page for:
 * Known Issues and Limitations
 * Previous Release Notes
 
-Install the `Intel® oneAPI Base Toolkit (Base Kit) <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html>`_
+Install the `Intel® oneAPI Toolkit <https://www.intel.com/content/www/us/en/developer/tools/oneapi/oneapi-toolkit.html>`_
 to use |onedpl_short|.
 
 .. _library-requirements:
