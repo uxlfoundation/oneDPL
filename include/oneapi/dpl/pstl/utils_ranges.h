@@ -537,14 +537,16 @@ struct drop_view_simple
         assert(__n >= 0 && __n <= oneapi::dpl::__ranges::__size(__r));
     }
 
+    template <typename _Rng = _R>
     auto
-    begin() const -> decltype(__begin(__r) + __n)
+    begin() const -> decltype(__begin(std::declval<const _Rng&>()) + __n)
     {
         return __begin(__r) + __n;
     }
 
+    template <typename _Rng = _R>
     auto
-    end() const -> decltype(__end(__r))
+    end() const -> decltype(__end(std::declval<const _Rng&>()))
     {
         return __end(__r);
     }
