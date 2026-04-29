@@ -45,8 +45,7 @@ inline std::uint32_t bit_ceil_u32(std::uint32_t x) {
 inline std::uint32_t ceiling_div(std::uint32_t a, std::uint32_t b) { return (a + b - 1) / b; }
 inline std::uint32_t ceiling_div(std::size_t a, std::uint32_t b) { return static_cast<std::uint32_t>((a + b - 1) / b); }
 
-// ---------- Minimal USM-pointer "range" wrapper for __gen_transform_input ----------
-// __gen_transform_input calls __in_rng[__id], so we wrap a USM pointer to support that.
+// ---------- Minimal USM-pointer "range" wrapper ----------
 template <typename T>
 struct usm_range {
     T* ptr;
@@ -54,11 +53,29 @@ struct usm_range {
     T& operator[](std::size_t i) const { return ptr[i]; }
 };
 
-// Specialize __value_t for our range so __gen_transform_input can resolve the value type
-namespace oneapi { namespace dpl { namespace __internal {
+// Gen input matching the __gen_transform_input interface but working with usm_range
 template <typename T>
-struct __value_t_impl<usm_range<T>> { using type = T; };
-}}}
+struct usm_gen_input
+{
+    using TempData = rts::__noop_temp_data;
+    T
+    operator()(const usm_range<T>& rng, std::size_t id, TempData&) const
+    {
+        return rng[id];
+    }
+};
+
+// Write op matching __simple_write_to_id interface but working with usm_range
+struct usm_write_op
+{
+    using _TempData = rts::__noop_temp_data;
+    template <typename T>
+    void
+    operator()(const usm_range<T>& rng, std::size_t id, const T& v, const _TempData&) const
+    {
+        rng[id] = v;
+    }
+};
 
 // ---------- kernel names ----------
 class ReduceK3;
@@ -67,9 +84,9 @@ class ScanK3;
 int run_test() {
     using T = std::int32_t;
     using _BinaryOp = std::plus<T>;
-    using _GenInput = rts::__gen_transform_input<oneapi::dpl::identity, T>;
+    using _GenInput = usm_gen_input<T>;
     using _ScanInputTransform = oneapi::dpl::identity;
-    using _WriteOp = rts::__simple_write_to_id;
+    using _WriteOp = usm_write_op;
     constexpr bool __use_subgroup_ops = false; // SLM path (CPU)
     constexpr bool __is_inclusive = true;
     constexpr std::uint16_t max_ipi = std::max(std::uint16_t{1}, std::uint16_t{512 / sizeof(T)});
@@ -118,7 +135,7 @@ int run_test() {
     q.memset(d_scratch, 0, scratch_size * sizeof(T));
     q.wait();
 
-    _GenInput gen_input{oneapi::dpl::identity{}};
+    _GenInput gen_input{};
     _ScanInputTransform scan_xform{};
     _WriteOp write_op{};
     _BinaryOp binary_op{};

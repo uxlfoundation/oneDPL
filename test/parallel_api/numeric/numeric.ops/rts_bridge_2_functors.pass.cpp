@@ -292,8 +292,12 @@ int run_test() {
             cgh.depends_on(prior);
             sycl::local_accessor<T, 1> sg_parts(max_sg_local, cgh);
             sycl::local_accessor<T, 1> comm(wg_size, cgh);
-            auto cn = N, cwg = num_wg, cws = wg_size, cmb = max_per_block;
-            auto cir = ir; auto cb = b;
+            std::size_t cn = N;
+            std::uint32_t cwg = num_wg;
+            std::uint32_t cws = wg_size;
+            std::uint32_t cmb = max_per_block;
+            std::size_t cir = ir;
+            std::size_t cb = b;
             cgh.parallel_for<ReduceK2>(ndr, [=](sycl::nd_item<1> ndi) {
                 auto sg = ndi.get_sub_group();
                 std::uint8_t ssz = sg.get_max_local_range()[0];
@@ -364,8 +368,15 @@ int run_test() {
             cgh.depends_on(prior);
             sycl::local_accessor<T, 1> sg_parts(max_sg_local + 1, cgh);
             sycl::local_accessor<T, 1> comm(wg_size, cgh);
-            auto cn = N, cwg = num_wg, cws = wg_size, cmb = max_per_block, cmsg = max_sg_global;
-            auto cir = ir; auto cb = b; auto ciib = iib; auto cnb = num_blocks;
+            std::size_t cn = N;
+            std::uint32_t cwg = num_wg;
+            std::uint32_t cws = wg_size;
+            std::uint32_t cmb = max_per_block;
+            std::uint32_t cmsg = max_sg_global;
+            std::size_t cir = ir;
+            std::size_t cb = b;
+            std::uint32_t ciib = iib;
+            std::size_t cnb = num_blocks;
             cgh.parallel_for<ScanK2>(ndr, [=](sycl::nd_item<1> ndi) {
                 auto sg = ndi.get_sub_group();
                 std::uint8_t ssz = sg.get_max_local_range()[0];
