@@ -1189,9 +1189,16 @@ inline constexpr bool __always_false_v = false;
 // The __create() function returns a tuple of the same structure where all arithmetic types are replaced
 // with their maximum value and all other types are default constructed.
 // This is used to create a max sentinel for tuple comparisons in algorithms like min_element and max_element.
-template <typename _Tuple>
-class __tuple_max_sentinel
+struct __tuple_max_sentinel
 {
+    template <typename _Tuple>
+    static constexpr _Tuple
+    __create()
+    {
+        return __convert_fields(_Tuple{});
+    }
+
+  protected:
     template <typename _T>
     struct _is_tuple : std::false_type
     {
@@ -1251,23 +1258,6 @@ class __tuple_max_sentinel
     __convert_fields(_TValue&& __value)
     {
         return std::numeric_limits<std::decay_t<_TValue>>::max();
-    }
-
-  public:
-
-    static constexpr _Tuple
-    __create()
-    {
-        return __convert_fields(_Tuple{});
-    }
-
-    template <typename _Size>
-    static _Size
-    __settled_or(_Size __size, _Size __default)
-    {
-        using _SizeUnsigned = std::make_unsigned_t<_Size>;
-
-        return static_cast<_SizeUnsigned>(__size) == std::numeric_limits<_SizeUnsigned>::max() ? __default : __size;
     }
 };
 
