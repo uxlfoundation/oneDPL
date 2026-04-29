@@ -2523,6 +2523,36 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                            __inputs_remaining, __b);
 #endif
 
+#ifdef _ONEDPL_RTS_DUMP_SCRATCH
+        // Debug: copy scratch buffer to host and print all values after reduce kernel.
+        {
+            using _ScratchStorage = __result_and_scratch_storage<_ValueType>;
+            const std::uint32_t __scratch_size = __max_num_sub_groups_global + 2;
+            auto* __host_buf = sycl::malloc_host<_ValueType>(__scratch_size, __q);
+            __q.submit([&](sycl::handler& __cgh) {
+                   __cgh.depends_on(__prior_event);
+                   auto __temp_acc = __result_and_scratch.template __get_scratch_acc<sycl::access_mode::read>(__cgh);
+                   __cgh.parallel_for(sycl::range<1>(__scratch_size), [=](sycl::item<1> __it) {
+                       auto* __ptr = _ScratchStorage::__get_usm_or_buffer_accessor_ptr(__temp_acc);
+                       __host_buf[__it.get_id(0)] = __ptr[__it.get_id(0)];
+                   });
+               })
+                .wait();
+            std::printf("[RTS_DUMP] block=%zu scratch_size=%u num_sg_global=%u num_wg=%u wg_size=%u "
+                        "inputs_per_item=%u inputs_remaining=%zu\n",
+                        __b, __scratch_size, __max_num_sub_groups_global, __num_work_groups, __work_group_size,
+                        __inputs_per_item, __inputs_remaining);
+            for (std::uint32_t __i = 0; __i < __scratch_size; ++__i)
+            {
+                if (__i == __max_num_sub_groups_global)
+                    std::printf("[RTS_DUMP]   --- carry values ---\n");
+                std::printf("[RTS_DUMP]   scratch[%u] = %lld\n", __i, (long long)__host_buf[__i]);
+            }
+            std::fflush(stdout);
+            sycl::free(__host_buf, __q);
+        }
+#endif
+
 #ifdef _ONEDPL_RTS_ZERO_SCRATCH_BETWEEN_KERNELS
         // Debug: zero all scratch memory between reduce and scan kernels to determine
         // whether the scan kernel crash depends on values written by the reduce kernel.
