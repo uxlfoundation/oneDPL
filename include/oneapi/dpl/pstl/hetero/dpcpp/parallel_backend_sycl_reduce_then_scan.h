@@ -2320,14 +2320,14 @@ struct __stop_pos_payloads_tools
             _StopPos __pos_local[(std::size_t)_StopPosPayloadIndexes::eLast];
             __payload.__copy_result(__pos_local, (std::size_t)_StopPosPayloadIndexes::eLast);
 
-            __pos_operations::fetch_max_pos_local_elementwise(
-                __final_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eFinalPos]);
-            __pos_operations::fetch_min_pos_local_elementwise(
-                __oob_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eOOBPos]);
+            __pos_operations::fetch_extremum_pos_local_elementwise(
+                __final_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eFinalPos], std::greater<>{});
+            __pos_operations::fetch_extremum_pos_local_elementwise(
+                __oob_pos, __pos_local[(std::size_t)_StopPosPayloadIndexes::eOOBPos], std::less<>{});
         }
 
         _StopPos __result = __final_pos;
-        __pos_operations::fetch_min_pos_local_elementwise(__result, __oob_pos);
+        __pos_operations::fetch_extremum_pos_local_elementwise(__result, __oob_pos, std::less<>{});
 
         return {std::get<0>(__result), std::get<1>(__result)};
     }
@@ -2567,7 +2567,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 const auto __iter_max =
                     __pos_operations_sycl::reduce_max_pos_over_group_elementwise(__sub_group, __v);
-                __pos_operations_sycl::fetch_max_pos_local_elementwise(__max_final_pos_in_wg, __iter_max);
+                __pos_operations_sycl::fetch_extremum_pos_local_elementwise(__max_final_pos_in_wg, __iter_max, std::greater<>{});
             }
 
             // Step 4: WI 0 of Sub-Group 0 writes the work-group max to global memory via atomic fetch_max.

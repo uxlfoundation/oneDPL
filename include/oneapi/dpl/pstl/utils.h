@@ -1270,21 +1270,12 @@ class __tuple_max_sentinel
 
 struct __pos_operations
 {
-    template <typename _Tuple>
+    template <typename _Tuple, typename _Compare>
     static void
-    fetch_min_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos)
+    fetch_extremum_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos, _Compare __comp)
     {
-        __for_each_pair_of_fields(__min_pos, __pos, [](auto& __min_pos_field, const auto& __pos_field) {
-            __min_pos_field = std::min(__min_pos_field, __pos_field);
-        });
-    }
-
-    template <typename _Tuple>
-    static void
-    fetch_max_pos_local_elementwise(_Tuple& __max_pos, const _Tuple& __pos)
-    {
-        __for_each_pair_of_fields(__max_pos, __pos, [](auto& __max_pos_field, const auto& __pos_field) {
-            __max_pos_field = std::max(__max_pos_field, __pos_field);
+        __for_each_pair_of_fields(__min_pos, __pos, [&](auto& __extremum_pos_field, const auto& __pos_field) {
+            __extremum_pos_field = __comp(__extremum_pos_field, __pos_field) ? __extremum_pos_field : __pos_field;
         });
     }
 
