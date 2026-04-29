@@ -128,6 +128,19 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202604L`` or a greater value,
 
 * ``oneapi::dpl::experimental::ranges::zip_view``
 
+.. _range-algorithms-202605L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202605L`` or a greater value, the following algorithms are provided:
+
+* ``find_last``, ``find_last_if``, ``find_last_if_not``
+* ``starts_with``, ``ends_with``
+
+* ``contains``, ``contains_subrange``
+* ``remove_copy``, ``remove_copy_if``
+* ``replace_copy``, ``replace_copy_if``
+* ``lexicographical_compare``
+
+
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
 
