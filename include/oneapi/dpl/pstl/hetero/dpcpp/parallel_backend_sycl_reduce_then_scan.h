@@ -163,7 +163,7 @@ struct __processed_info
     get_oob_source_pos(_TupleOfSizes& __source_oob_pos) const
     {
         __source_oob_pos = __oob_source_pos;
-        return __oob_source_pos != oneapi::dpl::__internal::__tuple_max_sentinel::__create<_TupleOfSizes>();
+        return __oob_source_pos != oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
     }
 
   protected:
@@ -172,7 +172,7 @@ struct __processed_info
     _TupleOfSizes __final_pos = {};
 
     // First OOB source position state
-    _TupleOfSizes __oob_source_pos = oneapi::dpl::__internal::__tuple_max_sentinel::__create<_TupleOfSizes>();
+    _TupleOfSizes __oob_source_pos = oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
 
     // Whether an OOB position was reached + the index of the first OOB position in the output range.
     bool __oob_reached = false;
@@ -2440,7 +2440,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 // Initialize OOB pos to max sentinel - means "not yet found"
                 __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                    oneapi::dpl::__internal::__tuple_max_sentinel::__create<__scan_stop_pos_t<_InRng>>();
+                    oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__scan_stop_pos_t<_InRng>>();
             });
         });
     }

@@ -1189,7 +1189,7 @@ inline constexpr bool __always_false_v = false;
 // The __create() function returns a tuple of the same structure where all arithmetic types are replaced
 // with their maximum value and all other types are default constructed.
 // This is used to create a max sentinel for tuple comparisons in algorithms like min_element and max_element.
-struct __tuple_max_sentinel
+struct __tuple_upper_bound_sentinel
 {
     template <typename _Tuple>
     static constexpr _Tuple
