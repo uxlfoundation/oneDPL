@@ -1307,6 +1307,35 @@ __pattern_reverse_copy(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPol
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+// __pattern_replace_copy_if
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename _Tag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _T,
+          typename _Proj>
+void
+__pattern_replace_copy_if(_Tag __tag, _ExecutionPolicy&& __exec, _InRange&& __r, _OutRange&& __out_r, _Pred __pred,
+                          const _T& __new_value, _Proj __proj)
+{
+    static_assert(__is_parallel_tag_v<_Tag> || typename _Tag::__is_vector{});
+    assert(std::ranges::size(__r) <= std::ranges::size(__out_r));
+
+    oneapi::dpl::__internal::__replace_copy_functor<_T, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>
+        __f{__new_value, {__pred, __proj}};
+
+    oneapi::dpl::__internal::__pattern_walk2(__tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::begin(__r),
+                                             std::ranges::begin(__r) + std::ranges::size(__r),
+                                             std::ranges::begin(__out_r), __f);
+}
+
+template <typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred, typename _T, typename _Proj>
+void
+__pattern_replace_copy_if(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _InRange&& __r,
+                          _OutRange&& __out_r, _Pred __pred, const _T& __new_value, _Proj __proj)
+{
+    std::ranges::replace_copy_if(std::forward<_InRange>(__r), std::ranges::begin(__out_r), __pred, __new_value, __proj);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 // __pattern_move
 //---------------------------------------------------------------------------------------------------------------------
 

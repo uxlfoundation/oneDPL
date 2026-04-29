@@ -914,13 +914,16 @@ struct __internal::__replace_copy_if_fn
     operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Pred __pred, const _T& __new_value,
                _Proj __proj = {}) const
     {
-//        return oneapi::dpl::ranges::transform(
-//            std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
-//            oneapi::dpl::__internal::__replace_copy_transformer<
-//                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>,
-//                oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>(
-//                __new_value, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>{__pred, __proj}));
-    }
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        const oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange> __size =
+            oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
+
+        oneapi::dpl::__internal::__ranges::__pattern_replace_copy_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
+            std::ranges::take_view(__out_r, __size), __pred,
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}, __proj);
+
+        return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) +  __size};
 }; //__replace_copy_if_fn
 inline constexpr __internal::__replace_copy_if_fn replace_copy_if;
 
