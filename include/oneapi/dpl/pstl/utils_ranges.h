@@ -677,6 +677,18 @@ struct transform_view_simple
     _R __r;
     _F __f;
 
+    auto
+    begin() const
+    {
+        return oneapi::dpl::make_transform_iterator(__begin(__r), __f);
+    }
+
+    auto
+    end() const
+    {
+        return begin() + size();
+    }
+
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
     auto operator[](Idx __i) const -> decltype(__f(__r[__i]))
