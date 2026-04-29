@@ -241,25 +241,55 @@ main()
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
-    test_range_algo<0, int, data_in_in_out_lim, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, set_difference_checker);
-    test_range_algo<1, int, data_in_in_out_lim, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj);
+    //                OK          Not OK
+    // Testing sizes:   1024
+    //                  2048
+    //                  4096
+    //                  8192
+    //                 16384
+    //                 32768
+    //                 65536
+    //                131072
+    //                262144
+    //                524288
+    //               1048576
+    //               2097152
+    //               4194304
+    //               6291456
+    //                             6291457      << First problem case
+    //                             7340032
+    //                             8388608
+    //                            16777226
+    //
+    //for (std::size_t sz = 6291456; sz <= 7340032; ++sz)
+    //for (std::size_t sz : {6291456, 6291456, 6291457})
+    for (std::size_t sz : {6291456, 6291457, 6291456, 6291456})
+    {
+        std::cout << "\n\n";
+        std::cout << "---------------------------------------------\n";
+        std::cout << "Testing with size: " << sz << "\n";
+        std::cout << "---------------------------------------------" << std::endl;
+        test_range_algo<0, int, data_in_in_out_lim, div3_t, mul1_t>{sz}(dpl_ranges::set_difference, set_difference_checker);
+    }
+
+    //test_range_algo<1, int, data_in_in_out_lim, div3_t, mul1_t>{big_sz}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj);
 
     // Testing the cut-off with the serial implementation (less than __set_algo_cut_off)
-    test_range_algo<2, int, data_in_in_out_lim, div3_t, mul1_t>{100}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj, proj);
+    //test_range_algo<2, int, data_in_in_out_lim, div3_t, mul1_t>{100}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, proj, proj);
 
-    test_range_algo<3,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
-    test_range_algo<4,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
+    //test_range_algo<3,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::x, &P2::x);
+    //test_range_algo<4,  P2, data_in_in_out_lim, div3_t, mul1_t>{}(dpl_ranges::set_difference, set_difference_checker, std::ranges::less{}, &P2::proj, &P2::proj);
 
     // Testing no intersection
-    auto large_shift = [](auto&& v) { return v + 5000; };
-    using ls_t = decltype(large_shift);
-    test_range_algo<5, int, data_in_in_out_lim,  mul1_t, ls_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
-    test_range_algo<6, int, data_in_in_out_lim, ls_t, mul1_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
-
-    // Check if projections are applied to the right sequences and trigger a compile-time error if not
-    test_mixed_types_host();
+    //auto large_shift = [](auto&& v) { return v + 5000; };
+    //using ls_t = decltype(large_shift);
+    //test_range_algo<5, int, data_in_in_out_lim,  mul1_t, ls_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
+    //test_range_algo<6, int, data_in_in_out_lim, ls_t, mul1_t>{1000}(dpl_ranges::set_difference, set_difference_checker);
+    //
+    //// Check if projections are applied to the right sequences and trigger a compile-time error if not
+    //test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
-    test_mixed_types_device();
+    //test_mixed_types_device();
 #endif
 
     bProcessed = true;
