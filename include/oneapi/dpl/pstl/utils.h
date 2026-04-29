@@ -1185,12 +1185,12 @@ inline constexpr bool __trivial_uninitialized_value_construct =
 template <typename...>
 inline constexpr bool __always_false_v = false;
 
-// _Tuple is expected to be a potentially nested tuple type - std::tuple or oneapi::dpl::__internal::tuple.
-// The __create() function returns a tuple of the same structure where all arithmetic types are replaced
-// with their maximum value and all other types are default constructed.
-// This is used to create a max sentinel for tuple comparisons in algorithms like min_element and max_element.
 struct __tuple_upper_bound_sentinel
 {
+    // _Tuple is expected to be a potentially nested tuple type - std::tuple or oneapi::dpl::__internal::tuple.
+    // The __create() function returns a tuple of the same structure where all arithmetic types are replaced
+    // with their maximum value and all other types are default constructed.
+    // This is used to create a max sentinel for tuple comparisons in algorithms like min_element and max_element.
     template <typename _Tuple>
     static constexpr _Tuple
     __create()
