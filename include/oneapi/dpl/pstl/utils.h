@@ -435,19 +435,22 @@ class __replace_functor
 };
 
 template <typename _Tp, typename _Pred>
-class __replace_copy_transformer
+class __replace_copy_functor
 {
     const _Tp _M_value;
     _Pred _M_pred;
 
   public:
-    __replace_copy_transformer(const _Tp& __value, _Pred __pred) : _M_value(__value), _M_pred(__pred) {}
+    __replace_copy_functor(const _Tp& __value, _Pred __pred) : _M_value(__value), _M_pred(__pred) {}
 
-    template <typename _InputType>
-    auto
-    operator()(const _InputType& __x) const
+    template <typename _InputType, typename _OutputType>
+    void
+    operator()(_InputType&& __x, _OutputType&& __y) const
     {
-        return _M_pred(__x) ? _M_value : __x;
+        if (_M_pred(__x))
+            std::forward<_OutputType>(__y) = _M_value;
+        else
+            std::forward<_OutputType>(__y) = std::forward<_InputType>(__x);
     }
 };
 
