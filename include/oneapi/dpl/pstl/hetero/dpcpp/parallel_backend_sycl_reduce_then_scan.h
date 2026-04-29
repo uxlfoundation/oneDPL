@@ -2367,13 +2367,21 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
 
     // empirical derived caps for workgroup size based upon target
+#ifdef _ONEDPL_RTS_OVERRIDE_WG_SIZE_CAP
+    const std::uint32_t __wg_size_cap = _ONEDPL_RTS_OVERRIDE_WG_SIZE_CAP;
+#else
     const std::uint32_t __wg_size_cap = __q.get_device().is_gpu() ? 1024 : 256;
+#endif
     const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
     // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
     // use work groups equal to the number of compute units.
+#ifdef _ONEDPL_RTS_OVERRIDE_NUM_WORK_GROUPS
+    const std::uint32_t __num_work_groups = _ONEDPL_RTS_OVERRIDE_NUM_WORK_GROUPS;
+#else
     const std::uint32_t __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__q.get_device().template get_info<sycl::info::device::max_compute_units>());
+#endif
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
     const std::uint32_t __max_num_sub_groups_global = __max_num_sub_groups_local * __num_work_groups;
@@ -2434,7 +2442,11 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 
     // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
     // (where native sub-group operations are slow).
+#ifdef _ONEDPL_RTS_OVERRIDE_USE_SLM
+    const bool __use_slm_for_comm = _ONEDPL_RTS_OVERRIDE_USE_SLM;
+#else
     const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType> || !__q.get_device().is_gpu();
+#endif
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
