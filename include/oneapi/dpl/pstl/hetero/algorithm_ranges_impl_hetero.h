@@ -1262,7 +1262,8 @@ __pattern_mismatch(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& _
     using _IndexType = std::make_unsigned_t<
         std::common_type_t<oneapi::dpl::__internal::__difference_t<_R1>, oneapi::dpl::__internal::__difference_t<_R2>>>;
     using _TagType = oneapi::dpl::__par_backend_hetero::__parallel_find_forward_tag<_IndexType>;
-    using _Predicate = oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<__bin_pred_type>>;
+    using _Predicate =
+        oneapi::dpl::unseq_backend::single_match_pred<oneapi::dpl::__internal::__not_pred<__bin_pred_type>>;
     using __size_calc = oneapi::dpl::__ranges::__min_size_calc;
 
     auto __idx = oneapi::dpl::__par_backend_hetero::__parallel_find_or(
