@@ -1327,6 +1327,10 @@ __pattern_move(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&, _
     std::ranges::move(std::forward<_InRange>(__r), std::ranges::begin(__out_r));
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_swap_ranges
+//---------------------------------------------------------------------------------------------------------------------
+
 template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2>
 void
 __pattern_swap_ranges(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2)
@@ -1345,6 +1349,10 @@ __pattern_swap_ranges(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPoli
 {
     std::ranges::swap_ranges(std::forward<_R1>(__r1), std::forward<_R2>(__r2));
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_unique
+//---------------------------------------------------------------------------------------------------------------------
 
 template <typename _Tag, typename _ExecutionPolicy, typename _R, typename _Comp, typename _Proj>
 std::ranges::borrowed_subrange_t<_R>
@@ -1367,6 +1375,10 @@ __pattern_unique(__serial_tag</*IsVector*/ std::false_type>, _ExecutionPolicy&&,
 {
     return std::ranges::unique(std::forward<_R>(__r), __comp, __proj);
 }
+
+//---------------------------------------------------------------------------------------------------------------------
+// __pattern_unique_copy
+//---------------------------------------------------------------------------------------------------------------------
 
 template <typename _R, typename _OutR>
 using __unique_copy_return_t =
