@@ -2491,7 +2491,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     {
         using __result_pos_t = __scan_stop_pos_t<_InRng>;
 
-        using oneapi::dpl::__internal::__pos_operations;
+        using oneapi::dpl::__internal::__pos_operations_sycl;
 
         __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
         const std::size_t __sg_id = __sub_group.get_group_linear_id();
@@ -2530,7 +2530,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         // Step 1: Reduce final_pos within each sub-group.
         // Must be called unconditionally by all WIs to avoid sub-group collective deadlocks.
-        const auto __max_final_pos_in_sg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
+        const auto __max_final_pos_in_sg =
+            __pos_operations_sycl::reduce_max_pos_over_group_elementwise(__sub_group, __final_pos_wi);
 
         // Step 2: Each sub-group leader saves the per-sub-group max to SLM.
         if (__sg_lid == 0 && __sg_id < __active_subgroups)
@@ -2552,7 +2553,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             _FinalPos __v = (__sg_lid < __first_count)
                                 ? static_cast<_FinalPos>(__wg_src_final_pos_local_accessor[__sg_lid])
                                 : _FinalPos{};
-            _FinalPos __max_final_pos_in_wg = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __v);
+            _FinalPos __max_final_pos_in_wg =
+                __pos_operations_sycl::reduce_max_pos_over_group_elementwise(__sub_group, __v);
 
             // Subsequent iterations (only when __active_subgroups > __sub_group_size)
             for (std::uint32_t __i = 1; __i < __iters; ++__i)
@@ -2563,13 +2565,14 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                           ? static_cast<_FinalPos>(__wg_src_final_pos_local_accessor[__load_id])
                           : _FinalPos{};
 
-                const auto __iter_max = __pos_operations::reduce_max_pos_over_group_elementwise(__sub_group, __v);
-                __pos_operations::fetch_max_pos_local_elementwise(__max_final_pos_in_wg, __iter_max);
+                const auto __iter_max =
+                    __pos_operations_sycl::reduce_max_pos_over_group_elementwise(__sub_group, __v);
+                __pos_operations_sycl::fetch_max_pos_local_elementwise(__max_final_pos_in_wg, __iter_max);
             }
 
             // Step 4: WI 0 of Sub-Group 0 writes the work-group max to global memory via atomic fetch_max.
             if (__sg_lid == 0)
-                __pos_operations::fetch_max_pos_global_elementwise(
+                __pos_operations_sycl::fetch_max_pos_global_elementwise(
                     __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eFinalPos],
                     oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__max_final_pos_in_wg));
         }

@@ -23,8 +23,6 @@
 
 #include "../utils.h"
 
-#include <algorithm>   // for std::max
-#include <tuple>       // for std::apply
 #include <type_traits> // for std::decay_t
 
 namespace oneapi
@@ -129,7 +127,7 @@ struct __pattern_min_element_transform_fn
     }
 };
 
-struct __pos_operations
+struct __pos_operations_sycl : __pos_operations
 {
     // We should call this operation without any runtime condition checks to avoid deadlocks
     template <typename _NDGroup, typename _TupleOfSizes>
@@ -142,24 +140,6 @@ struct __pos_operations
         });
         
         return __pos;
-    }
-
-    template <typename _Tuple>
-    static void
-    fetch_min_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos)
-    {
-        __for_each_pair_of_fields(__min_pos, __pos, [](auto& __min_pos_field, const auto& __pos_field) {
-            __min_pos_field = std::min(__min_pos_field, __pos_field);
-        });
-    }
-
-    template <typename _Tuple>
-    static void
-    fetch_max_pos_local_elementwise(_Tuple& __max_pos, const _Tuple& __pos)
-    {
-        __for_each_pair_of_fields(__max_pos, __pos, [](auto& __max_pos_field, const auto& __pos_field) {
-            __max_pos_field = std::max(__max_pos_field, __pos_field);
-        });
     }
 
     // Precondition: __global_max_pos must refer to device global memory (e.g., a USM global allocation
@@ -189,26 +169,6 @@ struct __pos_operations
                 _AtomicValueT __atomic(__global_max_pos_field);
                 __atomic.fetch_max(__pos_field);
             });
-    }
-
-  protected:
-
-    template <typename _Tuple, typename _F>
-    static void
-    __for_each_field(_Tuple& __tuple, _F&& __f)
-    {
-        std::apply([&](auto&... __fields) { (..., __f(__fields)); }, __tuple);
-    }
-
-    template <typename _Tuple1, typename _Tuple2, typename _F>
-    static void
-    __for_each_pair_of_fields(_Tuple1& __tuple1, const _Tuple2& __tuple2, _F&& __f)
-    {
-        std::apply(
-            [&](auto&... __fields1) {
-                std::apply([&](const auto&... __fields2) { (..., __f(__fields1, __fields2)); }, __tuple2);
-            },
-            __tuple1);
     }
 };
 

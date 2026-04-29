@@ -1268,6 +1268,46 @@ class __tuple_max_sentinel
     }
 };
 
+struct __pos_operations
+{
+    template <typename _Tuple>
+    static void
+    fetch_min_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos)
+    {
+        __for_each_pair_of_fields(__min_pos, __pos, [](auto& __min_pos_field, const auto& __pos_field) {
+            __min_pos_field = std::min(__min_pos_field, __pos_field);
+        });
+    }
+
+    template <typename _Tuple>
+    static void
+    fetch_max_pos_local_elementwise(_Tuple& __max_pos, const _Tuple& __pos)
+    {
+        __for_each_pair_of_fields(__max_pos, __pos, [](auto& __max_pos_field, const auto& __pos_field) {
+            __max_pos_field = std::max(__max_pos_field, __pos_field);
+        });
+    }
+
+  protected:
+    template <typename _Tuple, typename _F>
+    static void
+    __for_each_field(_Tuple& __tuple, _F&& __f)
+    {
+        std::apply([&](auto&... __fields) { (..., __f(__fields)); }, __tuple);
+    }
+
+    template <typename _Tuple1, typename _Tuple2, typename _F>
+    static void
+    __for_each_pair_of_fields(_Tuple1& __tuple1, const _Tuple2& __tuple2, _F&& __f)
+    {
+        std::apply(
+            [&](auto&... __fields1) {
+                std::apply([&](const auto&... __fields2) { (..., __f(__fields1, __fields2)); }, __tuple2);
+            },
+            __tuple1);
+    }
+};
+
 } // namespace __internal
 } // namespace dpl
 } // namespace oneapi
