@@ -44,7 +44,8 @@ main()
     Sequence<T> out(n, [&](std::int32_t) { return trash; });
 
     // Just run inclusive_scan — we don't check correctness, only whether it crashes.
-    std::inclusive_scan(TestUtils::default_dpcpp_policy, in.begin(), in.end(), out.begin());
+    auto policy = oneapi::dpl::execution::dpcpp_default;
+    std::inclusive_scan(policy, in.begin(), in.end(), out.begin());
 
     // If we get here without crashing, the test passes.
     return done();

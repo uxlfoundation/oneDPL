@@ -46,7 +46,8 @@ main()
 
     // Run inclusive_scan — kernels are submitted and JIT'd but bodies are no-ops.
     // We don't check correctness, only whether it crashes.
-    std::inclusive_scan(TestUtils::default_dpcpp_policy, in.begin(), in.end(), out.begin());
+    auto policy = oneapi::dpl::execution::dpcpp_default;
+    std::inclusive_scan(policy, in.begin(), in.end(), out.begin());
 
     return done();
 }

@@ -22,138 +22,137 @@
 #include <cstdio>
 #include <vector>
 
-template <bool __use_subgroup_ops, typename _ValueType>
-_ValueType
-__helper_level4(sycl::sub_group __sg, _ValueType __v, _ValueType* __slm)
+template <bool use_subgroup_ops, typename ValueType>
+ValueType
+helper_level4(sycl::sub_group sg, ValueType v, ValueType* slm)
 {
-    std::uint32_t __lid = __sg.get_local_linear_id();
-    if (!__use_subgroup_ops)
+    std::uint32_t lid = sg.get_local_linear_id();
+    if (!use_subgroup_ops)
     {
-        std::uint32_t __base = __sg.get_group_linear_id() * __sg.get_max_local_range()[0];
-        __slm[__base + __lid] = __v;
-        sycl::group_barrier(__sg);
-        _ValueType __shifted = __slm[__base + (__lid > 0 ? __lid - 1 : __lid)];
-        return __shifted;
+        std::uint32_t base = sg.get_group_linear_id() * sg.get_max_local_range()[0];
+        slm[base + lid] = v;
+        sycl::group_barrier(sg);
+        ValueType shifted = slm[base + (lid > 0 ? lid - 1 : lid)];
+        return shifted;
     }
     else
     {
-        return sycl::shift_group_right(__sg, __v, 1);
+        return sycl::shift_group_right(sg, v, 1);
     }
 }
 
-template <bool __use_subgroup_ops, typename _ValueType, typename _BinaryOp>
-_ValueType
-__helper_level3(sycl::sub_group __sg, _ValueType __v, _BinaryOp __op, _ValueType* __slm)
+template <bool use_subgroup_ops, typename ValueType, typename BinaryOp>
+ValueType
+helper_level3(sycl::sub_group sg, ValueType v, BinaryOp op, ValueType* slm)
 {
-    _ValueType __shifted = __helper_level4<__use_subgroup_ops>(__sg, __v, __slm);
-    if (__sg.get_local_linear_id() > 0)
-        __v = __op(__shifted, __v);
-    return __v;
+    ValueType shifted = helper_level4<use_subgroup_ops>(sg, v, slm);
+    if (sg.get_local_linear_id() > 0)
+        v = op(shifted, v);
+    return v;
 }
 
-template <bool __use_subgroup_ops, typename _ValueType, typename _BinaryOp>
-_ValueType
-__helper_level2(sycl::sub_group __sg, _ValueType __v, _BinaryOp __op, _ValueType& __carry, _ValueType* __slm)
+template <bool use_subgroup_ops, typename ValueType, typename BinaryOp>
+ValueType
+helper_level2(sycl::sub_group sg, ValueType v, BinaryOp op, ValueType& carry, ValueType* slm)
 {
-    __v = __helper_level3<__use_subgroup_ops>(__sg, __v, __op, __slm);
-    __carry = sycl::group_broadcast(__sg, __v, __sg.get_max_local_range()[0] - 1);
-    return __v;
+    v = helper_level3<use_subgroup_ops>(sg, v, op, slm);
+    carry = sycl::group_broadcast(sg, v, sg.get_max_local_range()[0] - 1);
+    return v;
 }
 
-template <bool __use_subgroup_ops, std::uint16_t __max_iters, typename _ValueType, typename _BinaryOp,
-          typename _GenInput>
+template <bool use_subgroup_ops, std::uint16_t max_iters, typename ValueType, typename BinaryOp, typename GenInput>
 void
-__helper_level1(sycl::sub_group __sg, _GenInput __gen, _BinaryOp __op, _ValueType& __carry, const _ValueType* __in,
-                _ValueType* __out, std::size_t __begin_idx, std::size_t __n, std::uint32_t __iters, _ValueType* __slm)
+helper_level1(sycl::sub_group sg, GenInput gen, BinaryOp op, ValueType& carry, const ValueType* in_ptr,
+              ValueType* out_ptr, std::size_t begin_idx, std::size_t n, std::uint32_t iters, ValueType* slm)
 {
-    std::uint32_t __sg_size = __sg.get_max_local_range()[0];
-    _ValueType __v = __gen(__in, __begin_idx);
-    __v = __helper_level2<__use_subgroup_ops>(__sg, __v, __op, __carry, __slm);
-    __out[__begin_idx] = __v;
+    std::uint32_t sg_size = sg.get_max_local_range()[0];
+    ValueType v = gen(in_ptr, begin_idx);
+    v = helper_level2<use_subgroup_ops>(sg, v, op, carry, slm);
+    out_ptr[begin_idx] = v;
 
-    for (std::uint32_t __j = 1; __j < __iters; ++__j)
+    for (std::uint32_t j = 1; j < iters; ++j)
     {
-        std::size_t __id = __begin_idx + __j * __sg_size;
-        if (__id < __n)
+        std::size_t id = begin_idx + j * sg_size;
+        if (id < n)
         {
-            __v = __gen(__in, __id);
-            __v = __op(__carry, __v);
-            __v = __helper_level2<__use_subgroup_ops>(__sg, __v, __op, __carry, __slm);
-            __out[__id] = __v;
+            v = gen(in_ptr, id);
+            v = op(carry, v);
+            v = helper_level2<use_subgroup_ops>(sg, v, op, carry, slm);
+            out_ptr[id] = v;
         }
     }
 }
 
-template <std::uint16_t __max_inputs_per_item, typename _ValueType, typename _BinaryOp, typename _GenInput>
+template <std::uint16_t max_inputs_per_item, typename ValueType, typename BinaryOp, typename GenInput>
 struct deep_template_submitter
 {
     sycl::event
-    operator()(sycl::queue& __q, std::size_t __n, const _ValueType* __in_usm, _ValueType* __out_usm) const
+    operator()(sycl::queue& q, std::size_t n, const ValueType* in_usm, ValueType* out_usm) const
     {
-        constexpr std::uint32_t __wg_size = 256;
-        constexpr std::uint32_t __num_wg = 8;
-        std::uint32_t __global = __wg_size * __num_wg;
+        constexpr std::uint32_t wg_size = 256;
+        constexpr std::uint32_t num_wg = 8;
+        std::uint32_t global = wg_size * num_wg;
 
-        return __q.submit([&, *this](sycl::handler& __cgh) {
-            sycl::local_accessor<_ValueType, 1> __slm(sycl::range<1>(__wg_size), __cgh);
-            sycl::local_accessor<_ValueType, 1> __sg_partials(sycl::range<1>(__wg_size / 32), __cgh);
+        return q.submit([&, *this](sycl::handler& cgh) {
+            sycl::local_accessor<ValueType, 1> slm(sycl::range<1>(wg_size), cgh);
+            sycl::local_accessor<ValueType, 1> sg_partials(sycl::range<1>(wg_size / 32), cgh);
 
-            __cgh.parallel_for<class deep_template_kernel>(
-                sycl::nd_range<1>(sycl::range<1>(__global), sycl::range<1>(__wg_size)),
-                [=, *this](sycl::nd_item<1> __ndi) {
-                    auto __sg = __ndi.get_sub_group();
-                    std::uint32_t __sg_size = __sg.get_max_local_range()[0];
-                    std::uint32_t __sg_id = __sg.get_group_linear_id();
-                    std::uint32_t __sg_lid = __sg.get_local_linear_id();
-                    std::uint32_t __gid = __ndi.get_group(0);
+            cgh.parallel_for<class deep_template_kernel>(
+                sycl::nd_range<1>(sycl::range<1>(global), sycl::range<1>(wg_size)), [=, *this](sycl::nd_item<1> ndi) {
+                    auto sg = ndi.get_sub_group();
+                    std::uint32_t sg_size = sg.get_max_local_range()[0];
+                    std::uint32_t sg_id = sg.get_group_linear_id();
+                    std::uint32_t sg_lid = sg.get_local_linear_id();
+                    std::uint32_t gid = ndi.get_group(0);
 
-                    std::size_t __group_begin = __gid * __wg_size * __iters_per_item;
-                    std::size_t __begin_idx = __group_begin + __sg_id * __iters_per_item * __sg_size + __sg_lid;
+                    std::size_t group_begin = gid * wg_size * iters_per_item;
+                    std::size_t begin_idx = group_begin + sg_id * iters_per_item * sg_size + sg_lid;
 
-                    _ValueType __carry{};
-                    _ValueType* __slm_ptr = &__slm[0];
+                    ValueType carry{};
+                    ValueType* slm_ptr = &slm[0];
 
-                    if (__begin_idx < __n)
+                    if (begin_idx < n)
                     {
-                        __helper_level1<false, __max_inputs_per_item>(__sg, __gen_input, __binary_op, __carry, __in_usm,
-                                                                      __out_usm, __begin_idx, __n, __iters_per_item,
-                                                                      __slm_ptr);
+                        helper_level1<false, max_inputs_per_item>(sg, gen_input, binary_op, carry, in_usm, out_usm,
+                                                                  begin_idx, n, iters_per_item, slm_ptr);
                     }
 
-                    // Write sub-group partial
-                    if (__sg_lid == 0)
-                        __sg_partials[__sg_id] = __carry;
+                    if (sg_lid == 0)
+                        sg_partials[sg_id] = carry;
 
-                    sycl::group_barrier(__ndi.get_group());
+                    sycl::group_barrier(ndi.get_group());
 
-                    // Sub-group 0 scans the partials
-                    if (__sg_id == 0 && __sg_lid < __wg_size / __sg_size)
+                    if (sg_id == 0 && sg_lid < wg_size / sg_size)
                     {
-                        _ValueType __p = __sg_partials[__sg_lid];
-                        __p = __helper_level3<false>(__sg, __p, __binary_op, __slm_ptr);
-                        __sg_partials[__sg_lid] = __p;
+                        ValueType p = sg_partials[sg_lid];
+                        p = helper_level3<false>(sg, p, binary_op, slm_ptr);
+                        sg_partials[sg_lid] = p;
                     }
                 });
         });
     }
 
-    const std::uint32_t __max_num_work_groups;
-    const std::uint32_t __work_group_size;
-    const std::uint32_t __max_block_size;
-    const std::uint32_t __max_num_sub_groups_local;
-    const std::size_t __n;
-    const bool __use_slm_for_comm;
-    const std::uint32_t __iters_per_item;
+    const std::uint32_t max_num_work_groups;
+    const std::uint32_t work_group_size;
+    const std::uint32_t max_block_size;
+    const std::uint32_t max_num_sub_groups_local;
+    const std::size_t n;
+    const bool use_slm_for_comm;
+    const std::uint32_t iters_per_item;
 
-    const _GenInput __gen_input;
-    const _BinaryOp __binary_op;
-    const _ValueType __init;
+    const GenInput gen_input;
+    const BinaryOp binary_op;
+    const ValueType init;
 };
 
 struct simple_gen
 {
     template <typename T>
-    T operator()(const T* __in, std::size_t __id) const { return __in[__id]; }
+    T
+    operator()(const T* data, std::size_t id) const
+    {
+        return data[id];
+    }
 };
 
 int
