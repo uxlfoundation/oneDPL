@@ -156,8 +156,8 @@ struct __internal::__find_if_not_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            _Pred>>(__pred), __proj);
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred),
+            __proj);
     }
 }; //__find_if_not_fn
 inline constexpr __internal::__find_if_not_fn find_if_not;
@@ -174,11 +174,66 @@ struct __internal::__find_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
-            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy,
-            const _T>>(__value), __proj);
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
+                (__value), __proj);
     }
 }; //__find_fn
 inline constexpr __internal::__find_fn find;
+
+// [alg.find.last]
+
+struct __internal::__find_last_if_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R>
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        std::ranges::reverse_view __reverse_r{__r};
+
+        auto __res = oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), __reverse_r, __pred, __proj);
+
+        auto __last = std::ranges::begin(__r) + std::ranges::size(__r);
+        return {(__res == __reverse_r.end()) ? __last : __res.base() - 1, __last};
+    }
+}; //__find_last_if_fn
+inline constexpr __internal::__find_last_if_fn find_last_if;
+
+struct __internal::__find_last_if_not_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R>
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::find_last_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__not_pred<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred),
+            __proj);
+    }
+}; //__find_last_if_not_fn
+inline constexpr __internal::__find_last_if_not_fn find_last_if_not;
+
+struct __internal::__find_last_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> &&
+                 std::indirect_binary_predicate<std::ranges::equal_to,
+                                                std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
+    std::ranges::borrowed_subrange_t<_R>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::find_last_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
+                (__value), __proj);
+    }
+}; //__find_last_fn
+inline constexpr __internal::__find_last_fn find_last;
 
 // [alg.find.first.of]
 
@@ -1023,6 +1078,56 @@ struct __internal::__mismatch_fn
     }
 }; //__mismatch_fn
 inline constexpr __internal::__mismatch_fn mismatch;
+
+// [alg.starts.with]
+
+struct __internal::__starts_with_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        // To ensure no dangling iterator is returned, __r2 may not be forwarded
+        return std::ranges::end(__r2) == oneapi::dpl::ranges::mismatch(std::forward<_ExecutionPolicy>(__exec), __r1,
+                                                                       __r2, __pred, __proj1, __proj2).in2;
+    }
+};
+inline constexpr __internal::__starts_with_fn starts_with;
+
+// [alg.ends.with]
+
+struct __internal::__ends_with_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        auto __size_diff = std::ranges::distance(__r1) - std::ranges::distance(__r2);
+        if (__size_diff < 0)
+            return false;
+
+#if _ONEDPL_CPP20_RANGES_ADVANCE_SYCL_INCOMPATIBLE
+        oneapi::dpl::__ranges::drop_view_simple __r1_dropped {std::views::all(__r1), __size_diff};
+#else
+        auto __r1_dropped = std::views::all(__r1) | std::views::drop(__size_diff);
+#endif
+        return oneapi::dpl::ranges::equal(std::forward<_ExecutionPolicy>(__exec), std::move(__r1_dropped),
+                                          std::forward<_R2>(__r2), __pred, __proj1, __proj2);
+    }
+};
+inline constexpr __internal::__ends_with_fn ends_with;
 
 // [alg.remove]
 

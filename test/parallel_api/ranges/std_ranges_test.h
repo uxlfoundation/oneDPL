@@ -439,9 +439,21 @@ private:
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
 
-        EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
-                  (std::string("wrong stop position with ") + typeid(Algo).name() +
-                   typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        if constexpr(is_range<std::remove_cvref_t<decltype(res)>>)
+        {
+            std::pair exp_split = ret_in_val(expected_res, expected_view.begin());
+            std::pair split = ret_in_val(res, r_in.begin());
+            EXPECT_EQ(exp_split.first, split.first, (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+            EXPECT_EQ(exp_split.second, split.second, (std::string("wrong subrange size with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
+        else
+        {
+            EXPECT_EQ(ret_in_val(expected_res, expected_view.begin()), ret_in_val(res, r_in.begin()),
+                      (std::string("wrong stop position with ") + typeid(Algo).name() +
+                       typeid(decltype(tr_in(std::declval<Container&>()()))).name() + sizes).c_str());
+        }
 
         //check result
         auto n = std::ranges::size(expected_view);
