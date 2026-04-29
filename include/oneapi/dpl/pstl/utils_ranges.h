@@ -641,6 +641,21 @@ struct replicate_start_view_simple
         assert(__repl_count >= 0);
     }
 
+    auto
+    begin() const
+    {
+        auto __map_fn = [__c = __repl_count](auto __i) -> decltype(__i) {
+            return __i < __c ? decltype(__i)(0) : __i - __c;
+        };
+        return oneapi::dpl::make_permutation_iterator(__begin(__r), __map_fn);
+    }
+
+    auto
+    end() const
+    {
+        return begin() + size();
+    }
+
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
     template <typename Idx>
     auto operator[](Idx __i) const -> decltype(__r[__i])
