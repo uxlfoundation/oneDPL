@@ -363,13 +363,13 @@ class zip_view
     auto
     begin() const
     {
-        return __make_begin(::std::make_index_sequence<__num_ranges>());
+        return __make_begin(std::make_index_sequence<__num_ranges>());
     }
 
     auto
     end() const
     {
-        return __make_end(::std::make_index_sequence<__num_ranges>());
+        return __make_end(std::make_index_sequence<__num_ranges>());
     }
 
     auto
@@ -399,16 +399,16 @@ class zip_view
     }
 
   private:
-    template <::std::size_t... _Ip>
+    template <std::size_t... _Ip>
     auto
-    __make_begin(::std::index_sequence<_Ip...>) const
+    __make_begin(std::index_sequence<_Ip...>) const
     {
         return oneapi::dpl::make_zip_iterator(oneapi::dpl::__ranges::__begin(std::get<_Ip>(__m_ranges))...);
     }
 
-    template <::std::size_t... _Ip>
+    template <std::size_t... _Ip>
     auto
-    __make_end(::std::index_sequence<_Ip...>) const
+    __make_end(std::index_sequence<_Ip...>) const
     {
         return oneapi::dpl::make_zip_iterator(oneapi::dpl::__ranges::__end(std::get<_Ip>(__m_ranges))...);
     }
@@ -483,13 +483,13 @@ struct reverse_view_simple
     auto
     begin() const
     {
-        return ::std::make_reverse_iterator(__begin(__r) + size());
+        return std::make_reverse_iterator(__begin(__r) + size());
     }
 
     auto
     end() const
     {
-        return ::std::make_reverse_iterator(__begin(__r));
+        return std::make_reverse_iterator(__begin(__r));
     }
 
     //TODO: to be consistent with C++ standard, this Idx should be changed to diff_type of underlying range
