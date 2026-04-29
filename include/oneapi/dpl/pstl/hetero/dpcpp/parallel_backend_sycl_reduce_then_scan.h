@@ -1746,6 +1746,15 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __cgh, __dpl_sycl::__no_init{});
             __cgh.parallel_for<_KernelName...>(
                 __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
+#ifdef _ONEDPL_RTS_NOOP_KERNEL_BODY
+                    (void)__ndi;
+                    (void)__sub_group_partials;
+                    (void)__comm_slm;
+                    (void)__temp_acc;
+                    (void)__inputs_remaining;
+                    (void)__block_num;
+                    return;
+#endif
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
 
                     if (!__use_slm_for_comm)
@@ -2294,6 +2303,17 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
 
             __cgh.parallel_for<_KernelName...>(
                 __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
+#ifdef _ONEDPL_RTS_NOOP_KERNEL_BODY
+                    (void)__ndi;
+                    (void)__sub_group_partials;
+                    (void)__comm_slm;
+                    (void)__temp_acc;
+                    (void)__res_acc;
+                    (void)__inputs_in_block;
+                    (void)__inputs_remaining;
+                    (void)__block_num;
+                    return;
+#endif
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                     _InitValueType* __res_ptr =
                         _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
