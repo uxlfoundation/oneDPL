@@ -2380,7 +2380,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _ProcessedInfo>
-    auto
+    std::conditional_t<_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>,
+                       __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>, std::monostate>
     __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
     {
         if constexpr (_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>)
@@ -2446,7 +2447,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
 
     template <bool _Create, typename _InitValueType>
-    auto
+    std::conditional_t<_Create, std::tuple<bool, oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>>,
+                       std::monostate>
     __save_carry_for_oob_replay(bool __sub_group_carry_initialized,
                                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>& __sub_group_carry) const
     {
