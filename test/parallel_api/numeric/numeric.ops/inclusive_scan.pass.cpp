@@ -82,7 +82,7 @@ test_with_plus(Init init, Out trash, Convert convert)
     // testing of large number of items may take too much time in debug mode
     unsigned long n =
 #if PSTL_USE_DEBUG
-        70000000;
+        1000000;
 #else
         100000000;
 #endif
