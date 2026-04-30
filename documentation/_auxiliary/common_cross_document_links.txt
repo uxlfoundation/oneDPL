@@ -1,6 +1,8 @@
-.. |onedpl_library_guide| replace:: :doc:`oneAPI DPC++ Library Guide </library_guide/introduction>`
+.. |onedpl_library_guide| replace:: oneAPI DPC++ Library Guide
+.. _onesdpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022.12.0/overview.html
 
 .. |onedpl_requirements| replace:: :ref:`oneDPL System Requirements <library-requirements>`
+.. _onedpl_requirements: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022.12.0/intel-oneapi-dpc-library-introduction.html
 
 .. |onedpl_specification| replace:: oneDPL Specification
 .. _onedpl_specification: https://uxlfoundation.github.io/oneDPL/specification/index.html
