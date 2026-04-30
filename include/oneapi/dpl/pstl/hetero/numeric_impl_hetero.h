@@ -316,7 +316,7 @@ __pattern_reduce_by_segment(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& 
     auto __keep_value_outputs =
         oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read_write>();
     auto __out_values = __keep_value_outputs(__out_values_first, __out_values_first + __n);
-    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment</*_Bounded*/ false>(
+    return oneapi::dpl::__par_backend_hetero::__parallel_reduce_by_segment(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __keys.all_view(), __values.all_view(),
         __out_keys.all_view(), __out_values.all_view(), __binary_pred, __binary_op);
 }
