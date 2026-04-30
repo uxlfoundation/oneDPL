@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-- scan.pass.cpp -----------------------------------------------------===//
+//===-- inclusive_scan.pass.cpp --------------------------------------------===//
 //
 // Copyright (C) Intel Corporation
 //
@@ -25,17 +25,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#if  !defined(_PSTL_TEST_INCLUSIVE_SCAN) && !defined(_PSTL_TEST_EXCLUSIVE_SCAN)
-#define _PSTL_TEST_INCLUSIVE_SCAN
-#define _PSTL_TEST_EXCLUSIVE_SCAN
-#endif
-
 using namespace TestUtils;
-
-// Most of the framework required for testing inclusive and exclusive scan is identical,
-// so the tests for both are in this file.  Which is being tested is controlled by the global
-// flag inclusive, which is set to each alternative by main().
-//static bool inclusive;
 
 template <typename In, typename Init, typename Out>
 struct test_inclusive_scan_with_plus
@@ -61,36 +51,9 @@ struct test_inclusive_scan_with_plus
         }
         EXPECT_TRUE(out_last == orr, "inclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan");
-        ::std::fill_n(out_first, n, trash);
+        std::fill_n(out_first, n, trash);
     }
     // inclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
-    // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
-    operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
-               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
-               T /*init*/, T /*trash*/)
-    {
-    }
-};
-
-template <typename In, typename Init, typename Out>
-struct test_exclusive_scan_with_plus
-{
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
-    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, T trash)
-    {
-        using namespace std;
-
-        exclusive_scan_serial(in_first, in_last, expected_first, init);
-        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init);
-        EXPECT_TRUE(out_last == orr, "exclusive_scan returned wrong iterator");
-        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan");
-        ::std::fill_n(out_first, n, trash);
-    }
-    // exclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
     // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
@@ -111,21 +74,10 @@ test_with_plus(Init init, Out trash, Convert convert)
         Sequence<Out> expected(n);
         Sequence<Out> out(n, [&](std::int32_t) { return trash; });
 
-#ifdef _PSTL_TEST_INCLUSIVE_SCAN
-
         invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
         invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-#endif
-
-#ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-
-        invoke_on_all_policies<2>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<3>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-#endif
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
@@ -140,16 +92,9 @@ test_with_plus(Init init, Out trash, Convert convert)
     Sequence<In> in(n, convert);
     Sequence<Out> expected(n);
     Sequence<Out> out(n, [&](std::int32_t) { return trash; });
-#ifdef _PSTL_TEST_INCLUSIVE_SCAN
     invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
                                        out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
                                        trash);
-#endif
-#ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-    invoke_on_all_hetero_policies<5>()(test_exclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
-                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
-                                       trash);
-#endif
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
@@ -158,7 +103,7 @@ struct test_inclusive_scan_with_binary_op
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
               typename BinaryOp>
-    ::std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
                Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, BinaryOp binary_op, T trash)
     {
@@ -169,12 +114,12 @@ struct test_inclusive_scan_with_binary_op
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
-        ::std::fill_n(out_first, n, trash);
+        std::fill_n(out_first, n, trash);
     }
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
               typename BinaryOp>
-    ::std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
                Iterator3 expected_first, Iterator3 /* expected_last */, Size n, BinaryOp binary_op, T trash)
     {
@@ -185,12 +130,12 @@ struct test_inclusive_scan_with_binary_op
 
         EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator without init returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator without init");
-        ::std::fill_n(out_first, n, trash);
+        std::fill_n(out_first, n, trash);
     }
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
               typename BinaryOp>
-    ::std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */, Iterator2 /* out_last */,
                Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */, BinaryOp /* binary_op */, T /* trash */)
     {
@@ -198,36 +143,7 @@ struct test_inclusive_scan_with_binary_op
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
               typename BinaryOp>
-    ::std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */, Iterator2 /* out_last */,
-               Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */, T /* init */, BinaryOp /* binary_op */, T /* trash */)
-    {
-    }
-};
-
-template <typename Type>
-struct test_exclusive_scan_with_binary_op
-{
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    ::std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, BinaryOp binary_op, T trash)
-    {
-        using namespace std;
-
-        exclusive_scan_serial(in_first, in_last, expected_first, init, binary_op);
-
-        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init, binary_op);
-
-        EXPECT_TRUE(out_last == orr, "exclusive_scan with binary operator returned wrong iterator");
-        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan with binary operator");
-        ::std::fill_n(out_first, n, trash);
-    }
-
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    ::std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */, Iterator2 /* out_last */,
                Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */, T /* init */, BinaryOp /* binary_op */, T /* trash */)
     {
@@ -246,7 +162,6 @@ test_matrix(Out init, BinaryOp binary_op, Out trash)
         Sequence<Out> expected(n, [&](size_t) { return trash; });
 
         auto __scan_invoker = [&](Sequence<Out>& out) {
-#ifdef _PSTL_TEST_INCLUSIVE_SCAN
         invoke_on_all_policies<4>()(test_inclusive_scan_with_binary_op<In>(), in.begin(), in.end(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), init, binary_op, trash);
         invoke_on_all_policies<5>()(test_inclusive_scan_with_binary_op<In>(), in.cbegin(), in.cend(), out.begin(),
@@ -255,16 +170,6 @@ test_matrix(Out init, BinaryOp binary_op, Out trash)
                                     out.end(), expected.begin(), expected.end(), in.size(), binary_op, trash);
         invoke_on_all_policies<7>()(test_inclusive_scan_with_binary_op<In>(), in.cbegin(), in.cend(), out.begin(),
                                     out.end(), expected.begin(), expected.end(), in.size(), binary_op, trash);
-#endif
-
-#ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-#if !TEST_GCC10_EXCLUSIVE_SCAN_BROKEN
-        invoke_on_all_policies<8>()(test_exclusive_scan_with_binary_op<In>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, binary_op, trash);
-        invoke_on_all_policies<9>()(test_exclusive_scan_with_binary_op<In>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, binary_op, trash);
-#endif
-#endif
         };
 
         //perform regular a scan algorithm
@@ -295,16 +200,9 @@ test_with_multiplies()
         std::default_random_engine gen{42};
         std::shuffle(in.begin(), in.end(), gen);
 
-#ifdef _PSTL_TEST_INCLUSIVE_SCAN
         invoke_on_all_hetero_policies<20>()(test_inclusive_scan_with_binary_op<T>(), in.begin(), in.end(),
                                             out.begin(), out.end(), expected.begin(), expected.end(), in.size(),
                                             init, std::multiplies{}, trash);
-#endif
-#ifdef _PSTL_TEST_EXCLUSIVE_SCAN
-        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<T>(), in.begin(), in.end(), out.begin(),
-                                            out.end(), expected.begin(), expected.end(), in.size(),
-                                            init, std::multiplies{}, trash);
-#endif
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 }
