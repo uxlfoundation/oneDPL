@@ -147,6 +147,7 @@ DEFINE_TEST_1(test_scan_non_inplace, TestingAlgoritm)
 
         TestingAlgoritm testingAlgo;
 
+        // Initialize source data in the buffer [keys_first, keys_last)
         initialize_data(keys_first, n);
 
         testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, vals_first);
