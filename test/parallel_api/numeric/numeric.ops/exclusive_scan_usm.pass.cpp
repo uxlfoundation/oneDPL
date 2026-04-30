@@ -100,16 +100,34 @@ DEFINE_TEST_1(test_scan_non_inplace, TestingAlgoritm)
 
         TestingAlgoritm testingAlgo;
 
+        // UDTKind::eKeys is assigned with iterators Iterator1 keys_first, Iterator1 keys_last
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
+
+        // UDTKind::eVals is assigned with iterators Iterator2 vals_first, Iterator2 vals_last
         TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
 
+        // Initialize source data in the buffer [keys_first, keys_last)
+        // Iterators
+        //      Iterator1 keys_first, Iterator1 keys_last
+        // describe uninitialized memory so we should prepare test data on the host
         initialize_data(host_keys.get(), n);
+
+        // Copy data from the buffer [keys_first, keys_last) to a device.
+        // After test data is prepared we should copy data from the host into buffers
+        // described by iterators
+        //      Iterator1 keys_first, Iterator1 keys_last
         update_data(host_keys);
 
+        // Now we are ready to call the tested algorithm
         testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first);
 
+        // After the tested algorithm finished we should check the results.
+        // For that, at first we copy data from the buffer described by iterators
+        //      Iterator2 vals_first, Iterator2 vals_last
+        // into the host memory.
         retrieve_data(host_vals);
 
+        // ...and check results in the host memory.
         std::vector<ValT> expected(n);
         testingAlgo.call_serial(host_keys.get(), host_keys.get() + n, expected.data());
         EXPECT_EQ_N(expected.cbegin(), host_vals.get(), n, TestingAlgoritm().getMsg(false));
@@ -185,11 +203,14 @@ DEFINE_TEST_1(test_scan_inplace, TestingAlgoritm)
 
         TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
 
+        // Initialize source data in the buffer [keys_first, keys_last)
         initialize_data(host_keys.get(), n);
         const std::vector<KeyT> source_host_keys_state(host_keys.get(), host_keys.get() + n);
 
+        // Copy data from the buffer [keys_first, keys_last) to a device.
         update_data(host_keys);
 
+        // Now we are ready to call tested algorithm
         testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, keys_first);
 
         retrieve_data(host_keys);
