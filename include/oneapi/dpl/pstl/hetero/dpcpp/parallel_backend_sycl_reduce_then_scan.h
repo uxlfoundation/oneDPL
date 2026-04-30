@@ -39,7 +39,7 @@
 // Debug instrumentation for Windows CPU scan failures.
 // Define _ONEDPL_REDUCE_THEN_SCAN_DEBUG=1 to enable diagnostic output.
 #ifndef _ONEDPL_REDUCE_THEN_SCAN_DEBUG
-#    define _ONEDPL_REDUCE_THEN_SCAN_DEBUG 1
+#    define _ONEDPL_REDUCE_THEN_SCAN_DEBUG 0
 #endif
 
 #if _ONEDPL_REDUCE_THEN_SCAN_DEBUG
