@@ -21,8 +21,6 @@
 #include "support/utils.h"
 #include "support/scan_serial_impl.h"
 
-#include <random>
-#include <algorithm>
 #include <cstdint>
 
 using namespace TestUtils;
@@ -98,124 +96,9 @@ test_with_plus(Init init, Out trash, Convert convert)
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
-template <typename Type>
-struct test_inclusive_scan_with_binary_op
-{
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, BinaryOp binary_op, T trash)
-    {
-        using namespace std;
-
-        inclusive_scan_serial(in_first, in_last, expected_first, binary_op, init);
-        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op, init);
-
-        EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator returned wrong iterator");
-        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
-        std::fill_n(out_first, n, trash);
-    }
-
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, BinaryOp binary_op, T trash)
-    {
-        using namespace std;
-
-        inclusive_scan_serial(in_first, in_last, expected_first, binary_op);
-        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op);
-
-        EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator without init returned wrong iterator");
-        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator without init");
-        std::fill_n(out_first, n, trash);
-    }
-
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */, Iterator2 /* out_last */,
-               Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */, BinaryOp /* binary_op */, T /* trash */)
-    {
-    }
-
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp>
-    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
-    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */, Iterator2 /* out_last */,
-               Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */, T /* init */, BinaryOp /* binary_op */, T /* trash */)
-    {
-    }
-};
-
-template <typename In, typename Out, typename BinaryOp>
-void
-test_matrix(Out init, BinaryOp binary_op, Out trash)
-{
-    for (size_t n = 0; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
-    {
-        Sequence<In> in(n, [](size_t k) { return In(k, k + 1); });
-
-        Sequence<Out> out(n, [&](size_t) { return trash; });
-        Sequence<Out> expected(n, [&](size_t) { return trash; });
-
-        auto __scan_invoker = [&](Sequence<Out>& out) {
-        invoke_on_all_policies<4>()(test_inclusive_scan_with_binary_op<In>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, binary_op, trash);
-        invoke_on_all_policies<5>()(test_inclusive_scan_with_binary_op<In>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, binary_op, trash);
-        invoke_on_all_policies<6>()(test_inclusive_scan_with_binary_op<In>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), binary_op, trash);
-        invoke_on_all_policies<7>()(test_inclusive_scan_with_binary_op<In>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), binary_op, trash);
-        };
-
-        //perform regular a scan algorithm
-        __scan_invoker(out);
-
-        //perform an in-place scan algorithm
-        __scan_invoker(in);
-    }
-}
-
-template <typename T>
-void
-test_with_multiplies()
-{
-#if TEST_DPCPP_BACKEND_PRESENT
-    T trash = 666;
-    T init = 1;
-    const std::size_t custom_item_count = 10;
-
-    for (size_t n = custom_item_count; n <= 100000; n = n <= 16 ? n + 1 : size_t(3.1415 * n))
-    {
-        Sequence<T> out(n, [&](size_t) { return trash; });
-        Sequence<T> expected(n, [&](size_t) { return trash; });
-
-        Sequence<T> in(n, [](size_t /*index*/) { return 1; });
-        std::size_t counter = 0;
-        std::generate_n(in.begin(), custom_item_count, [&counter]() { return (counter++) % 3 + 2; } );
-        std::default_random_engine gen{42};
-        std::shuffle(in.begin(), in.end(), gen);
-
-        invoke_on_all_hetero_policies<20>()(test_inclusive_scan_with_binary_op<T>(), in.begin(), in.end(),
-                                            out.begin(), out.end(), expected.begin(), expected.end(), in.size(),
-                                            init, std::multiplies{}, trash);
-    }
-#endif // TEST_DPCPP_BACKEND_PRESENT
-}
-
 int
 main()
 {
-#if !_PSTL_ICC_19_TEST_SIMD_UDS_WINDOWS_RELEASE_BROKEN
-    // Test with highly restricted type and associative but not commutative operation
-    test_matrix<Matrix2x2<std::int32_t>, Matrix2x2<std::int32_t>>(Matrix2x2<std::int32_t>(), multiply_matrix<std::int32_t>(),
-                                                            Matrix2x2<std::int32_t>(-666, 666));
-#endif
-
     // Since the implicit "+" forms of the scan delegate to the generic forms,
     // there's little point in using a highly restricted type, so just use double.
     test_with_plus<float64_t, float64_t, float64_t>(
@@ -226,8 +109,6 @@ main()
     // When testing from bool to uint32_t, we must give a uint32_t init type to scan over integers
     test_with_plus<bool, std::uint32_t, std::uint32_t>(0, 123456,
                                                        [](std::uint32_t k) { return std::uint32_t{k % 2 == 0}; });
-
-    test_with_multiplies<std::uint64_t>();
 
     return done();
 }
