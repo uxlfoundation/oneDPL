@@ -180,9 +180,11 @@ DEFINE_TEST_1(test_scan_inplace, TestingAlgoritm)
 
         TestingAlgoritm testingAlgo;
 
+        // Initialize source data in the buffer [keys_first, keys_last)
         initialize_data(keys_first, n);
         const std::vector<KeyT> source_host_keys_state(keys_first, keys_first + n);
 
+        // Now we are ready to call the tested algorithm
         testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, keys_first);
 
         std::vector<KeyT> expected(n);
