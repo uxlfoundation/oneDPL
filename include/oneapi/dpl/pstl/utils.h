@@ -1265,9 +1265,9 @@ struct __pos_operations
 {
     template <typename _Tuple, typename _Compare>
     static void
-    fetch_extremum_pos_local_elementwise(_Tuple& __min_pos, const _Tuple& __pos, _Compare __comp)
+    fetch_extremum_pos_local_elementwise(_Tuple& __extremum_pos, const _Tuple& __pos, _Compare __comp)
     {
-        __for_each_pair_of_fields(__min_pos, __pos, [&](auto& __extremum_pos_field, const auto& __pos_field) {
+        __for_each_pair_of_fields(__extremum_pos, __pos, [&](auto& __extremum_pos_field, const auto& __pos_field) {
             __extremum_pos_field = __comp(__extremum_pos_field, __pos_field) ? __extremum_pos_field : __pos_field;
         });
     }
