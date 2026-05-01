@@ -155,11 +155,11 @@ if (ONEDPL_TEST_ENABLE_KT_SYCL)
 endif()
 
 function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _probability_permille)
-    if ((NOT TARGET build-scan-kt-tests) AND (NOT TARGET run-scan-kt-tests))
-        add_custom_target(build-scan-kt-tests COMMENT "Build all scan kernel template tests")
-        add_custom_target(run-scan-kt-tests
-            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-scan-kt-tests$" --output-on-failure --no-label-summary
-            DEPENDS build-scan-kt-tests
+    if ((NOT TARGET build-kt_sycl-scan-tests) AND (NOT TARGET run-kt_sycl-scan-tests))
+        add_custom_target(build-kt_sycl-scan-tests COMMENT "Build all scan kernel template tests")
+        add_custom_target(run-kt_sycl-scan-tests
+            COMMAND "${CMAKE_CTEST_COMMAND}" -R "^run-kt_sycl-scan-tests$" --output-on-failure --no-label-summary
+            DEPENDS build-kt_sycl-scan-tests
             COMMENT "Build and run all scan kernel template tests")
     endif()
 
@@ -169,8 +169,8 @@ function (_generate_gpu_scan_test _data_per_work_item _work_group_size _type _pr
 
     _generate_test_randomly(${_target_name} ${_test_path} ${_probability_permille})
     if(TARGET ${_target_name})
-        add_dependencies(build-scan-kt-tests ${_target_name})
-        add_dependencies(run-scan-kt-tests ${_target_name})
+        add_dependencies(build-kt_sycl-scan-tests ${_target_name})
+        add_dependencies(run-kt_sycl-scan-tests ${_target_name})
 
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
         target_compile_definitions(${_target_name} PRIVATE TEST_WORK_GROUP_SIZE=${_work_group_size})
