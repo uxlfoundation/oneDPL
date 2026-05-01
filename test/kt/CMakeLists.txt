@@ -69,7 +69,7 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
 
         # Define backend macro based on variant
         string(TOUPPER ${_variant} _variant_upper)
-        string(REPLACE "KT_" "" _variant_upper ${_variant_upper}) # e.g. KT_ESIMD -> ESIMD
+        string(REPLACE "^KT_" "" _variant_upper ${_variant_upper}) # e.g. KT_ESIMD -> ESIMD
         target_compile_definitions(${_target_name} PRIVATE TEST_KT_BACKEND_${_variant_upper})
 
         target_compile_definitions(${_target_name} PRIVATE TEST_DATA_PER_WORK_ITEM=${_data_per_work_item})
