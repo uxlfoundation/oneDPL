@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <oneapi/tbb/global_control.h>
+
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -170,6 +172,8 @@ main()
     bool bProcessed = false;
 
 #if _ENABLE_STD_RANGES_TESTING
+
+    oneapi::tbb::global_control gc(oneapi::tbb::global_control::max_allowed_parallelism, 1);
 
     // Check the correctness of the set_intersection_checker against the logic of std::ranges::set_intersection
     test_set_intersection_checker();

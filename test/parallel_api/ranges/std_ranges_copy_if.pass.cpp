@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <oneapi/tbb/global_control.h>
+
 #include "std_ranges_test.h"
 
 #if _ENABLE_STD_RANGES_TESTING
@@ -46,6 +48,9 @@ std::int32_t
 main()
 {
 #if _ENABLE_STD_RANGES_TESTING
+
+    oneapi::tbb::global_control gc(oneapi::tbb::global_control::max_allowed_parallelism, 1);
+
     using namespace test_std_ranges;
     namespace dpl_ranges = oneapi::dpl::ranges;
 
