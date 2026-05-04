@@ -258,7 +258,7 @@ __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&
 template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
           typename _Proj2>
 bool
-__pattern_lexicographical_compare(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
+__pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
     namespace __dplr = oneapi::dpl::__ranges;
@@ -278,9 +278,11 @@ __pattern_lexicographical_compare(__hetero_tag<_BackendTag> __tag, _ExecutionPol
 
     auto __ret_idx = oneapi::dpl::__par_backend_hetero::__parallel_transform_reduce<_ReduceValueType,
                                                                                     std::false_type /*is_commutative*/>(
-        __tag, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn, unseq_backend::__no_init_value{},
-        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
-        __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size)).get(); // blocking
+                         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __reduce_fn, __transform_fn,
+                         unseq_backend::__no_init_value{},
+                         __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R1>(__r1)), __shared_size),
+                         __dplr::take_view_simple(__dplr::views::all_read(std::forward<_R2>(__r2)), __shared_size))
+                     .get(); // blocking
 
     return __ret_idx ? __ret_idx == 1 : __n1 < __n2;
 }
