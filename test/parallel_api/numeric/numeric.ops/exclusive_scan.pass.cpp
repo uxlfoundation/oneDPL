@@ -74,11 +74,11 @@ test_with_plus(Init init, Out trash, Convert convert)
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
     // testing of large number of items may take too much time in debug mode
     unsigned long n =
-#    if PSTL_USE_DEBUG
+#if PSTL_USE_DEBUG
         1000000;
-#    else
+#else
         100000000;
-#    endif
+#endif
 
     Sequence<In> in(n, convert);
     Sequence<Out> expected(n);
