@@ -1,0 +1,1444 @@
+
+
+<!DOCTYPE html>
+
+
+<html >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intel® oneAPI DPC++ Library (oneDPL) CHANGES &#8212; oneDPL Documentation 2022.12.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" href="_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'CHANGES';</script>
+    <link rel="shortcut icon" href="_static/favicons.png"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+
+    <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
+    <script type="text/javascript">
+        // Configure TMS settings
+        var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
+        var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
+        // Load TMS
+        if(document.location.href.includes("uxlfoundation.github.io")){
+        (function () {
+        var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
+        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+        }
+    </script>
+    <link href="_static/style.css" rel="stylesheet" type="text/css">
+
+
+
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/oneAPI-rgb-rev-100.png" class="logo__image only-light" alt="Logo image"/>
+    <script>document.write(`<img src="_static/oneAPI-rgb-rev-100.png" class="logo__image only-dark" alt="Logo image"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="get_started/release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="get_started/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="specification/index.html">Latest Revision</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="specification/common.html">General Information</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="specification/parallel_api.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/buffer_wrappers.html">Buffer Wrappers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/algorithms.html">Parallel Algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/parallel_range_api.html">Parallel Range Algorithms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="specification/sycl_kernels_api.html">SYCL Kernels API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="specification/spec_versions.html">Version History</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="library_guide/introduction.html">oneAPI DPC++ Library Introduction</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/random.html">Random Number Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/macros.html">Macros</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/cmake_support.html">CMake Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="library_guide/parallel_api/async_api.html">Asynchronous Algorithms</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/dynamic_selection_api/functions.html">Functions</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/auto_tune_policy.html">Auto-Tune Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/custom_policies.html">Custom Policies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/dynamic_selection_api/backends.html">Backends</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Notices and Disclaimers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="notices_disclaimers.html">Notices and Disclaimers</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/CHANGES.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2FCHANGES.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/CHANGES.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Intel® oneAPI DPC++ Library (oneDPL) CHANGES</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-7-0">New in 2021.7.0</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-notice">Deprecation Notice</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fixed-issues">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#known-issues-and-limitations">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-this-release">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-6-1">New in 2021.6.1</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-6">New in 2021.6</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#new-features">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changes-affecting-backward-compatibility">Changes affecting backward compatibility</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-5">New in 2021.5</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-4">New in 2021.4</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-3">New in 2021.3</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changes-to-existing-features">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-2">New in 2021.2</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-gold">New in 2021.1 Gold</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id22">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id23">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id24">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta10">New in 2021.1-beta10</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id26">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id27">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id28">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id29">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta09">New in 2021.1-beta09</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id32">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id33">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id34">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id35">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta08">New in 2021.1-beta08</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id38">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id39">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id40">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id41">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta07">New in 2021.1-beta07</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id43">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id44">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id45">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id46">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta06">New in 2021.1-beta06</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id48">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id49">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id50">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id51">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta05">New in 2021.1-beta05</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id53">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id54">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id55">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta04">New in 2021.1-beta04</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id57">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id58">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id59">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta03">New in 2021.1-beta03</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id61">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id62">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id63">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id64">Known Issues and Limitations</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <div class="section" id="intel-oneapi-dpc-library-onedpl-changes">
+<h1>Intel® oneAPI DPC++ Library (oneDPL) CHANGES<a class="headerlink" href="#intel-oneapi-dpc-library-onedpl-changes" title="Permalink to this headline">#</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">#</a></h2>
+<p>The list of the most significant changes made over time in oneDPL.</p>
+</div>
+<div class="section" id="new-in-2021-7-0">
+<h2>New in 2021.7.0<a class="headerlink" href="#new-in-2021-7-0" title="Permalink to this headline">#</a></h2>
+<div class="section" id="deprecation-notice">
+<h3>Deprecation Notice<a class="headerlink" href="#deprecation-notice" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Deprecated support of C++11 for Parallel API with host execution policies (<code class="docutils literal notranslate"><span class="pre">seq</span></code>, <code class="docutils literal notranslate"><span class="pre">unseq</span></code>, <code class="docutils literal notranslate"><span class="pre">par</span></code>, <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code>).
+C++17 is the minimal required version going forward.</p></li>
+</ul>
+</div>
+<div class="section" id="fixed-issues">
+<h3>Fixed Issues<a class="headerlink" href="#fixed-issues" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed a kernel name definition error in range-based algorithms and <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code> used with
+a device_policy object that has no explicit kernel name.</p></li>
+</ul>
+</div>
+<div class="section" id="known-issues-and-limitations">
+<h3>Known Issues and Limitations<a class="headerlink" href="#known-issues-and-limitations" title="Permalink to this headline">#</a></h3>
+<div class="section" id="new-in-this-release">
+<h4>New in This Release<a class="headerlink" href="#new-in-this-release" title="Permalink to this headline">#</a></h4>
+<ul class="simple">
+<li><p>STL algorithm functions (such as <code class="docutils literal notranslate"><span class="pre">std::for_each</span></code>) used in DPC++ kernels do not compile with the debug version of
+the Microsoft* Visual C++ standard library.</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="new-in-2021-6-1">
+<h2>New in 2021.6.1<a class="headerlink" href="#new-in-2021-6-1" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id1">
+<h3>Fixed Issues<a class="headerlink" href="#id1" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed compilation errors with C++20.</p></li>
+<li><p>Fixed <code class="docutils literal notranslate"><span class="pre">CL_OUT_OF_RESOURCES</span></code> issue for Radix sort algorithm executed on CPU devices.</p></li>
+<li><p>Fixed crashes in <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_segment</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code> algorithms applied to
+device-allocated USM.</p></li>
+</ul>
+</div>
+<div class="section" id="id2">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id2" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>No new issues in this release.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-6">
+<h2>New in 2021.6<a class="headerlink" href="#new-in-2021-6" title="Permalink to this headline">#</a></h2>
+<div class="section" id="new-features">
+<h3>New Features<a class="headerlink" href="#new-features" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added a new implementation for <code class="docutils literal notranslate"><span class="pre">par</span></code> and <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code> execution policies based on OpenMP* 4.5 pragmas.
+It can be enabled with the <code class="docutils literal notranslate"><span class="pre">ONEDPL_USE_OPENMP_BACKEND</span></code> macro.
+For more details, see <a class="reference external" href="https://uxlfoundation.github.io/oneDPL/macros.html">Macros</a> page in oneDPL Guide.</p></li>
+<li><p>Added the range-based version of the <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code> algorithm and improved performance of
+the iterator-based <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code> APIs.
+Please note that the use of the <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code> algorithm requires C++17.</p></li>
+<li><p>Added the following algorithms (serial versions) to <a class="reference external" href="https://uxlfoundation.github.io/oneDPL/api_for_dpcpp_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference">Tested Standard C++ API</a>: <code class="docutils literal notranslate"><span class="pre">for_each_n</span></code>, <code class="docutils literal notranslate"><span class="pre">copy</span></code>,
+<code class="docutils literal notranslate"><span class="pre">copy_backward</span></code>, <code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">copy_n</span></code>, <code class="docutils literal notranslate"><span class="pre">is_permutation</span></code>, <code class="docutils literal notranslate"><span class="pre">fill</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_n</span></code>, <code class="docutils literal notranslate"><span class="pre">move</span></code>, <code class="docutils literal notranslate"><span class="pre">move_backward</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="changes-affecting-backward-compatibility">
+<h3>Changes affecting backward compatibility<a class="headerlink" href="#changes-affecting-backward-compatibility" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed <code class="docutils literal notranslate"><span class="pre">param_type</span></code> API of random number distributions to satisfy C++ standard requirements.
+The new definitions of <code class="docutils literal notranslate"><span class="pre">param_type</span></code> are not compatible with incorrect definitions in previous library versions.
+Recompilation is recommended for all codes that might use <code class="docutils literal notranslate"><span class="pre">param_type</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h3>Fixed Issues<a class="headerlink" href="#id3" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed hangs and errors when oneDPL is used together with oneAPI Math Kernel Library (oneMKL) in DPC++ programs.</p></li>
+<li><p>Fixed possible data races in the following algorithms used with DPC++ execution
+policies: <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">nth_element</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id4" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>No new issues in this release.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-5">
+<h2>New in 2021.5<a class="headerlink" href="#new-in-2021-5" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id5">
+<h3>New Features<a class="headerlink" href="#id5" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added new random number distributions: <code class="docutils literal notranslate"><span class="pre">exponential_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">bernoulli_distribution</span></code>,
+<code class="docutils literal notranslate"><span class="pre">geometric_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">lognormal_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">weibull_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">cachy_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">extreme_value_distribution</span></code>.</p></li>
+<li><p>Added the serial-based versions of the following algorithms: <code class="docutils literal notranslate"><span class="pre">all_of</span></code>, <code class="docutils literal notranslate"><span class="pre">any_of</span></code>,
+<code class="docutils literal notranslate"><span class="pre">none_of</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code>, <code class="docutils literal notranslate"><span class="pre">count_if</span></code>, <code class="docutils literal notranslate"><span class="pre">for_each</span></code>, <code class="docutils literal notranslate"><span class="pre">find</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if_not</span></code>.
+For the detailed list, please refer to <a class="reference external" href="https://uxlfoundation.github.io/oneDPL/api_for_dpcpp_kernels/tested_standard_cpp_api.html#tested-standard-c-api-reference">Tested Standard C++ API</a>.</p></li>
+<li><p>Improved performance of <code class="docutils literal notranslate"><span class="pre">search</span></code> and <code class="docutils literal notranslate"><span class="pre">find_end</span></code> algorithms on GPU devices.</p></li>
+</ul>
+</div>
+<div class="section" id="id6">
+<h3>Fixed Issues<a class="headerlink" href="#id6" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed SYCL* 2020 features deprecation warnings.</p></li>
+<li><p>Fixed some corner cases of <code class="docutils literal notranslate"><span class="pre">normal_distribution</span></code> functionality.</p></li>
+<li><p>Fixed a floating point exception occurring on CPU devices when a program uses a lot of oneDPL algorithms and DPC++ kernels.</p></li>
+<li><p>Fixed possible hanging and data races of the following algorithms used with DPC++ execution policies: <code class="docutils literal notranslate"><span class="pre">count</span></code>, <code class="docutils literal notranslate"><span class="pre">count_if</span></code>, <code class="docutils literal notranslate"><span class="pre">is_partitioned</span></code>, <code class="docutils literal notranslate"><span class="pre">lexicographical_compare</span></code>, <code class="docutils literal notranslate"><span class="pre">max_element</span></code>, <code class="docutils literal notranslate"><span class="pre">min_element</span></code>, <code class="docutils literal notranslate"><span class="pre">minmax_element</span></code>,    <code class="docutils literal notranslate"><span class="pre">reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_reduce</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id7">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id7" title="Permalink to this headline">#</a></h3>
+<div class="section" id="id8">
+<h4>New in This Release<a class="headerlink" href="#id8" title="Permalink to this headline">#</a></h4>
+<ul class="simple">
+<li><p>The definition of lambda functions used with parallel algorithms should not depend on preprocessor macros
+that makes it different for the host and the device. Otherwise, the behavior is undefined.</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="new-in-2021-4">
+<h2>New in 2021.4<a class="headerlink" href="#new-in-2021-4" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id9">
+<h3>New Features<a class="headerlink" href="#id9" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added the range-based versions of the following algorithms: <code class="docutils literal notranslate"><span class="pre">any_of</span></code>, <code class="docutils literal notranslate"><span class="pre">adjacent_find</span></code>,
+<code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">none_of</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">replace_copy</span></code>,
+<code class="docutils literal notranslate"><span class="pre">replace_copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">reverse</span></code>, <code class="docutils literal notranslate"><span class="pre">reverse_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">swap_ranges</span></code>,
+<code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">unique_copy</span></code>.</p></li>
+<li><p>Added new asynchronous algorithms: <code class="docutils literal notranslate"><span class="pre">inclusive_scan_async</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan_async</span></code>,
+<code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan_async</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan_async</span></code>.</p></li>
+<li><p>Added structured binding support for <code class="docutils literal notranslate"><span class="pre">zip_iterator::value_type</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id10">
+<h3>Fixed Issues<a class="headerlink" href="#id10" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed an issue with asynchronous algorithms returning <code class="docutils literal notranslate"><span class="pre">future&lt;ptr&gt;</span></code> with unified shared memory (USM).</p></li>
+</ul>
+</div>
+<div class="section" id="id11">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id11" title="Permalink to this headline">#</a></h3>
+<div class="section" id="id12">
+<h4>New in This Release<a class="headerlink" href="#id12" title="Permalink to this headline">#</a></h4>
+<ul class="simple">
+<li><p>With Intel® oneAPI DPC++/C++ Compiler, <code class="docutils literal notranslate"><span class="pre">unseq</span></code> and <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code> execution policies do not use OpenMP SIMD pragmas
+due to compilation issues with the <code class="docutils literal notranslate"><span class="pre">-fopenm-simd</span></code> option, possibly resulting in suboptimal performance.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::experimental::ranges::reverse</span></code> algorithm does not compile with <code class="docutils literal notranslate"><span class="pre">-fno-sycl-unnamed-lambda</span></code> option.</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="new-in-2021-3">
+<h2>New in 2021.3<a class="headerlink" href="#new-in-2021-3" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id13">
+<h3>New Features<a class="headerlink" href="#id13" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added the range-based versions of the following algorithms: <code class="docutils literal notranslate"><span class="pre">all_of</span></code>, <code class="docutils literal notranslate"><span class="pre">any_of</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code>,
+<code class="docutils literal notranslate"><span class="pre">count_if</span></code>, <code class="docutils literal notranslate"><span class="pre">equal</span></code>, <code class="docutils literal notranslate"><span class="pre">move</span></code>, <code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">replace</span></code>, <code class="docutils literal notranslate"><span class="pre">replace_if</span></code>.</p></li>
+<li><p>Added the following utility ranges (views): <code class="docutils literal notranslate"><span class="pre">generate</span></code>, <code class="docutils literal notranslate"><span class="pre">fill</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="changes-to-existing-features">
+<h3>Changes to Existing Features<a class="headerlink" href="#changes-to-existing-features" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Improved performance of <code class="docutils literal notranslate"><span class="pre">discard_block_engine</span></code> (including <code class="docutils literal notranslate"><span class="pre">ranlux24</span></code>, <code class="docutils literal notranslate"><span class="pre">ranlux48</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ranlux24_vec</span></code>, <code class="docutils literal notranslate"><span class="pre">ranlux48_vec</span></code> predefined engines) and <code class="docutils literal notranslate"><span class="pre">normal_distribution</span></code>.</p></li>
+<li><p>Added two constructors to <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code>: the default constructor and a constructor from an iterator without a transformation.
+<code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> constructed these ways uses transformation functor of type passed in template arguments.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> can now work on top of forward iterators.</p></li>
+</ul>
+</div>
+<div class="section" id="id14">
+<h3>Fixed Issues<a class="headerlink" href="#id14" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed execution of <code class="docutils literal notranslate"><span class="pre">swap_ranges</span></code> algorithm with <code class="docutils literal notranslate"><span class="pre">unseq</span></code>, <code class="docutils literal notranslate"><span class="pre">par</span></code> execution policies.</p></li>
+<li><p>Fixed an issue causing memory corruption and double freeing in scan-based algorithms compiled with
+-O0 and -g options and run on CPU devices.</p></li>
+<li><p>Fixed incorrect behavior in the <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code> algorithm that occurred when the input and output iterator ranges overlapped.</p></li>
+<li><p>Fixed error propagation for async runtime exceptions by consistently calling <code class="docutils literal notranslate"><span class="pre">sycl::event::wait_and_throw</span></code> internally.</p></li>
+<li><p>Fixed the warning: <code class="docutils literal notranslate"><span class="pre">local</span> <span class="pre">variable</span> <span class="pre">will</span> <span class="pre">be</span> <span class="pre">copied</span> <span class="pre">despite</span> <span class="pre">being</span> <span class="pre">returned</span> <span class="pre">by</span> <span class="pre">name</span> <span class="pre">[-Wreturn-std-move]</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id15">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id15" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>No new issues in this release.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-2">
+<h2>New in 2021.2<a class="headerlink" href="#new-in-2021-2" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id16">
+<h3>New Features<a class="headerlink" href="#id16" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added support of parallel, vector and DPC++ execution policies for the following algorithms: <code class="docutils literal notranslate"><span class="pre">shift_left</span></code>, <code class="docutils literal notranslate"><span class="pre">shift_right</span></code>.</p></li>
+<li><p>Added the Range-based versions of the following algorithms: <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">merge</span></code>.</p></li>
+<li><p>Added non-blocking versions of the following algorithms: <code class="docutils literal notranslate"><span class="pre">copy</span></code>, <code class="docutils literal notranslate"><span class="pre">fill</span></code>, <code class="docutils literal notranslate"><span class="pre">for_each</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">transform</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_reduce</span></code>. These algorithms are declared in <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::experimental</span></code> namespace with suffix _async and implemented only for DPC++ policies. In order to make these algorithms available the <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/async&gt;</span></code> header should be included. Use of the non-blocking API requires C++11.</p></li>
+<li><p>Utility function <code class="docutils literal notranslate"><span class="pre">wait_for_all</span></code> enables waiting for completion of an arbitrary number of events.</p></li>
+<li><p>Added the <code class="docutils literal notranslate"><span class="pre">ONEDPL_USE_PREDEFINED_POLICIES</span></code> macro, which enables predefined policy objects and <code class="docutils literal notranslate"><span class="pre">make_device_policy</span></code>, <code class="docutils literal notranslate"><span class="pre">make_fpga_policy</span></code> functions without arguments. It is turned on by default.</p></li>
+</ul>
+</div>
+<div class="section" id="id17">
+<h3>Changes to Existing Features<a class="headerlink" href="#id17" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Improved performance of the following algorithms: <code class="docutils literal notranslate"><span class="pre">count</span></code>, <code class="docutils literal notranslate"><span class="pre">count_if</span></code>, <code class="docutils literal notranslate"><span class="pre">is_partitioned</span></code>, <code class="docutils literal notranslate"><span class="pre">lexicographical_compare</span></code>, <code class="docutils literal notranslate"><span class="pre">max_element</span></code>, <code class="docutils literal notranslate"><span class="pre">min_element</span></code>, <code class="docutils literal notranslate"><span class="pre">minmax_element</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_reduce</span></code>, and <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> when using Radix sort <a class="footnote-reference brackets" href="#fnote1" id="id18">1</a>.</p></li>
+<li><p>Improved performance of the linear_congruential_engine RNG engine (including <code class="docutils literal notranslate"><span class="pre">minstd_rand</span></code>, <code class="docutils literal notranslate"><span class="pre">minstd_rand0</span></code>, <code class="docutils literal notranslate"><span class="pre">minstd_rand_vec</span></code>, <code class="docutils literal notranslate"><span class="pre">minstd_rand0_vec</span></code> predefined engines).</p></li>
+</ul>
+</div>
+<div class="section" id="id19">
+<h3>Fixed Issues<a class="headerlink" href="#id19" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed runtime errors occurring with <code class="docutils literal notranslate"><span class="pre">find_end</span></code>, <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">search_n</span></code> algorithms when a program is built with -O0 option and executed on CPU devices.</p></li>
+<li><p>Fixed the majority of unused parameter warnings.</p></li>
+</ul>
+</div>
+<div class="section" id="id20">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id20" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code> and <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code> algorithms may provide wrong results with vector execution policies
+when building a program with GCC 10 and using -O0 option.</p></li>
+<li><p>Some algorithms may hang when a program is built with -O0 option, executed on GPU devices and large number of elements is to be processed.</p></li>
+<li><p>The use of oneDPL together with the GNU C++ standard library (libstdc++) version 9 or 10 may lead to
+compilation errors (caused by oneTBB API changes).
+To overcome these issues, include oneDPL header files before the standard C++ header files,
+or disable parallel algorithms support in the standard library. For more information, please see <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html">Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes</a>.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">namespace</span> <span class="pre">oneapi;</span></code> directive in a oneDPL program code may result in compilation errors
+with some compilers including GCC 7 and earlier. Instead of this directive, explicitly use
+<code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> namespace, or create a namespace alias.</p></li>
+<li><p>The implementation does not yet provide <code class="docutils literal notranslate"><span class="pre">namespace</span> <span class="pre">oneapi::std</span></code> as defined in the oneDPL Specification.</p></li>
+<li><p>The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher)
+or Clang 7 (or higher).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pair</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects
+whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
+use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot be swapped in DPC++ kernels with <code class="docutils literal notranslate"><span class="pre">std::swap</span></code> function or <code class="docutils literal notranslate"><span class="pre">swap</span></code> member function
+in the Microsoft* Visual C++ standard library.</p></li>
+<li><p>Due to specifics of Microsoft* Visual C++, some standard floating-point math functions
+(including <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
+for double precision.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-gold">
+<h2>New in 2021.1 Gold<a class="headerlink" href="#new-in-2021-1-gold" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id21">
+<h3>New Features<a class="headerlink" href="#id21" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MAJOR</span></code>, <code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_MINOR</span></code> and <code class="docutils literal notranslate"><span class="pre">ONEDPL_VERSION_PATCH</span></code> macros which provide major version, minor version and patch of the library.</p></li>
+</ul>
+</div>
+<div class="section" id="id22">
+<h3>Changes to Existing Features<a class="headerlink" href="#id22" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Previously deprecated interfaces were removed.</p></li>
+</ul>
+</div>
+<div class="section" id="id23">
+<h3>Fixed Issues<a class="headerlink" href="#id23" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed compilation errors of oneDPL parallel algorithms when using “-sycl-std=2020” compiler switch.</p></li>
+<li><p>Fixed the segmentation fault issue on CPU devices in the <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code> and <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code> algorithms.</p></li>
+<li><p>Fixed the failures of the <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms when using Radix sort with 32-bit <code class="docutils literal notranslate"><span class="pre">float</span></code> data type.</p></li>
+<li><p>Fixed compilation issues that occurred using libstdc++9 or newer.</p></li>
+<li><p>Got rid of unused variables.</p></li>
+<li><p>Fixed the issue of the <code class="docutils literal notranslate"><span class="pre">is_sorted</span></code> algorithm with use the C++ Standard Execution Policies <code class="docutils literal notranslate"><span class="pre">par</span></code> and  <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id24">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id24" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The use of oneDPL together with the GNU C++ standard library (libstdc++) version 9 or 10 may lead to
+compilation errors (caused by oneTBB API changes). To overcome these issues, include oneDPL header files before the standard C++ header files,
+or disable parallel algorithms support in the standard library. For more information, please see <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/articles/release-notes/intel-oneapi-threading-building-blocks-release-notes.html">Intel® oneAPI Threading Building Blocks (oneTBB) Release Notes</a>.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">namespace</span> <span class="pre">oneapi;</span></code> directive in a oneDPL program code may result in compilation errors
+with some compilers including GCC 7 and earlier. Instead of this directive, use fully qualified
+names or namespace aliases.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms are prone to <code class="docutils literal notranslate"><span class="pre">CL_BUILD_PROGRAM_FAILURE</span></code>
+when a program uses Radix sort <a class="footnote-reference brackets" href="#fnote1" id="id25">1</a>, is built with -O0 option and executed on CPU devices.</p></li>
+<li><p>Some algorithms with a DPC++ policy may fail on CPU or on FPGA emulator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pair</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels
+and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
+use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> guide for detail list.</p></li>
+<li><p>Due to specifics of Microsoft Visual C++ implementation, some standard math functions for float
+(including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
+for double precision.</p></li>
+<li><p>The use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher) or Clang 7 (or higher).</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta10">
+<h2>New in 2021.1-beta10<a class="headerlink" href="#new-in-2021-1-beta10" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id26">
+<h3>New Features<a class="headerlink" href="#id26" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>All oneDPL functionality, including the parallel algorithm functions, is accessible via the <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code> namespace.</p></li>
+</ul>
+</div>
+<div class="section" id="id27">
+<h3>Changes to Existing Features<a class="headerlink" href="#id27" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The following methods of the permutation_iterator have been renamed: <code class="docutils literal notranslate"><span class="pre">get_source_iterator()</span></code> is renamed to <code class="docutils literal notranslate"><span class="pre">base()</span></code>, <code class="docutils literal notranslate"><span class="pre">get_map_iterator()</span></code> is renamed to <code class="docutils literal notranslate"><span class="pre">map()</span></code>.</p></li>
+<li><p>Improved performance of the following algorithms: <code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">count</span></code>, <code class="docutils literal notranslate"><span class="pre">count_if</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">is_partitioned</span></code>, <code class="docutils literal notranslate"><span class="pre">lexicographical_compare</span></code>, <code class="docutils literal notranslate"><span class="pre">max_element</span></code>, <code class="docutils literal notranslate"><span class="pre">min_element</span></code>, <code class="docutils literal notranslate"><span class="pre">minmax_element</span></code>, <code class="docutils literal notranslate"><span class="pre">partition</span></code>, <code class="docutils literal notranslate"><span class="pre">partition_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">set_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_intersection</span></code>, <code class="docutils literal notranslate"><span class="pre">set_symmetric_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_union</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_partition</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">unique_copy</span></code>.</p></li>
+<li><p>Improved performance of the <code class="docutils literal notranslate"><span class="pre">nth_element</span></code> algorithm when input contains large number of duplicates.</p></li>
+</ul>
+</div>
+<div class="section" id="id28">
+<h3>Fixed Issues<a class="headerlink" href="#id28" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed the failures of the <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms when using Radix sort on CPU devices.</p></li>
+</ul>
+</div>
+<div class="section" id="id29">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id29" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The use of oneDPL together with the GNU C++ standard library (libstdc++) version 9 or 10 may lead to compilation errors (caused by oneTBB API changes).
+To overcome these, switch off the use of TBB for parallel execution policies in the standard library.</p></li>
+<li><p>The use of the -sycl-std=2020 option may lead to compilation errors for oneDPL parallel algorithms.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">namespace</span> <span class="pre">oneapi;</span></code> directive in a oneDPL program code may result in compilation errors
+with some compilers including GCC 7 and earlier. Instead of this directive, use fully qualified
+names or namespace aliases.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms are prone to <code class="docutils literal notranslate"><span class="pre">CL_BUILD_PROGRAM_FAILURE</span></code>
+when a program uses Radix sort <a class="footnote-reference brackets" href="#fnote1" id="id30">1</a>, is built with -O0 option and executed on CPU devices.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms may produce incorrect result
+when using Radix sort with 32-bit <code class="docutils literal notranslate"><span class="pre">float</span></code> data type.</p></li>
+<li><p>Some algorithms with a DPC++ policy may fail on CPU or on FPGA emulator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pair</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels
+and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
+use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p>Due to specifics of Microsoft Visual C++ implementation, some standard math functions for float
+(including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
+for double precision.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta09">
+<h2>New in 2021.1-beta09<a class="headerlink" href="#new-in-2021-1-beta09" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id32">
+<h3>New Features<a class="headerlink" href="#id32" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added the Range-based versions of following algorithms: <code class="docutils literal notranslate"><span class="pre">for_each</span></code>, <code class="docutils literal notranslate"><span class="pre">copy</span></code>, <code class="docutils literal notranslate"><span class="pre">transform</span></code>,
+<code class="docutils literal notranslate"><span class="pre">find</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if_not</span></code>, <code class="docutils literal notranslate"><span class="pre">find_end</span></code>, <code class="docutils literal notranslate"><span class="pre">find_first_of</span></code>, <code class="docutils literal notranslate"><span class="pre">search</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sorted</span></code>,
+<code class="docutils literal notranslate"><span class="pre">is_sorted_until</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_reduce</span></code>, <code class="docutils literal notranslate"><span class="pre">min_element</span></code>, <code class="docutils literal notranslate"><span class="pre">max_element</span></code>, <code class="docutils literal notranslate"><span class="pre">minmax_element</span></code>,
+<code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>.
+These algorithms are declared in <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::experimental::ranges</span></code> namespace and implemented only for DPC++ policies.
+In order to make these algorithm available the <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/ranges&gt;</span></code> header should be included.
+Use of the range-based API requires C++17 and the C++ standard libraries coming with GCC 8.1 (or higher) or Clang 7 (or higher).</p></li>
+</ul>
+</div>
+<div class="section" id="id33">
+<h3>Changes to Existing Features<a class="headerlink" href="#id33" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Changed the order of template parameters for <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code>, so the source iterator type is provided first (e.g., <code class="docutils literal notranslate"><span class="pre">transform_iterator&lt;Iterator,</span> <span class="pre">UnaryFunctor&gt;</span></code>).</p></li>
+<li><p>Improved performance of the following algorithms: <code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">partition_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code> using DPC++ policies.</p></li>
+<li><p>Improved performance of the <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms when using Radix sort.</p></li>
+<li><p>Tested Standard C++ APIs are added to namespace <code class="docutils literal notranslate"><span class="pre">oneapi::std</span></code> and <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code>. In order to use Tested Standard C++ APIs via <code class="docutils literal notranslate"><span class="pre">oneapi::std</span></code> or <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code>, corresponding headers in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/...&gt;</span></code> must be included (e.g., <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;oneapi/dpl/utility&gt;</span></code>).</p></li>
+</ul>
+</div>
+<div class="section" id="id34">
+<h3>Fixed Issues<a class="headerlink" href="#id34" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed an error when local memory usage is out of limit.</p></li>
+<li><p>Eliminated warnings about <code class="docutils literal notranslate"><span class="pre">std::result_of</span></code> deprecation compiling with C++17 on Windows platform.</p></li>
+</ul>
+</div>
+<div class="section" id="id35">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id35" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The conversion from <code class="docutils literal notranslate"><span class="pre">zip_iterator::value_type</span></code> to <code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> may produce incorrect result.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">namespace</span> <span class="pre">oneapi;</span></code> directive in a oneDPL program code may result in compilation errors
+with some compilers including GCC 7 and earlier. Instead of this directive, use fully qualified
+names or namespace aliases.</p></li>
+<li><p>On the DPC++ CPU device, RNG sequences produced by <code class="docutils literal notranslate"><span class="pre">discard_block_engine</span></code> may deviate
+from those generated by other implementations of the engine.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code> algorithms
+may work incorrectly on CPU device.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms are prone to <code class="docutils literal notranslate"><span class="pre">CL_BUILD_PROGRAM_FAILURE</span></code>
+when a program uses Radix sort <a class="footnote-reference brackets" href="#fnote1" id="id36">1</a>, is built with -O0 option and executed on CPU devices.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms may produce incorrect result
+when using Radix sort with 32-bit <code class="docutils literal notranslate"><span class="pre">float</span></code> data type.</p></li>
+<li><p>Some algorithms with a DPC++ policy may fail on CPU or on FPGA emulator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pair</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels
+and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
+use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p>Due to specifics of Microsoft Visual C++ implementation, some standard math functions for float
+(including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
+for double precision.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta08">
+<h2>New in 2021.1-beta08<a class="headerlink" href="#new-in-2021-1-beta08" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id38">
+<h3>New Features<a class="headerlink" href="#id38" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added random number generation functionality in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/random&gt;</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">linear_congruential_engine</span></code>, <code class="docutils literal notranslate"><span class="pre">subtract_with_carry_engine</span></code>, <code class="docutils literal notranslate"><span class="pre">discard_block_engine</span></code>;</p></li>
+<li><p>predefined engine instantiations, including <code class="docutils literal notranslate"><span class="pre">minstd_rand</span></code> and <code class="docutils literal notranslate"><span class="pre">ranlux48</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">uniform_real_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">uniform_int_distribution</span></code>, <code class="docutils literal notranslate"><span class="pre">normal_distribution</span></code>.</p></li>
+</ul>
+</li>
+<li><p>Added implicit conversion of a DPC++ policy to <code class="docutils literal notranslate"><span class="pre">sycl::queue</span></code>.</p></li>
+<li><p>Added the <code class="docutils literal notranslate"><span class="pre">ONEDPL_STANDARD_POLICIES_ONLY</span></code> macro (defaults to 0) that makes
+the DPC++ policies unavailable, avoiding dependency on the DPC++ compiler
+and limiting oneDPL algorithms to only use the standard C++ policies
+(<code class="docutils literal notranslate"><span class="pre">seq</span></code>, <code class="docutils literal notranslate"><span class="pre">par</span></code>, <code class="docutils literal notranslate"><span class="pre">unseq</span></code>, <code class="docutils literal notranslate"><span class="pre">par_unseq</span></code>) for the host CPUs.
+It replaces the former <code class="docutils literal notranslate"><span class="pre">_PSTL_BACKEND_SYCL</span></code> macro with the opposite meaning.</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> and <code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code> in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id39">
+<h3>Changes to Existing Features<a class="headerlink" href="#id39" title="Permalink to this headline">#</a></h3>
+<ul>
+<li><p>Improved performance of the <code class="docutils literal notranslate"><span class="pre">sort</span></code> and <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code> algorithms
+with <code class="docutils literal notranslate"><span class="pre">device_policy</span></code> for non-arithmetic data types.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">dpstd</span></code> include folder was renamed. Include <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/...&gt;</span></code> headers
+instead of <code class="docutils literal notranslate"><span class="pre">&lt;dpstd/...&gt;</span></code>.</p></li>
+<li><p>The main namespace of the library changed to <code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code>. The <code class="docutils literal notranslate"><span class="pre">dpstd</span></code>
+namespace is deprecated, and will be removed in one of the next releases.</p></li>
+<li><p>The following API elements of oneDPL were changed or removed:</p>
+<ul class="simple">
+<li><p>the <code class="docutils literal notranslate"><span class="pre">default_policy</span></code> object was renamed to <code class="docutils literal notranslate"><span class="pre">dpcpp_default</span></code>;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">fpga_policy</span></code> object was renamed to <code class="docutils literal notranslate"><span class="pre">dpcpp_fpga</span></code>;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">fpga_device_policy</span></code> class was renamed to <code class="docutils literal notranslate"><span class="pre">fpga_policy</span></code>;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">_PSTL_FPGA_DEVICE</span></code> macro was renamed to <code class="docutils literal notranslate"><span class="pre">ONEDPL_FPGA_DEVICE</span></code>;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">_PSTL_FPGA_EMU</span></code> macro was renamed to <code class="docutils literal notranslate"><span class="pre">ONEDPL_FPGA_EMULATOR</span></code>;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">_PSTL_COMPILE_KERNEL</span></code> macro was removed;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">_PSTL_BACKEND_SYCL</span></code> macro was removed.</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">default_policy</span></code>, <code class="docutils literal notranslate"><span class="pre">fpga_device_policy</span></code> names are deprecated,
+and will be removed in one of the next releases. Other previous names
+are no more valid.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="id40">
+<h3>Fixed Issues<a class="headerlink" href="#id40" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed scan-based algorithms to not rely on independent forward progress for workgroups.</p></li>
+</ul>
+</div>
+<div class="section" id="id41">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id41" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>On the DPC++ CPU device, RNG sequences produced by <code class="docutils literal notranslate"><span class="pre">discard_block_engine</span></code> may deviate
+from those generated by other implementations of the engine.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/random&gt;</span></code> is included into code before other oneDPL header files, compilation can fail.
+In order to avoid failures, include <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/random&gt;</span></code> after any other oneDPL header file.</p></li>
+<li><p>The following algorithms may be significantly slower with <code class="docutils literal notranslate"><span class="pre">device_policy</span></code>
+than in previous Beta releases: <code class="docutils literal notranslate"><span class="pre">copy_if</span></code>, <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">partition</span></code>,
+<code class="docutils literal notranslate"><span class="pre">partition_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">remove</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">set_difference</span></code>,
+<code class="docutils literal notranslate"><span class="pre">set_intersection</span></code>, <code class="docutils literal notranslate"><span class="pre">set_symmetric_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_union</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_partition</span></code>,
+<code class="docutils literal notranslate"><span class="pre">transform_exclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_inclusive_scan</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">unique_copy</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code> algorithms
+may work incorrectly on CPU device and on GPU with DPC++ L0 backend.</p></li>
+<li><p>Some algorithms with a DPC++ policy may fail on CPU or on FPGA emulator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple,</span> <span class="pre">std::pair</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels
+and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception;
+use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p>Due to specifics of Microsoft Visual C++ implementation, some standard math functions for float
+(including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support
+for double precision.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta07">
+<h2>New in 2021.1-beta07<a class="headerlink" href="#new-in-2021-1-beta07" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id43">
+<h3>New Features<a class="headerlink" href="#id43" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The Microsoft Visual C++ implementation of <code class="docutils literal notranslate"><span class="pre">std::complex</span></code> is supported in device code.</p></li>
+</ul>
+</div>
+<div class="section" id="id44">
+<h3>Changes to Existing Features<a class="headerlink" href="#id44" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dpstd/iterators.h</span></code> is deprecated and replaced with <code class="docutils literal notranslate"><span class="pre">dpstd/iterator</span></code>.</p></li>
+<li><p>Improved performance of the <code class="docutils literal notranslate"><span class="pre">any_of</span></code>, <code class="docutils literal notranslate"><span class="pre">adjacent_find</span></code>, <code class="docutils literal notranslate"><span class="pre">all_of</span></code>, <code class="docutils literal notranslate"><span class="pre">equal</span></code>, <code class="docutils literal notranslate"><span class="pre">find</span></code>, <code class="docutils literal notranslate"><span class="pre">find_end</span></code>, <code class="docutils literal notranslate"><span class="pre">find_first_of</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if_not</span></code>, <code class="docutils literal notranslate"><span class="pre">includes</span></code>, <code class="docutils literal notranslate"><span class="pre">is_heap</span></code>, <code class="docutils literal notranslate"><span class="pre">is_heap_until</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sorted</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sorted_until</span></code>, <code class="docutils literal notranslate"><span class="pre">mismatch</span></code>, <code class="docutils literal notranslate"><span class="pre">none_of</span></code>, <code class="docutils literal notranslate"><span class="pre">search</span></code>,`` search_n`` algorithms using DPC++ policies.</p></li>
+</ul>
+</div>
+<div class="section" id="id45">
+<h3>Fixed Issues<a class="headerlink" href="#id45" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed error with usage of <code class="docutils literal notranslate"><span class="pre">dpstd::zip_iterator</span></code> on Windows platform.</p></li>
+<li><p>Fixed <code class="docutils literal notranslate"><span class="pre">exclusive_scan</span></code> compilation errors with GCC* 9 and Clang* 9 in C++17 mode.</p></li>
+<li><p>Eliminated warnings about deprecated sub-group interfaces.</p></li>
+</ul>
+</div>
+<div class="section" id="id46">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id46" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code> algorithms may work incorrectly in debug mode.</p></li>
+<li><p>Some algorithms with a DPC++ policy may fail on CPU or on FPGA emulator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple,</span> <span class="pre">std::pair</span></code> and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception; use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p>Due to specifics of Microsoft Visual C++ implementation, some standard math functions for float (including: <code class="docutils literal notranslate"><span class="pre">std::ldexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::frexp</span></code>, <code class="docutils literal notranslate"><span class="pre">std::sqrt(std::complex&lt;float&gt;)</span></code>) require device support for double precision.</p></li>
+<li><p>There is a known issue on Windows platform with trying to use clGetPlatformInfo and ClGetDeviceInfo when using a graphics driver older than 27.20.100.8280.
+If you run into this issue, please upgrade to the latest driver of at least version 27.20.100.8280 from the <a class="reference external" href="https://downloadcenter.intel.com/product/80939/Graphics">Download Center</a>.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta06">
+<h2>New in 2021.1-beta06<a class="headerlink" href="#new-in-2021-1-beta06" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id48">
+<h3>New Features<a class="headerlink" href="#id48" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">fpga_device_policy</span></code> class, <code class="docutils literal notranslate"><span class="pre">make_fpga_policy</span></code> function and <code class="docutils literal notranslate"><span class="pre">fpga_policy</span></code> object. It may help to achieve better performance on FPGA hardware.</p></li>
+<li><p>Added support for &lt;cmath&gt; on Windows platform.</p></li>
+<li><p>Added vectorized search algorithms <code class="docutils literal notranslate"><span class="pre">binary_search</span></code>, <code class="docutils literal notranslate"><span class="pre">lower_bound</span></code> and <code class="docutils literal notranslate"><span class="pre">upper_bound</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id49">
+<h3>Changes to Existing Features<a class="headerlink" href="#id49" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Host side (synchronous) exceptions are no more handled, and instead pass through algorithms to the calling function.</p></li>
+<li><p>For better performance sorting algorithms are specialized to use Radix sort with arithmetic data types and <code class="docutils literal notranslate"><span class="pre">std::less</span></code>, <code class="docutils literal notranslate"><span class="pre">std::greater</span></code> comparators.</p></li>
+<li><p>Improved performance of algorithms when used together with Intel(R) DPC++ Compatibility Tool iterator and pointer types.</p></li>
+<li><p>Improved performance of the <code class="docutils literal notranslate"><span class="pre">merge</span></code> algorithm with a DPC++ <code class="docutils literal notranslate"><span class="pre">device_policy</span></code>.</p></li>
+</ul>
+</div>
+<div class="section" id="id50">
+<h3>Fixed Issues<a class="headerlink" href="#id50" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fixed errors with usage of <code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> in user-provided functors when <code class="docutils literal notranslate"><span class="pre">dpstd::zip_iterator</span></code> is passed to Parallel STL algorithms.</p></li>
+</ul>
+</div>
+<div class="section" id="id51">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id51" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sort</span></code>, <code class="docutils literal notranslate"><span class="pre">stable_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code> algorithms may work incorrectly in debug mode.</p></li>
+<li><p>Using DPC++ policy some algorithms might fail on CPU.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple,</span> <span class="pre">std::pair</span></code> and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception; use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::complex</span></code> division may fail in kernel code on some CPU platform.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta05">
+<h2>New in 2021.1-beta05<a class="headerlink" href="#new-in-2021-1-beta05" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id53">
+<h3>Changes to Existing Features<a class="headerlink" href="#id53" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Improved USM pointers support.</p></li>
+</ul>
+<p>Note: Non-USM pointers are not supported by the DPC++ execution policies anymore.
+- A performance optimization for partial_sort, partial_sort_copy algorithms using standard C++ policies.</p>
+</div>
+<div class="section" id="id54">
+<h3>Fixed Issues<a class="headerlink" href="#id54" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Fix for non-trivial user’s type using the <code class="docutils literal notranslate"><span class="pre">remove_if</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">rotate</span></code>, <code class="docutils literal notranslate"><span class="pre">partial_sort_copy</span></code>, <code class="docutils literal notranslate"><span class="pre">set_intersetion</span></code>, <code class="docutils literal notranslate"><span class="pre">set_union</span></code>, <code class="docutils literal notranslate"><span class="pre">set_difference</span></code>, <code class="docutils literal notranslate"><span class="pre">set_symmetric_difference</span></code> algorithms with standard C++ policies.</p></li>
+</ul>
+</div>
+<div class="section" id="id55">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id55" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Some algorithms might fail on CPU when using DPC++ policy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple,</span> <span class="pre">std::pair</span></code> and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception; use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::complex</span></code> division may fail in kernel code on some CPU platform.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta04">
+<h2>New in 2021.1-beta04<a class="headerlink" href="#new-in-2021-1-beta04" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id57">
+<h3>New Features<a class="headerlink" href="#id57" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added 64-bit atomics support.</p></li>
+<li><p>Added the following to Tested standard C++ APIs:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;complex&gt;</span></code> and most functions in <code class="docutils literal notranslate"><span class="pre">&lt;cmath&gt;</span></code> (GNU* libstdc++);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;ratio&gt;</span></code> (GNU libstdc++, LLVM* libc++, MSVC*);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::numeric_limits</span></code> (GNU libstdc++, MSVC).</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="id58">
+<h3>Changes to Existing Features<a class="headerlink" href="#id58" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>The following DPC++ execution policies were renamed:</p>
+<ul>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">dpstd::execution::sycl_policy</span></code> to <code class="docutils literal notranslate"><span class="pre">dpstd::execution::device_policy</span></code>.</p></li>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">dpstd::execution::make_sycl_policy</span></code> to <code class="docutils literal notranslate"><span class="pre">dpstd::execution::make_device_policy</span></code>.</p></li>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">dpstd::execution::sycl</span></code> object to <code class="docutils literal notranslate"><span class="pre">dpstd::execution::default_policy</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">dpstd::execution::sycl_policy,</span> <span class="pre">dpstd::execution::make_sycl_policy,</span> <span class="pre">dpstd::execution::sycl</span></code> were deprecated.</p>
+<ul class="simple">
+<li><p>The following algorithms in Extension API were renamed:</p>
+<ul>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">reduce_by_key</span></code> to <code class="docutils literal notranslate"><span class="pre">reduce_by_segment</span></code>.</p></li>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_key</span></code> to <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_segment</span></code>.</p></li>
+<li><p>From <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_key</span></code> to <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_segment</span></code>.</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="id59">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id59" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Using DPC++ policy some algorithms might fail on CPU.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL buffers to transfer data between host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to/from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple,</span> <span class="pre">std::pair</span></code> and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception; use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap cannot be used in DPC++ kernels on Windows platform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot work in DPC++ kernels on Windows platform.</p></li>
+<li><p>Not all functions in &lt;cmath&gt; are supported currently, please refer to <a class="reference external" href="https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/current/overview.html">DPC++ library guide</a> for detail list.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::complex</span></code> division may fail in kernel code on some CPU platform.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="new-in-2021-1-beta03">
+<h2>New in 2021.1-beta03<a class="headerlink" href="#new-in-2021-1-beta03" title="Permalink to this headline">#</a></h2>
+<div class="section" id="id61">
+<h3>New Features<a class="headerlink" href="#id61" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Added support for Data Parallel C++ (DPC++) to Parallel STL algorithms. For a complete list of Parallel STL algorithms see the ISO/IEC 14882:2017 standard (C++17).</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">dpstd::begin</span></code>, <code class="docutils literal notranslate"><span class="pre">dpstd::end</span></code> helper functions to pass a <code class="docutils literal notranslate"><span class="pre">sycl::buffer</span></code> into Parallel STL algorithms.</p></li>
+<li><p>Added initial support for Unified Shared Memory in Parallel STL algorithms.</p></li>
+<li><p>More than 80 C++ standard APIs from <code class="docutils literal notranslate"><span class="pre">&lt;algorithm&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;array&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;tuple&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;utility&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;functional&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;type_traits&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;initializer_list&gt;</span></code> were tested for use in DPC++ kernels. For more information, see the library guide.</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code>, <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code>, <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code>, <code class="docutils literal notranslate"><span class="pre">reduce_by_key</span></code>, <code class="docutils literal notranslate"><span class="pre">inclusive_scan_by_key</span></code>, and <code class="docutils literal notranslate"><span class="pre">exclusive_scan_by_key</span></code> to the extension API.</p></li>
+<li><p>Added functional utility classes that include identity, minimum, maximum to the extension API.</p></li>
+</ul>
+</div>
+<div class="section" id="id62">
+<h3>Changes to Existing Features<a class="headerlink" href="#id62" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Construction of a DPC++ execution policy from a <code class="docutils literal notranslate"><span class="pre">sycl::ordered</span></code> queue.</p></li>
+</ul>
+</div>
+<div class="section" id="id63">
+<h3>Fixed Issues<a class="headerlink" href="#id63" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Errors no longer appear when the <code class="docutils literal notranslate"><span class="pre">&lt;dpstd/execution&gt;</span></code> header is included after other the oneDPL headers.</p></li>
+<li><p>Algorithms now work with zip iterators if standard C++ execution policies are used.</p></li>
+</ul>
+</div>
+<div class="section" id="id64">
+<h3>Known Issues and Limitations<a class="headerlink" href="#id64" title="Permalink to this headline">#</a></h3>
+<ul class="simple">
+<li><p>Algorithms <code class="docutils literal notranslate"><span class="pre">adjacent_find</span></code>, <code class="docutils literal notranslate"><span class="pre">find</span></code>, <code class="docutils literal notranslate"><span class="pre">find_end</span></code>, <code class="docutils literal notranslate"><span class="pre">find_first_of</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if</span></code>, <code class="docutils literal notranslate"><span class="pre">find_if_not</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sorted</span></code>, <code class="docutils literal notranslate"><span class="pre">is_sorted_until</span></code>, <code class="docutils literal notranslate"><span class="pre">mismatch</span></code>, <code class="docutils literal notranslate"><span class="pre">search</span></code>, and <code class="docutils literal notranslate"><span class="pre">search_n</span></code> do not use iterators with the size of difference_type more than 32 bits.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::tuple</span></code> cannot be used with SYCL* buffers to transfer data between the host and device.</p></li>
+<li><p>When used within DPC++ kernels or transferred to or from a device, <code class="docutils literal notranslate"><span class="pre">std::tuple</span></code>, <code class="docutils literal notranslate"><span class="pre">std::pair</span></code>, and <code class="docutils literal notranslate"><span class="pre">std::array</span></code> can only hold objects whose type meets DPC++ requirements for use in kernels and for data transfer, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">std::array::at</span></code> member function cannot be used in kernels because it may throw an exception; use <code class="docutils literal notranslate"><span class="pre">std::array::operator[]</span></code> instead.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">std::array</span></code> member function swap and <code class="docutils literal notranslate"><span class="pre">std::swap</span></code> for <code class="docutils literal notranslate"><span class="pre">std::array</span></code> cannot be used in DPC++ kernels on Windows* platforms.</p></li>
+</ul>
+<p><cite>*</cite> Other names and brands may be claimed as the property of others.</p>
+<dl class="footnote brackets">
+<dt class="label" id="fnote1"><span class="brackets">1</span><span class="fn-backref">(<a href="#id18">1</a>,<a href="#id25">2</a>,<a href="#id30">3</a>,<a href="#id36">4</a>)</span></dt>
+<dd><p>The sorting algorithms in oneDPL use Radix sort for arithmetic data types compared with
+<code class="docutils literal notranslate"><span class="pre">std::less</span></code> or <code class="docutils literal notranslate"><span class="pre">std::greater</span></code>, otherwise Merge sort.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+                </article>
+              
+
+              
+              
+                <footer class="bd-footer-article">
+                  
+<div class="footer-article-items footer-article__inner">
+  
+    <div class="footer-article-item"><!-- Previous / next buttons -->
+<div class="prev-next-area">
+</div></div>
+  
+</div>
+
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-7-0">New in 2021.7.0</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#deprecation-notice">Deprecation Notice</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fixed-issues">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#known-issues-and-limitations">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-this-release">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-6-1">New in 2021.6.1</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-6">New in 2021.6</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#new-features">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changes-affecting-backward-compatibility">Changes affecting backward compatibility</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-5">New in 2021.5</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-4">New in 2021.4</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">Known Issues and Limitations</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">New in This Release</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-3">New in 2021.3</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#changes-to-existing-features">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-2">New in 2021.2</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-gold">New in 2021.1 Gold</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id22">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id23">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id24">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta10">New in 2021.1-beta10</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id26">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id27">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id28">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id29">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta09">New in 2021.1-beta09</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id32">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id33">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id34">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id35">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta08">New in 2021.1-beta08</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id38">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id39">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id40">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id41">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta07">New in 2021.1-beta07</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id43">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id44">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id45">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id46">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta06">New in 2021.1-beta06</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id48">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id49">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id50">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id51">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta05">New in 2021.1-beta05</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id53">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id54">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id55">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta04">New in 2021.1-beta04</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id57">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id58">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id59">Known Issues and Limitations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#new-in-2021-1-beta03">New in 2021.1-beta03</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id61">New Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id62">Changes to Existing Features</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id63">Fixed Issues</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id64">Known Issues and Limitations</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Intel
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright Intel Corporation.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p align="right"><a data-cookie-notice="true" href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html">Cookies</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

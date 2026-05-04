@@ -1,0 +1,962 @@
+
+
+<!DOCTYPE html>
+
+
+<html >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iterators &#8212; oneDPL Documentation 2022.12.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'specification/parallel_api/iterators';</script>
+    <link rel="shortcut icon" href="../../_static/favicons.png"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Parallel Algorithms" href="algorithms.html" />
+    <link rel="prev" title="Buffer Wrappers" href="buffer_wrappers.html" />
+
+    <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
+    <script type="text/javascript">
+        // Configure TMS settings
+        var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
+        var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
+        // Load TMS
+        if(document.location.href.includes("uxlfoundation.github.io")){
+        (function () {
+        var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
+        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+        }
+    </script>
+    <link href="../../_static/style.css" rel="stylesheet" type="text/css">
+
+
+
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/oneAPI-rgb-rev-100.png" class="logo__image only-light" alt="Logo image"/>
+    <script>document.write(`<img src="../../_static/oneAPI-rgb-rev-100.png" class="logo__image only-dark" alt="Logo image"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">Latest Revision</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../common.html">General Information</a></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="../parallel_api.html">Parallel API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buffer_wrappers.html">Buffer Wrappers</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">Iterators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="algorithms.html">Parallel Algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parallel_range_api.html">Parallel Range Algorithms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../sycl_kernels_api.html">SYCL Kernels API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spec_versions.html">Version History</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../library_guide/introduction.html">oneAPI DPC++ Library Introduction</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../library_guide/parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../library_guide/api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/api_for_sycl_kernels/random.html">Random Number Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../library_guide/macros.html">Macros</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../library_guide/cmake_support.html">CMake Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../library_guide/oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../library_guide/parallel_api/async_api.html">Asynchronous Algorithms</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../library_guide/dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/dynamic_selection_api/functions.html">Functions</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../library_guide/dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/dynamic_selection_api/auto_tune_policy.html">Auto-Tune Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/dynamic_selection_api/custom_policies.html">Custom Policies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/dynamic_selection_api/backends.html">Backends</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../library_guide/kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../library_guide/kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../library_guide/kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../library_guide/kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../library_guide/kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Notices and Disclaimers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../notices_disclaimers.html">Notices and Disclaimers</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/specification/parallel_api/iterators.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Fspecification/parallel_api/iterators.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/specification/parallel_api/iterators.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Iterators</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirements-for-iterator-use-with-device-policies">Requirements For Iterator Use With Device Policies</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#indirect-device-accessibility-type-trait">Indirect Device Accessibility Type Trait</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#onedpl-iterators">oneDPL Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-iterators">Other Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#customization-for-user-defined-iterators">Customization For User Defined Iterators</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <div class="section" id="iterators">
+<span id="id1"></span><h1>Iterators<a class="headerlink" href="#iterators" title="Permalink to this headline">#</a></h1>
+<div class="section" id="requirements-for-iterator-use-with-device-policies">
+<h2>Requirements For Iterator Use With Device Policies<a class="headerlink" href="#requirements-for-iterator-use-with-device-policies" title="Permalink to this headline">#</a></h2>
+<p>Iterators and iterator-like types may or may not refer to content accessible within a <a class="reference external" href="https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html">SYCL</a> kernel on a device.
+The term <em>indirectly device accessible</em> refers to a type that represents content accessible on a device.
+An <em>indirectly device accessible iterator</em> is such a type that can also be dereferenced within a SYCL kernel.</p>
+<p>An example of indirectly device accessible iterators include SYCL USM shared pointers which can inherently be used in
+a SYCL kernel. An example of an iterator type that is not indirectly device accessible is a random access iterator
+referring to host allocated data because dereferencing it within a SYCL kernel would result in undefined behavior.</p>
+<p><a class="reference internal" href="buffer_wrappers.html"><span class="doc">Buffer position objects</span></a> returned by <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::begin</span></code> and <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::end</span></code> are not
+iterators. However, they are indirectly device accessible because they represent data accessible on the device.</p>
+<p>When passed to oneDPL algorithms with a <code class="docutils literal notranslate"><span class="pre">device_policy</span></code>, indirectly device accessible iterator types that are also
+random access iterators and satisfy <em>SYCL device-copyable</em> must not cause unnecessary data movement beyond what is
+required by the algorithm’s semantics and what would be required to use the type directly within a SYCL kernel.</p>
+<p>Similarly, when passed to oneDPL algorithms with a <code class="docutils literal notranslate"><span class="pre">device_policy</span></code>, buffer position objects must not cause
+unnecessary data movement beyond what is required by the algorithm’s semantics and what would be required
+by using an accessor to the buffer within a SYCL kernel.</p>
+<p>The same requirement to prevent excessive data movements equally applies to indirectly device accessible types
+composed of one or more source components, such as the oneDPL iterators.</p>
+<div class="section" id="indirect-device-accessibility-type-trait">
+<h3>Indirect Device Accessibility Type Trait<a class="headerlink" href="#indirect-device-accessibility-type-trait" title="Permalink to this headline">#</a></h3>
+<p>The following class template and variable template are defined in <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code> inside the namespace
+<code class="docutils literal notranslate"><span class="pre">oneapi::dpl</span></code>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">is_indirectly_device_accessible</span><span class="p">{</span><span class="w"> </span><span class="cm">/* see below */</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="kr">inline</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_indirectly_device_accessible_v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T&gt;</span> <span class="pre">oneapi::dpl::is_indirectly_device_accessible</span></code> is a template which has the base characteristic
+of <code class="docutils literal notranslate"><span class="pre">std::true_type</span></code> if <code class="docutils literal notranslate"><span class="pre">T</span></code> is indirectly device accessible. Otherwise, it has the base characteristic of
+<code class="docutils literal notranslate"><span class="pre">std::false_type</span></code>.</p>
+</div>
+</div>
+<div class="section" id="onedpl-iterators">
+<h2>oneDPL Iterators<a class="headerlink" href="#onedpl-iterators" title="Permalink to this headline">#</a></h2>
+<p>The oneDPL iterators are defined in the <code class="docutils literal notranslate"><span class="pre">&lt;oneapi/dpl/iterator&gt;</span></code> header,
+in <code class="docutils literal notranslate"><span class="pre">namespace</span> <span class="pre">oneapi::dpl</span></code>.</p>
+<p>Let us define a named requirement, <code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code>, to describe random access iterator-like
+types that can be used as source for oneDPL iterators as described below.
+The type <code class="docutils literal notranslate"><span class="pre">Iter</span></code> satisfies the <code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code> named requirement if it is any of the following:</p>
+<ul class="simple">
+<li><p>A random access iterator</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code></p></li>
+<li><p>A <a class="reference internal" href="buffer_wrappers.html"><span class="doc">buffer position object</span></a> type returned by <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::begin</span></code> and <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::end</span></code></p></li>
+</ul>
+<p>If <code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code> is a buffer wrapper, a type built upon that also becomes a buffer wrapper,
+not an iterator, and cannot be directly dereferenced (see <a class="reference internal" href="buffer_wrappers.html"><span class="doc">Buffer wrappers</span></a>).</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">Integral</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">counting_iterator</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* a signed integer type of the same size as Integral */</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Integral</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Integral</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">counting_iterator</span><span class="p">();</span>
+<span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">counting_iterator</span><span class="p">(</span><span class="n">Integral</span><span class="w"> </span><span class="n">init</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">counting_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">counting_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">();</span>
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">();</span>
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+<span class="w">    </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">counting_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code> is a random access iterator-like type that represents an integer counter.
+When dereferenced, <code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code> provides an Integral rvalue equal to the value of the
+counter; dereference operations cannot be used to modify the counter. The arithmetic and comparison
+operators of <code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code> behave as if applied to the values of Integral type
+representing the counters of the iterator instances passed to the operators.</p>
+<p><code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code> is SYCL device-copyable, and is an indirectly device accessible iterator.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">discard_iterator</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">ptrdiff_t</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* unspecified */</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* unspecified */</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">discard_iterator</span><span class="p">();</span>
+<span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">discard_iterator</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">init</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">discard_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">discard_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+<span class="w">    </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">();</span>
+<span class="w">    </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">();</span>
+<span class="w">    </span><span class="n">discard_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+<span class="w">    </span><span class="n">discard_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">discard_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code> is a random access iterator-like type that, when dereferenced, provides an
+lvalue that may be assigned an arbitrary value. The assignment has no effect on the
+<code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code> instance; the write is discarded. The arithmetic and comparison operators
+of <code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code> behave as if applied to integer counter values maintained by the
+iterator instances to determine their position relative to each other.</p>
+<p><code class="docutils literal notranslate"><span class="pre">discard_iterator</span></code> is SYCL device-copyable, and is an indirectly device accessible iterator.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">SourceIterator</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">IndexMap</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">permutation_iterator</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">SourceIterator</span><span class="o">&gt;::</span><span class="n">difference_type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">SourceIterator</span><span class="o">&gt;::</span><span class="n">value_type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">SourceIterator</span><span class="o">&gt;::</span><span class="n">pointer</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">SourceIterator</span><span class="o">&gt;::</span><span class="n">reference</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">SourceIterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input1</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">IndexMap</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input2</span><span class="p">,</span>
+<span class="w">                         </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">SourceIterator</span><span class="w"> </span><span class="nf">base</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">();</span>
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">();</span>
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+<span class="w">    </span><span class="n">permutation_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">permutation_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> is a random access iterator-like type whose dereferenced value set is
+defined by the source iterator provided, and whose iteration order over the dereferenced value set
+is defined by either another iterator or a functor that maps the <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> index
+to the index of the source iterator. The arithmetic and comparison operators of
+<code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> behave as if applied to integer counter values maintained by the
+iterator instances to determine their position in the index map.</p>
+<p><code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> is SYCL device-copyable if both the <code class="docutils literal notranslate"><span class="pre">SourceIterator</span></code> and the <code class="docutils literal notranslate"><span class="pre">IndexMap</span></code>
+are SYCL device-copyable. <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> is indirectly device accessible if both the
+<code class="docutils literal notranslate"><span class="pre">SourceIterator</span></code> and the <code class="docutils literal notranslate"><span class="pre">IndexMap</span></code> are indirectly device accessible.</p>
+<p><code class="docutils literal notranslate"><span class="pre">SourceIterator</span></code> must satisfy <code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code>. When using <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> in combination with an
+algorithm with a <code class="docutils literal notranslate"><span class="pre">device_policy</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceIterator</span></code> must be indirectly device accessible.</p>
+<p>The type <code class="docutils literal notranslate"><span class="pre">IndexMap</span></code> must be one of the following:</p>
+<ul class="simple">
+<li><p>A random access iterator</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code></p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">counting_iterator</span></code></p></li>
+<li><p>A functor with a signature equivalent to <code class="docutils literal notranslate"><span class="pre">T</span> <span class="pre">operator()(const</span> <span class="pre">T&amp;)</span> <span class="pre">const</span></code> where <code class="docutils literal notranslate"><span class="pre">T</span></code> is a
+<code class="docutils literal notranslate"><span class="pre">std::iterator_traits&lt;SourceIterator&gt;::difference_type</span></code></p></li>
+<li><p>A <a class="reference internal" href="buffer_wrappers.html"><span class="doc">buffer position object</span></a> type returned by <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::begin</span></code> and <code class="docutils literal notranslate"><span class="pre">oneapi::dpl::end</span></code></p></li>
+</ul>
+<p>If the <code class="docutils literal notranslate"><span class="pre">IndexMap</span></code> is a buffer wrapper, the <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code> built upon that will be a buffer wrapper, not an
+iterator, and cannot be directly dereferenced (see <a class="reference internal" href="buffer_wrappers.html"><span class="doc">Buffer wrappers</span></a>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">permutation_iterator::operator*</span></code> uses the counter value of the instance on which
+it is invoked to index into the index map. The corresponding value in the map is then used
+to index into the value set defined by the source iterator. The resulting lvalue is returned
+as the result of the operator.</p>
+<p><code class="docutils literal notranslate"><span class="pre">permutation_iterator::operator[]</span></code> uses the parameter <code class="docutils literal notranslate"><span class="pre">i</span></code>
+to index into the index map. The corresponding value in the map is then used
+to index into the value set defined by the source iterator. The resulting lvalue is returned
+as the result of the operator.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">SourceIterator</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">IndexMap</span><span class="o">&gt;</span>
+<span class="n">permutation_iterator</span><span class="o">&lt;</span><span class="n">SourceIterator</span><span class="p">,</span><span class="w"> </span><span class="n">IndexMap</span><span class="o">&gt;</span>
+<span class="n">make_permutation_iterator</span><span class="p">(</span><span class="n">SourceIterator</span><span class="w"> </span><span class="n">source</span><span class="p">,</span><span class="w"> </span><span class="n">IndexMap</span><span class="w"> </span><span class="n">map</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">make_permutation_iterator</span></code> constructs and returns an instance of <code class="docutils literal notranslate"><span class="pre">permutation_iterator</span></code>
+using the source iterator and index map provided.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">Iterator</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">UnaryFunc</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">transform_iterator</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">difference_type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">invoke_result</span><span class="o">&lt;</span><span class="n">UnaryFunc</span><span class="p">,</span>
+<span class="w">                          </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">reference</span><span class="o">&gt;::</span><span class="n">type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">remove_reference</span><span class="o">&lt;</span><span class="n">reference</span><span class="o">&gt;::</span><span class="n">type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">pointer</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">Iterator</span><span class="w"> </span><span class="nf">base</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">transform_iterator</span><span class="p">(</span><span class="n">Iterator</span><span class="w"> </span><span class="n">it</span><span class="p">,</span><span class="w"> </span><span class="n">UnaryFunc</span><span class="w"> </span><span class="n">unary_func</span><span class="p">);</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input</span><span class="p">);</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span>
+
+<span class="w">    </span><span class="n">transform_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">();</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">();</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+<span class="w">    </span><span class="n">transform_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">transform_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> is a random access iterator-like type whose dereferenced value set is
+defined by the unary function and source iterator provided. When dereferenced,
+<code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> provides the result of the unary function applied to the corresponding
+element of the source iterator; dereference operations cannot be used to modify the elements of
+the source iterator unless the unary function result includes a reference to the element. The
+arithmetic and comparison operators of <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> behave as if applied to the
+source iterator itself. The template type <code class="docutils literal notranslate"><span class="pre">Iterator</span></code> must satisfy
+<code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code> is SYCL device-copyable if the source iterator is SYCL device-copyable, and
+is indirectly device accessible if the source iterator is indirectly device accessible.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">UnaryFunc</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">Iterator</span><span class="o">&gt;</span>
+<span class="n">transform_iterator</span><span class="o">&lt;</span><span class="n">UnaryFunc</span><span class="p">,</span><span class="w"> </span><span class="n">Iterator</span><span class="o">&gt;</span>
+<span class="n">make_transform_iterator</span><span class="p">(</span><span class="n">Iterator</span><span class="p">,</span><span class="w"> </span><span class="n">UnaryFunc</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">make_transform_iterator</span></code> constructs and returns an instance of <code class="docutils literal notranslate"><span class="pre">transform_iterator</span></code>
+using the source iterator and unary function object provided.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">Iterators</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">zip_iterator</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">difference_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">make_signed</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="o">&gt;::</span><span class="n">type</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">Iterators</span><span class="o">&gt;::</span><span class="n">value_type</span><span class="p">...</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* unspecified tuple of reference types */</span><span class="p">;</span>
+<span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">std</span><span class="o">::</span><span class="n">iterator_traits</span><span class="o">&lt;</span><span class="n">Iterators</span><span class="o">&gt;::</span><span class="n">pointer</span><span class="p">...</span><span class="o">&gt;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span><span class="n">Iterators</span><span class="p">...</span><span class="o">&gt;</span><span class="w"> </span><span class="n">base</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">zip_iterator</span><span class="p">();</span>
+<span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">zip_iterator</span><span class="p">(</span><span class="n">Iterators</span><span class="p">...</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input</span><span class="p">);</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">input</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="o">*</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">reference</span><span class="w"> </span><span class="k">operator</span><span class="p">[](</span><span class="n">difference_type</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">difference_type</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">-</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">+</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">+=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">forward</span><span class="p">);</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">-=</span><span class="p">(</span><span class="n">difference_type</span><span class="w"> </span><span class="n">backward</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">();</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">();</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">++</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+<span class="w">    </span><span class="n">zip_iterator</span><span class="w"> </span><span class="k">operator</span><span class="o">--</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">==</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">zip_iterator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">it</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> is an iterator-like type defined over one or more iterators. When dereferenced,
+the value returned from <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> is a tuple of the values returned by dereferencing the
+source iterators over which the <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> is defined. The arithmetic operators of
+<code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> update the source iterators of a <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> instance as though the
+operation were applied to each of these iterators. The types <code class="docutils literal notranslate"><span class="pre">T</span></code> within the template pack
+<code class="docutils literal notranslate"><span class="pre">Iterators...</span></code> must satisfy <code class="docutils literal notranslate"><span class="pre">AdaptingIteratorSource</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code> is SYCL device-copyable if all the source iterators are SYCL device-copyable, and is indirectly
+device accessible if all the source iterators are indirectly device accessible.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">Iterators</span><span class="o">&gt;</span>
+<span class="n">zip_iterator</span><span class="o">&lt;</span><span class="n">Iterators</span><span class="p">...</span><span class="o">&gt;</span>
+<span class="n">make_zip_iterator</span><span class="p">(</span><span class="n">Iterators</span><span class="p">...);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">make_zip_iterator</span></code> constructs and returns an instance of <code class="docutils literal notranslate"><span class="pre">zip_iterator</span></code>
+using the set of source iterators provided.</p>
+</div>
+<div class="section" id="other-iterators">
+<h2>Other Iterators<a class="headerlink" href="#other-iterators" title="Permalink to this headline">#</a></h2>
+<p>Pointers are assumed to be USM shared or device memory pointers when used in combination with an algorithm with a
+<code class="docutils literal notranslate"><span class="pre">device_policy</span></code> and are indirectly device accessible. Pointers are trivially copyable and therefore SYCL
+device-copyable.</p>
+<p>It is implementation defined whether other iterators are indirectly device accessible, including iterator types from
+the <a class="reference external" href="https://isocpp.org/std/the-standard">C++ Standard</a>.</p>
+</div>
+<div class="section" id="customization-for-user-defined-iterators">
+<span id="iterators-device-accessible"></span><h2>Customization For User Defined Iterators<a class="headerlink" href="#customization-for-user-defined-iterators" title="Permalink to this headline">#</a></h2>
+<p>oneDPL provides a mechanism to indicate whether custom iterators are indirectly device accessible.</p>
+<p>Applications may define a free function <code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible(T)</span></code>, which accepts an argument of
+type <code class="docutils literal notranslate"><span class="pre">T</span></code> and returns a type with the base characteristic of <code class="docutils literal notranslate"><span class="pre">std::true_type</span></code> if <code class="docutils literal notranslate"><span class="pre">T</span></code> is indirectly device
+accessible. Otherwise, it returns a type with the base characteristic of <code class="docutils literal notranslate"><span class="pre">std::false_type</span></code>. The function must be
+discoverable by argument-dependent lookup (ADL). It may be provided as a forward declaration only, without defining a
+body.</p>
+<p>The return type of <code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible</span></code> is examined at compile time to determine if <code class="docutils literal notranslate"><span class="pre">T</span></code> is
+indirectly device accessible. The function overload to use must be selected with argument-dependent lookup.
+[<em>Note</em>: Therefore, according to the rules in the C++ Standard, a derived type for which there is no
+function overload will match its most specific base type for which an overload exists. – <em>end note</em>]</p>
+<p>Once <code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible(T)</span></code> is defined, the public trait
+<code class="docutils literal notranslate"><span class="pre">template&lt;typename</span> <span class="pre">T&gt;</span> <span class="pre">oneapi::dpl::is_indirectly_device_accessible[_v]</span></code> will return the appropriate value. This public
+trait can also be used to define the return type of <code class="docutils literal notranslate"><span class="pre">is_onedpl_indirectly_device_accessible(T)</span></code> by applying it to any
+source iterator component types. Refer to the example below.</p>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">#</a></h3>
+<p>The following example shows how to define a customization for <code class="docutils literal notranslate"><span class="pre">is_indirectly_device_accessible</span></code> trait for a simple
+user defined iterator.  It also shows a more complicated example where the customization is defined as a hidden friend
+of the iterator class.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">usr</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">accessible_it</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="cm">/* user definition of an indirectly device accessible iterator */</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">true_type</span>
+<span class="w">    </span><span class="nf">is_onedpl_indirectly_device_accessible</span><span class="p">(</span><span class="n">accessible_it</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">inaccessible_it</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="cm">/* user definition of an iterator which is not indirectly device accessible */</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// The following could be omitted, as returning std::false_type matches the default behavior.</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">false_type</span>
+<span class="w">    </span><span class="nf">is_onedpl_indirectly_device_accessible</span><span class="p">(</span><span class="n">inaccessible_it</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static_assert</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">usr</span><span class="o">::</span><span class="n">accessible_it</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="k">static_assert</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">usr</span><span class="o">::</span><span class="n">inaccessible_it</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span>
+
+<span class="c1">// Example with base iterators and ADL overload as a hidden friend</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">It1</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">It2</span><span class="o">&gt;</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">it_pair</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">It1</span><span class="w"> </span><span class="n">first</span><span class="p">;</span>
+<span class="w">    </span><span class="n">It2</span><span class="w"> </span><span class="n">second</span><span class="p">;</span>
+<span class="w">    </span><span class="k">friend</span><span class="w"> </span><span class="k">auto</span>
+<span class="w">    </span><span class="n">is_onedpl_indirectly_device_accessible</span><span class="p">(</span><span class="n">it_pair</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">conjunction</span><span class="o">&lt;</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">It1</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">                         </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span><span class="n">It2</span><span class="o">&gt;&gt;</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="p">{};</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">static_assert</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span>
+<span class="w">                                </span><span class="n">it_pair</span><span class="o">&lt;</span><span class="n">usr</span><span class="o">::</span><span class="n">accessible_it</span><span class="p">,</span><span class="w"> </span><span class="n">usr</span><span class="o">::</span><span class="n">accessible_it</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="k">static_assert</span><span class="p">(</span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">is_indirectly_device_accessible</span><span class="o">&lt;</span>
+<span class="w">                                </span><span class="n">it_pair</span><span class="o">&lt;</span><span class="n">usr</span><span class="o">::</span><span class="n">accessible_it</span><span class="p">,</span><span class="w"> </span><span class="n">usr</span><span class="o">::</span><span class="n">inaccessible_it</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+                </article>
+              
+
+              
+              
+                <footer class="bd-footer-article">
+                  
+<div class="footer-article-items footer-article__inner">
+  
+    <div class="footer-article-item"><!-- Previous / next buttons -->
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="buffer_wrappers.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Buffer Wrappers</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="algorithms.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Parallel Algorithms</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div></div>
+  
+</div>
+
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#requirements-for-iterator-use-with-device-policies">Requirements For Iterator Use With Device Policies</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#indirect-device-accessibility-type-trait">Indirect Device Accessibility Type Trait</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#onedpl-iterators">oneDPL Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-iterators">Other Iterators</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#customization-for-user-defined-iterators">Customization For User Defined Iterators</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Intel
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright Intel Corporation.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p align="right"><a data-cookie-notice="true" href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html">Cookies</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

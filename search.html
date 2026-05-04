@@ -7,7 +7,7 @@
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Search - oneDPL Documentation 2022.9.0 documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Search - oneDPL Documentation 2022.12.0 documentation</title>
   
   
   
@@ -148,53 +148,77 @@
     <div class="bd-toc-item navbar-nav active">
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="introduction/release_notes.html">Release Notes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="get_started/release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="get_started/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality</span></p>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="introduction.html">oneAPI DPC++ Library Introduction</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/execution_policies.html">Execution Policies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/iterators.html">Iterators</a></li>
-<li class="toctree-l2"><a class="reference internal" href="parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="specification/index.html">Latest Revision</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="specification/common.html">General Information</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="specification/parallel_api.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/buffer_wrappers.html">Buffer Wrappers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/algorithms.html">Parallel Algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="specification/parallel_api/parallel_range_api.html">Parallel Range Algorithms</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/random.html">Random Number Generators</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="specification/sycl_kernels_api.html">SYCL Kernels API</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="macros.html">Macros</a></li>
-<li class="toctree-l1"><a class="reference internal" href="cmake_support.html">CMake Support</a></li>
-<li class="toctree-l1"><a class="reference internal" href="oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="specification/spec_versions.html">Version History</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="library_guide/introduction.html">oneAPI DPC++ Library Introduction</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/random.html">Random Number Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/macros.html">Macros</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/cmake_support.html">CMake Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="parallel_api/async_api.html">Asynchronous Algorithms</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="dynamic_selection_api/functions.html">Functions</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="dynamic_selection_api/auto_tune_policy.html">Auto-Tune Policy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_guide/parallel_api/async_api.html">Asynchronous Algorithms</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/dynamic_selection_api_main.html">Dynamic Selection API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/dynamic_selection_api/functions.html">Functions</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/dynamic_selection_api/policies.html">Policies</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/fixed_resource_policy.html">Fixed-Resource Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/round_robin_policy.html">Round-Robin Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/dynamic_load_policy.html">Dynamic Load Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/auto_tune_policy.html">Auto-Tune Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/dynamic_selection_api/custom_policies.html">Custom Policies</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/dynamic_selection_api/backends.html">Backends</a></li>
 </ul>
 </li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
-<li class="toctree-l3"><a class="reference internal" href="kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
-<li class="toctree-l3"><a class="reference internal" href="kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="library_guide/kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="library_guide/kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="kernel_templates/single_pass_scan.html">Inclusive Scan</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="library_guide/kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
+<li class="toctree-l3"><a class="reference internal" href="library_guide/kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

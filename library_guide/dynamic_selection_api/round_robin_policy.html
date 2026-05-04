@@ -1,0 +1,746 @@
+
+
+<!DOCTYPE html>
+
+
+<html >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Round-Robin Policy &#8212; oneDPL Documentation 2022.12.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" href="../../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'library_guide/dynamic_selection_api/round_robin_policy';</script>
+    <link rel="shortcut icon" href="../../_static/favicons.png"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Dynamic Load Policy" href="dynamic_load_policy.html" />
+    <link rel="prev" title="Fixed-Resource Policy" href="fixed_resource_policy.html" />
+
+    <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
+    <script type="text/javascript">
+        // Configure TMS settings
+        var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
+        var wapSection = "oneapi-dpl"; // WAP team will give you a unique section for your site
+        // Load TMS
+        if(document.location.href.includes("uxlfoundation.github.io")){
+        (function () {
+        var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
+        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+        }
+    </script>
+    <link href="../../_static/style.css" rel="stylesheet" type="text/css">
+
+
+
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/oneAPI-rgb-rev-100.png" class="logo__image only-light" alt="Logo image"/>
+    <script>document.write(`<img src="../../_static/oneAPI-rgb-rev-100.png" class="logo__image only-dark" alt="Logo image"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../get_started/onedpl_gsg.html">Get Started with the oneAPI DPC++ Library</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">oneDPL Specification</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../specification/index.html">Latest Revision</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../specification/common.html">General Information</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../specification/parallel_api.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../specification/parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../specification/parallel_api/buffer_wrappers.html">Buffer Wrappers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../specification/parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../specification/parallel_api/algorithms.html">Parallel Algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../specification/parallel_api/parallel_range_api.html">Parallel Range Algorithms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../specification/sycl_kernels_api.html">SYCL Kernels API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../specification/spec_versions.html">Version History</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Core Functionality Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html">oneAPI DPC++ Library Introduction</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../parallel_api_main.html">Parallel API</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/execution_policies.html">Execution Policies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/parallel_range_algorithms.html">Parallel Range Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/additional_algorithms.html">Additional Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/pass_data_algorithms.html">Pass Data to Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/iterators.html">Iterators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parallel_api/range_based_api.html">Experimental Range-Based API</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api_for_sycl_kernels_main.html">API for SYCL* Kernels</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api_for_sycl_kernels/tested_standard_cpp_api.html">Tested Standard C++ APIs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_for_sycl_kernels/random.html">Random Number Generators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_for_sycl_kernels/utility_function_object_classes.html">Utility Function Object Classes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../macros.html">Macros</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cmake_support.html">CMake Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oneDPL_2022.0_changes.html">oneDPL 2022 Breaking Changes</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Technology Preview</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../parallel_api/async_api.html">Asynchronous Algorithms</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../dynamic_selection_api_main.html">Dynamic Selection API</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="functions.html">Functions</a></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="policies.html">Policies</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="fixed_resource_policy.html">Fixed-Resource Policy</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">Round-Robin Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dynamic_load_policy.html">Dynamic Load Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="auto_tune_policy.html">Auto-Tune Policy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="custom_policies.html">Custom Policies</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="backends.html">Backends</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../kernel_templates_main.html">Kernel Templates API</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kernel_templates/kernel_configuration.html">Kernel Configuration</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../kernel_templates/esimd_main.html">ESIMD-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kernel_templates/esimd/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kernel_templates/esimd/radix_sort_by_key.html">Radix Sort By Key</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../kernel_templates/sycl_main.html">SYCL-Based Kernel Templates</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../kernel_templates/sycl/radix_sort.html">Radix Sort</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kernel_templates/sycl/radix_sort_by_key.html">Radix Sort By Key</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../kernel_templates/sycl/single_pass_scan.html">Inclusive Scan</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Notices and Disclaimers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../notices_disclaimers.html">Notices and Disclaimers</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/edit/main/documentation/library_guide/dynamic_selection_api/round_robin_policy.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/uxlfoundation/oneDPL/issues/new?title=Issue%20on%20page%20%2Flibrary_guide/dynamic_selection_api/round_robin_policy.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/library_guide/dynamic_selection_api/round_robin_policy.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Round-Robin Policy</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example">Example</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selection-algorithm">Selection Algorithm</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constructors">Constructors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred-initialization">Deferred Initialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#queries">Queries</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <div class="section" id="round-robin-policy">
+<h1>Round-Robin Policy<a class="headerlink" href="#round-robin-policy" title="Permalink to this headline">#</a></h1>
+<p>The dynamic selection API is an experimental feature in the oneAPI DPC++ Library
+(oneDPL) that selects an <em>execution resource</em> based on a chosen
+<em>selection policy</em>. There are several policies provided as part
+of the API. Policies encapsulate the logic and any associated state needed
+to make a selection.</p>
+<p>The round-robin policy cycles through the set of resources at each selection. <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code>
+is useful for offloading kernels of similar cost to devices of similar
+capabilities. In those cases, a round-robin assignment of kernels to devices
+will achieve a good load balancing.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">namespace</span><span class="w"> </span><span class="nn">oneapi</span><span class="o">::</span><span class="nn">dpl</span><span class="o">::</span><span class="nn">experimental</span><span class="w"> </span><span class="p">{</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">ResourceType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="k">typename</span><span class="w"> </span><span class="nc">ResourceAdapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oneapi</span><span class="o">::</span><span class="n">dpl</span><span class="o">::</span><span class="n">identity</span><span class="p">,</span>
+<span class="w">        </span><span class="k">typename</span><span class="w"> </span><span class="nc">Backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">default_backend</span><span class="o">&lt;</span><span class="n">ResourceType</span><span class="p">,</span><span class="w"> </span><span class="n">ResourceAdapter</span><span class="o">&gt;&gt;</span>
+<span class="w">  </span><span class="k">class</span><span class="w"> </span><span class="nc">round_robin_policy</span>
+<span class="w">    </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">policy_base</span><span class="o">&lt;</span><span class="n">round_robin_policy</span><span class="o">&lt;</span><span class="n">ResourceType</span><span class="p">,</span><span class="w"> </span><span class="n">ResourceAdapter</span><span class="p">,</span><span class="w"> </span><span class="n">Backend</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">                         </span><span class="n">ResourceAdapter</span><span class="p">,</span><span class="w"> </span><span class="n">Backend</span><span class="o">&gt;</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">      </span><span class="k">using</span><span class="w"> </span><span class="n">resource_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResourceType</span><span class="p">;</span>
+<span class="w">      </span><span class="k">using</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Backend</span><span class="p">;</span>
+
+<span class="w">      </span><span class="n">round_robin_policy</span><span class="p">(</span><span class="n">deferred_initialization_t</span><span class="p">);</span>
+<span class="w">      </span><span class="n">round_robin_policy</span><span class="p">();</span>
+<span class="w">      </span><span class="n">round_robin_policy</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ResourceType</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">u</span><span class="p">,</span><span class="w"> </span><span class="n">ResourceAdapter</span><span class="w"> </span><span class="n">adapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{});</span>
+
+<span class="w">      </span><span class="c1">// deferred initializer</span>
+<span class="w">      </span><span class="kt">void</span><span class="w"> </span><span class="nf">initialize</span><span class="p">();</span>
+<span class="w">      </span><span class="kt">void</span><span class="w"> </span><span class="nf">initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">resource_type</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">u</span><span class="p">);</span>
+<span class="w">      </span><span class="c1">// other implementation defined functions...</span>
+<span class="w">  </span><span class="p">};</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This policy can be used with all the dynamic selection <a class="reference internal" href="functions.html"><span class="doc">free functions</span></a>,
+as well as with <a class="reference internal" href="policies.html#id1"><span class="std std-ref">policy traits</span></a>.</p>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">#</a></h2>
+<p>The following example demonstrates a simple approach to send work to each
+queue in a set of queues, and then wait for all devices to complete the work
+before repeating the process. A <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> is used rotate through
+the available devices.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="w"> </span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;oneapi/dpl/dynamic_selection&gt;</span>
+<span class="w"> </span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sycl/sycl.hpp&gt;</span>
+<span class="w"> </span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+
+<span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span>
+<span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nn">oneapi</span><span class="o">::</span><span class="nn">dpl</span><span class="o">::</span><span class="nn">experimental</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="n">sycl</span><span class="o">::</span><span class="n">handler</span><span class="o">&amp;</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="o">*</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+
+
+<span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">round_robin_example</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">similar_devices</span><span class="p">,</span>
+<span class="w">                         </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">*&gt;&amp;</span><span class="w"> </span><span class="n">usm_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">   </span><span class="n">ex</span><span class="o">::</span><span class="n">round_robin_policy</span><span class="w"> </span><span class="n">p</span><span class="p">{</span><span class="n">similar_devices</span><span class="p">};</span><span class="w"> </span><span class="c1">// (1)</span>
+
+<span class="w">   </span><span class="k">auto</span><span class="w"> </span><span class="n">num_devices</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">get_resources</span><span class="p">().</span><span class="n">size</span><span class="p">();</span>
+<span class="w">   </span><span class="k">auto</span><span class="w"> </span><span class="n">num_arrays</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">usm_data</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+
+<span class="w">   </span><span class="c1">// (2)</span>
+<span class="w">   </span><span class="k">auto</span><span class="w"> </span><span class="n">submission_group_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">num_arrays</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">num_devices</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">num_arrays</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">num_devices</span><span class="p">;</span>
+
+<span class="w">   </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Running with &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">num_devices</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot; queues</span><span class="se">\n</span><span class="s">&quot;</span>
+<span class="w">             </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;             &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">num_arrays</span><span class="w">  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot; usm arrays</span><span class="se">\n</span><span class="s">&quot;</span>
+<span class="w">             </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Will perform &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">submission_group_size</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot; concurrent offloads</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+
+<span class="w">   </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">submission_group_size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// (3)</span>
+<span class="w">     </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">submission_group_size</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// (4)</span>
+<span class="w">       </span><span class="n">ex</span><span class="o">::</span><span class="n">submit</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="n">sycl</span><span class="o">::</span><span class="n">queue</span><span class="w"> </span><span class="n">q</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// (5)</span>
+<span class="w">         </span><span class="kt">float</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">usm_data</span><span class="p">[</span><span class="n">j</span><span class="p">];</span>
+<span class="w">         </span><span class="k">return</span><span class="w"> </span><span class="n">q</span><span class="p">.</span><span class="n">submit</span><span class="p">([</span><span class="o">=</span><span class="p">](</span><span class="n">sycl</span><span class="o">::</span><span class="n">handler</span><span class="w"> </span><span class="o">&amp;</span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// (6)</span>
+<span class="w">           </span><span class="n">f</span><span class="p">(</span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+<span class="w">         </span><span class="p">});</span>
+<span class="w">       </span><span class="p">});</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">ex</span><span class="o">::</span><span class="n">wait</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">get_submission_group</span><span class="p">());</span><span class="w"> </span><span class="c1">// (7)</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">   </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The key points in this example are:</p>
+<ol class="arabic simple">
+<li><p>A <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> is constructed that rotates between the CPU and GPU queues.</p></li>
+<li><p>The total number of concurrent offloads, <code class="docutils literal notranslate"><span class="pre">submission_group_size</span></code>, will be limited to the number of USM arrays or the number of queues, whichever is smaller.</p></li>
+<li><p>The outer <code class="docutils literal notranslate"><span class="pre">i</span></code>-loop iterates from 0 to 99, stepping by the <code class="docutils literal notranslate"><span class="pre">submission_group_size</span></code>. This number of submissions will be offloaded concurrently.</p></li>
+<li><p>The inner <code class="docutils literal notranslate"><span class="pre">j</span></code>-loop iterates over <code class="docutils literal notranslate"><span class="pre">submission_group_size</span></code> submissions.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">submit</span></code> is used to select a queue and pass it to the user’s function, but does not block until the event returned by that function completes. This provides the opportunity for concurrency across the submissions.</p></li>
+<li><p>The queue is used in a function to perform an asynchronous offload. The SYCL event returned from the call to <code class="docutils literal notranslate"><span class="pre">submit</span></code> is returned. Returning an event is required for functions passed to <code class="docutils literal notranslate"><span class="pre">submit</span></code> and <code class="docutils literal notranslate"><span class="pre">submit_and_wait</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wait</span></code> is called to block for all the concurrent <code class="docutils literal notranslate"><span class="pre">submission_group_size</span></code> submissions to complete.</p></li>
+</ol>
+</div>
+<div class="section" id="selection-algorithm">
+<h2>Selection Algorithm<a class="headerlink" href="#selection-algorithm" title="Permalink to this headline">#</a></h2>
+<p>The selection algorithm for <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> rotates through
+the elements of the set of available resources. A simplified, expository
+implementation of the selection algorithm follows:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">//not a public function, for exposition purposes only</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="p">...</span><span class="n">Args</span><span class="o">&gt;</span>
+<span class="n">selection_type</span><span class="w"> </span><span class="n">round_robin_policy</span><span class="o">::</span><span class="n">select</span><span class="p">(</span><span class="n">Args</span><span class="o">&amp;&amp;</span><span class="p">...)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">initialized_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resources_</span><span class="p">[</span><span class="n">next_context_</span><span class="o">++</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">num_resources_</span><span class="p">];</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">selection_type</span><span class="p">{</span><span class="o">*</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">};</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">logic_error</span><span class="p">(</span><span class="s">&quot;selected called before initialization&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">resources_</span></code> is a container of resources, such as
+<code class="docutils literal notranslate"><span class="pre">std::vector</span></code> of <code class="docutils literal notranslate"><span class="pre">sycl::queue</span></code>, <code class="docutils literal notranslate"><span class="pre">next_context_</span></code> is
+a counter that increments at each selection, and <code class="docutils literal notranslate"><span class="pre">num_resources_</span></code>
+is the size of the <code class="docutils literal notranslate"><span class="pre">resources_</span></code> vector.</p>
+</div>
+<div class="section" id="constructors">
+<h2>Constructors<a class="headerlink" href="#constructors" title="Permalink to this headline">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> provides three constructors.</p>
+<table class="colwidths-given table">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Signature</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">round_robin_policy(deferred_initialization_t);</span></code></p></td>
+<td><p>Defers initialization. An <code class="docutils literal notranslate"><span class="pre">initialize</span></code> function must be called prior to use.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">round_robin_policy();</span></code></p></td>
+<td><p>Initialized to use the default set of resources.</p></td>
+</tr>
+<tr class="row-even"><td><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">round_robin_policy(</span></code></div>
+<div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">std::vector&lt;ResourceType&gt;&amp;</span> <span class="pre">u,</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">ResourceAdapter</span> <span class="pre">adapter</span> <span class="pre">=</span> <span class="pre">{});</span></code></div>
+</div>
+</div>
+</td>
+<td><p>Overrides the default set of resources with an optional resource adapter.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="deferred-initialization">
+<h2>Deferred Initialization<a class="headerlink" href="#deferred-initialization" title="Permalink to this headline">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> that was constructed with deferred initialization must be
+initialized by calling one of its <code class="docutils literal notranslate"><span class="pre">initialize</span></code> member functions before it can be used
+to select or submit.</p>
+<table class="colwidths-given table">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Signature</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">initialize();</span></code></p></td>
+<td><p>Initialize to use the default set of resources.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">initialize(const</span> <span class="pre">std::vector&lt;resource_type&gt;&amp;</span> <span class="pre">u);</span></code></p></td>
+<td><p>Overrides the default set of resources.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="queries">
+<h2>Queries<a class="headerlink" href="#queries" title="Permalink to this headline">#</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">round_robin_policy</span></code> has <code class="docutils literal notranslate"><span class="pre">get_resources</span></code> and <code class="docutils literal notranslate"><span class="pre">get_submission_group</span></code>
+member functions.</p>
+<table class="colwidths-given table">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Signature</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">std::vector&lt;resource_type&gt;</span> <span class="pre">get_resources();</span></code></p></td>
+<td><p>Returns the set of resources the policy is selecting from.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">get_submission_group();</span></code></p></td>
+<td><p>Returns an object that can be used to wait for all active submissions.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+                </article>
+              
+
+              
+              
+                <footer class="bd-footer-article">
+                  
+<div class="footer-article-items footer-article__inner">
+  
+    <div class="footer-article-item"><!-- Previous / next buttons -->
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="fixed_resource_policy.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Fixed-Resource Policy</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="dynamic_load_policy.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Dynamic Load Policy</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div></div>
+  
+</div>
+
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example">Example</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#selection-algorithm">Selection Algorithm</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constructors">Constructors</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#deferred-initialization">Deferred Initialization</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#queries">Queries</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Intel
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright Intel Corporation.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p align="right"><a data-cookie-notice="true" href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html">Cookies</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
