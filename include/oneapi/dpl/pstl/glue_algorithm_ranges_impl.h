@@ -457,11 +457,11 @@ inline constexpr __internal::__equal_fn equal;
 
 struct __internal::__lex_compare_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
-             typename _Proj1 = std::identity, typename _Proj2 = std::identity,
-             std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
-                                             std::projected<std::ranges::iterator_t<_R2>, _Proj2>>
-                 _Comp = std::ranges::less>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Proj1 = std::identity, typename _Proj2 = std::identity,
+              std::indirect_strict_weak_order<std::projected<std::ranges::iterator_t<_R1>, _Proj1>,
+                                              std::projected<std::ranges::iterator_t<_R2>, _Proj2>>
+                  _Comp = std::ranges::less>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
              && std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2>
     bool
@@ -469,8 +469,8 @@ struct __internal::__lex_compare_fn
                _Proj2 __proj2 = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
-        return oneapi::dpl::__internal::__ranges::__pattern_lexicographical_compare(__dispatch_tag,
-            std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
+        return oneapi::dpl::__internal::__ranges::__pattern_lexicographical_compare(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::forward<_R1>(__r1), std::forward<_R2>(__r2),
             __comp, __proj1, __proj2);
     }
 };

@@ -386,8 +386,8 @@ __pattern_equal(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _
 //---------------------------------------------------------------------------------------------------------------------
 // pattern_lexicographical_compare
 //---------------------------------------------------------------------------------------------------------------------
-template<typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
-         typename _Proj2>
+template <typename _Tag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
 bool
 __pattern_lexicographical_compare(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Comp __comp,
                                   _Proj1 __proj1, _Proj2 __proj2)
@@ -401,7 +401,7 @@ __pattern_lexicographical_compare(_Tag __tag, _ExecutionPolicy&& __exec, _R1&& _
         oneapi::dpl::__internal::__binary_op<_Comp, _Proj1, _Proj2>{__comp, __proj1, __proj2});
 }
 
-template<typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
+template <typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1, typename _Proj2>
 bool
 __pattern_lexicographical_compare(__serial_tag</*IsVector*/std::false_type>, _ExecutionPolicy&&, _R1&& __r1, _R2&& __r2,
                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)

@@ -255,8 +255,8 @@ __pattern_equal(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&
 //------------------------------------------------------------------------
 
 #if _ONEDPL_CPP20_RANGES_PRESENT
-template<typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
-         typename _Proj2>
+template <typename _BackendTag, typename _ExecutionPolicy, typename _R1, typename _R2, typename _Comp, typename _Proj1,
+          typename _Proj2>
 bool
 __pattern_lexicographical_compare(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                   _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
