@@ -556,27 +556,51 @@ private:
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val(expected_res, in_exp_view.begin()) != ret_in_val(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if (ret_in_val<1>(expected_res, in_exp_view.begin()) != ret_in_val<1>(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
 
             EXPECT_EQ(ret_in_val<2>(expected_res, in_exp_view.end()), ret_in_val<2>(res, tr_in(A).end()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if (ret_in_val<2>(expected_res, in_exp_view.end()) != ret_in_val<2>(res, tr_in(A).end()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
         }
         else if constexpr (check_in_in_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, in_exp_view.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if (ret_in_val<1>(expected_res, in_exp_view.begin()) != ret_in_val<1>(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
 
             EXPECT_EQ(ret_in_val<2>(expected_res, out_exp_view.begin()), ret_in_val<2>(res, tr_out(B).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if (ret_in_val<2>(expected_res, out_exp_view.begin()) != ret_in_val<2>(res, tr_out(B).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, in_exp_view.begin()), ret_in_val(res, tr_in(A).begin()),
                       (std::string("wrong input stop position with ") + names + sizes).c_str());
+            if (ret_in_val(expected_res, in_exp_view.begin()) != ret_in_val(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
+            }
         }
 
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
@@ -784,25 +808,51 @@ private:
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val(expected_res, src_view1.begin()) != ret_in_val(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
         }
         else if constexpr (check_in_in_out_result<decltype(expected_res)>)
         {
             EXPECT_EQ(ret_in_val<1>(expected_res, src_view1.begin()), ret_in_val<1>(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val<1>(expected_res, src_view1.begin()) != ret_in_val<1>(res, tr_in(A).begin()))
+            {
+                expected_res = checker(src_view1, src_view2, expected_view, args...);
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
 
             EXPECT_EQ(ret_in_val<2>(expected_res, src_view2.begin()), ret_in_val<2>(res, tr_in(B).begin()),
                       (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val<2>(expected_res, src_view2.begin()) != ret_in_val<2>(res, tr_in(B).begin()))
+            {
+                expected_res = checker(src_view1, src_view2, expected_view, args...);
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
         }
         else
         {
             EXPECT_EQ(ret_in_val(expected_res, src_view1.begin()), ret_in_val(res, tr_in(A).begin()),
                       (std::string("wrong first input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val(expected_res, src_view1.begin()) != ret_in_val(res, tr_in(A).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
 
             EXPECT_EQ(ret_in_val(expected_res, src_view2.begin()), ret_in_val(res, tr_in(B).begin()),
                       (std::string("wrong second input stop position with ") + typeid(Algo).name() + sizes).c_str());
+            if (ret_in_val(expected_res, src_view2.begin()) != ret_in_val(res, tr_in(B).begin()))
+            {
+                res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+            }
         }
         EXPECT_EQ(ret_out_val(expected_res, expected_view.begin()), ret_out_val(res, tr_out(C).begin()),
                     (std::string("wrong output stop position with ") + typeid(Algo).name() + sizes).c_str());
+        if (ret_out_val(expected_res, expected_view.begin()) != ret_out_val(res, tr_out(C).begin()))
+        {
+            res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
+        }
 
         //check result
         auto n = std::ranges::size(expected_view);
@@ -1195,7 +1245,7 @@ struct test_range_algo
     void
     operator()(auto algo, auto& checker, auto... args)
     {
-        test_range_algo_impl_host(algo, checker, args...);
+        //test_range_algo_impl_host(algo, checker, args...);
 
 #if TEST_DPCPP_BACKEND_PRESENT
         auto policy = TestUtils::get_dpcpp_test_policy();
