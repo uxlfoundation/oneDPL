@@ -54,5 +54,5 @@ main()
 {
     test_with_multiplies<std::uint64_t>();
 
-    return done();
+    return done(TEST_DPCPP_BACKEND_PRESENT);
 }
