@@ -23,7 +23,7 @@ page for:
 * Known Issues and Limitations
 * Previous Release Notes
 
-Install the `Intel® oneAPI Base Toolkit (Base Kit) <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html>`_
+Install the `Intel® oneAPI Toolkit <https://www.intel.com/content/www/us/en/developer/tools/oneapi/oneapi-toolkit.html>`_
 to use |onedpl_short|.
 
 .. _library-requirements:
@@ -203,7 +203,7 @@ Known Limitations
   As a result, customizations targeting ``std::ranges::iter_swap`` will not be respected.
 * Passing rvalue views to ``ranges::zip_view`` requires standard library support for views with ownership (P2415R2).
   This can be detected using the ``__cpp_lib_ranges`` feature macro (value ``202110L`` or higher).
-- Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
+* Incorrect results may be produced by ``exclusive_scan``, ``inclusive_scan``, ``transform_exclusive_scan``,
   ``transform_inclusive_scan``, ``exclusive_scan_by_segment``, ``inclusive_scan_by_segment``, ``reduce_by_segment``
   with ``unseq`` or ``par_unseq`` policy when compiled by Intel® oneAPI DPC++/C++ Compiler 2024.1 or earlier
   with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
