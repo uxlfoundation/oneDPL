@@ -2400,7 +2400,10 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 #ifdef _ONEDPL_RTS_OVERRIDE_NUM_WORK_GROUPS
     const std::uint32_t __num_work_groups = _ONEDPL_RTS_OVERRIDE_NUM_WORK_GROUPS;
 #else
-    const std::uint32_t __num_work_groups = oneapi::dpl::__internal::__dpl_bit_ceil(__q.get_device().template get_info<sycl::info::device::max_compute_units>());
+    const std::uint32_t __num_work_groups =
+        oneapi::dpl::__internal::__dpl_bit_ceil(
+            __q.get_device().template get_info<sycl::info::device::max_compute_units>()) /
+        (__q.get_device().is_gpu() ? 4 : 1);
 #endif
     // Allocate sufficient temporary storage for the worst case (smallest sub-group size = most sub-groups).
     const std::uint32_t __max_num_sub_groups_local = __work_group_size / __min_sub_group_size;
