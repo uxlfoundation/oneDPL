@@ -139,7 +139,8 @@ struct __pattern_lexicographical_compare_transform_fn
         auto const& __s2_val = __acc2[__gidx];
 
         _ReduceValueType __is_s1_val_less = bool(std::invoke(__comp, __s1_val, __s2_val));
-        _ReduceValueType __is_s1_val_greater = bool(std::invoke(__comp, __s2_val, __s1_val));
+        _ReduceValueType __is_s1_val_greater =
+            bool(oneapi::dpl::__internal::__reorder_pred<_Compare>{__comp}(__s1_val, __s2_val));
 
         // 1 if __s1_val <  __s2_val, -1 if __s2_val <  __s1_val, 0 if __s1_val == __s2_val
         return __is_s1_val_less - __is_s1_val_greater;
