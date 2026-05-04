@@ -13,7 +13,6 @@
 #include "oneapi/dpl/iterator"
 
 #include "support/utils.h"
-#include "support/utils_invoke.h" // CLONE_TEST_POLICY_IDX
 #include "support/scan_serial_impl.h"
 #include "support/utils_scan.h"
 
