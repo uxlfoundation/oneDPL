@@ -1,5 +1,5 @@
 .. |onedpl_library_guide| replace:: oneAPI DPC++ Library Guide
-.. _onesdpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022.12.0/overview.html
+.. _onedpl_library_guide: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022.12.0/overview.html
 
 .. |onedpl_requirements| replace:: oneDPL System Requirements
 .. _onedpl_requirements: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022.12.0/intel-oneapi-dpc-library-introduction.html
