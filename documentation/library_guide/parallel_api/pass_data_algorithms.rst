@@ -380,7 +380,7 @@ It also automatically treats the following entities as *indirectly device access
   if their underlying iterators are *indirectly device accessible*.
 
 For more information, refer to the
-`Iterators section of oneDPL specification <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/parallel_api/iterators.html>`_.
+`Iterators section of oneDPL specification <https://uxlfoundation.github.io/oneDPL/specification/parallel_api/iterators.html>`_.
 
 .. _`SYCL buffer`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#subsec:buffers
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable

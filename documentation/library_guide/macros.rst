@@ -8,9 +8,7 @@ Use these macros to get the current version of |onedpl_long| (|onedpl_short|).
 ================================= ==============================
 Macro                             Description
 ================================= ==============================
-``ONEDPL_SPEC_VERSION``           The version of the `specification
-                                  <https://uxlfoundation.github.io/oneAPI-spec/spec/elements/oneDPL/source/>`_
-                                  that the implementation is compliant with.
+``ONEDPL_SPEC_VERSION``           The version of the |onedpl_specification|_ that the implementation is compliant with.
 --------------------------------- ------------------------------
 ``ONEDPL_VERSION_MAJOR``          A decimal number for the major version of the library.
 --------------------------------- ------------------------------
