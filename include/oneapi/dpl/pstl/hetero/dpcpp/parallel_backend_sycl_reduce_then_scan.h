@@ -26,6 +26,7 @@
 #include <cassert>
 #include <array>
 #include <variant>  // std::monostate
+#include <vector>
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl_utils.h"
