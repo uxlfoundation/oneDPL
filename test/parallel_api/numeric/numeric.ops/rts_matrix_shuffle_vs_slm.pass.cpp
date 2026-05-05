@@ -10,6 +10,9 @@
 // fallback for Matrix2x2<int32_t>. Any divergence between the two paths
 // indicates a driver/compiler bug in multi-register sub-group shuffles.
 // Uses the same size progression as the oneDPL matrix scan tests.
+//
+// Each kernel reports its own observed sub-group size since different kernels
+// may get different sub-group sizes from the runtime.
 
 #include "support/test_config.h"
 #include "support/utils.h"
@@ -54,19 +57,23 @@ struct multiply_matrix
 
 using Mat = Matrix2x2<std::int32_t>;
 
-// Inclusive scan using native shift_group_right
+// Inclusive scan using native shift_group_right.
+// Writes sub-group-local inclusive scan results. Reports observed sg_size.
 void
-kernel_native_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Mat>& output, std::uint32_t wg_size)
+kernel_native_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Mat>& output, std::uint32_t wg_size,
+                   std::uint32_t& observed_sg_size)
 {
     std::size_t n = input.size();
     std::uint32_t total_items = static_cast<std::uint32_t>(((n + wg_size - 1) / wg_size) * wg_size);
 
     sycl::buffer<Mat> in_buf(input.data(), sycl::range<1>(n));
     sycl::buffer<Mat> out_buf(output.data(), sycl::range<1>(n));
+    sycl::buffer<std::uint32_t> sg_buf(&observed_sg_size, sycl::range<1>(1));
 
     q.submit([&](sycl::handler& cgh) {
         auto in_acc = in_buf.template get_access<sycl::access::mode::read>(cgh);
         auto out_acc = out_buf.template get_access<sycl::access::mode::write>(cgh);
+        auto sg_acc = sg_buf.template get_access<sycl::access::mode::write>(cgh);
         cgh.parallel_for(sycl::nd_range<1>(total_items, wg_size), [=](sycl::nd_item<1> ndi) {
             auto sg = ndi.get_sub_group();
             std::uint32_t global_id = ndi.get_global_linear_id();
@@ -90,24 +97,30 @@ kernel_native_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Ma
 
             if (in_range)
                 out_acc[global_id] = val;
+            if (global_id == 0)
+                sg_acc[0] = sg_sz;
         });
     });
     q.wait();
 }
 
-// Inclusive scan using SLM-based shift (the fallback path oneDPL uses for non-trivially-copyable)
+// Inclusive scan using SLM-based shift (the fallback path oneDPL uses for non-trivially-copyable).
+// Reports observed sg_size.
 void
-kernel_slm_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Mat>& output, std::uint32_t wg_size)
+kernel_slm_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Mat>& output, std::uint32_t wg_size,
+                std::uint32_t& observed_sg_size)
 {
     std::size_t n = input.size();
     std::uint32_t total_items = static_cast<std::uint32_t>(((n + wg_size - 1) / wg_size) * wg_size);
 
     sycl::buffer<Mat> in_buf(input.data(), sycl::range<1>(n));
     sycl::buffer<Mat> out_buf(output.data(), sycl::range<1>(n));
+    sycl::buffer<std::uint32_t> sg_buf(&observed_sg_size, sycl::range<1>(1));
 
     q.submit([&](sycl::handler& cgh) {
         auto in_acc = in_buf.template get_access<sycl::access::mode::read>(cgh);
         auto out_acc = out_buf.template get_access<sycl::access::mode::write>(cgh);
+        auto sg_acc = sg_buf.template get_access<sycl::access::mode::write>(cgh);
         sycl::local_accessor<Mat> slm(wg_size, cgh);
         cgh.parallel_for(sycl::nd_range<1>(total_items, wg_size), [=](sycl::nd_item<1> ndi) {
             auto sg = ndi.get_sub_group();
@@ -138,6 +151,8 @@ kernel_slm_scan(sycl::queue& q, const std::vector<Mat>& input, std::vector<Mat>&
 
             if (in_range)
                 out_acc[global_id] = val;
+            if (global_id == 0)
+                sg_acc[0] = sg_sz;
         });
     });
     q.wait();
@@ -152,14 +167,20 @@ run_test()
     std::printf("Driver: %s\n", dev.get_info<sycl::info::device::driver_version>().c_str());
 
     auto sg_sizes = dev.get_info<sycl::info::device::sub_group_sizes>();
-    std::uint32_t sg_size = *std::max_element(sg_sizes.begin(), sg_sizes.end());
-    std::uint32_t wg_size = sg_size * 4;
-    std::printf("Sub-group size: %u, work-group size: %u\n", sg_size, wg_size);
+    std::printf("Reported sub-group sizes:");
+    for (auto s : sg_sizes)
+        std::printf(" %zu", s);
+    std::printf("\n");
+
+    std::uint32_t max_sg_size = *std::max_element(sg_sizes.begin(), sg_sizes.end());
+    std::uint32_t wg_size = max_sg_size * 4;
+    std::printf("Work-group size: %u\n", wg_size);
     std::printf("sizeof(Matrix2x2<int32_t>) = %zu\n\n", sizeof(Mat));
 
     static_assert(std::is_trivially_copyable_v<Mat>);
 
     int total_failures = 0;
+    bool sg_size_printed = false;
 
     // Use the same size progression as the oneDPL inclusive_scan_matrix.pass test
     std::vector<std::size_t> test_sizes;
@@ -176,9 +197,24 @@ run_test()
 
         std::vector<Mat> out_native(n);
         std::vector<Mat> out_slm(n);
+        std::uint32_t native_sg_size = 0;
+        std::uint32_t slm_sg_size = 0;
 
-        kernel_native_scan(q, input, out_native, wg_size);
-        kernel_slm_scan(q, input, out_slm, wg_size);
+        kernel_native_scan(q, input, out_native, wg_size, native_sg_size);
+        kernel_slm_scan(q, input, out_slm, wg_size, slm_sg_size);
+
+        if (!sg_size_printed)
+        {
+            std::printf("Native kernel sg_size: %u, SLM kernel sg_size: %u\n\n", native_sg_size, slm_sg_size);
+            sg_size_printed = true;
+        }
+
+        if (native_sg_size != slm_sg_size)
+        {
+            std::printf("  WARNING n=%zu: kernels got different sg_sizes (native=%u, slm=%u) — cannot compare\n", n,
+                        native_sg_size, slm_sg_size);
+            continue;
+        }
 
         std::uint32_t mismatch_count = 0;
         for (std::size_t i = 0; i < n; ++i)
@@ -187,9 +223,10 @@ run_test()
             {
                 if (mismatch_count < 3)
                 {
-                    std::printf("  MISMATCH n=%zu idx=%zu: native={%d,%d,%d,%d} slm={%d,%d,%d,%d}\n", n, i,
-                                out_native[i].a00, out_native[i].a01, out_native[i].a10, out_native[i].a11,
-                                out_slm[i].a00, out_slm[i].a01, out_slm[i].a10, out_slm[i].a11);
+                    std::printf("  MISMATCH n=%zu idx=%zu (sg=%zu lane=%zu): native={%d,%d,%d,%d} slm={%d,%d,%d,%d}\n",
+                                n, i, i / native_sg_size, i % native_sg_size, out_native[i].a00, out_native[i].a01,
+                                out_native[i].a10, out_native[i].a11, out_slm[i].a00, out_slm[i].a01, out_slm[i].a10,
+                                out_slm[i].a11);
                 }
                 ++mismatch_count;
             }
