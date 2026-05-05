@@ -23,6 +23,9 @@
 
 #include <oneapi/dpl/pstl/utils.h>
 
+using TestUtils::Matrix2x2;
+using TestUtils::multiply_matrix;
+
 template <typename T>
 using lazy = oneapi::dpl::__internal::__lazy_ctor_storage<T>;
 

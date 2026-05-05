@@ -29,6 +29,9 @@
 
 namespace rts = oneapi::dpl::__par_backend_hetero;
 
+using TestUtils::Matrix2x2;
+using TestUtils::multiply_matrix;
+
 template <typename T, sycl::access::mode M = sycl::access::mode::read_write>
 using all_view = oneapi::dpl::__ranges::all_view<T, M>;
 

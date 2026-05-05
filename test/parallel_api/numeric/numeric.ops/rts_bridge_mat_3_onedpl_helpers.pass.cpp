@@ -29,6 +29,9 @@
 
 namespace rts = oneapi::dpl::__par_backend_hetero;
 
+using TestUtils::Matrix2x2;
+using TestUtils::multiply_matrix;
+
 template <typename T>
 using lazy = oneapi::dpl::__internal::__lazy_ctor_storage<T>;
 

@@ -24,6 +24,9 @@
 #include <cstdio>
 #include <vector>
 
+using TestUtils::Matrix2x2;
+using TestUtils::multiply_matrix;
+
 int run_test() {
     using T = Matrix2x2<std::int32_t>;
     using _BinaryOp = multiply_matrix<std::int32_t>;
