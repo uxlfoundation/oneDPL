@@ -89,7 +89,7 @@ int run_test() {
     constexpr bool __is_inclusive = false;      // EXCLUSIVE scan
     constexpr std::uint16_t max_ipi = std::max(std::uint16_t{1}, std::uint16_t{512 / sizeof(T)});
 
-    constexpr std::size_t N = 10000;
+    constexpr std::size_t N = 20000;
 
     std::vector<T> h_input(N);
     for (std::uint32_t k = 0; k < N; k++)

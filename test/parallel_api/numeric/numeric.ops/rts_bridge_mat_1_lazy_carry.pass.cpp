@@ -196,7 +196,7 @@ class ScanK1Mat;
 int run_test() {
     using T = Matrix2x2<std::int32_t>;
     using BinaryOp = multiply_matrix<std::int32_t>;
-    constexpr std::size_t N = 10000;
+    constexpr std::size_t N = 20000;
 
     std::vector<T> h_input(N);
     for (std::uint32_t k = 0; k < N; k++)

@@ -85,7 +85,7 @@ run_test()
     std::printf("Driver: %s\n", dev.get_info<sycl::info::device::driver_version>().c_str());
     std::printf("is_cpu: %d\n", dev.is_cpu());
 
-    constexpr std::size_t N = 10000;
+    constexpr std::size_t N = 20000;
     const std::uint32_t wg_size = dev.is_cpu() ? 64 : 128;
 
     // Prepare input
