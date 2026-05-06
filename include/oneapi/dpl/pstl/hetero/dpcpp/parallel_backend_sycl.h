@@ -711,7 +711,7 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 
 template <typename... _Rng>
 auto
-__create_scan_stop_pos_storage_vector(__scan_stop_pos_storage_t<_Rng...>&& __item)
+__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_Rng...>&& __item)
 {
     std::vector<__scan_stop_pos_storage_t<_Rng...>> __vec;
     __vec.emplace_back(std::move(__item));
@@ -761,7 +761,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
                 if constexpr (_Bounded)
                     return {std::move(__event), std::forward<decltype(__payload)>(__payload),
-                            __create_scan_stop_pos_storage_vector<_Range1>(
+                            __create_scan_stop_pos_storage_container<_Range1>(
                                 __stop_pos_payloads_tools<_Bounded>::template __create_storage<_Range1>(__q_local))};
                 else
                     return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
@@ -811,7 +811,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
     if constexpr (_Bounded)
         return {std::move(__event), std::forward<decltype(__payload)>(__payload),
-                __create_scan_stop_pos_storage_vector<_Range1>(
+                __create_scan_stop_pos_storage_container<_Range1>(
                     __stop_pos_payloads_tools<_Bounded>::template __create_storage<_Range1>(__q_local))};
     else
         return {std::move(__event), std::forward<decltype(__payload)>(__payload)};
