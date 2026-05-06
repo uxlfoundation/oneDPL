@@ -2589,14 +2589,21 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
             constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
 
-            // One WI which reached OOB pos owns a contiguous region of _Elements slots:
-            //  +------------------+
-            //  | WI X             |
-            //  | [0 .._Ele - 1]   |
-            //  +------------------+
-            //  [0 .. _Elements-1]
+            if constexpr (_Elements > 0)
+            {
+                // One WI which reached OOB pos owns a contiguous region of _Elements slots:
+                //  +------------------+
+                //  | WI X             |
+                //  | [0 .._Ele - 1]   |
+                //  +------------------+
+                //  [0 .. _Elements-1]
 
-            return __dpl_sycl::__local_accessor<_TupleOfSizes>(_Elements, __cgh);
+                return __dpl_sycl::__local_accessor<_TupleOfSizes>(_Elements, __cgh);
+            }
+            else
+            {
+                return std::monostate{};
+            }
         }
         else
         {
