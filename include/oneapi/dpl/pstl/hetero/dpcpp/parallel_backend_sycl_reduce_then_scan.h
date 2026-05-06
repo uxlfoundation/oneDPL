@@ -343,12 +343,11 @@ __create_no_oob_src_index_getter()
 }
 
 // The __local_offset_to_src_indexes parameter is zero-based for each work-item inside sub-group, all states less than zero describes unknown state
-template <bool _Bounded, typename _OutRng, typename _LocalOffsetToSrcIndexes, typename _OutLocalSizeType,
-          typename _Assigner, typename _TempData, typename _ProcessedInfo>
+template <bool _Bounded, bool _CaptureIndexes, typename _OutRng, typename _OutLocalSizeType, typename _Assigner,
+          typename _SourceOOBPosIndexGetter, typename _ProcessedInfo>
 bool
-__write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_offset_to_src_indexes,
-                     _OutLocalSizeType __out_idx, _Assigner&& __assign, const _TempData& __temp_data,
-                     _ProcessedInfo& __processed_info)
+__write_if_in_bounds(const _OutRng& __out_rng, _OutLocalSizeType __out_idx, _Assigner&& __assign,
+                     const _SourceOOBPosIndexGetter& __source_oob_pos_index_getter, _ProcessedInfo& __processed_info)
 {
     if constexpr (_Bounded)
     {
@@ -365,11 +364,11 @@ __write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_
             __processed_info.set_oob_reached();
 
             // If we captured indexes for the temporary data, we can use the index of the first OOB element to fetch the source
-            if constexpr (_TempData::_CaptureIndexes)
+            if constexpr (_CaptureIndexes)
             {
-                if (__local_offset_to_src_indexes != __no_oob_capture_idx<_LocalOffsetToSrcIndexes>)
+                const auto& [__has_source_oob_pos_indexes, __source_oob_pos_indexes] = __source_oob_pos_index_getter();
+                if (__has_source_oob_pos_indexes)
                 {
-                    const typename _TempData::_TupleOfSizes& __source_oob_pos_indexes = __temp_data.get_src_indexes(__local_offset_to_src_indexes);
                     __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
                 }
             }
