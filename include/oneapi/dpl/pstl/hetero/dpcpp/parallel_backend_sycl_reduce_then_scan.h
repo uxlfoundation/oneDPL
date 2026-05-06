@@ -285,9 +285,6 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <typename _T>
-inline constexpr _T __no_oob_capture_idx = static_cast<_T>(-1);
-
 template <typename _TempData, typename _LocalOffsetToSrcIndexes>
 struct __src_index_getter
 {
