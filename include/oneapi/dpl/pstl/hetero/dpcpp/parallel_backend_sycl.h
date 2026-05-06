@@ -905,19 +905,21 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
     }
-    else if (__n_out >= __n && oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
-    // TODO: figure out how to support limited output ranges in the reduce-then-scan pattern
+    else if (oneapi::dpl::__par_backend_hetero::__is_gpu_with_reduce_then_scan_sg_sz(__q_local))
     {
         using _GenMask = oneapi::dpl::__par_backend_hetero::__gen_unique_mask<_BinaryPredicate>;
         using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_to_id_if<1, _Assign>;
 
-        auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ false, _CustomName>(
+        auto __res = __parallel_reduce_then_scan_copy</*_Bounded*/ true, _CustomName>(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
         _Size __stop_out = __wait_and_get_result(__res);
 
-        __ret = {__stop_out, __n};
+        auto __finish_pos = __stop_pos_payloads_tools</*_Bounded*/ true>::template __get_finish_pos<__stop_pos_t>(
+            std::get<2>(__res), std::tuple<_Size>(__n));
+
+        __ret = {__stop_out, static_cast<_Size>(std::get<0>(__finish_pos))};
     }
     else
     {
