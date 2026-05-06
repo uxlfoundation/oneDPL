@@ -448,7 +448,7 @@ struct __gen_mask;
 template <typename _BinaryPredicate>
 struct __gen_unique_mask;
 
-template <typename _GenMask>
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes, typename _ProcessedInfo>
 struct __gen_count_mask;
 
 template <typename _GenMask, typename _RangeTransform>
@@ -552,8 +552,11 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backen
     : oneapi::dpl::__internal::__are_all_device_copyable<_BinaryPredicate>
 {
 };
-template <typename _GenMask>
-struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask)>
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
+struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_count_mask, _GenMask,
+                                                       _TempDataNoCaptureIndexes, _TempDataCaptureIndexes,
+                                                       _ProcessedInfo)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenMask>
 {
 };

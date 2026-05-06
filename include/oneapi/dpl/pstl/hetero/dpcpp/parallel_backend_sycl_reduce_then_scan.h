@@ -786,18 +786,23 @@ struct __gen_mask
 };
 
 // Wrapper for a mask generator, converting the mask generator to a counting operation.
-template <typename _GenMask>
+template <typename _GenMask, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
 struct __gen_count_mask
 {
-    using TempData = __noop_temp_data;
-    using ProcessedInfo = __noop_processed_info;
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;    
+    using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng, typename _SizeType>
+    template <typename _InRng, typename _SizeType, typename _TempData,
+              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
+                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
     _SizeType
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&, ProcessedInfo&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&, ProcessedInfo&) const
     {
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
+
     _GenMask __gen_mask;
 };
 

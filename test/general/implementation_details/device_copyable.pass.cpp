@@ -192,9 +192,12 @@ test_device_copyable()
         "__gen_unique_mask is not device copyable with device copyable types");
 
     //__gen_count_mask
-    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>>>,
-                  "__gen_count_mask is not device copyable with device copyable types");
+    static_assert(
+        sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
+            oneapi::dpl::__par_backend_hetero::__gen_mask<noop_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__noop_temp_data, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            oneapi::dpl::__par_backend_hetero::__noop_processed_info>>,
+        "__gen_count_mask is not device copyable with device copyable types");
 
     //__gen_expand_count_mask
     static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
@@ -532,9 +535,12 @@ test_non_device_copyable()
                   "__gen_unique_mask is device copyable with non device copyable types");
 
     //__gen_count_mask
-    static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
-                      oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>>>,
-                  "__gen_count_mask is device copyable with non device copyable types");
+    static_assert(
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_count_mask<
+            oneapi::dpl::__par_backend_hetero::__gen_mask<noop_non_device_copyable>,
+            oneapi::dpl::__par_backend_hetero::__noop_temp_data, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            oneapi::dpl::__par_backend_hetero::__noop_processed_info>>,
+        "__gen_count_mask is device copyable with non device copyable types");
 
     //__gen_expand_count_mask
     static_assert(!sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<
