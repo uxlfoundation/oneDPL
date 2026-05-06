@@ -2019,10 +2019,10 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present, bool __capture_output,
-          std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform, typename _BinaryOp,
-          typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng, typename _TempData,
-          typename _ProcessedInfo>
+template <bool _Bounded, bool _ExecuteAssign, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
+          bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform,
+          typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
+          typename _TempData, typename _ProcessedInfo>
 void
 __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenInput __gen_input,
                                _ScanInputTransform __scan_input_transform, _BinaryOp __binary_op, _WriteOp __write_op,
@@ -2039,16 +2039,19 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     bool __all_writes_succeeded = true;
 
-    auto __call_write_op = [&](std::size_t __id, auto&&... __args) -> bool {
+    auto __call_write_op = [&](std::size_t __id, std::size_t __capture_src_idx_slot, auto&&... __args) -> bool {
         if constexpr (__capture_output)
         {
             if constexpr (!_Bounded)
                 return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out);
             else
-                return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out, __processed_info);
+                return __write_op.template operator()<_Bounded, _ExecuteAssign>(
+                    __out_rng, __id, __capture_src_idx_slot, __args..., __temp_out, __processed_info);
         }
-
-        return true;
+        else
+        {
+            return true;
+        }
     };
 
     if (__is_full_thread)
@@ -2056,7 +2059,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                             __binary_op, __sub_group_carry);
-        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
 
         if (__is_full_block)
         {
@@ -2067,7 +2070,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, /*__capture_src_idx_slot*/ __j, __v);
             }
         }
         else
@@ -2079,7 +2082,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, /*__capture_src_idx_slot*/ __j, __v);
             }
         }
     }
@@ -2101,7 +2104,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
                 }
             }
             else
@@ -2109,7 +2112,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
@@ -2117,7 +2120,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
+                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, /*__capture_src_idx_slot*/ __j, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -2129,7 +2132,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, /*__capture_src_idx_slot*/ (__iters - 1), __v);
                 }
             }
         }
@@ -2279,7 +2282,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
+                    __scan_through_elements_helper</*_Bounded*/ false, /*_ExecuteAssign*/ true, __sub_group_size,
+                                                   __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
@@ -2680,11 +2684,15 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                          : nullptr);
 
             _ProcessedInfo __processed_info{};
-            __call_scan_through_elements_helper(
-                __sub_group, __make_noop_output_range(__out_rng), std::get<0>(__oob_replay_carry_tuple),
-                std::get<1>(__oob_replay_carry_tuple), __temp_out_capture_indexes, __processed_info);
 
-            // OOB can be reached by at most one WI per kernel invocation � no atomic needed.
+            // No real assignment is performed in this helper call, so we pass std::false_type specify that
+            // ans it's safe to pass __out_rng to all WIs without worrying about write conflicts.
+            __call_scan_through_elements_helper(
+                /*_ExecuteAssign*/ std::false_type{},
+                __sub_group, __out_rng, std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
+                __temp_out_capture_indexes, __processed_info);
+
+            // OOB can be reached by at most one WI per kernel invocation - no atomic needed.
             if (__oob_reached_in_this_wi)
             {
                 typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
