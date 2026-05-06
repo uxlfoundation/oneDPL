@@ -2269,6 +2269,27 @@ enum class _StopPosPayloadIndexes
 template <typename... _InRng>
 using __scan_stop_pos_storage_t = __atomic_result_storage<__scan_stop_pos_t<_InRng...>>;
 
+template <typename... _Rng>
+auto
+__create_scan_stop_pos_storage_container(std::size_t __reserve = 0)
+{
+    std::vector<__scan_stop_pos_storage_t<_Rng...>> __container;
+    if (__reserve > 0)
+        __container.reserve(__reserve);
+
+    return __container;
+}
+
+template <typename... _Rng>
+auto
+__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_Rng...>&& __item)
+{
+    auto __container = __create_scan_stop_pos_storage_container<_Rng...>();
+    __container.emplace_back(std::move(__item));
+
+    return __container;
+}
+
 template <bool _Bounded>
 struct __stop_pos_payloads_tools
 {
@@ -2288,10 +2309,7 @@ struct __stop_pos_payloads_tools
     {
         if constexpr (_Bounded)
         {
-            std::vector<__scan_stop_pos_storage_t<_InRng>> __stop_pos_payloads_container;
-            __stop_pos_payloads_container.reserve(__capacity);
-
-            return __stop_pos_payloads_container;
+            return __create_scan_stop_pos_storage_container<_InRng>(__capacity);
         }
         else
         {

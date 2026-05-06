@@ -709,16 +709,6 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
 }
 
-template <typename... _Rng>
-auto
-__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_Rng...>&& __item)
-{
-    std::vector<__scan_stop_pos_storage_t<_Rng...>> __vec;
-    __vec.emplace_back(std::move(__item));
-
-    return __vec;
-}
-
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
 std::conditional_t<
