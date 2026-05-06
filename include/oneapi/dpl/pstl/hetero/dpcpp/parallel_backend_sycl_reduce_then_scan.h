@@ -2627,7 +2627,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             __num_remaining -= 1;
         }
 
-        std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
+        const std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
         auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage<_InRng>(__q);
         __prior_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
