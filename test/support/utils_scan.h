@@ -1,0 +1,274 @@
+// -*- C++ -*-
+//===----------------------------------------------------------------------===//
+//
+// Copyright (C) UXL Foundation Contributors
+//
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _UTILS_SCAN_H
+#define _UTILS_SCAN_H
+
+#include "support/test_config.h"
+
+#include "oneapi/dpl/execution"
+#include "oneapi/dpl/numeric"
+#include "oneapi/dpl/iterator"
+
+#include "support/utils.h"
+#include "support/utils_invoke.h"
+#include "support/scan_serial_impl.h"
+
+using namespace TestUtils;
+
+template <typename Type>
+struct test_inclusive_scan_with_binary_op
+{
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, BinaryOp binary_op, T trash)
+    {
+        using namespace std;
+
+        inclusive_scan_serial(in_first, in_last, expected_first, binary_op, init);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op, init);
+
+        EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator returned wrong iterator");
+        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
+        std::fill_n(out_first, n, trash);
+    }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, BinaryOp binary_op, T trash)
+    {
+        using namespace std;
+
+        inclusive_scan_serial(in_first, in_last, expected_first, binary_op);
+        auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op);
+
+        EXPECT_TRUE(out_last == orr, "inclusive_scan with binary operator without init returned wrong iterator");
+        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator without init");
+        std::fill_n(out_first, n, trash);
+    }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */,
+               Iterator2 /* out_last */, Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */,
+               BinaryOp /* binary_op */, T /* trash */)
+    {
+    }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */,
+               Iterator2 /* out_last */, Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */,
+               T /* init */, BinaryOp /* binary_op */, T /* trash */)
+    {
+    }
+};
+
+template <typename Type>
+struct test_exclusive_scan_with_binary_op
+{
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
+               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, T init, BinaryOp binary_op, T trash)
+    {
+        using namespace std;
+
+        exclusive_scan_serial(in_first, in_last, expected_first, init, binary_op);
+
+        auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init, binary_op);
+
+        EXPECT_TRUE(out_last == orr, "exclusive_scan with binary operator returned wrong iterator");
+        EXPECT_EQ_N(expected_first, out_first, n, "wrong result from exclusive_scan with binary operator");
+        std::fill_n(out_first, n, trash);
+    }
+
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+              typename BinaryOp>
+    std::enable_if_t<TestUtils::is_reverse_v<Iterator1>>
+    operator()(Policy&& /* exec */, Iterator1 /* in_first */, Iterator1 /* in_last */, Iterator2 /* out_first */,
+               Iterator2 /* out_last */, Iterator3 /* expected_first */, Iterator3 /* expected_last */, Size /* n */,
+               T /* init */, BinaryOp /* binary_op */, T /* trash */)
+    {
+    }
+};
+
+#if TEST_DPCPP_BACKEND_PRESENT
+
+// TODO: replace data generation with random data and update check to compare result to
+// the result of a serial implementation of the algorithm
+template <typename Iterator1, typename Size>
+void
+initialize_data(Iterator1 host_keys, Size n)
+{
+    const Size kStartVal = 1;
+    for (Size i = 0; i != n; ++i)
+        host_keys[i] = kStartVal + i;
+}
+
+
+DEFINE_TEST_1(test_scan_non_inplace, TestingAlgoritm)
+{
+    DEFINE_TEST_CONSTRUCTOR(test_scan_non_inplace, 1.0f, 1.0f)
+
+    // specialization for hetero policy
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
+    std::enable_if_t<
+        oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> &&
+            is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&& exec,
+               Iterator1 keys_first, Iterator1 keys_last,
+               Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Size n)
+    {
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
+
+        TestingAlgoritm testingAlgo;
+
+        // UDTKind::eKeys is assigned with iterators Iterator1 keys_first, Iterator1 keys_last
+        TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
+
+        // UDTKind::eVals is assigned with iterators Iterator2 vals_first, Iterator2 vals_last
+        TestDataTransfer<UDTKind::eVals, Size> host_vals(*this, n);
+
+        // Initialize source data in the buffer [keys_first, keys_last)
+        // Iterators
+        //      Iterator1 keys_first, Iterator1 keys_last
+        // describe uninitialized memory so we should prepare test data on the host
+        initialize_data(host_keys.get(), n);
+
+        // Copy data from the buffer [keys_first, keys_last) to a device.
+        // After test data is prepared we should copy data from the host into buffers
+        // described by iterators
+        //      Iterator1 keys_first, Iterator1 keys_last
+        update_data(host_keys);
+
+        // Now we are ready to call the tested algorithm
+        testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, vals_first);
+
+        // After the tested algorithm finished we should check the results.
+        // For that, at first we copy data from the buffer described by iterators
+        //      Iterator2 vals_first, Iterator2 vals_last
+        // into the host memory.
+        retrieve_data(host_vals);
+
+        // ...and check results in the host memory.
+        std::vector<ValT> expected(n);
+        testingAlgo.call_serial(host_keys.get(), host_keys.get() + n, expected.data());
+        EXPECT_EQ_N(expected.cbegin(), host_vals.get(), n, TestingAlgoritm().getMsg(false));
+    }
+
+    // specialization for host execution policies
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
+    std::enable_if_t<
+        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> &&
+            is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&& exec,
+               Iterator1 keys_first, Iterator1 keys_last,
+               Iterator2 vals_first, Iterator2 /*vals_last*/,
+               Size n)
+    {
+        using ValT = typename std::iterator_traits<Iterator2>::value_type;
+
+        TestingAlgoritm testingAlgo;
+
+        // Initialize source data in the buffer [keys_first, keys_last)
+        initialize_data(keys_first, n);
+
+        testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, vals_first);
+
+        std::vector<ValT> expected(n);
+        testingAlgo.call_serial(keys_first, keys_first + n, expected.data());
+        EXPECT_EQ_N(expected.cbegin(), vals_first, n, TestingAlgoritm().getMsg(false));
+    }
+
+    // specialization for non-random_access iterators
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Size>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&&, Iterator1, Iterator1, Iterator2, Iterator2, Size)
+    {
+    }
+};
+
+DEFINE_TEST_1(test_scan_inplace, TestingAlgoritm)
+{
+    DEFINE_TEST_CONSTRUCTOR(test_scan_inplace, 1.0f, 1.0f)
+
+    // specialization for host execution policies
+    template <typename Policy, typename Iterator1, typename Size>
+    std::enable_if_t<
+        !oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> &&
+            is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last, Size n)
+    {
+        using KeyT = typename std::iterator_traits<Iterator1>::value_type;
+
+        TestingAlgoritm testingAlgo;
+
+        // Initialize source data in the buffer [keys_first, keys_last)
+        initialize_data(keys_first, n);
+        const std::vector<KeyT> source_host_keys_state(keys_first, keys_first + n);
+
+        // Now we are ready to call the tested algorithm
+        testingAlgo.call_onedpl(std::forward<Policy>(exec), keys_first, keys_last, keys_first);
+
+        std::vector<KeyT> expected(n);
+        testingAlgo.call_serial(source_host_keys_state.cbegin(), source_host_keys_state.cend(), expected.data());
+        EXPECT_EQ_N(expected.cbegin(), keys_first, n, testingAlgo.getMsg(true));
+    }
+
+    // specialization for hetero policy
+    template <typename Policy, typename Iterator1, typename Size>
+    std::enable_if_t<
+        oneapi::dpl::__internal::__is_hetero_execution_policy_v<std::decay_t<Policy>> &&
+            is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&& exec, Iterator1 keys_first, Iterator1 keys_last,
+               Size n)
+    {
+        using KeyT = typename std::iterator_traits<Iterator1>::value_type;
+
+        TestingAlgoritm testingAlgo;
+
+        TestDataTransfer<UDTKind::eKeys, Size> host_keys(*this, n);
+
+        // Initialize source data in the buffer [keys_first, keys_last)
+        initialize_data(host_keys.get(), n);
+        const std::vector<KeyT> source_host_keys_state(host_keys.get(), host_keys.get() + n);
+
+        // Copy data from the buffer [keys_first, keys_last) to a device.
+        update_data(host_keys);
+
+        // Now we are ready to call tested algorithm
+        testingAlgo.call_onedpl(CLONE_TEST_POLICY_IDX(exec, 0), keys_first, keys_last, keys_first);
+
+        retrieve_data(host_keys);
+
+        std::vector<KeyT> expected(n);
+        testingAlgo.call_serial(source_host_keys_state.cbegin(), source_host_keys_state.cend(), expected.data());
+        EXPECT_EQ_N(expected.cbegin(), host_keys.get(), n, testingAlgo.getMsg(true));
+    }
+
+    // specialization for non-random_access iterators
+    template <typename Policy, typename Iterator1, typename Size>
+    std::enable_if_t<!is_base_of_iterator_category_v<std::random_access_iterator_tag, Iterator1>>
+    operator()(Policy&&, Iterator1, Iterator1, Size)
+    {
+    }
+};
+
+#endif // TEST_DPCPP_BACKEND_PRESENT
+
+#endif // _UTILS_SCAN_H
