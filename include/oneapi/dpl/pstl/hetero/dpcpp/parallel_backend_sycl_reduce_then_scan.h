@@ -2441,29 +2441,30 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
     template <typename _InRng, typename _StopPosStorage>
     sycl::event
-    __submit_stop_pos_init(sycl::queue& __q, _StopPosStorage& __stop_pos_payload,
+    __submit_stop_pos_init([[maybe_unused]] sycl::queue& __q, [[maybe_unused]] _StopPosStorage& __stop_pos_payload,
                            const sycl::event& __prior_event) const
     {
-        return __q.submit([&](sycl::handler& __cgh) {
+        if constexpr (_Bounded)
+            return __q.submit([&](sycl::handler& __cgh) {
+                __cgh.depends_on(__prior_event);
 
-            __cgh.depends_on(__prior_event);
+                auto __stop_pos_acc =
+                    __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
 
-            auto __stop_pos_acc = __get_accessor(sycl::write_only, __stop_pos_payload, __cgh, __dpl_sycl::__no_init{});
+                __cgh.parallel_for<_KernelNameInit...>(sycl::range<1>(1), [=](sycl::id<1>) {
+                    auto __stop_pos_ptr = __stop_pos_acc.__data();
 
-            __cgh.parallel_for<_KernelNameInit...>(sycl::range<1>(1), [=](sycl::id<1>) {
+                    // Initialize final pos to zero - will be updated via fetch_max
+                    __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
 
-                auto __stop_pos_ptr = __stop_pos_acc.__data();
-
-                // Initialize final pos to zero - will be updated via fetch_max
-                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eFinalPos] = {};
-
-                // Initialize OOB pos to max sentinel - means "not yet found"
-                __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                    oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__scan_stop_pos_t<_InRng>>();
+                    // Initialize OOB pos to max sentinel - means "not yet found"
+                    __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                        oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__scan_stop_pos_t<_InRng>>();
+                });
             });
-        });
+        else
+            return __prior_event;
     }
-
 
     template <bool _Create, typename _InitValueType>
     std::conditional_t<_Create, std::tuple<bool, oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType>>,
@@ -2629,14 +2630,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
         auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage<_InRng>(__q);
-
-        if constexpr (_Bounded)
-        {
-            // Initialize real stop pos storage in separate submitter to ensure the kernel with this initialization is separate from the main scan kernel,
-            // which has more complex control flow and may be more expensive to compile.
-            auto __init_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
-            __prior_event = __init_event;
-        }
+        __prior_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
 
         const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
