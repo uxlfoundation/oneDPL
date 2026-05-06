@@ -759,9 +759,13 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
         }
         if (__use_reduce_then_scan)
         {
-            using _GenInput =
-                oneapi::dpl::__par_backend_hetero::__gen_transform_input<_UnaryOperation,
-                                                                         typename _InitType::__value_type>;
+            using _TempDataNoCaptureIndexes = __noop_temp_data;
+            using _TempDataCaptureIndexes = __noop_temp_data_capture_indexes<__stop_pos_t>;
+            using _ProcessedInfo = __processed_info<__stop_pos_t>;
+
+            using _GenInput = oneapi::dpl::__par_backend_hetero::__gen_transform_input<
+                _UnaryOperation, typename _InitType::__value_type, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes,
+                _ProcessedInfo>;
             using _ScanInputTransform = oneapi::dpl::identity;
             using _WriteOp = oneapi::dpl::__par_backend_hetero::__simple_write_to_id;
 

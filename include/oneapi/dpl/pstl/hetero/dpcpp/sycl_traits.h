@@ -426,7 +426,8 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::experimental
 namespace oneapi::dpl::__par_backend_hetero
 {
 
-template <typename _UnaryOp, typename _InitType>
+template <typename _UnaryOp, typename _InitType, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
 struct __gen_transform_input;
 
 template <typename _BinaryPred>
@@ -501,9 +502,11 @@ struct __partition_set_balanced_path_submitter;
 
 } // namespace oneapi::dpl::__par_backend_hetero
 
-template <typename _UnaryOp, typename _InitType>
+template <typename _UnaryOp, typename _InitType, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(oneapi::dpl::__par_backend_hetero::__gen_transform_input,
-                                                       _UnaryOp, _InitType)>
+                                                       _UnaryOp, _InitType, _TempDataNoCaptureIndexes,
+                                                       _TempDataCaptureIndexes, _ProcessedInfo)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_UnaryOp>
 {
 };

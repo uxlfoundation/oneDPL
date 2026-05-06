@@ -732,15 +732,19 @@ struct __write_multiple_to_id
 
 // A generator which applies a unary operation to the input range element at an index and returns the result
 // converted to an underlying init type.
-template <typename _UnaryOp, typename _InitType>
+template <typename _UnaryOp, typename _InitType, typename _TempDataNoCaptureIndexes, typename _TempDataCaptureIndexes,
+          typename _ProcessedInfo>
 struct __gen_transform_input
 {
-    using TempData = __noop_temp_data;
-    using ProcessedInfo = __noop_processed_info;
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;
+    using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng>
+    template <typename _InRng, typename _TempData,
+              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
+                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
     auto
-    operator()(const _InRng& __in_rng, std::size_t __id, TempData&, ProcessedInfo&) const
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
@@ -748,6 +752,20 @@ struct __gen_transform_input
         using _ValueType = oneapi::dpl::__internal::__value_t<_InRng>;
         return static_cast<_InitType>(__unary_op(_ValueType{__in_rng[__id]}));
     }
+
+    template <typename _InRng, typename _TempData,
+              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
+                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
+    auto
+    operator()(const _InRng& __in_rng, std::size_t __id, _TempData&, ProcessedInfo&) const
+    {
+        // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
+        // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
+        // from modifying the input range when altering the return of this functor.
+        using _ValueType = oneapi::dpl::__internal::__value_t<_InRng>;
+        return static_cast<_InitType>(__unary_op(_ValueType{__in_rng[__id]}));
+    }
+
     _UnaryOp __unary_op;
 };
 

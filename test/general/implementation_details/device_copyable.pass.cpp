@@ -156,10 +156,11 @@ test_device_copyable()
                   "__brick_reduce_idx is not device copyable with device copyable types");
 
     //__gen_transform_input
-    static_assert(
-        sycl::is_device_copyable_v<
-            oneapi::dpl::__par_backend_hetero::__gen_transform_input<noop_device_copyable, int_device_copyable>>,
-        "__gen_transform_input is not device copyable with device copyable types");
+    static_assert(sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_transform_input<
+                      noop_device_copyable, int_device_copyable, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+                      oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+                      oneapi::dpl::__par_backend_hetero::__noop_processed_info>>,
+                  "__gen_transform_input is not device copyable with device copyable types");
 
     //__gen_red_by_seg_reduce_input
     static_assert(sycl::is_device_copyable_v<
@@ -495,8 +496,10 @@ test_non_device_copyable()
 
     //__gen_transform_input
     static_assert(
-        !sycl::is_device_copyable_v<
-            oneapi::dpl::__par_backend_hetero::__gen_transform_input<noop_non_device_copyable, int_device_copyable>>,
+        !sycl::is_device_copyable_v<oneapi::dpl::__par_backend_hetero::__gen_transform_input<
+            noop_non_device_copyable, int_device_copyable, oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            oneapi::dpl::__par_backend_hetero::__noop_temp_data,
+            oneapi::dpl::__par_backend_hetero::__noop_processed_info>>,
         "__gen_transform_input is device copyable with non device copyable types");
 
     //__gen_red_by_seg_reduce_input
