@@ -2284,7 +2284,7 @@ struct __stop_pos_payloads_tools
 
     template <typename _InRng>
     static std::conditional_t<_Bounded, std::vector<__scan_stop_pos_storage_t<_InRng>>, std::monostate>
-    __create_container(sycl::queue& __q, std::size_t __capacity)
+    __create_container(std::size_t __capacity)
     {
         if constexpr (_Bounded)
         {
@@ -3094,7 +3094,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
     auto __stop_pos_payloads_container =
-        __stop_pos_payloads_tools<_Bounded>::template __create_container<_InRng>(__q, __num_blocks);
+        __stop_pos_payloads_tools<_Bounded>::template __create_container<_InRng>(__num_blocks);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
