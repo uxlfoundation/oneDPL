@@ -81,6 +81,8 @@ struct __starts_with_fn;
 struct __ends_with_fn;
 struct __remove_if_fn;
 struct __remove_fn;
+struct __remove_copy_if_fn;
+struct __remove_copy_fn;
 struct __unique_fn;
 struct __unique_copy_fn;
 } // namespace ranges::__internal
