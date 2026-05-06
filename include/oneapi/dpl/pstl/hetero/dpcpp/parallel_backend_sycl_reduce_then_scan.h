@@ -228,6 +228,40 @@ struct __noop_temp_data
     }
 };
 
+// Temporary data structure which is used to store results to registers during a reduce then scan operation.
+template <typename __stop_pos_t>
+struct __noop_temp_data_capture_indexes
+{
+    static constexpr std::uint16_t _Elements = 0;
+    static constexpr bool _CaptureIndexes = true;
+    //using _ValueType = _ValueT;
+
+    using _TupleOfSizes = __stop_pos_t;
+
+    __noop_temp_data_capture_indexes(_TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw)
+        : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
+    {
+    }
+
+    // The __idx parameter is zero-based for the current work-item
+    template <typename _ValueT2>
+    void
+    set(std::uint16_t __idx, _ValueT2&&, const _TupleOfSizes& __indexes)
+    {
+        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
+            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+    }
+
+    const _TupleOfSizes&
+    get_src_indexes(std::uint16_t __idx) const
+    {
+        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+    }
+
+    // Pointer to the SLM-based array with source indexes corresponding to the stored values
+    _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+};
+
 template <typename _OutputRng>
 struct __noop_output_range
 {
