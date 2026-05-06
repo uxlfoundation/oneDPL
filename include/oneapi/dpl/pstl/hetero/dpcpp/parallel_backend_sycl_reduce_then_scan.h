@@ -2583,7 +2583,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     {
         using _temp_data_capture_indexes_t = __select_temp_data_capture_indexes_t<_GenScanInput>;
 
-        if constexpr (_temp_data_capture_indexes_t::_CaptureIndexes)
+        if constexpr (__temp_data_capture_indexes_flag_v<_temp_data_capture_indexes_t>)
         {
             using _TupleOfSizes = typename _temp_data_capture_indexes_t::_TupleOfSizes;
 
