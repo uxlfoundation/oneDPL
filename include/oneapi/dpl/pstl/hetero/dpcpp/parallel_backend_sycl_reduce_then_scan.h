@@ -329,8 +329,14 @@ struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
 template <typename _T>
 using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
 
-template <typename _T>
-inline constexpr _T __no_oob_capture_idx = static_cast<_T>(-1);
+template <typename _TempData>
+static __src_no_oob_index_getter<_TupleOfIndexesSelector_t<_TempData>>
+__create_no_oob_src_index_getter()
+{
+    using _TupleOfSizes = _TupleOfIndexesSelector_t<_TempData>;
+
+    return __src_no_oob_index_getter<_TupleOfSizes>{};
+}
 
 // The __local_offset_to_src_indexes parameter is zero-based for each work-item inside sub-group, all states less than zero describes unknown state
 template <bool _Bounded, typename _OutRng, typename _LocalOffsetToSrcIndexes, typename _OutLocalSizeType,
