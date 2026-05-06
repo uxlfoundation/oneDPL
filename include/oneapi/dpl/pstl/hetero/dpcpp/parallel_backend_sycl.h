@@ -1549,8 +1549,6 @@ __set_op_impl(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng1, _Range2&& _
     }
     else
     {
-        // KSATODO required to check which performance profit we lost if we don't use __set_write_a_only_op in this case
-        // KSATODO should we use reduce_then_scan_wrapper or reduce_then_scan_wrapper_bounded here?
         return __parallel_set_write_a_b_op<_Bounded, reduce_then_scan_wrapper_bounded<_CustomName>>(
             __set_tag, __q, std::forward<_Range1>(__rng1), std::forward<_Range2>(__rng2),
             std::forward<_Range3>(__result), __comp, __proj1, __proj2);
