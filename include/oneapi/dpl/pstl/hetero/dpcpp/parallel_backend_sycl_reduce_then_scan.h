@@ -2611,6 +2611,20 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <typename _Accessor>
+    auto
+    __get_src_indexes_local_accessor_for_one_wi_ptr(_Accessor& __slm_src_indexes_local_accessor_for_one_wi) const
+    {
+        if constexpr (__is_defined<_Accessor>)
+        {
+            return __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi);
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
     template <typename _TupleOfSizes, typename _StopPosStorage>
     sycl::event
     __submit_stop_pos_init([[maybe_unused]] sycl::queue& __q, [[maybe_unused]] _StopPosStorage& __stop_pos_payload,
@@ -2703,8 +2717,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         {
             // Only one WI fills SLM with source indexes; others pass nullptr to skip SLM writes.
             _TempDataCaptureIndexes __temp_out_capture_indexes(
-                __oob_reached_in_this_wi ? __dpl_sycl::__get_accessor_ptr(__slm_src_indexes_local_accessor_for_one_wi)
-                                         : nullptr);
+                __oob_reached_in_this_wi
+                    ? __get_src_indexes_local_accessor_for_one_wi_ptr(__slm_src_indexes_local_accessor_for_one_wi)
+                    : nullptr);
 
             _ProcessedInfo __processed_info{};
 
