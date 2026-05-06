@@ -1419,7 +1419,9 @@ struct __gen_set_op_from_known_balanced_path
     using ProcessedInfo = _ProcessedInfo;
 
     template <typename _InRng, typename _IndexT, typename _TempData>
-    std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> || std::is_same_v<_TempData, TempDataCaptureIndexes>, std::tuple<std::uint32_t, std::uint16_t>>
+    std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
+                         std::is_same_v<_TempData, TempDataCaptureIndexes>,
+                     std::tuple<std::uint32_t, std::uint16_t>>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data, ProcessedInfo& __processed_info) const
     {
         // Get source tuple
