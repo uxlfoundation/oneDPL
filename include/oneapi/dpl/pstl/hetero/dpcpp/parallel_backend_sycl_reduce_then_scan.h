@@ -491,12 +491,9 @@ struct __write_to_id_if
 template <typename _Assign>
 struct __write_to_id_if_else
 {
-    using _TempData = __noop_temp_data;
-    using _ProcessedInfo = __noop_processed_info;
-
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
     std::enable_if_t<!_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -513,10 +510,12 @@ struct __write_to_id_if_else
         return true;
     }
 
-    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType,
+              typename _LocalOffsetToSrcIndexes, typename _ValueType, typename _TempData, typename _ProcessedInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, const _TempData& __temp_data,
-               _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, _SizeType __id,
+               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
+               const _ValueType& __v, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -527,20 +526,22 @@ struct __write_to_id_if_else
 
         if (std::get<1>(__v))
         {
-            return __write_if_in_bounds<_Bounded>(
-                __out_rng, __no_oob_capture_idx<decltype(std::get<0>(__v) - 1)>, std::get<0>(__v) - 1,
-                [&](auto __out_idx_arg) {
-                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
+            return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                __out_rng, std::get<0>(__v) - 1,
+                [&]([[maybe_unused]] auto __out_idx_arg) {
+                    if constexpr (_ExecuteAssign)
+                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
                 },
-                __temp_data, __processed_info);
+                __create_no_oob_src_index_getter<_TempData>(), __processed_info);
         }
 
-        return __write_if_in_bounds<_Bounded>(
-            __out_rng, __no_oob_capture_idx<decltype(__id - std::get<0>(__v))>, __id - std::get<0>(__v),
-            [&](auto __out_idx_arg) {
-                __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
+        return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+            __out_rng, __id - std::get<0>(__v),
+            [&]([[maybe_unused]] auto __out_idx_arg) {
+                if constexpr (_ExecuteAssign)
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
             },
-            __temp_data, __processed_info);
+            __create_no_oob_src_index_getter<_TempData>(), __processed_info);
     }
 
     _Assign __assign;
