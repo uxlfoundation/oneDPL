@@ -1228,7 +1228,7 @@ struct __tuple_upper_bound_sentinel
     };
 
     template <typename _T>
-    static constexpr bool _is_tuple_v = _is_tuple<std::decay_t<_T>>::value;
+    static constexpr bool __is_tuple_v = _is_tuple<std::decay_t<_T>>::value;
 
     template <typename _T>
     static constexpr auto
@@ -1236,7 +1236,7 @@ struct __tuple_upper_bound_sentinel
     {
         using _TDecayed = std::decay_t<_T>;
 
-        if constexpr (_is_tuple_v<_TDecayed>)
+        if constexpr (__is_tuple_v<_TDecayed>)
             return __convert_fields(std::forward<_T>(__t));
         else if constexpr (std::is_arithmetic_v<_TDecayed>)
             return std::numeric_limits<_TDecayed>::max();
