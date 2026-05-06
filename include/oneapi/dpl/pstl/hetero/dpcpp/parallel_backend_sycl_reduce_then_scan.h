@@ -1062,7 +1062,7 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
     using __stop_pos_t = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
     auto __set_value = [&](std::uint16_t __count, auto&& __ele) {
-        if constexpr (std::decay_t<_TempOutput>::_CaptureIndexes)
+        if constexpr (__temp_data_capture_indexes_flag_v<_TempOutput>)
             __temp_out.set(__count, std::forward<decltype(__ele)>(__ele), __stop_pos_t{__idx1, __idx2});
         else
             __temp_out.set(__count, std::forward<decltype(__ele)>(__ele));
