@@ -204,6 +204,16 @@ struct __binary_op
     }
 };
 
+//! Specialization of __reorder_pred over __binary_op should change the order of calls
+template <typename _Pred, typename _Proj1, typename _Proj2>
+class __reorder_pred<__binary_op<_Pred, _Proj1, _Proj2>> : public __binary_op<__reorder_pred<_Pred>, _Proj1, _Proj2>
+{
+  public:
+    using __base = __binary_op<__reorder_pred<_Pred>, _Proj1, _Proj2>;
+    explicit __reorder_pred(__binary_op<_Pred, _Proj1, _Proj2> __op)
+        : __base(__reorder_pred<_Pred>{__op.__f}, __op.__proj1, __op.__proj2) {}
+};
+
 //! "==" comparison.
 /** Not called "equal" to avoid (possibly unfounded) concerns about accidental invocation via
     argument-dependent name lookup by code expecting to find the usual ::std::equal. */
