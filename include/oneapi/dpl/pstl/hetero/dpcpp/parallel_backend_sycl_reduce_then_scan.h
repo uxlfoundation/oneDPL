@@ -552,12 +552,9 @@ struct __write_to_id_if_else
 template <typename _BinaryPred>
 struct __write_red_by_seg
 {
-    using _TempData = __noop_temp_data;
-    using _ProcessedInfo = __noop_processed_info;
-
-    template <bool _Bounded, typename _OutRng, typename _Tup>
+    template <bool _Bounded, typename _OutRng, typename _Tup, typename _TempData>
     std::enable_if_t<!_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&) const
     {
         using std::get;
 
@@ -590,10 +587,12 @@ struct __write_red_by_seg
         return true;
     }
 
-    template <bool _Bounded, typename _OutRng, typename _Tup>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _LocalOffsetToSrcIndexes, typename _Tup,
+              typename _TempData, typename _ProcessedInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, const _TempData& __temp_data,
-               _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id,
+               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
+               const _Tup& __tup, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
     {
         using std::get;
 
@@ -616,29 +615,38 @@ struct __write_red_by_seg
         // segments process.
         if (__id == 0)
         {
-            if (!__write_if_in_bounds<_Bounded>(
-                    __out_keys, __no_oob_capture_idx<decltype(0)>, 0,
-                    [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __current_key; },
-                    __temp_data, __processed_info))
+            if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                    __out_keys, 0,
+                    [&]([[maybe_unused]] auto __out_idx_arg) {
+                        if constexpr (_ExecuteAssign)
+                            __out_keys[__out_idx_arg] = __current_key;
+                    },
+                    __create_no_oob_src_index_getter<_TempData>(), __processed_info))
                 return false;
         }
 
         if (__is_seg_end)
         {
-            if (!__write_if_in_bounds<_Bounded>(
-                    __out_values, __no_oob_capture_idx<decltype(__out_idx)>, __out_idx,
-                    [&](auto __out_idx_arg) { __out_values[__out_idx_arg] = __current_value; }, __temp_data,
-                    __processed_info))
+            if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                    __out_values, __out_idx,
+                    [&]([[maybe_unused]] auto __out_idx_arg) {
+                        if constexpr (_ExecuteAssign)
+                            __out_values[__out_idx_arg] = __current_value;
+                    },
+                    __create_no_oob_src_index_getter<_TempData>(), __processed_info))
             {
                 return false;
             }
 
             if (__id != __n - 1)
             {
-                if (!__write_if_in_bounds<_Bounded>(
-                        __out_keys, __no_oob_capture_idx<decltype(__out_idx + 1)>, __out_idx + 1,
-                        [&](auto __out_idx_arg) { __out_keys[__out_idx_arg] = __next_key; },
-                        __temp_data, __processed_info))
+                if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                        __out_keys, __out_idx + 1,
+                        [&]([[maybe_unused]] auto __out_idx_arg) {
+                            if constexpr (_ExecuteAssign)
+                                __out_keys[__out_idx_arg] = __next_key;
+                        },
+                        __create_no_oob_src_index_getter<_TempData>(), __processed_info))
                 {
                     return false;
                 }
