@@ -92,7 +92,8 @@ test_serial_set_op_count_and_write(SetTag set_tag)
     std::vector<int> v2 = {3, 4, 5, 6, 7};
     std::vector<int> v3(v1.size() + v2.size());
 
-    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, decltype(v1.size()), decltype(v2.size())>;
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, __stop_pos_t>;
     auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
     oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
 
@@ -128,7 +129,8 @@ test_serial_set_op_count_and_write2(SetTag set_tag)
     std::vector<int> v2 = {1, 1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, decltype(v1.size()), decltype(v2.size())>;
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 10, int, __stop_pos_t>;
     auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
     oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
 
@@ -164,7 +166,8 @@ test_serial_set_op_count_and_write_limited(SetTag set_tag)
     std::vector<int> v2 = {3, 4, 4, 4, 5, 6, 7, 11, 12, 13, 14, 15};
     std::vector<int> v3(v1.size() + v2.size());
 
-    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 11, int, decltype(v1.size()), decltype(v2.size())>;
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 11, int, __stop_pos_t>;
     auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
     oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
 
@@ -202,7 +205,8 @@ test_serial_set_op_count_and_write2_large_setA(SetTag set_tag)
     std::vector<int> v2 = {1};
     std::vector<int> v3(v1.size() + v2.size());
 
-    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, decltype(v1.size()), decltype(v2.size())>;
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, __stop_pos_t>;
     auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
     oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
 
@@ -239,7 +243,8 @@ test_serial_set_op_count_and_write2_large_setB(SetTag set_tag)
     std::vector<int> v2 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
     std::vector<int> v3(v1.size() + v2.size());
 
-    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, decltype(v1.size()), decltype(v2.size())>;
+    using __stop_pos_t = oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<decltype(v1), decltype(v2)>;
+    using temp_data_array_t = oneapi::dpl::__par_backend_hetero::__temp_data_array<_Bounded, 15, int, __stop_pos_t>;
     auto __temp_data = create_temp_data_array<_Bounded, temp_data_array_t>();
     oneapi::dpl::__par_backend_hetero::__noop_processed_info __processed_info{};
 

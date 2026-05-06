@@ -64,12 +64,12 @@ template <typename _TempData>
 inline constexpr bool __temp_data_capture_indexes_flag_v = __temp_data_capture_indexes_flag<_TempData>::value;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <bool _CaptureIndexes, std::uint16_t elements, typename _ValueT, typename... _Sizes>
+template <bool _CaptureIndexes, std::uint16_t elements, typename _ValueT, typename __stop_pos_t>
 struct __temp_data_array;
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
-struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>
+template <std::uint16_t elements, typename _ValueT, typename __stop_pos_t>
+struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, __stop_pos_t>
 {
     static constexpr std::uint16_t _Elements = elements;
     static constexpr bool _CaptureIndexes = false;
@@ -95,17 +95,17 @@ struct __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...
 };
 
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
-template <std::uint16_t elements, typename _ValueT, typename... _Sizes>
-struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
-    : __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>
+template <std::uint16_t elements, typename _ValueT, typename __stop_pos_t>
+struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, __stop_pos_t>
+    : __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, __stop_pos_t>
 {
     static constexpr std::uint16_t _Elements = elements;
     static constexpr bool _CaptureIndexes = true;
     using _ValueType = _ValueT;
 
-    using _Base = __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>;
+    using _Base = __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, __stop_pos_t>;
 
-    using _TupleOfSizes = std::tuple<_Sizes...>;
+    using _TupleOfSizes = __stop_pos_t;
 
     __temp_data_array(_TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw)
         : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
@@ -139,10 +139,10 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
 
-template <typename... _Sizes>
+template <typename __stop_pos_t>
 struct __processed_info
 {
-    using _TupleOfSizes = std::tuple<_Sizes...>;
+    using _TupleOfSizes = __stop_pos_t;
 
     void
     set_final_pos(const _TupleOfSizes& __pos)
@@ -195,11 +195,9 @@ struct __processed_info
 
 struct __noop_processed_info
 {
-    using _TupleOfSizes = std::monostate;
-
-    template <typename... _Sizes>
+    template <typename _TupleOfSizes>
     void
-    set_final_pos(const std::tuple<_Sizes...>&)
+    set_final_pos(const _TupleOfSizes&)
     {
     }
 
@@ -208,9 +206,9 @@ struct __noop_processed_info
     {
     }
 
-    template <typename... _Sizes>
+    template <typename _TupleOfSizes>
     void
-    set_oob_source_pos(const std::tuple<_Sizes...>&)
+    set_oob_source_pos(const _TupleOfSizes&)
     {
     }
 };
@@ -1054,11 +1052,11 @@ __set_generic_operation_iteration(const _InRng1& __in_rng1, const _InRng2& __in_
                                   _SizeType& __idx, std::uint16_t& __count,
                                   const _Compare __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    using _TupleOfSizes = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
+    using __stop_pos_t = std::tuple<std::decay_t<decltype(__idx1)>, std::decay_t<decltype(__idx2)>>;
 
     auto __set_value = [&](std::uint16_t __count, auto&& __ele) {
         if constexpr (std::decay_t<_TempOutput>::_CaptureIndexes)
-            __temp_out.set(__count, std::forward<decltype(__ele)>(__ele), _TupleOfSizes{__idx1, __idx2});
+            __temp_out.set(__count, std::forward<decltype(__ele)>(__ele), __stop_pos_t{__idx1, __idx2});
         else
             __temp_out.set(__count, std::forward<decltype(__ele)>(__ele));
     };
@@ -2403,25 +2401,28 @@ enum class _StopPosPayloadIndexes
 // access on most GPU hardware (AtomicAccessViolation, banned: 1).
 // __atomic_result_storage always uses device USM or sycl::buffer, both of which
 // reside in GPU global address space and support atomic operations.
-template <typename... _InRng>
-using __scan_stop_pos_storage_t = __atomic_result_storage<__scan_stop_pos_t<_InRng...>>;
+template <typename _TupleOfSizes>
+using __scan_stop_pos_storage_t = __atomic_result_storage<_TupleOfSizes>;
 
-template <typename... _Rng>
-auto
+template <typename _TupleOfSizes>
+using __scan_stop_pos_storages_container_t = std::vector<__scan_stop_pos_storage_t<_TupleOfSizes>>;
+
+template <typename _TupleOfSizes>
+__scan_stop_pos_storages_container_t<_TupleOfSizes>
 __create_scan_stop_pos_storage_container(std::size_t __reserve = 0)
 {
-    std::vector<__scan_stop_pos_storage_t<_Rng...>> __container;
+    __scan_stop_pos_storages_container_t<_TupleOfSizes> __container;
     if (__reserve > 0)
         __container.reserve(__reserve);
 
     return __container;
 }
 
-template <typename... _Rng>
-auto
-__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_Rng...>&& __item)
+template <typename _TupleOfSizes>
+__scan_stop_pos_storages_container_t<_TupleOfSizes>
+__create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_TupleOfSizes>&& __item)
 {
-    auto __container = __create_scan_stop_pos_storage_container<_Rng...>();
+    auto __container = __create_scan_stop_pos_storage_container<_TupleOfSizes>();
     __container.emplace_back(std::move(__item));
 
     return __container;
@@ -2430,30 +2431,33 @@ __create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_Rng...>&& __
 template <bool _Bounded>
 struct __stop_pos_payloads_tools
 {
-    template <typename _InRng>
-    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_InRng>, std::monostate>
+    template <typename _TupleOfSizes>
+    static std::conditional_t<_Bounded, __scan_stop_pos_storage_t<_TupleOfSizes>, std::monostate>
     __create_storage(sycl::queue& __q)
     {
         if constexpr (_Bounded)
-            return __scan_stop_pos_storage_t<_InRng>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
+            return __scan_stop_pos_storage_t<_TupleOfSizes>(__q, (std::size_t)_StopPosPayloadIndexes::eLast);
         else
             return std::monostate{};
     }
 
-    template <typename _InRng>
-    static std::conditional_t<_Bounded, std::vector<__scan_stop_pos_storage_t<_InRng>>, std::monostate>
+    template <typename _TupleOfSizes>
+    static std::conditional_t<
+        _Bounded,
+        __scan_stop_pos_storages_container_t<_TupleOfSizes>,
+        std::monostate>
     __create_container(std::size_t __capacity)
     {
         if constexpr (_Bounded)
-            return __create_scan_stop_pos_storage_container<_InRng>(__capacity);
+            return __create_scan_stop_pos_storage_container<_TupleOfSizes>(__capacity);
         else
             return std::monostate{};
     }
 
-    template <typename _InRng, typename _Size1, typename _Size2>
-    static std::tuple<_Size1, _Size2>
-    __get_finish_pos(std::vector<__scan_stop_pos_storage_t<_InRng>>& __stop_pos_payloads_container, _Size1 __n1,
-                     _Size2 __n2)
+    template <typename _TupleOfSizes, typename _TupleOfSrcSizes>
+    static _TupleOfSizes
+    __get_finish_pos(__scan_stop_pos_storages_container_t<_TupleOfSizes>& __stop_pos_payloads_container,
+                     _TupleOfSrcSizes __src_sizes)
     {
         using oneapi::dpl::__internal::__pos_operations;
 
@@ -2463,9 +2467,7 @@ struct __stop_pos_payloads_tools
         using _StopPos = typename _StopPosPayload::_ValueType;
 
         _StopPos __final_pos = {};
-        _StopPos __oob_pos = {};
-        std::get<0>(__oob_pos) = __n1;
-        std::get<1>(__oob_pos) = __n2;
+        _StopPos __oob_pos = oneapi::dpl::__internal::__convert_tuple_to<_StopPos>(__src_sizes);
 
         for (auto& __payload : __stop_pos_payloads_container)
         {
@@ -2534,14 +2536,14 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     template <typename _Type>
     static constexpr bool __is_defined = !std::is_same_v<std::decay_t<_Type>, std::monostate>;
 
-    template <typename _ProcessedInfo>
-    std::conditional_t<_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>,
-                       __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>, std::monostate>
+    template <typename _ProcessedInfo, typename _TupleOfSizes = _TupleOfIndexesSelector_t<_ProcessedInfo>>
+    std::conditional_t<_Bounded && __is_defined<_TupleOfSizes>, __dpl_sycl::__local_accessor<_TupleOfSizes>,
+                       std::monostate>
     __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
     {
-        if constexpr (_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>)
+        if constexpr (_Bounded && __is_defined<_TupleOfSizes>)
         {
-            return __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>(__count, __cgh);
+            return __dpl_sycl::__local_accessor<_TupleOfSizes>(__count, __cgh);
         }
         else
         {
@@ -2575,7 +2577,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
-    template <typename _InRng, typename _StopPosStorage>
+    template <typename _TupleOfSizes, typename _StopPosStorage>
     sycl::event
     __submit_stop_pos_init([[maybe_unused]] sycl::queue& __q, [[maybe_unused]] _StopPosStorage& __stop_pos_payload,
                            const sycl::event& __prior_event) const
@@ -2595,7 +2597,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                     // Initialize OOB pos to max sentinel - means "not yet found"
                     __stop_pos_ptr[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                        oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<__scan_stop_pos_t<_InRng>>();
+                        oneapi::dpl::__internal::__tuple_upper_bound_sentinel::__create<_TupleOfSizes>();
                 });
             });
         else
@@ -2745,13 +2747,17 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<
         _Bounded,
-        std::tuple<sycl::event, __scan_stop_pos_storage_t<_InRng>>,
+        std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
         std::tuple<sycl::event>
     >
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, sycl::event __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
     {
+        using __stop_pos_t = __scan_stop_pos_t<_InRng>;
+
+        using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
+        using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
         using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
@@ -2765,8 +2771,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         const std::uint32_t __inputs_in_block = std::min(__num_remaining, std::size_t{__max_block_size});
 
-        auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage<_InRng>(__q);
-        __prior_event = __submit_stop_pos_init<_InRng>(__q, __stop_pos_payload, __prior_event);
+        auto __stop_pos_payload = __stop_pos_payloads_tools<_Bounded>::template __create_storage<__stop_pos_t>(__q);
+        __prior_event = __submit_stop_pos_init<__stop_pos_t>(__q, __stop_pos_payload, __prior_event);
 
         const _OutSize __n_out = oneapi::dpl::__ranges::__size(__out_rng);
 
@@ -3058,7 +3064,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 {
                     bool __oob_reached_in_this_wi = false;
-                    typename _ProcessedInfo::_TupleOfSizes __final_pos_wi = {};
+                    _TupleOfIndexesSelector_t<_ProcessedInfo> __final_pos_wi = {};
 
                     {
                         _TempDataNoCaptureIndexes __temp_out{};
@@ -3181,11 +3187,10 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern>
-std::conditional_t<
-    _Bounded,
-    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>, std::vector<__scan_stop_pos_storage_t<_InRng>>>,
-    std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>
->
+std::conditional_t<_Bounded,
+                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>,
+                              __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_InRng>>>,
+                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
@@ -3241,8 +3246,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
 
+    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
     auto __stop_pos_payloads_container =
-        __stop_pos_payloads_tools<_Bounded>::template __create_container<_InRng>(__num_blocks);
+        __stop_pos_payloads_tools<_Bounded>::template __create_container<__stop_pos_t>(__num_blocks);
 
     // Reduce and scan step implementations
     using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
