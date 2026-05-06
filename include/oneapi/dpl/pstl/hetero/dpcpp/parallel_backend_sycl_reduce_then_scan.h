@@ -387,12 +387,9 @@ __write_if_in_bounds(const _OutRng& __out_rng, _OutLocalSizeType __out_idx, _Ass
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
 {
-    using _TempData = __noop_temp_data;
-    using _ProcessedInfo = __noop_processed_info;
-
-    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData>
     std::enable_if_t<!_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -405,10 +402,12 @@ struct __simple_write_to_id
         return true;
     }
 
-    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _LocalOffsetToSrcIndexes,
+              typename _ValueType, typename _TempData, typename _ProcessedInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData& __temp_data,
-               _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id,
+               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
+               const _ValueType& __v, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -417,10 +416,13 @@ struct __simple_write_to_id
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(__v)>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        return __write_if_in_bounds<_Bounded>(
-            __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
-            [&](auto __out_idx_arg) { __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v); }, __temp_data,
-            __processed_info);
+        return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+            __out_rng, __id,
+            [&]([[maybe_unused]] auto __out_idx_arg) {
+                if constexpr (_ExecuteAssign)
+                    __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(__v);
+            },
+            __create_no_oob_src_index_getter<_TempData>(), __processed_info);
     }
 };
 
