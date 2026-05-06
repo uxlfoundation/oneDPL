@@ -827,6 +827,9 @@ struct __write_multiple_to_id
 
 // *** Algorithm Specific Helpers, Input Generators to Reduction and Scan Operations ***
 
+template <typename _T, typename _T1, typename _T2>
+inline constexpr bool __is_any_of_v = std::is_same_v<_T, _T1> || std::is_same_v<_T, _T2>;
+
 // __parallel_transform_scan
 
 // A generator which applies a unary operation to the input range element at an index and returns the result
@@ -839,12 +842,12 @@ struct __gen_transform_input
     using TempDataCaptureIndexes = _TempDataCaptureIndexes;
     using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng, typename _TempData,
-              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
-                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
-    auto
+    template <typename _InRng, typename _TempData>
+    _InitType
     operator()(const _InRng& __in_rng, std::size_t __id, _TempData&) const
     {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
         // from modifying the input range when altering the return of this functor.
@@ -852,12 +855,12 @@ struct __gen_transform_input
         return static_cast<_InitType>(__unary_op(_ValueType{__in_rng[__id]}));
     }
 
-    template <typename _InRng, typename _TempData,
-              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
-                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
-    auto
+    template <typename _InRng, typename _TempData>
+    _InitType
     operator()(const _InRng& __in_rng, std::size_t __id, _TempData&, ProcessedInfo&) const
     {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         // We explicitly convert __in_rng[__id] to the value type of _InRng to properly handle the case where we
         // process zip_iterator input where the reference type is a tuple of a references. This prevents the caller
         // from modifying the input range when altering the return of this functor.
@@ -893,12 +896,12 @@ struct __gen_count_mask
     using TempDataCaptureIndexes = _TempDataCaptureIndexes;    
     using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng, typename _SizeType, typename _TempData,
-              typename = std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
-                                          std::is_same_v<_TempData, TempDataCaptureIndexes>>>
-    _SizeType
+    template <typename _InRng, typename _SizeType, typename _TempData>
+    auto
     operator()(_InRng&& __in_rng, _SizeType __id, _TempData&, ProcessedInfo&) const
     {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         return __gen_mask(std::forward<_InRng>(__in_rng), __id) ? _SizeType{1} : _SizeType{0};
     }
 
@@ -1533,9 +1536,6 @@ struct __gen_set_balanced_path
     _Proj2 __proj2;
 };
 
-template <typename _T, typename _T1, typename _T2>
-inline constexpr bool __is_any_of_v = std::is_same_v<_T, _T1> || std::is_same_v<_T, _T2>;
-
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
@@ -1548,10 +1548,11 @@ struct __gen_set_op_from_known_balanced_path
     using ProcessedInfo = _ProcessedInfo;
 
     template <typename _InRng, typename _IndexT, typename _TempData>
-    std::enable_if_t<__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>,
-                     std::tuple<std::uint32_t, std::uint16_t>>
+    std::tuple<std::uint32_t, std::uint16_t>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data, ProcessedInfo& __processed_info) const
     {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         // Get source tuple
         auto&& __tuple = __in_rng.base();
 
