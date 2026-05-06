@@ -314,6 +314,21 @@ struct __src_no_oob_index_getter
     }
 };
 
+template <typename _T, typename = void>
+struct _TupleOfIndexesSelector
+{
+    using type = std::monostate;
+};
+
+template <typename _T>
+struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
+{
+    using type = typename _T::_TupleOfSizes;
+};
+
+template <typename _T>
+using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
+
 template <typename _T>
 inline constexpr _T __no_oob_capture_idx = static_cast<_T>(-1);
 
