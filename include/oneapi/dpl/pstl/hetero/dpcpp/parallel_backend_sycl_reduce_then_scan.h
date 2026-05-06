@@ -808,16 +808,20 @@ struct __gen_count_mask
 
 // A generator which expands the mask generator to return a tuple containing the count, mask, and the element at the
 // specified index.
-template <typename _GenMask, typename _RangeTransform = oneapi::dpl::identity>
+template <typename _GenMask, typename _RangeTransform, typename _TempDataNoCaptureIndexes,
+          typename _TempDataCaptureIndexes, typename _ProcessedInfo>
 struct __gen_expand_count_mask
 {
-    using TempData = __noop_temp_data;
-    using ProcessedInfo = __noop_processed_info;
+    using TempDataNoCaptureIndexes = _TempDataNoCaptureIndexes;
+    using TempDataCaptureIndexes = _TempDataCaptureIndexes;
+    using ProcessedInfo = _ProcessedInfo;
 
-    template <typename _InRng, typename _SizeType>
+    template <typename _InRng, typename _SizeType, typename _TempData>
     auto
-    operator()(_InRng&& __in_rng, _SizeType __id, TempData&, ProcessedInfo&) const
+    operator()(_InRng&& __in_rng, _SizeType __id, _TempData&, ProcessedInfo&) const
     {
+        static_assert(__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>);
+
         auto __transformed_input = __rng_transform(__in_rng);
         // Explicitly creating this element type is necessary to avoid modifying the input data when _InRng is a
         //  zip_iterator which will return a tuple of references when dereferenced. With this explicit type, we copy
