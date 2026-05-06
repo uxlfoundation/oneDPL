@@ -260,37 +260,6 @@ struct __noop_temp_data_capture_indexes
     _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
 
-template <typename _OutputRng>
-struct __noop_output_range
-{
-    using value_type = oneapi::dpl::__internal::__value_t<_OutputRng>;
-    using difference_type = oneapi::dpl::__internal::__difference_t<_OutputRng>;
-
-    explicit __noop_output_range(_OutputRng __rng) : __rng(std::move(__rng)) {}
-
-    auto
-    size() const
-    {
-        return oneapi::dpl::__ranges::__size(__rng);
-    }
-
-    value_type&
-    operator[](difference_type) const
-    {
-        return __sink;
-    }
-
-    _OutputRng __rng;
-    mutable value_type __sink{};
-};
-
-template <typename _Rng>
-auto
-__make_noop_output_range(_Rng&& __rng)
-{
-    return __noop_output_range<std::decay_t<_Rng>>{std::forward<_Rng>(__rng)};
-}
-
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
 struct __extract_range_from_zip
