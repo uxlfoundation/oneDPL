@@ -2814,6 +2814,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         using _ProcessedInfo = typename _GenScanInput::ProcessedInfo;
         using _OutSize = decltype(oneapi::dpl::__ranges::__size(__out_rng));
 
+        constexpr bool __oob_replay_enabled =
+            _Bounded && __temp_data_capture_indexes_flag_v<_TempDataCaptureIndexes>;
+
         std::size_t __num_remaining = __n - __block_num * __max_block_size;
         // for unique patterns, the first element is always copied to the output, so we need to skip it
         if constexpr (__is_unique_pattern_v)
@@ -3106,11 +3109,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
                         }
                     };
-
-                using _TempDataNoCaptureIndexes = __select_temp_data_type_no_capture_indexes_t<_GenScanInput>;
-                using _TempDataCaptureIndexes = __select_temp_data_capture_indexes_t<_GenScanInput>;
-
-                constexpr bool __oob_replay_enabled = _Bounded && !std::is_same_v<_TempDataNoCaptureIndexes, _TempDataCaptureIndexes>;
 
                 auto __oob_replay_carry_tuple = __save_carry_for_oob_replay<__oob_replay_enabled>(__sub_group_carry_initialized, __sub_group_carry);
                 [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer = __create_scoped_destroyer<__oob_replay_enabled, _InitValueType>(__oob_replay_carry_tuple);
