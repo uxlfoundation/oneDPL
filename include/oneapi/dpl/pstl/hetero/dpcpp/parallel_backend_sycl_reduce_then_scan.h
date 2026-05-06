@@ -284,6 +284,36 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
+template <typename _TempData, typename _LocalOffsetToSrcIndexes>
+struct __src_index_getter
+{
+    std::tuple<bool, typename _TempData::_TupleOfSizes>
+    operator()() const
+    {
+        return {true, __temp_data.get_src_indexes(__capture_src_idx_slot)};
+    }
+
+    const _TempData& __temp_data;
+    _LocalOffsetToSrcIndexes& __capture_src_idx_slot;
+};
+
+template <typename _TempData, typename _LocalOffsetToSrcIndexes>
+static __src_index_getter<_TempData, _LocalOffsetToSrcIndexes>
+__create_src_index_getter(const _TempData& __temp_data, _LocalOffsetToSrcIndexes& __capture_src_idx_slot)
+{
+    return __src_index_getter<_TempData, _LocalOffsetToSrcIndexes>{__temp_data, __capture_src_idx_slot};
+}
+
+template <typename _TupleOfSizes>
+struct __src_no_oob_index_getter
+{
+    std::tuple<bool, _TupleOfSizes>
+    operator()() const
+    {
+        return {false, {}};
+    }
+};
+
 template <typename _T>
 inline constexpr _T __no_oob_capture_idx = static_cast<_T>(-1);
 
