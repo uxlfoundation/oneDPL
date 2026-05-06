@@ -1160,8 +1160,8 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
     using _WriteOp = oneapi::dpl::__par_backend_hetero::__write_multiple_to_id<oneapi::dpl::__internal::__pstl_assign>;
 
-    _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
-    _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
+    const _Size1 __n1 = oneapi::dpl::__ranges::__size(__rng1);
+    const _Size2 __n2 = oneapi::dpl::__ranges::__size(__rng2);
     const auto __total_size = __n1 + __n2;
 
     const std::int32_t __num_diagonals = oneapi::dpl::__internal::__dpl_ceiling_div(__total_size, __diagonal_spacing);
