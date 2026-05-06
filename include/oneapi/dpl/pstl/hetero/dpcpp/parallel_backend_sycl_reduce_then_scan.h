@@ -2308,13 +2308,9 @@ struct __stop_pos_payloads_tools
     __create_container(std::size_t __capacity)
     {
         if constexpr (_Bounded)
-        {
             return __create_scan_stop_pos_storage_container<_InRng>(__capacity);
-        }
         else
-        {
             return std::monostate{};
-        }
     }
 
     template <typename _InRng, typename _Size1, typename _Size2>
