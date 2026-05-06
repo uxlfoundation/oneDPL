@@ -44,6 +44,8 @@ struct __none_of_fn;
 struct __adjacent_find_fn;
 struct __search_fn;
 struct __search_n_fn;
+struct __contains_fn;
+struct __contains_subrange_fn;
 struct __count_if_fn;
 struct __count_fn;
 struct __equal_fn;
