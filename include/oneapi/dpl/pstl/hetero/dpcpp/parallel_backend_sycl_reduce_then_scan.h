@@ -2445,6 +2445,9 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
+    template <typename _Type>
+    static constexpr bool __is_defined = !std::is_same_v<std::decay_t<_Type>, std::monostate>;
+
     template <typename _ProcessedInfo>
     std::conditional_t<_Bounded && !std::is_same_v<_ProcessedInfo, __noop_processed_info>,
                        __dpl_sycl::__local_accessor<typename _ProcessedInfo::_TupleOfSizes>, std::monostate>
