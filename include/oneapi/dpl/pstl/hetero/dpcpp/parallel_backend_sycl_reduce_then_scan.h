@@ -1407,6 +1407,9 @@ struct __gen_set_balanced_path
     _Proj2 __proj2;
 };
 
+template <typename _T, typename _T1, typename _T2>
+inline constexpr bool __is_any_of_v = std::is_same_v<_T, _T1> || std::is_same_v<_T, _T2>;
+
 // Reduce then scan building block for set balanced path which is used in the scan kernel to decode the stored balanced
 // path intersection, perform the serial set operation for the diagonal, counting the number of elements and writing
 // the output to temporary data in registers to be ready for the scan and write operations to follow.
@@ -1419,8 +1422,7 @@ struct __gen_set_op_from_known_balanced_path
     using ProcessedInfo = _ProcessedInfo;
 
     template <typename _InRng, typename _IndexT, typename _TempData>
-    std::enable_if_t<std::is_same_v<_TempData, TempDataNoCaptureIndexes> ||
-                         std::is_same_v<_TempData, TempDataCaptureIndexes>,
+    std::enable_if_t<__is_any_of_v<_TempData, TempDataNoCaptureIndexes, TempDataCaptureIndexes>,
                      std::tuple<std::uint32_t, std::uint16_t>>
     operator()(const _InRng& __in_rng, _IndexT __id, _TempData& __output_data, ProcessedInfo& __processed_info) const
     {
