@@ -3006,7 +3006,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 }
 
                 // Initialize __wg_src_final_pos_local_accessor for current sub-group
-                if constexpr (_Bounded && !std::is_same_v<decltype(__wg_src_final_pos_local_accessor), std::monostate>)
+                if constexpr (_Bounded && __is_defined<decltype(__wg_src_final_pos_local_accessor)>)
                 {
                     const auto __wg_local_id = __ndi.get_local_linear_id();
                     if (__wg_local_id < __max_num_sub_groups_local)
