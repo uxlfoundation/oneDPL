@@ -105,9 +105,9 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
 
     using _Base = __temp_data_array</*_CaptureIndexes*/ false, elements, _ValueT, _Sizes...>;
 
-    using _TupleOfIndexes = std::tuple<_Sizes...>;
+    using _TupleOfSizes = std::tuple<_Sizes...>;
 
-    __temp_data_array(_TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw)
+    __temp_data_array(_TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw)
         : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
     {
     }
@@ -115,7 +115,7 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
     // The __idx parameter is zero-based for the current work-item
     template <typename _ValueT2>
     void
-    set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfIndexes& __indexes)
+    set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfSizes& __indexes)
     {
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
 
@@ -129,14 +129,14 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, _Sizes...>
         return _Base::get_and_destroy(__idx);
     }
 
-    const _TupleOfIndexes&
+    const _TupleOfSizes&
     get_src_indexes(std::uint16_t __idx) const
     {
         return __src_indexes_local_accessor_for_one_wi_raw[__idx];
     }
 
     // Pointer to the SLM-based array with source indexes corresponding to the stored values
-    _TupleOfIndexes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+    _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
 
 template <typename... _Sizes>
@@ -365,7 +365,7 @@ __write_if_in_bounds(const _OutRng& __out_rng, _LocalOffsetToSrcIndexes __local_
             {
                 if (__local_offset_to_src_indexes != __no_oob_capture_idx<_LocalOffsetToSrcIndexes>)
                 {
-                    const typename _TempData::_TupleOfIndexes& __source_oob_pos_indexes = __temp_data.get_src_indexes(__local_offset_to_src_indexes);
+                    const typename _TempData::_TupleOfSizes& __source_oob_pos_indexes = __temp_data.get_src_indexes(__local_offset_to_src_indexes);
                     __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
                 }
             }
@@ -2521,7 +2521,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
         if constexpr (_temp_data_capture_indexes_t::_CaptureIndexes)
         {
-            using _TupleOfIndexes = typename _temp_data_capture_indexes_t::_TupleOfIndexes;
+            using _TupleOfSizes = typename _temp_data_capture_indexes_t::_TupleOfSizes;
 
             constexpr auto _Elements = _temp_data_capture_indexes_t::_Elements;
 
@@ -2532,7 +2532,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             //  +------------------+
             //  [0 .. _Elements-1]
 
-            return __dpl_sycl::__local_accessor<_TupleOfIndexes>(_Elements, __cgh);
+            return __dpl_sycl::__local_accessor<_TupleOfSizes>(_Elements, __cgh);
         }
         else
         {
