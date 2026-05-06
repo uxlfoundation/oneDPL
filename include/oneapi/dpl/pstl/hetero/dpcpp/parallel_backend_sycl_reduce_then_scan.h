@@ -663,15 +663,12 @@ struct __write_red_by_seg
 template <bool __is_inclusive, typename _InitType, typename _BinaryOp>
 struct __write_scan_by_seg
 {
-    using _TempData = __noop_temp_data;
-    using _ProcessedInfo = __noop_processed_info;
-
     _InitType __init_value;
     _BinaryOp __binary_op;
 
-    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData>
     std::enable_if_t<!_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData&) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -700,10 +697,12 @@ struct __write_scan_by_seg
         return true;
     }
 
-    template <bool _Bounded, typename _OutRng, typename _ValueType>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _LocalOffsetToSrcIndexes,
+              typename _ValueType, typename _TempData, typename _ProcessedInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, const _TempData& __temp_data,
-               _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id,
+               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
+               const _ValueType& __v, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -719,12 +718,13 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__no_init_value<typename _InitType::__value_type>>,
                 "inclusive_scan_by_segment must not have an initial element");
 
-            return __write_if_in_bounds<_Bounded>(
-                __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
-                [&](auto __out_idx_arg) {
-                    __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
+            return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                __out_rng, __id,
+                [&]([[maybe_unused]] auto __out_idx_arg) {
+                    if constexpr (_ExecuteAssign)
+                        __out_rng[__out_idx_arg] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
                 },
-                __temp_data, __processed_info);
+                __create_no_oob_src_index_getter<_TempData>(), __processed_info);
         }
         else
         {
@@ -732,15 +732,15 @@ struct __write_scan_by_seg
                 std::is_same_v<_InitType, oneapi::dpl::unseq_backend::__init_value<typename _InitType::__value_type>>,
                 "exclusive_scan_by_segment must have an initial element");
 
-            return __write_if_in_bounds<_Bounded>(
-                __out_rng, __no_oob_capture_idx<decltype(__id)>, __id,
-                [&](auto __out_idx_arg) {
-                    __out_rng[__out_idx_arg] =
-                        get<1>(__v)
-                            ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
+            return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
+                __out_rng, __id,
+                [&]([[maybe_unused]] auto __out_idx_arg) {
+                    if constexpr (_ExecuteAssign)
+                        __out_rng[__out_idx_arg] = get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                                                               : static_cast<_ConvertedTupleType>(__binary_op(
+                                                                     __init_value.__value, get<1>(get<0>(__v))));
                 },
-                __temp_data, __processed_info);
+                __create_no_oob_src_index_getter<_TempData>(), __processed_info);
         }
     }
 };
