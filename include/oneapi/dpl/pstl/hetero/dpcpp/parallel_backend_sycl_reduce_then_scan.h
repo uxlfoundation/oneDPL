@@ -374,23 +374,23 @@ struct __write_to_id_if
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType,
-              typename _ValueType, typename _TempData, typename _WriteResults>
+              typename _ValueType, typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
-               _WriteResults& __write_results) const
+               _ProcessInfo& __process_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
         // through.
         using _ConvertedTupleType =
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
-                                                               std::decay_t<decltype(__out_rng[0])>>::__type;
+                                                               std::decay_t<decltype(__out_rng[__id])>>::__type;
 
         if (std::get<1>(__v))
         {
@@ -403,11 +403,13 @@ struct __write_to_id_if
                         __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]);
                 },
                 [&]() {
+                    __process_info.set_oob_reached();
                     if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
-                        __write_results.set_oob_reached(
-                            __temp_data.get_src_indexes(__write_results.__capture_src_idx_slot));
-                    else
-                        __write_results.set_oob_reached();
+                    {
+                        typename _ProcessInfo::_TupleOfSizes __src_index_tuple = {};
+                        std::get<0>(__src_index_tuple) = __id;
+                        __process_info.set_oob_source_pos(__src_index_tuple);
+                    }
                 });
         }
 
