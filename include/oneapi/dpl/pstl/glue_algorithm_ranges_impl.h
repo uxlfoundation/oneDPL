@@ -1018,6 +1018,63 @@ struct __internal::__replace_fn
 }; //__replace_fn
 inline constexpr __internal::__replace_fn replace;
 
+struct __internal::__replace_copy_if_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange, class _T = std::ranges::range_value_t<_OutRange>,
+              typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_InRange>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+             && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+             && std::indirectly_writable<std::ranges::iterator_t<_OutRange>, const _T&>
+
+    std::ranges::replace_copy_if_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                        std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, _Pred __pred, const _T& __new_value,
+               _Proj __proj = {}) const
+    {
+        const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        const oneapi::dpl::__ranges::__common_size_t<_InRange, _OutRange> __size =
+            oneapi::dpl::__ranges::__min_size_calc{}(__in_r, __out_r);
+
+        oneapi::dpl::__internal::__ranges::__pattern_replace_copy_if(
+            __dispatch_tag, std::forward<_ExecutionPolicy>(__exec), std::ranges::take_view(__in_r, __size),
+            std::ranges::take_view(__out_r, __size), __pred,
+            oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>{__new_value}, __proj);
+
+        return {std::ranges::begin(__in_r) + __size, std::ranges::begin(__out_r) + __size};
+    }
+}; //__replace_copy_if_fn
+inline constexpr __internal::__replace_copy_if_fn replace_copy_if;
+
+struct __internal::__replace_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _InRange,
+              std::ranges::random_access_range _OutRange, typename _Proj = std::identity,
+              typename _T1 = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_InRange>, _Proj>,
+              typename _T2 = std::ranges::range_value_t<_OutRange>>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_InRange> && std::ranges::sized_range<_OutRange>
+             && std::indirectly_copyable<std::ranges::iterator_t<_InRange>, std::ranges::iterator_t<_OutRange>>
+             && std::indirect_binary_predicate<std::ranges::equal_to,
+                                               std::projected<std::ranges::iterator_t<_InRange>, _Proj>, const _T1*>
+             && std::indirectly_writable<std::ranges::iterator_t<_OutRange>, const _T2&>
+
+    std::ranges::replace_copy_result<std::ranges::borrowed_iterator_t<_InRange>,
+                                     std::ranges::borrowed_iterator_t<_OutRange>>
+    operator()(_ExecutionPolicy&& __exec, _InRange&& __in_r, _OutRange&& __out_r, const _T1& __old_value,
+               const _T2& __new_value, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::replace_copy_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_InRange>(__in_r), std::forward<_OutRange>(__out_r),
+            oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
+                __old_value),
+            __new_value, __proj);
+    }
+}; //__replace_copy_fn
+inline constexpr __internal::__replace_copy_fn replace_copy;
+
 // [alg.reverse]
 
 struct __internal::__reverse_fn
