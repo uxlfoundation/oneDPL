@@ -503,7 +503,7 @@ template <typename _BinaryPred>
 struct __write_red_by_seg
 {
     template <bool _Bounded, typename _OutRng, typename _Tup, typename _TempData>
-    std::enable_if_t<!_Bounded, bool>
+    std::enable_if_t<!_Bounded>
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&) const
     {
         using std::get;
@@ -533,16 +533,13 @@ struct __write_red_by_seg
             if (__id != __n - 1)
                 __out_keys[__out_idx + 1] = __next_key;
         }
-
-        return true;
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _LocalOffsetToSrcIndexes, typename _Tup,
-              typename _TempData, typename _ProcessedInfo>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _Tup, typename _TempData,
+              typename _WriteResults>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id,
-               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
-               const _Tup& __tup, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&,
+               _WriteResults& __write_results) const
     {
         using std::get;
 
@@ -558,49 +555,41 @@ struct __write_red_by_seg
         const bool __is_seg_end = get<1>(__tup);
         const std::size_t __out_idx = get<0>(get<0>(__tup));
 
+        auto __on_oob_reached = [&__write_results]() { __write_results.set_oob_reached(); };
+
         // With the exception of the first key which is output by index 0, the first key in each segment is written
         // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
         // API requires that the first key in a segment is output and is important for when keys in a segment might not
         // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
         // segments process.
-        if (__id == 0)
-        {
-            if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-                    __out_keys, 0,
-                    [&]([[maybe_unused]] auto __out_idx_arg) {
-                        if constexpr (_ExecuteAssign)
-                            __out_keys[__out_idx_arg] = __current_key;
-                    },
-                    __create_no_oob_src_index_getter<_TempData>(), __processed_info))
-                return false;
-        }
+        if (__id == 0 && !__write_if_in_bounds(
+                             oneapi::dpl::__ranges::__size(__out_keys), 0,
+                             [&]() {
+                                 if constexpr (_ExecuteAssign)
+                                     __out_keys[0] = __current_key;
+                             },
+                             __on_oob_reached))
+            return false;
 
         if (__is_seg_end)
         {
-            if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-                    __out_values, __out_idx,
-                    [&]([[maybe_unused]] auto __out_idx_arg) {
+            if (!__write_if_in_bounds(
+                    oneapi::dpl::__ranges::__size(__out_values), __out_idx,
+                    [&]() {
                         if constexpr (_ExecuteAssign)
-                            __out_values[__out_idx_arg] = __current_value;
+                            __out_values[__out_idx] = __current_value;
                     },
-                    __create_no_oob_src_index_getter<_TempData>(), __processed_info))
-            {
+                    __on_oob_reached))
                 return false;
-            }
 
-            if (__id != __n - 1)
-            {
-                if (!__write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-                        __out_keys, __out_idx + 1,
-                        [&]([[maybe_unused]] auto __out_idx_arg) {
-                            if constexpr (_ExecuteAssign)
-                                __out_keys[__out_idx_arg] = __next_key;
-                        },
-                        __create_no_oob_src_index_getter<_TempData>(), __processed_info))
-                {
-                    return false;
-                }
-            }
+            if (__id != __n - 1 && !__write_if_in_bounds(
+                                       oneapi::dpl::__ranges::__size(__out_keys), __out_idx + 1,
+                                       [&]() {
+                                           if constexpr (_ExecuteAssign)
+                                               __out_keys[__out_idx + 1] = __next_key;
+                                       },
+                                       __on_oob_reached))
+                return false;
         }
 
         return true;
