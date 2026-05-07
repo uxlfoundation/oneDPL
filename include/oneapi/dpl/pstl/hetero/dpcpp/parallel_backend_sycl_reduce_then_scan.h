@@ -448,7 +448,7 @@ template <typename _Assign>
 struct __write_to_id_if_else
 {
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    std::enable_if_t<!_Bounded, bool>
+    std::enable_if_t<!_Bounded>
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData&) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -460,18 +460,14 @@ struct __write_to_id_if_else
         if (std::get<1>(__v))
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[std::get<0>(__v) - 1]));
         else
-            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                     std::get<1>(__out_rng[__id - std::get<0>(__v)]));
-
-        return true;
+            __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)]));
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType,
-              typename _LocalOffsetToSrcIndexes, typename _ValueType, typename _TempData, typename _ProcessedInfo>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
+              typename _TempData, typename _WriteResults>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, _SizeType __id,
-               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
-               const _ValueType& __v, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
+               _WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -480,24 +476,22 @@ struct __write_to_id_if_else
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        if (std::get<1>(__v))
-        {
-            return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-                __out_rng, std::get<0>(__v) - 1,
-                [&]([[maybe_unused]] auto __out_idx_arg) {
-                    if constexpr (_ExecuteAssign)
-                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_idx_arg]);
-                },
-                __create_no_oob_src_index_getter<_TempData>(), __processed_info);
-        }
+        const auto __out_rng_idx = std::get<1>(__v) ? (std::get<0>(__v) - 1) : (__id - std::get<0>(__v));
 
-        return __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-            __out_rng, __id - std::get<0>(__v),
-            [&]([[maybe_unused]] auto __out_idx_arg) {
+        return __write_if_in_bounds(
+            oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
+            [&]() {
                 if constexpr (_ExecuteAssign)
-                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_idx_arg]));
+                {
+                    if (std::get<1>(__v))
+                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                                 std::get<0>(__out_rng[__out_rng_idx]));
+                    else
+                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
+                                 std::get<1>(__out_rng[__out_rng_idx]));
+                }
             },
-            __create_no_oob_src_index_getter<_TempData>(), __processed_info);
+            [&]() { __write_results.set_oob_reached(); });
     }
 
     _Assign __assign;
