@@ -286,36 +286,6 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <typename _TempData, typename _LocalOffsetToSrcIndexes>
-struct __src_index_getter
-{
-    std::tuple<bool, typename _TempData::_TupleOfSizes>
-    operator()() const
-    {
-        return {true, __temp_data.get_src_indexes(__capture_src_idx_slot)};
-    }
-
-    const _TempData& __temp_data;
-    _LocalOffsetToSrcIndexes& __capture_src_idx_slot;
-};
-
-template <typename _TempData, typename _LocalOffsetToSrcIndexes>
-static __src_index_getter<_TempData, _LocalOffsetToSrcIndexes>
-__create_src_index_getter(const _TempData& __temp_data, _LocalOffsetToSrcIndexes& __capture_src_idx_slot)
-{
-    return __src_index_getter<_TempData, _LocalOffsetToSrcIndexes>{__temp_data, __capture_src_idx_slot};
-}
-
-template <typename _TupleOfSizes>
-struct __src_no_oob_index_getter
-{
-    std::tuple<bool, _TupleOfSizes>
-    operator()() const
-    {
-        return {false, {}};
-    }
-};
-
 template <typename _T, typename = void>
 struct _TupleOfIndexesSelector
 {
@@ -330,15 +300,6 @@ struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
 
 template <typename _T>
 using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
-
-template <typename _TempData>
-static __src_no_oob_index_getter<_TupleOfIndexesSelector_t<_TempData>>
-__create_no_oob_src_index_getter()
-{
-    using _TupleOfSizes = _TupleOfIndexesSelector_t<_TempData>;
-
-    return __src_no_oob_index_getter<_TupleOfSizes>{};
-}
 
 // The __local_offset_to_src_indexes parameter is zero-based for each work-item inside sub-group, all states less than zero describes unknown state
 template <bool _Bounded, bool _CaptureIndexes, typename _OutRng, typename _OutLocalSizeType, typename _Assigner,
