@@ -514,10 +514,9 @@ struct __write_red_by_seg
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _Tup, typename _TempData,
-              typename _WriteResults>
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&,
-               _WriteResults& __write_results) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&, _ProcessInfo& __process_info) const
     {
         using std::get;
 
@@ -533,7 +532,7 @@ struct __write_red_by_seg
         const bool __is_seg_end = get<1>(__tup);
         const std::size_t __out_idx = get<0>(get<0>(__tup));
 
-        auto __on_oob_reached = [&__write_results]() { __write_results.set_oob_reached(); };
+        auto __on_oob_reached = [&__process_info]() { __process_info.set_oob_reached(); };
 
         // With the exception of the first key which is output by index 0, the first key in each segment is written
         // by the work item that outputs the previous segment's reduction value. This is because the reduce_by_segment
