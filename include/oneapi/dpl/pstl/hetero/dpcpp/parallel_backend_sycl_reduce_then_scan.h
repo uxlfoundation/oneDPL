@@ -419,23 +419,26 @@ struct __write_to_id_if
             typename oneapi::dpl::__internal::__get_tuple_type<std::decay_t<decltype(std::get<2>(__v))>,
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
 
-        const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
+        if (std::get<1>(__v))
+        {
+            const auto __out_rng_idx = std::get<0>(__v) - 1 + __offset;
 
-        return std::get<1>(__v)
-                   ? __write_if_in_bounds(
-                         oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
-                         [&]() {
-                             if constexpr (_ExecuteAssign)
-                                 __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]);
-                         },
-                         [&]() {
-                             if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
-                                 __write_results.set_oob_reached(
-                                     __temp_data.get_src_indexes(__write_results.__capture_src_idx_slot));
-                             else
-                                 __write_results.set_oob_reached();
-                         })
-                   : true;
+            return __write_if_in_bounds(
+                oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
+                [&]() {
+                    if constexpr (_ExecuteAssign)
+                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]);
+                },
+                [&]() {
+                    if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
+                        __write_results.set_oob_reached(
+                            __temp_data.get_src_indexes(__write_results.__capture_src_idx_slot));
+                    else
+                        __write_results.set_oob_reached();
+                });
+        }
+
+        return true;
     }
 
     _Assign __assign;
