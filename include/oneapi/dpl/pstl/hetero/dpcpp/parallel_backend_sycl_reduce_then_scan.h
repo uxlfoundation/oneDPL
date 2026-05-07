@@ -612,9 +612,10 @@ struct __write_scan_by_seg
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _ValueType, typename _TempData,
-              typename _WriteResults>
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&, _WriteResults& __write_results) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&,
+               _ProcessInfo& __process_info) const
     {
         using std::get;
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -636,7 +637,7 @@ struct __write_scan_by_seg
                     if constexpr (_ExecuteAssign)
                         __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
                 },
-                [&]() { __write_results.set_oob_reached(); });
+                [&]() { __process_info.set_oob_reached(); });
         }
         else
         {
@@ -652,7 +653,7 @@ struct __write_scan_by_seg
                                                       : static_cast<_ConvertedTupleType>(
                                                             __binary_op(__init_value.__value, get<1>(get<0>(__v))));
                 },
-                [&]() { __write_results.set_oob_reached(); });
+                [&]() { __process_info.set_oob_reached(); });
         }
     }
 };
