@@ -23,14 +23,15 @@ main()
     namespace dpl_ranges = oneapi::dpl::ranges;
 
     auto checker = TEST_PREPARE_CALLABLE(std::ranges::lexicographical_compare);
+    auto plus_one = [](auto i){ return i + 1; };
     auto almost_always_i = [](auto i){ return (i == medium_size/2 + 19)? 0 : i; };
     using data_gen_needle = decltype(almost_always_i);
 
     launcher<0, int>{big_sz}(dpl_ranges::lexicographical_compare, checker);
-    launcher<1, int>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, proj);
+    launcher<1, int>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, plus_one);
     launcher<2, P2>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{}, &P2::x, &P2::proj);
     launcher<3, P2>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, &P2::proj, &P2::x);
-    launcher<4, int, decltype(proj)>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, proj);
+    launcher<4, int, decltype(plus_one)>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::less{}, plus_one);
     launcher<5, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker);
     launcher<6, int, data_gen_needle>{}(dpl_ranges::lexicographical_compare, checker, std::ranges::greater{});
 #endif //_ENABLE_STD_RANGES_TESTING
