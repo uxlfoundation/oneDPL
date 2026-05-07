@@ -173,6 +173,7 @@ struct __internal::__find_fn
     std::ranges::borrowed_iterator_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
+        // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::ranges::find_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>
                 (__value), __proj);
@@ -391,6 +392,45 @@ struct __internal::__search_n_fn
 }; //__search_n_fn
 inline constexpr __internal::__search_n_fn search_n;
 
+// [alg.contains]
+
+struct __internal::__contains_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R> &&
+                 std::indirect_binary_predicate<std::ranges::equal_to,
+                                                std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
+    {
+        // To ensure no dangling iterator is returned, __r may not be forwarded
+        return oneapi::dpl::ranges::find(std::forward<_ExecutionPolicy>(__exec), __r, __value, __proj)
+               != std::ranges::end(__r);
+    }
+};
+inline constexpr __internal::__contains_fn contains;
+
+struct __internal::__contains_subrange_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R1, std::ranges::random_access_range _R2,
+              typename _Pred = std::ranges::equal_to, typename _Proj1 = std::identity, typename _Proj2 = std::identity>
+        requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>> &&
+                 std::ranges::sized_range<_R1> && std::ranges::sized_range<_R2> &&
+                 std::indirectly_comparable<std::ranges::iterator_t<_R1>, std::ranges::iterator_t<_R2>,
+                                            _Pred, _Proj1, _Proj2>
+    bool
+    operator()(_ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2, _Pred __pred = {}, _Proj1 __proj1 = {},
+               _Proj2 __proj2 = {}) const
+    {
+        // To ensure no dangling subrange is returned, __r1 may not be forwarded
+        return std::ranges::empty(__r2) || !(oneapi::dpl::ranges::search(std::forward<_ExecutionPolicy>(__exec), __r1, __r2,
+                                                                 __pred, __proj1, __proj2).empty());
+    }
+};
+inline constexpr __internal::__contains_subrange_fn contains_subrange;
+
 // [alg.count]
 
 struct __internal::__count_if_fn
@@ -420,6 +460,7 @@ struct __internal::__count_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
         const auto __dispatch_tag = oneapi::dpl::__ranges::__select_backend(__exec);
+        // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::__internal::__ranges::__pattern_count(__dispatch_tag,
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), __value, __proj);
     }
@@ -966,6 +1007,7 @@ struct __internal::__replace_fn
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T1& __old_value, const _T2& __new_value,
                _Proj __proj = {}) const
     {
+        // TODO: make sure std::ranges::equal_to is used for comparison
         return oneapi::dpl::ranges::replace_if(
             std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             oneapi::dpl::__internal::__equal_value<oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T1>>(
@@ -1133,10 +1175,10 @@ inline constexpr __internal::__ends_with_fn ends_with;
 
 struct __internal::__remove_if_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-         std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::permutable<std::ranges::iterator_t<_R>> && std::ranges::sized_range<_R>
+             && std::ranges::sized_range<_R> && std::permutable<std::ranges::iterator_t<_R>>
 
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, _Pred __pred, _Proj __proj = {}) const
@@ -1150,20 +1192,65 @@ inline constexpr __internal::__remove_if_fn remove_if;
 
 struct __internal::__remove_fn
 {
-    template<typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
-             typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, typename _Proj = std::identity,
+              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
     requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
-        && std::permutable<std::ranges::iterator_t<_R>> && std::indirect_binary_predicate<std::ranges::equal_to,
-            std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*> && std::ranges::sized_range<_R>
+             && std::ranges::sized_range<_R> && std::permutable<std::ranges::iterator_t<_R>>
+             && std::indirect_binary_predicate<std::ranges::equal_to,
+                                               std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
 
     std::ranges::borrowed_subrange_t<_R>
     operator()(_ExecutionPolicy&& __exec, _R&& __r, const _T& __value, _Proj __proj = {}) const
     {
+        // TODO: change lambda to a special functor
         return oneapi::dpl::ranges::remove_if(std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r),
             [__value](auto&& __a) { return std::ranges::equal_to{}(__a, __value);}, __proj);
     }
 }; //__remove_fn
 inline constexpr __internal::__remove_fn remove;
+
+struct __internal::__remove_copy_if_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, std::ranges::random_access_range _OutR,
+              typename _Proj = std::identity,
+              std::indirect_unary_predicate<std::projected<std::ranges::iterator_t<_R>, _Proj>> _Pred>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_R> && std::ranges::sized_range<_OutR>
+             && std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR>>
+
+    std::ranges::remove_copy_if_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, _Pred __pred, _Proj __proj = {}) const
+    {
+        return oneapi::dpl::ranges::copy_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
+            oneapi::dpl::__internal::__not_pred<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, _Pred>>(__pred), __proj);
+    }
+}; //__remove_copy_if_fn
+inline constexpr __internal::__remove_copy_if_fn remove_copy_if;
+
+struct __internal::__remove_copy_fn
+{
+    template <typename _ExecutionPolicy, std::ranges::random_access_range _R, std::ranges::random_access_range _OutR,
+              typename _Proj = std::identity,
+              typename _T = oneapi::dpl::projected_value_t<std::ranges::iterator_t<_R>, _Proj>>
+    requires oneapi::dpl::is_execution_policy_v<std::remove_cvref_t<_ExecutionPolicy>>
+             && std::ranges::sized_range<_R> && std::ranges::sized_range<_OutR>
+             && std::indirectly_copyable<std::ranges::iterator_t<_R>, std::ranges::iterator_t<_OutR>>
+             && std::indirect_binary_predicate<std::ranges::equal_to,
+                                               std::projected<std::ranges::iterator_t<_R>, _Proj>, const _T*>
+
+    std::ranges::remove_copy_result<std::ranges::borrowed_iterator_t<_R>, std::ranges::borrowed_iterator_t<_OutR>>
+    operator()(_ExecutionPolicy&& __exec, _R&& __r, _OutR&& __out_r, const _T& __value, _Proj __proj = {}) const
+    {
+        // TODO: make sure std::ranges::equal_to is used for comparison
+        return oneapi::dpl::ranges::copy_if(
+            std::forward<_ExecutionPolicy>(__exec), std::forward<_R>(__r), std::forward<_OutR>(__out_r),
+            oneapi::dpl::__internal::__not_equal_value<
+                oneapi::dpl::__internal::__ref_or_copy<_ExecutionPolicy, const _T>>(__value), __proj);
+    }
+}; //__remove_copy_fn
+inline constexpr __internal::__remove_copy_fn remove_copy;
 
 // [alg.unique]
 

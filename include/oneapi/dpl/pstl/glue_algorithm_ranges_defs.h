@@ -44,6 +44,8 @@ struct __none_of_fn;
 struct __adjacent_find_fn;
 struct __search_fn;
 struct __search_n_fn;
+struct __contains_fn;
+struct __contains_subrange_fn;
 struct __count_if_fn;
 struct __count_fn;
 struct __equal_fn;
@@ -79,6 +81,8 @@ struct __starts_with_fn;
 struct __ends_with_fn;
 struct __remove_if_fn;
 struct __remove_fn;
+struct __remove_copy_if_fn;
+struct __remove_copy_fn;
 struct __unique_fn;
 struct __unique_copy_fn;
 } // namespace ranges::__internal
