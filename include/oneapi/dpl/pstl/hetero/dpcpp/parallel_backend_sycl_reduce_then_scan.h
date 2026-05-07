@@ -337,9 +337,10 @@ struct __simple_write_to_id
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _ValueType, typename _TempData,
-              typename _WriteResults>
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&, _WriteResults& __write_results) const
+    operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&,
+               _ProcessInfo& __process_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -354,7 +355,7 @@ struct __simple_write_to_id
                 if constexpr (_ExecuteAssign)
                     __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
             },
-            [&]() { __write_results.set_oob_reached(); });
+            [&]() { __process_info.set_oob_reached(); });
     }
 };
 
