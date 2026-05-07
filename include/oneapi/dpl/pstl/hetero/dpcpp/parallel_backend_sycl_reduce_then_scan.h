@@ -2694,7 +2694,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __carry_last;
 
                 // propagate carry in from previous block
-                oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry;     // KSATODO contains index for output range
+                oneapi::dpl::__internal::__lazy_ctor_storage<_InitValueType> __sub_group_carry;
 
                 // on the first sub-group in a work-group (assuming S subgroups in a work-group):
                 // 1. load S sub-group local carry prefix sums (T0..TS-1) to SLM
