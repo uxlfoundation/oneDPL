@@ -168,10 +168,11 @@ struct __processed_info
         return __oob_reached;
     }
 
-    void
-    set_oob_source_pos(const _TupleOfSizes& __source_oob_pos)
+    template <typename _TupleOfSizesArg>
+    std::enable_if_t<std::is_same_v<std::decay_t<_TupleOfSizesArg>, _TupleOfSizes>, void>
+    set_oob_source_pos(_TupleOfSizesArg&& __source_oob_pos)
     {
-        __oob_source_pos = __source_oob_pos;
+        __oob_source_pos = std::forward<_TupleOfSizesArg>(__source_oob_pos);
     }
 
     bool
