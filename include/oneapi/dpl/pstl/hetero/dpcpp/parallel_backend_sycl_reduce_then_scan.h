@@ -688,7 +688,7 @@ template <typename _Assign>
 struct __write_multiple_to_id
 {
     template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData>
-    std::enable_if_t<!_Bounded, bool>
+    std::enable_if_t<!_Bounded>
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
@@ -703,16 +703,13 @@ struct __write_multiple_to_id
             __assign(static_cast<_ConvertedTupleType>(__temp_data.get_and_destroy(__i)),
                      __out_rng[std::get<0>(__v) - std::get<1>(__v) + __i]);
         }
-
-        return true;
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType,
-              typename _LocalOffsetToSrcIndexes, typename _ValueType, typename _TempData, typename _ProcessedInfo>
+    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
+              typename _TempData, typename _WriteResults>
     std::enable_if_t<_Bounded, bool>
-    operator()(_OutRng& __out_rng, const _SizeType,
-               _LocalOffsetToSrcIndexes /*__capture_src_idx_slot*/, // Index of processing source data inside work-item
-               const _ValueType& __v, _TempData& __temp_data, _ProcessedInfo& __processed_info) const
+    operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data,
+               _WriteResults& __write_results) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -722,41 +719,34 @@ struct __write_multiple_to_id
                                                                std::decay_t<decltype(__out_rng[0])>>::__type;
 
         using _OutIndex = decltype(std::get<0>(__v) - std::get<1>(__v));
+        const _OutIndex __out_rng_idx_base = std::get<0>(__v) - std::get<1>(__v);
 
         bool __all_writes_succeeded = true;
-        _OutIndex __out_index = {};
-
         const std::size_t __n = std::get<1>(__v);
 
-        auto __create_src_index_getter_local = []([[maybe_unused]] _TempData& __temp_data,
-                                                  [[maybe_unused]] std::size_t& __i) {
-            if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
-                return __create_src_index_getter(__temp_data, __i);
-            else
-                return __create_no_oob_src_index_getter<_TempData>();
-        };
-
-        std::size_t __i = 0;
-        const auto _src_index_getter = __create_src_index_getter_local(__temp_data, __i);
+        const auto __out_rng_size = oneapi::dpl::__ranges::__size(__out_rng);
 
         // Continue iterating even after a failed write to ensure all elements in
         // __temp_data are destroyed via get_and_destroy(), preventing resource leaks.
-        for (; __i < __n; ++__i)
+        for (std::size_t __i = 0; __i < __n; ++__i)
         {
-            __out_index = std::get<0>(__v) - std::get<1>(__v) + __i;
-
             auto&& __current_val = __temp_data.get_and_destroy(__i);
 
             __all_writes_succeeded = __all_writes_succeeded &&
-                                     __write_if_in_bounds<_Bounded, __temp_data_capture_indexes_flag_v<_TempData>>(
-                                         __out_rng, __out_index,
-                                         [&]([[maybe_unused]] auto __out_idx_arg) {
+                                     __write_if_in_bounds(
+                                         __out_rng_size, __out_rng_idx_base + __i,
+                                         [&]() {
                                              if constexpr (_ExecuteAssign)
                                                  __assign(static_cast<_ConvertedTupleType>(
                                                               std::forward<decltype(__current_val)>(__current_val)),
-                                                          __out_rng[__out_idx_arg]);
+                                                          __out_rng[__out_rng_idx_base + __i]);
                                          },
-                                         _src_index_getter, __processed_info);
+                                         [&]() {
+                                             if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
+                                                 __write_results.set_oob_reached(__temp_data.get_src_indexes(__i));
+                                             else
+                                                 __write_results.set_oob_reached();
+                                         });
         }
 
         return __all_writes_succeeded;
