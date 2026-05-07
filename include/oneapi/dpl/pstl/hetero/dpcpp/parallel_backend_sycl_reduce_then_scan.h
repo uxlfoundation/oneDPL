@@ -1941,7 +1941,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
 
     bool __all_writes_succeeded = true;
 
-    auto __call_write_op = [&](std::size_t __id, std::size_t __capture_src_idx_slot, auto&&... __args) -> bool {
+    auto __call_write_op = [&](std::size_t __id, auto&&... __args) -> bool {
         if constexpr (__capture_output)
         {
             if constexpr (!_Bounded)
@@ -1951,9 +1951,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             }
             else
             {
-                _write_results<_ProcessedInfo, std::size_t> __write_results(__processed_info, __capture_src_idx_slot);
                 return __write_op.template operator()<_Bounded, _ExecuteAssign>(__out_rng, __id, __args..., __temp_out,
-                                                                                __write_results);
+                                                                                __processed_info);
             }
         }
         else
@@ -1967,7 +1966,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
         __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(__sub_group, __scan_input_transform(__v),
                                                                             __binary_op, __sub_group_carry);
-        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
+        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
         if (__is_full_block)
         {
@@ -1978,7 +1977,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, /*__capture_src_idx_slot*/ __j, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
         else
@@ -1990,7 +1989,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 __v = __gen_input(__in_rng, __start_id + __j * __sub_group_size, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, /*__capture_src_idx_slot*/ __j, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id + __j * __sub_group_size, __v);
             }
         }
     }
@@ -2012,7 +2011,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__start_id < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
                 }
             }
             else
@@ -2020,7 +2019,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 _GenInputType __v = __gen_input(__in_rng, __start_id, __temp_out, __processed_info);
                 __sub_group_scan<__sub_group_size, __is_inclusive, __init_present>(
                     __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, /*__capture_src_idx_slot*/ 0, __v);
+                __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__start_id, __v);
 
                 for (std::uint32_t __j = 1; __j < __iters - 1; __j++)
                 {
@@ -2028,7 +2027,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                     __v = __gen_input(__in_rng, __local_id, __temp_out, __processed_info);
                     __sub_group_scan<__sub_group_size, __is_inclusive, /*__init_present=*/true>(
                         __sub_group, __scan_input_transform(__v), __binary_op, __sub_group_carry);
-                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, /*__capture_src_idx_slot*/ __j, __v);
+                    __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__local_id, __v);
                 }
 
                 std::size_t __offset = __start_id + (__iters - 1) * __sub_group_size;
@@ -2040,7 +2039,7 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
                 if constexpr (__capture_output)
                 {
                     if (__offset < __n)
-                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, /*__capture_src_idx_slot*/ (__iters - 1), __v);
+                        __all_writes_succeeded = __all_writes_succeeded && __call_write_op(__offset, __v);
                 }
             }
         }
