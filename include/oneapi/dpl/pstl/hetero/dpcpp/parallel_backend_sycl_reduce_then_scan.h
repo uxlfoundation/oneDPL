@@ -319,6 +319,34 @@ __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __ass
     return false;
 }
 
+template <typename _ProcessedInfo, typename _LocalOffsetToSrcIndexes>
+struct _write_results
+{
+    using _TupleOfSizes = _ProcessedInfo::_TupleOfSizes;
+
+    _write_results(_ProcessedInfo& __processed_info, _LocalOffsetToSrcIndexes __capture_src_idx_slot)
+        : __processed_info(__processed_info), __capture_src_idx_slot(__capture_src_idx_slot)
+    {
+    }
+
+    void
+    set_oob_reached()
+    {
+        __processed_info.set_oob_reached();
+    }
+
+    template <typename _TupleOfSizesArg>
+    std::enable_if_t<std::is_same_v<std::decay_t<_TupleOfSizesArg>, _TupleOfSizes>, void>
+    set_oob_reached(_TupleOfSizesArg&& __src_indexes)
+    {
+        __processed_info.set_oob_reached();
+        __processed_info.set_oob_source_pos(std::forward<_TupleOfSizesArg>(__src_indexes));
+    }
+
+    _ProcessedInfo& __processed_info;
+    const _LocalOffsetToSrcIndexes __capture_src_idx_slot; // Index of processing source data inside work-item
+};
+
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
 // Used in __parallel_transform_scan.
 struct __simple_write_to_id
