@@ -442,10 +442,10 @@ struct __write_to_id_if_else
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
-              typename _TempData, typename _WriteResults>
+              typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
-               _WriteResults& __write_results) const
+               _ProcessInfo& __process_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -469,7 +469,7 @@ struct __write_to_id_if_else
                                  std::get<1>(__out_rng[__out_rng_idx]));
                 }
             },
-            [&]() { __write_results.set_oob_reached(); });
+            [&]() { __process_info.set_oob_reached(); });
     }
 
     _Assign __assign;
