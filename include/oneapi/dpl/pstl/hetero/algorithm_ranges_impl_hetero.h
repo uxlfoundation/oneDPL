@@ -795,6 +795,24 @@ __pattern_reverse_copy(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _In
 }
 
 //------------------------------------------------------------------------
+// replace_copy
+//------------------------------------------------------------------------
+template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange, typename _Pred,
+          typename _T, typename _Proj>
+void
+__pattern_replace_copy_if(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, _InRange&& __r,
+                          _OutRange&& __out_r, _Pred __pred, const _T& __new_value, _Proj __proj)
+{
+    assert(std::ranges::size(__r) <= std::ranges::size(__out_r));
+    oneapi::dpl::__internal::__replace_copy_functor<const _T, oneapi::dpl::__internal::__unary_op<_Pred, _Proj>>
+        __f{__new_value, {__pred, __proj}};
+
+    oneapi::dpl::__internal::__ranges::__pattern_walk_n(__tag, std::forward<_ExecutionPolicy>(__exec), __f,
+        oneapi::dpl::__ranges::views::all_read(std::forward<_InRange>(__r)),
+        oneapi::dpl::__ranges::views::all_write(std::forward<_OutRange>(__out_r)));
+}
+
+//------------------------------------------------------------------------
 // move
 //------------------------------------------------------------------------
 template<typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OutRange>

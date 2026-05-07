@@ -74,6 +74,8 @@ struct __move_fn;
 struct __swap_ranges_fn;
 struct __replace_if_fn;
 struct __replace_fn;
+struct __replace_copy_if_fn;
+struct __replace_copy_fn;
 struct __reverse_fn;
 struct __reverse_copy_fn;
 struct __mismatch_fn;
