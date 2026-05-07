@@ -722,8 +722,7 @@ __find_subrange(_RandomAccessIterator1 __first, _RandomAccessIterator1 __last, _
         // then we can exit the loop (b_first == true) or keep the position
         // (b_first == false)
         if (__first != __last && (__global_last - __first >= __n2) &&
-            __internal::__brick_equal(__s_first + 1, __s_last, __first + 1,
-                                      oneapi::dpl::__internal::__reorder_pred(__pred), __is_vector))
+            __internal::__brick_equal(__first + 1, __first + __n2, __s_first + 1, __pred, __is_vector))
         {
             if (__b_first)
             {
@@ -4998,23 +4997,25 @@ __pattern_lexicographical_compare(__parallel_tag<_IsVector> __tag, _ExecutionPol
         return __internal::__except_handler([&]() {
             --__last1;
             --__last2;
-            auto __n = ::std::min(__last1 - __first1, __last2 - __first2);
+            auto __n = std::min(__last1 - __first1, __last2 - __first2);
+            __internal::__reorder_pred<_Compare> __reordered_comp{__comp};
             auto __result = __internal::__parallel_find(
-                __tag, ::std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
-                [__first1, __first2, &__comp](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j) {
+                __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __first1 + __n,
+                [__first1, __first2, &__comp, &__reordered_comp](_RandomAccessIterator1 __i, _RandomAccessIterator1 __j)
+                {
                     return __internal::__brick_mismatch(
                                __i, __j, __first2 + (__i - __first1), __first2 + (__j - __first1),
-                               [&__comp](const _RefType1 __x, const _RefType2 __y) {
-                                   return !std::invoke(__comp, __x, __y) && !std::invoke(__comp, __y, __x);
+                               [&__comp, &__reordered_comp](const _RefType1 __x, const _RefType2 __y) {
+                                   return !std::invoke(__comp, __x, __y) && !__reordered_comp(__x, __y);
                                },
                                _IsVector{})
                         .first;
                 },
-                ::std::true_type{});
+                std::true_type{});
 
             if (__result == __last1 && __first2 + (__result - __first1) != __last2)
             { // if first sequence shorter than second
-                return !std::invoke(__comp, *(__first2 + (__result - __first1)), *__result);
+                return !__reordered_comp(*__result, *(__first2 + (__result - __first1)));
             }
             else
             { // if second sequence shorter than first or both have the same number of elements
