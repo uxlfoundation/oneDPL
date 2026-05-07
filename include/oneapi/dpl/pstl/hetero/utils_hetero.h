@@ -150,7 +150,7 @@ struct __pattern_lexicographical_compare_transform_fn
 template <typename _ReduceValueType>
 struct __pattern_lexicographical_compare_reduce_fn
 {
-    auto
+    _ReduceValueType
     operator()(_ReduceValueType __left, _ReduceValueType __right) const
     {
         return (__left == 0) ? __right : __left; // non-commutative
