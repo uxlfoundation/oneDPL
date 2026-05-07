@@ -1968,10 +1968,16 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
         if constexpr (__capture_output)
         {
             if constexpr (!_Bounded)
-                return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out);
+            {
+                __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out);
+                return true;
+            }
             else
-                return __write_op.template operator()<_Bounded, _ExecuteAssign>(
-                    __out_rng, __id, __capture_src_idx_slot, __args..., __temp_out, __processed_info);
+            {
+                _write_results<_ProcessedInfo, std::size_t> __write_results(__processed_info, __capture_src_idx_slot);
+                return __write_op.template operator()<_Bounded, _ExecuteAssign>(__out_rng, __id, __args..., __temp_out,
+                                                                                __write_results);
+            }
         }
         else
         {
