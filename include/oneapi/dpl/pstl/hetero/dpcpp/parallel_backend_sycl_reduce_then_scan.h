@@ -301,45 +301,22 @@ struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
 template <typename _T>
 using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
 
-// The __local_offset_to_src_indexes parameter is zero-based for each work-item inside sub-group, all states less than zero describes unknown state
-template <bool _Bounded, bool _CaptureIndexes, typename _OutRng, typename _OutLocalSizeType, typename _Assigner,
-          typename _SourceOOBPosIndexGetter, typename _ProcessedInfo>
+template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OnOOBReachedPred>
 bool
-__write_if_in_bounds(const _OutRng& __out_rng, _OutLocalSizeType __out_idx, _Assigner&& __assign,
-                     const _SourceOOBPosIndexGetter& __source_oob_pos_index_getter, _ProcessedInfo& __processed_info)
+__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign,
+                     _OnOOBReachedPred __on_oob_reached_pred)
 {
-    if constexpr (_Bounded)
+    if (__out_idx < __out_size)
     {
-        const auto __out_size = oneapi::dpl::__ranges::__size(__out_rng);
-        if (__out_idx < __out_size)
-        {
-            __assign(__out_idx);
-            return true;
-        }
-
-        // OOB reached means we going to write to the next position after the last valid position
-        else if (__out_idx == __out_size) 
-        {
-            __processed_info.set_oob_reached();
-
-            // If we captured indexes for the temporary data, we can use the index of the first OOB element to fetch the source
-            if constexpr (_CaptureIndexes)
-            {
-                const auto& [__has_source_oob_pos_indexes, __source_oob_pos_indexes] = __source_oob_pos_index_getter();
-                if (__has_source_oob_pos_indexes)
-                {
-                    __processed_info.set_oob_source_pos(__source_oob_pos_indexes);
-                }
-            }
-        }
-
-        return false;
-    }
-    else
-    {
-        __assign(__out_idx);
+        __assign();
         return true;
     }
+
+    // OOB reached means we going to write to the next position after the last valid position
+    if (__out_idx == __out_size)
+        __on_oob_reached_pred();
+
+    return false;
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
