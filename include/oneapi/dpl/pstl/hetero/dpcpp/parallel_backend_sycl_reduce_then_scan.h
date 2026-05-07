@@ -684,10 +684,10 @@ struct __write_multiple_to_id
     }
 
     template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
-              typename _TempData, typename _WriteResults>
+              typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data,
-               _WriteResults& __write_results) const
+               _ProcessInfo& __process_info) const
     {
         // Use of an explicit cast to our internal tuple type is required to resolve conversion issues between our
         // internal tuple and std::tuple. If the underlying type is not a tuple, then the type will just be passed
@@ -720,10 +720,9 @@ struct __write_multiple_to_id
                                                           __out_rng[__out_rng_idx_base + __i]);
                                          },
                                          [&]() {
+                                             __process_info.set_oob_reached();
                                              if constexpr (__temp_data_capture_indexes_flag_v<_TempData>)
-                                                 __write_results.set_oob_reached(__temp_data.get_src_indexes(__i));
-                                             else
-                                                 __write_results.set_oob_reached();
+                                                 __process_info.set_oob_source_pos(__temp_data.get_src_indexes(__i));
                                          });
         }
 
