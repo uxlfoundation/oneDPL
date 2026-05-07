@@ -1356,37 +1356,6 @@ __pattern_partition(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __exec, 
 // lexicographical_compare
 //------------------------------------------------------------------------
 
-template <typename _ReduceValueType>
-struct __pattern_lexicographical_compare_reduce_fn
-{
-    auto
-    operator()(_ReduceValueType __a, _ReduceValueType __b) const
-    {
-        bool __is_mismatched = __a != 0;
-        return __a * __is_mismatched + __b * !__is_mismatched;
-    }
-};
-
-template <typename _Compare, typename _ReduceValueType>
-struct __pattern_lexicographical_compare_transform_fn
-{
-    _Compare __comp;
-
-    template <typename _TGroupIdx, typename _TAcc1, typename _TAcc2>
-    _ReduceValueType
-    operator()(_TGroupIdx __gidx, _TAcc1 __acc1, _TAcc2 __acc2) const
-    {
-        auto const& __s1_val = __acc1[__gidx];
-        auto const& __s2_val = __acc2[__gidx];
-
-        std::int32_t __is_s1_val_less = std::invoke(__comp, __s1_val, __s2_val);
-        std::int32_t __is_s1_val_greater = std::invoke(__comp, __s2_val, __s1_val);
-
-        // 1 if __s1_val <  __s2_val, -1 if __s1_val <  __s2_val, 0 if __s1_val == __s2_val
-        return _ReduceValueType{1 * __is_s1_val_less - 1 * __is_s1_val_greater};
-    }
-};
-
 template <typename _BackendTag, typename _ExecutionPolicy, typename _Iterator1, typename _Iterator2, typename _Compare>
 bool
 __pattern_lexicographical_compare(__hetero_tag<_BackendTag>, _ExecutionPolicy&& __exec, _Iterator1 __first1,
