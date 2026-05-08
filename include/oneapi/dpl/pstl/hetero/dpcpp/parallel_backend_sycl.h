@@ -914,7 +914,7 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, _GenMask{__pred},
             _WriteOp{_Assign{}}, /*_IsUniquePattern=*/std::true_type{});
 
-        _Size __stop_out = __wait_and_get_result(__res);
+        _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
         auto __finish_pos = __stop_pos_payloads_tools</*_Bounded*/ true>::template __get_finish_pos<__stop_pos_t>(
             std::get<2>(__res), std::tuple<_Size>(__n));
@@ -1042,7 +1042,7 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, _GenMask{__pred},
             _WriteOp{__assign}, /*_IsUniquePattern=*/std::false_type{});
 
-        _Size __stop_out = __wait_and_get_result(__res);
+        _Size __stop_out = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
         auto __finish_pos = __stop_pos_payloads_tools</*_Bounded*/ true>::template __get_finish_pos<__stop_pos_t>(
             std::get<2>(__res), std::tuple<_Size>(__n));
@@ -1119,7 +1119,7 @@ __parallel_set_reduce_then_scan_set_a_write(_SetTag, sycl::queue& __q, _Range1&&
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{});
 
-    auto __output_res = __wait_and_get_result(__res);
+    auto __output_res = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
     if constexpr (_Bounded)
     {
@@ -1215,7 +1215,7 @@ __parallel_set_write_a_b_op(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2
         _ScanInputTransform{}, _WriteOp{}, oneapi::dpl::unseq_backend::__no_init_value<_Size3>{},
         /*_Inclusive=*/std::true_type{}, /*__is_unique_pattern=*/std::false_type{}, __partition_event);
 
-    auto __output_res = __wait_and_get_result(__res);
+    auto __output_res = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
     if constexpr (_Bounded)
     {
@@ -1279,7 +1279,7 @@ __parallel_set_scan(_SetTag, sycl::queue& __q, _Range1&& __rng1, _Range2&& __rng
         // global scan and apex
         __copy_by_mask_op, unseq_backend::__copy_by_mask_stops{});
 
-    auto __output_res = __wait_and_get_result(__res);
+    auto __output_res = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
 
     // KSATODO this return looks incorrect
     return {__n1, __n2, __output_res};
@@ -2502,7 +2502,7 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 
             // Because our init type ends up being tuple<std::size_t, ValType>, return the first component which is the write index. Add 1 to return the
             // past-the-end iterator pair of segmented reduction.
-            auto __output_res = __wait_and_get_result(__res);
+            auto __output_res = __wait_and_get_result(std::get<0>(std::move(__res)), std::get<1>(std::move(__res)));
             return std::get<0>(__output_res) + 1;
         }
     }
