@@ -1223,7 +1223,6 @@ __pattern_set_difference(__hetero_tag<_BackendTag> __tag, _ExecutionPolicy&& __e
         oneapi::dpl::__ranges::__get_subscription_view(__r1), oneapi::dpl::__ranges::__get_subscription_view(__r2),
         oneapi::dpl::__ranges::__get_subscription_view(__out_r), __comp, __proj1, __proj2);
 
-    // TODO the second argument isn't correct for now
     return oneapi::dpl::__internal::__ranges::__create_set_difference_result<_R1, _R2, _OutRange>(
         __first1 + __n1, __first2 + __n2, __result + __result_size);
 }
