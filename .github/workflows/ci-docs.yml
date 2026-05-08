@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install prerequisites
         run: |
           sudo apt update && sudo apt install -y codespell
@@ -30,8 +30,8 @@ jobs:
   documentation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           # Set the python version to 3.12 to keep imghdr for sphinx. Could upgrade sphinx to 6.2 to use 3.x version.
           python-version: '3.12'
@@ -44,7 +44,7 @@ jobs:
           mkdir html
           sphinx-build -b html documentation/ html/
       - name: Archive build directory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
             name: onedpl-html-docs-${{ env.GITHUB_SHA_SHORT }}
             path: html
