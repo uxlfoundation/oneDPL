@@ -61,25 +61,15 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202409L`` or a greater value,
 
 * ``for_each``
 * ``transform``
-* ``find``
-* ``find_if``
-* ``find_if_not``
+* ``find``, ``find_if``, ``find_if_not``
 * ``adjacent_find``
-* ``all_of``
-* ``any_of``
-* ``none_of``
-* ``search``
-* ``search_n``
-* ``count``
-* ``count_if``
+* ``all_of``, ``any_of``, ``none_of``
+* ``search``, ``search_n``
+* ``count``, ``count_if``
 * ``equal``
-* ``sort``
-* ``stable_sort``
-* ``is_sorted``
-* ``min_element``
-* ``max_element``
-* ``copy``
-* ``copy_if``
+* ``sort``, ``stable_sort``, ``is_sorted``
+* ``min_element``, ``max_element``
+* ``copy``, ``copy_if``
 * ``merge``
 
 .. _range-algorithms-202505L:
@@ -88,15 +78,11 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 
 * ``fill``
 * ``move``
-* ``replace``
-* ``replace_if``
-* ``remove``
-* ``remove_if``
+* ``replace``, ``replace_if``
+* ``remove``, ``remove_if``
 * ``mismatch``
 * ``minmax_element``
-* ``minmax``
-* ``min``
-* ``max``
+* ``min``, ``max``, ``minmax``
 * ``find_first_of``
 * ``find_end``
 * ``is_sorted_until``
@@ -106,20 +92,13 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202505L`` or a greater value,
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value, the following algorithms are provided:
 
 * ``includes``
-* ``reverse``
-* ``reverse_copy``
-* ``set_difference``
-* ``set_intersection``
-* ``set_symmetric_difference``
-* ``set_union``
-* ``unique``
-* ``unique_copy``
+* ``reverse``, ``reverse_copy``
+* ``set_difference``, ``set_symmetric_difference``, ``set_intersection``, ``set_union``
+* ``unique``, ``unique_copy``
 * ``swap_ranges``
 * ``destroy``
-* ``uninitialized_default_construct``
-* ``uninitialized_value_construct``
-* ``uninitialized_copy``
-* ``uninitialized_move``
+* ``uninitialized_default_construct``, ``uninitialized_value_construct``
+* ``uninitialized_copy``, ``uninitialized_move``
 * ``uninitialized_fill``
 
 .. _range-algorithms-202604L:
@@ -127,6 +106,17 @@ If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202509L`` or a greater value,
 If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202604L`` or a greater value, the following random access adapter is provided:
 
 * ``oneapi::dpl::experimental::ranges::zip_view``
+
+.. _range-algorithms-202605L:
+
+If ``ONEDPL_HAS_RANGE_ALGORITHMS`` is defined to ``202605L`` or a greater value, the following algorithms are provided:
+
+* ``contains``, ``contains_subrange``
+* ``find_last``, ``find_last_if``, ``find_last_if_not``
+* ``lexicographical_compare``
+* ``remove_copy``, ``remove_copy_if``
+* ``replace_copy``, ``replace_copy_if``
+* ``starts_with``, ``ends_with``
 
 Usage Example for Parallel Range Algorithms
 -------------------------------------------
