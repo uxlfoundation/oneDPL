@@ -2707,11 +2707,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     }
 
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
-    std::conditional_t<
-        _Bounded,
-        std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
-        std::tuple<sycl::event>
-    >
+    std::conditional_t<_Bounded, std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
+                       std::tuple<sycl::event>>
     operator()(sycl::queue& __q, const sycl::nd_range<1> __nd_range, _InRng&& __in_rng, _OutRng&& __out_rng,
                _TmpStorageAcc& __scratch_container, sycl::event __prior_event,
                const std::size_t __inputs_remaining, const std::size_t __block_num) const
