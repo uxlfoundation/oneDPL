@@ -23,7 +23,6 @@
 #include <cassert>
 #include <cmath>
 #include <tuple>
-#include <array>    // for std::array
 #include <optional> // for std::optional
 
 #include "algorithm_fwd.h"
