@@ -1096,15 +1096,15 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-template <typename _R1, typename _R2, typename _OutRange>
-using __set_difference_return_t =
-    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>;
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
 template <typename _R1, typename _R2, typename _OutRange>
 using __set_difference_return_t =
     std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_OutRange>>;
+#else
+template <typename _R1, typename _R2, typename _OutRange>
+using __set_difference_return_t =
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_OutRange>>;
 #endif
 
 // Helper function to create the appropriate return type for oneapi::dpl::ranges::set_difference based on C++23 compatibility mode.
@@ -1113,10 +1113,10 @@ template <typename _R1, typename _R2, typename _OutRange, typename _It1, typenam
 __set_difference_return_t<_R1, _R2, _OutRange>
 __create_set_difference_result(_It1 __it1, _It2 __it2, _ItOut __it_out)
 {
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-    return std::ranges::in_out_result<_It1, _ItOut>{__it1, __it_out};
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
     return std::ranges::in_in_out_result<_It1, _It2, _ItOut>{__it1, __it2, __it_out};
+#else
+    return std::ranges::in_out_result<_It1, _ItOut>{__it1, __it_out};
 #endif
 }
 

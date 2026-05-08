@@ -92,15 +92,15 @@ void test_mixed_types_device()
 }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
-using set_difference_result_t =
-    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>;
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
 template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
 using set_difference_result_t =
     std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
                                   std::ranges::borrowed_iterator_t<_ROut>>;
+#else
+template <std::ranges::range _R1, std::ranges::range _R2, std::ranges::range _ROut>
+using set_difference_result_t =
+    std::ranges::in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_ROut>>;
 #endif
 
 struct
@@ -154,10 +154,10 @@ struct
         assert(idx1 <= n1);
         assert(idxOut <= nOut);
 
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-        return {in1 + idx1, out + idxOut};
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
         return {in1 + idx1, in2 + idx2, out + idxOut};
+#else
+        return {in1 + idx1, out + idxOut};
 #endif
     }
 } set_difference_checker;
@@ -178,12 +178,12 @@ test_set_difference_checker()
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
-        EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, set2.begin() + 15, "Wrong 'in2' state of result");
+        EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
+#else
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
         EXPECT_EQ(res.out, set3.begin(), "Wrong 'out' state of result");
 #    endif
     }
@@ -201,11 +201,11 @@ test_set_difference_checker()
         std::vector<int> set2{1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
-#else
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, set2.begin() + 9, "Wrong 'in2' state of result");
+#else
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
 #endif
 
         const std::vector<int> resExpected{10, 11, 12, 13, 14, 15};
@@ -228,11 +228,11 @@ test_set_difference_checker()
         std::vector<int> set2{4, 5, 6, 7, 11, 12, 13, 15, 16, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
         std::vector<int> set3(set1.size() + set2.size());
         auto res = set_difference_checker(set1, set2, set3);
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
-        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
-#else                                                               
+#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
         EXPECT_EQ(res.in1, set1.end(), "Wrong 'in1' state of result");
         EXPECT_EQ(res.in2, set2.begin() + 14, "Wrong 'in2' state of result");
+#else                                                               
+        EXPECT_EQ(res.in, set1.end(), "Wrong 'in' state of result");
 #endif
 
         const std::vector<int> resExpected{1, 2, 3, 8, 9, 10};
@@ -277,7 +277,7 @@ main()
 #if TEST_DPCPP_BACKEND_PRESENT
 
 // TODO remove the definition check after implementation range-based set operations for bounded output range with hetero policies
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP23_RESULT
+#if !ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
     test_mixed_types_device();
 #endif
 
