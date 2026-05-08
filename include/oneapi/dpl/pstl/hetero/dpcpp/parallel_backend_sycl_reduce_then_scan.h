@@ -238,7 +238,6 @@ struct __noop_temp_data_capture_indexes
 {
     static constexpr std::uint16_t _Elements = 0;
     static constexpr bool _CaptureIndexes = true;
-    //using _ValueType = _ValueT;
 
     using _TupleOfSizes = __stop_pos_t;
 
