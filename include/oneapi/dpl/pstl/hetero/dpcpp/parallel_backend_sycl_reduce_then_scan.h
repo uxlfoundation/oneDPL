@@ -301,22 +301,13 @@ struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
 template <typename _T>
 using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
 
-template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OnOOBReachedPred>
+template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OOBReachedPred>
 bool
-__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign,
-                     _OnOOBReachedPred __on_oob_reached_pred)
+__write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
 {
-    if (__out_idx < __out_size)
-    {
-        __assign();
-        return true;
-    }
-
-    // OOB reached means we going to write to the next position after the last valid position
-    if (__out_idx == __out_size)
-        __on_oob_reached_pred();
-
-    return false;
+    const bool __is_in_bounds = __out_idx < __out_size;
+    __is_in_bounds ? __assign() : (__out_idx == __out_size ? __oob_pred() : void());
+    return __is_in_bounds;
 }
 
 // Writes a single element to the output range at the specified index, `__id`. The value to write is passed in as `__v`.
