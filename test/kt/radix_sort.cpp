@@ -33,6 +33,8 @@
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
 
+using namespace TestUtils;
+
 #include "radix_sort_utils.h"
 
 #if _ENABLE_RANGES_TESTING

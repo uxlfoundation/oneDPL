@@ -119,6 +119,27 @@ __order_preserving_cast(__dpl_esimd::__ns::simd<_Int, _N> __src)
     return __src.template bit_cast_view<_UInt>() ^ __mask;
 }
 
+template <bool __is_ascending, typename _Float, int _N, std::enable_if_t<std::is_same_v<_Float, sycl::half>, int> = 0>
+__dpl_esimd::__ns::simd<::std::uint16_t, _N>
+__order_preserving_cast(__dpl_esimd::__ns::simd<_Float, _N> __src)
+{
+    __dpl_esimd::__ns::simd<::std::uint16_t, _N> __uint16_src = __src.template bit_cast_view<::std::uint16_t>();
+    __dpl_esimd::__ns::simd<::std::uint16_t, _N> __mask;
+    __dpl_esimd::__ns::simd_mask<_N> __sign_bit_m = (__uint16_src >> 15 == 0);
+    if constexpr (__is_ascending)
+    {
+        __mask = __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint16_t, _N>(0x8000u),
+                                          __dpl_esimd::__ns::simd<::std::uint16_t, _N>(0xFFFFu), __sign_bit_m);
+    }
+    else
+    {
+        __mask =
+            __dpl_esimd::__ns::merge(__dpl_esimd::__ns::simd<::std::uint16_t, _N>(0x7FFFu),
+                                     __dpl_esimd::__ns::simd<::std::uint16_t, _N>(::std::uint16_t(0)), __sign_bit_m);
+    }
+    return __uint16_src ^ __mask;
+}
+
 template <bool __is_ascending, typename _Float, int _N,
           std::enable_if_t<::std::is_floating_point_v<_Float> && sizeof(_Float) == sizeof(::std::uint32_t), int> = 0>
 __dpl_esimd::__ns::simd<::std::uint32_t, _N>

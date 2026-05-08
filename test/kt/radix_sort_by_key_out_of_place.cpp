@@ -25,6 +25,8 @@
 #include "../support/utils.h"
 #include "../support/sycl_alloc_utils.h"
 
+using namespace TestUtils;
+
 #include "radix_sort_utils.h"
 
 template <typename KeyT, typename ValueT, bool isAscending, std::uint32_t RadixBits, typename KernelParam>
