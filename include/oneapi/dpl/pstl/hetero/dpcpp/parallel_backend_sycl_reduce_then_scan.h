@@ -286,21 +286,6 @@ struct __get_zeroth_element
 
 // *** Write Operations ***
 
-template <typename _T, typename = void>
-struct _TupleOfIndexesSelector
-{
-    using type = std::monostate;
-};
-
-template <typename _T>
-struct _TupleOfIndexesSelector<_T, std::void_t<typename _T::_TupleOfSizes>>
-{
-    using type = typename _T::_TupleOfSizes;
-};
-
-template <typename _T>
-using _TupleOfIndexesSelector_t = typename _TupleOfIndexesSelector<_T>::type;
-
 template <typename _OutSize, typename _OutIndex, typename _Assigner, typename _OOBReachedPred>
 bool
 __write_if_in_bounds(_OutSize __out_size, _OutIndex __out_idx, _Assigner&& __assign, _OOBReachedPred __oob_pred)
@@ -2412,6 +2397,25 @@ struct __stop_pos_payloads_tools
     }
 };
 
+namespace __details
+{
+template <typename _T, typename = void>
+struct __tuple_of_sizes_selector
+{
+    using type = std::monostate;
+};
+
+template <typename _T>
+struct __tuple_of_sizes_selector<_T, std::void_t<typename _T::_TupleOfSizes>>
+{
+    using type = typename _T::_TupleOfSizes;
+};
+
+template <typename _T>
+using __tuple_of_sizes_selector_t = typename __tuple_of_sizes_selector<_T>::type;
+
+} // namespace __details
+
 template <bool _Bounded, std::uint16_t __max_inputs_per_item, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
           typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
           typename _KernelNameInit, typename _KernelName>
@@ -2461,7 +2465,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
     template <typename _Type>
     static constexpr bool __is_defined = !std::is_same_v<std::decay_t<_Type>, std::monostate>;
 
-    template <typename _ProcessedInfo, typename _TupleOfSizes = _TupleOfIndexesSelector_t<_ProcessedInfo>>
+    template <typename _ProcessedInfo, typename _TupleOfSizes = __details::__tuple_of_sizes_selector_t<_ProcessedInfo>>
     std::conditional_t<_Bounded && __is_defined<_TupleOfSizes>, __dpl_sycl::__local_accessor<_TupleOfSizes>,
                        std::monostate>
     __create_wg_src_final_pos_local_accessor(std::uint32_t __count, sycl::handler& __cgh) const
@@ -3016,7 +3020,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
 
                 {
                     bool __oob_reached_in_this_wi = false;
-                    _TupleOfIndexesSelector_t<_ProcessedInfo> __final_pos_wi = {};
+                    __details::__tuple_of_sizes_selector_t<_ProcessedInfo> __final_pos_wi = {};
 
                     {
                         _TempDataNoCaptureIndexes __temp_out{};
