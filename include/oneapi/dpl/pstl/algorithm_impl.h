@@ -23,7 +23,6 @@
 #include <cassert>
 #include <cmath>
 #include <tuple>
-#include <array>    // for std::array
 #include <optional> // for std::optional
 
 #include "algorithm_fwd.h"
@@ -3282,14 +3281,7 @@ __pattern_includes(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _
     });
 }
 
-template <typename Size>
-constexpr bool
-__is_set_algo_cutoff_exceeded(Size size)
-{
-    // 1000 is chosen as a cut-off value based on benchmarking source data sizes
-    constexpr Size __set_algo_cut_off = 1000;
-    return size > __set_algo_cut_off;
-}
+inline constexpr auto __set_algo_cut_off = 1000;
 
 // _ReachedOffset - describes reached offset in input range
 //  - the first field contains the amount of processed items
@@ -3337,7 +3329,8 @@ struct _DataPart
     bool
     is_output_size_reached(_DifferenceType __n_out) const
     {
-        const _DifferenceType __n_out_idx = std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
+        const _DifferenceType __n_out_idx =
+            std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
 
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
@@ -4167,7 +4160,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
     auto __mask_size_fnc = __size_fnc;
 
     const _DifferenceType1 __m1 = __left_bound_seq_1 - __first1;
-    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
+    if (__m1 > __set_algo_cut_off)
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
@@ -4196,7 +4189,7 @@ __parallel_set_union_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __ex
 
     const _DifferenceType2 __m2 = __left_bound_seq_2 - __first2;
     assert(__m1 == 0 || __m2 == 0);
-    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
+    if (__m2 > __set_algo_cut_off)
     {
         oneapi::dpl::__utils::__set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _OutputIterator>
             __finish;
@@ -4289,7 +4282,7 @@ __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, 
     const _DifferenceType2 __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
+    if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_union(__first1, __last1, __first2, __last2, __result, __comp);
 
     return __parallel_set_union_op</*__Bounded*/ false>(
@@ -4370,7 +4363,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
         return __result;
 
     const _DifferenceType __m1 = __last1 - __left_bound_seq_1 + __n2;
-    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m1))
+    if (__m1 > __set_algo_cut_off)
     {
         //we know proper offset due to [first1; left_bound_seq_1) < [first2; last2)
         return __internal::__except_handler([&]() {
@@ -4389,7 +4382,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     }
 
     const _DifferenceType __m2 = __last2 - __left_bound_seq_2 + __n1;
-    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__m2))
+    if (__m2 > __set_algo_cut_off)
     {
         //we know proper offset due to [first2; left_bound_seq_2) < [first1; last1)
         return __internal::__except_handler([&]() {
@@ -4484,7 +4477,7 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
         return __internal::__pattern_walk2_brick(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1,
                                                  __result, __brick_copy<__parallel_tag<_IsVector>>{});
 
-    if (oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
+    if (__n1 + __n2 > __set_algo_cut_off)
     {
         return __parallel_set_op</*__Bounded*/ false>(
                    __tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2, __last2, __result,
@@ -4554,7 +4547,7 @@ __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPo
     const _DifferenceType2 __n2 = __last2 - __first2;
 
     // use serial algorithm
-    if (!oneapi::dpl::__internal::__is_set_algo_cutoff_exceeded(__n1 + __n2))
+    if (__n1 + __n2 <= __set_algo_cut_off)
         return std::set_symmetric_difference(__first1, __last1, __first2, __last2, __result, __comp);
 
     return __internal::__except_handler([&]() {
