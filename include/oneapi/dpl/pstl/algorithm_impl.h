@@ -3329,7 +3329,8 @@ struct _DataPart
     bool
     is_output_size_reached(_DifferenceType __n_out) const
     {
-        const _DifferenceType __n_out_idx = std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
+        const _DifferenceType __n_out_idx =
+            std::max(__n_out, _DifferenceType{1}) - 1; // to handle zero output size case
 
         //                           (1).__buf_pos   (2).__buf_pos   (3).__buf_pos   (4).__buf_pos   (5).__buf_pos   (5).__buf_pos   (6).__buf_pos   (7).__buf_pos
         //                              |               |               |               |               |               |               |               |
