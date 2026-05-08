@@ -711,10 +711,7 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
 
 template <bool _Bounded, typename _ExecutionPolicy, typename _Range1, typename _Range2, typename _UnaryOperation,
           typename _InitType, typename _BinaryOperation, typename _Inclusive>
-std::conditional_t<_Bounded,
-                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>,
-                              __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_Range1>>>,
-                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>>
+__scan_block_return_t<_Bounded, typename _InitType::__value_type, _Range1>
 __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolicy&& __exec, _Range1&& __in_rng,
                           _Range2&& __out_rng, std::size_t __n, _UnaryOperation __unary_op, _InitType __init,
                           _BinaryOperation __binary_op, _Inclusive)
@@ -814,10 +811,7 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
 
 template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
           typename _WriteOp, typename _IsUniquePattern>
-std::conditional_t<
-    _Bounded,
-    std::tuple<sycl::event, __combined_storage<_Size>, __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_InRng>>>,
-    std::tuple<sycl::event, __combined_storage<_Size>>>
+__scan_block_return_t<_Bounded, _Size, _InRng>
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
@@ -941,14 +935,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
 
 template <bool _Bounded, typename _CustomName, typename _Range1, typename _Range2, typename _Range3, typename _Range4,
           typename _BinaryPredicate, typename _BinaryOperator>
-std::conditional_t<
-    _Bounded,
-    std::tuple<
-        sycl::event,
-        __combined_storage<oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>,
-        __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_Range1, _Range2>>>,
-    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<
-                                std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>>>>
+__scan_block_return_t<_Bounded,
+                      oneapi::dpl::__internal::tuple<std::size_t, oneapi::dpl::__internal::__value_t<_Range2>>, _Range1,
+                      _Range2>
 __parallel_reduce_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                               _Range3&& __out_keys, _Range4&& __out_values,
                                               _BinaryPredicate __binary_pred, _BinaryOperator __binary_op)
@@ -2519,15 +2508,9 @@ __parallel_reduce_by_segment(oneapi::dpl::__internal::__device_backend_tag, _Exe
 //------------------------------------------------------------------------
 template <bool _Bounded, typename _CustomName, bool __is_inclusive, typename _Range1, typename _Range2,
           typename _Range3, typename _BinaryPredicate, typename _BinaryOperator, typename _InitType>
-std::conditional_t<
-    _Bounded,
-    std::tuple<
-        sycl::event,
-        __combined_storage<oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>,
-        oneapi::dpl::__par_backend_hetero::__scan_stop_pos_storages_container_t<
-            oneapi::dpl::__par_backend_hetero::__scan_stop_pos_t<_Range1, _Range2>>>,
-    std::tuple<sycl::event, __combined_storage<oneapi::dpl::__internal::tuple<
-                                std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>>>>
+__scan_block_return_t<_Bounded,
+                      oneapi::dpl::__internal::tuple<std::uint32_t, oneapi::dpl::__internal::__value_t<_Range2>>,
+                      _Range1, _Range2>
 __parallel_scan_by_segment_reduce_then_scan(sycl::queue& __q, _Range1&& __keys, _Range2&& __values,
                                             _Range3&& __out_values, _BinaryPredicate __binary_pred,
                                             _BinaryOperator __binary_op, [[maybe_unused]] _InitType __init)
