@@ -3151,10 +3151,7 @@ template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _Cus
           typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
           typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
           typename _IsUniquePattern>
-std::conditional_t<_Bounded,
-                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>,
-                              __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_InRng>>>,
-                   std::tuple<sycl::event, __combined_storage<typename _InitType::__value_type>>>
+__scan_block_return_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
