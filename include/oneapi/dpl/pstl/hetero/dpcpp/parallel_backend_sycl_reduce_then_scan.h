@@ -49,20 +49,6 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
-template <typename _TempData, typename = void>
-struct __temp_data_capture_indexes_flag : std::false_type
-{
-};
-
-template <typename _TempData>
-struct __temp_data_capture_indexes_flag<_TempData, std::void_t<decltype(_TempData::_CaptureIndexes)>>
-    : std::bool_constant<_TempData::_CaptureIndexes>
-{
-};
-
-template <typename _TempData>
-inline constexpr bool __temp_data_capture_indexes_flag_v = __temp_data_capture_indexes_flag<_TempData>::value;
-
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <bool _CaptureIndexes, std::uint16_t elements, typename _ValueT, typename __stop_pos_t>
 struct __temp_data_array;
@@ -260,6 +246,20 @@ struct __noop_temp_data_capture_indexes
     // Pointer to the SLM-based array with source indexes corresponding to the stored values
     _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
 };
+
+template <typename _TempData, typename = void>
+struct __temp_data_capture_indexes_flag : std::false_type
+{
+};
+
+template <typename _TempData>
+struct __temp_data_capture_indexes_flag<_TempData, std::void_t<decltype(_TempData::_CaptureIndexes)>>
+    : std::bool_constant<_TempData::_CaptureIndexes>
+{
+};
+
+template <typename _TempData>
+inline constexpr bool __temp_data_capture_indexes_flag_v = __temp_data_capture_indexes_flag<_TempData>::value;
 
 // Extracts a range from a zip iterator based on the element ID
 template <std::size_t _EleId>
