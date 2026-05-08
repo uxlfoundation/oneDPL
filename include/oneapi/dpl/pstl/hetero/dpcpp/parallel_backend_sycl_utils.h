@@ -1103,6 +1103,14 @@ __create_future(_Event&& __event, _Payload&& __payload)
                     __result_and_scratch_storage<_ValueType>(std::forward<_Payload>(__payload).__move_state_from()));
 }
 
+template <typename _Event, typename _Payload, typename... _Args>
+auto
+__create_future(_Event&& __event, _Payload&& __payload, _Args&&... __args)
+{
+    return __create_future(std::forward<_Event>(__event), std::forward<_Payload>(__payload))
+        .__make_future(std::forward<_Args>(__args)...);
+}
+
 template <typename _Event, typename _Payload>
 auto
 __wait_and_get_result(_Event&& __event, _Payload&& __payload)
