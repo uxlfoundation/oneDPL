@@ -21,6 +21,7 @@
 #include "../utils_ranges.h"
 #include "utils_hetero.h"
 #include "../functional_impl.h" // for oneapi::dpl::identity
+#include "../algorithm_ranges_impl.h"
 
 #if _ONEDPL_BACKEND_SYCL
 #    include "dpcpp/utils_ranges_sycl.h"
