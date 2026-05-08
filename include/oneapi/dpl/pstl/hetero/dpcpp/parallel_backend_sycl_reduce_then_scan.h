@@ -49,6 +49,28 @@ namespace __par_backend_hetero
 // *** Reduce then scan functional building blocks ***
 // *** Utilities ***
 
+template <typename __stop_pos_t>
+struct __src_indexes_storage
+{
+    explicit __src_indexes_storage(__stop_pos_t* __ptr) : __src_indexes_local_accessor_for_one_wi_raw(__ptr) {}
+
+    void
+    set(std::uint16_t __idx, const __stop_pos_t& __indexes)
+    {
+        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
+            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+    }
+
+    const __stop_pos_t&
+    get(std::uint16_t __idx) const
+    {
+        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+    }
+
+    // Pointer to the SLM-based array with source indexes corresponding to the stored values
+    __stop_pos_t* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+};
+
 // Temporary data structure which is used to store results to registers during a reduce then scan operation.
 template <bool _CaptureIndexes, std::uint16_t elements, typename _ValueT, typename __stop_pos_t>
 struct __temp_data_array;
@@ -94,7 +116,7 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, __stop_pos
     using _TupleOfSizes = __stop_pos_t;
 
     __temp_data_array(_TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw)
-        : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
+        : __src_indexes(__src_indexes_local_accessor_for_one_wi_raw)
     {
     }
 
@@ -104,9 +126,7 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, __stop_pos
     set(std::uint16_t __idx, _ValueT2&& __ele, const _TupleOfSizes& __indexes)
     {
         _Base::set(__idx, std::forward<_ValueT2>(__ele));
-
-        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
-            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+        __src_indexes.set(__idx, __indexes);
     }
 
     _ValueT
@@ -118,11 +138,10 @@ struct __temp_data_array</*_CaptureIndexes*/ true, elements, _ValueT, __stop_pos
     const _TupleOfSizes&
     get_src_indexes(std::uint16_t __idx) const
     {
-        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+        return __src_indexes.get(__idx);
     }
 
-    // Pointer to the SLM-based array with source indexes corresponding to the stored values
-    _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+    __src_indexes_storage<__stop_pos_t> __src_indexes;
 };
 
 template <typename __stop_pos_t>
@@ -224,7 +243,7 @@ struct __noop_temp_data_capture_indexes
     using _TupleOfSizes = __stop_pos_t;
 
     __noop_temp_data_capture_indexes(_TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw)
-        : __src_indexes_local_accessor_for_one_wi_raw(__src_indexes_local_accessor_for_one_wi_raw)
+        : __src_indexes(__src_indexes_local_accessor_for_one_wi_raw)
     {
     }
 
@@ -233,18 +252,16 @@ struct __noop_temp_data_capture_indexes
     void
     set(std::uint16_t __idx, _ValueT2&&, const _TupleOfSizes& __indexes)
     {
-        if (__src_indexes_local_accessor_for_one_wi_raw != nullptr)
-            __src_indexes_local_accessor_for_one_wi_raw[__idx] = __indexes;
+        __src_indexes.set(__idx, __indexes);
     }
 
     const _TupleOfSizes&
     get_src_indexes(std::uint16_t __idx) const
     {
-        return __src_indexes_local_accessor_for_one_wi_raw[__idx];
+        return __src_indexes.get(__idx);
     }
 
-    // Pointer to the SLM-based array with source indexes corresponding to the stored values
-    _TupleOfSizes* __src_indexes_local_accessor_for_one_wi_raw = nullptr;
+    __src_indexes_storage<__stop_pos_t> __src_indexes;
 };
 
 template <typename _TempData, typename = void>
