@@ -2322,6 +2322,13 @@ __create_scan_stop_pos_storage_container(__scan_stop_pos_storage_t<_TupleOfSizes
     return __container;
 }
 
+template <bool _Bounded, typename _ValueType, typename... _Ranges>
+using __scan_block_return_t =
+    std::conditional_t<_Bounded,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>,
+                                  __scan_stop_pos_storages_container_t<__scan_stop_pos_t<_Ranges...>>>,
+                       std::tuple<sycl::event, __combined_storage<_ValueType>>>;
+
 template <bool _Bounded>
 struct __stop_pos_payloads_tools
 {
