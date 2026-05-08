@@ -53,8 +53,10 @@ function(_generate_sort_test _variant _base_file _data_per_work_item _work_group
     endif()
 
     string(REPLACE "_t" "" _key_type_short ${_key_type})
+    string(REPLACE "::" "_" _key_type_short ${_key_type_short})
     if (NOT "${_val_type}" STREQUAL "")
         string(REPLACE "_t" "" _val_type_short ${_val_type})
+        string(REPLACE "::" "_" _val_type_short ${_val_type_short})
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}_${_val_type_short}.pass")
     else()
         set(_target_name "${_variant}_${_base_file}_dpwi${_data_per_work_item}_wgs${_work_group_size}_${_key_type_short}.pass")
@@ -113,7 +115,7 @@ function(_generate_sort_tests _variant _key_value_pairs)
         set(_work_group_size_all "64")
     endif()
 
-    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double")
+    set(_type_all "char" "uint16_t" "int" "uint64_t" "float" "double" "sycl::half")
 
     foreach (_data_per_work_item ${_data_per_work_item_all})
         foreach (_work_group_size ${_work_group_size_all})

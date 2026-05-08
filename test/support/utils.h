@@ -60,6 +60,34 @@ namespace TestUtils
 using float64_t = double;
 using float32_t = float;
 
+template <typename T>
+struct is_arithmetic : std::is_arithmetic<T>
+{
+};
+
+template <typename T>
+struct is_floating_point : std::is_floating_point<T>
+{
+};
+
+#if TEST_DPCPP_BACKEND_PRESENT
+template <>
+struct is_arithmetic<sycl::half> : std::true_type
+{
+};
+
+template <>
+struct is_floating_point<sycl::half> : std::true_type
+{
+};
+#endif
+
+template <typename T>
+inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
+
+template <typename T>
+inline constexpr bool is_floating_point_v = is_floating_point<T>::value;
+
 template <class T, ::std::size_t N>
 constexpr size_t
 const_size(const T (&)[N]) noexcept
@@ -118,8 +146,10 @@ is_equal_val(const T1& val1, const T2& val2)
 {
     using T = std::common_type_t<T1, T2>;
 
-    if constexpr (std::is_floating_point_v<T>)
+    if constexpr (is_floating_point_v<T>)
     {
+        if (val1 == val2)
+            return true;
         const auto eps = std::numeric_limits<T>::epsilon();
         return std::fabs(T(val1) - T(val2)) < eps;
     }
@@ -1023,7 +1053,7 @@ create_new_kernel_param_idx(KernelParam)
 #endif //TEST_DPCPP_BACKEND_PRESENT
 
 template <typename T>
-typename std::enable_if_t<std::is_arithmetic_v<T>>
+typename std::enable_if_t<is_arithmetic_v<T>>
 generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
 {
     std::default_random_engine gen{seed};
@@ -1038,17 +1068,20 @@ generate_arithmetic_data(T* input, std::size_t size, std::uint32_t seed)
     }
     else
     {
+        using RealT =
+            std::conditional_t<std::is_same_v<T, float> || std::is_same_v<T, double> || std::is_same_v<T, long double>,
+                               T, float>;
         // log2 - exp2 transformation allows generating floating point values,
         // which distribution resembles uniform distribution of their bit representation
         // This is useful for checking different cases of radix sort
-        std::uniform_real_distribution<T> dist_real(std::numeric_limits<T>::min(), log2(std::numeric_limits<T>::max()));
+        std::uniform_real_distribution<RealT> dist_real{RealT(std::numeric_limits<T>::min()),
+                                                        RealT(std::log2(float(std::numeric_limits<T>::max())))};
         std::uniform_int_distribution<int> dist_binary(0, 1);
-        auto randomly_signed_real = [&dist_real, &dist_binary, &gen]()
-        {
-            auto v = exp2(dist_real(gen));
-            return dist_binary(gen) == 0 ? v : -v;
+        auto randomly_signed_real = [&dist_real, &dist_binary, &gen]() {
+            auto v = std::exp2(dist_real(gen));
+            return dist_binary(gen) == 0 ? RealT(v) : RealT(-v);
         };
-        std::generate(input, input + unique_threshold, [&] { return randomly_signed_real(); });
+        std::generate(input, input + unique_threshold, [&] { return T(randomly_signed_real()); });
     }
     assert(unique_threshold >= size/2 && unique_threshold < size);
     for (uint32_t i = 0, j = unique_threshold; j < size; ++i, ++j)
