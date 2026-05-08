@@ -56,7 +56,7 @@ jobs:
         run: if [ -s clang-format.diff ]; then cat clang-format.diff; exit 1; fi
       - if: failure()
         name: Save artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: clang-format-diff
           path: clang-format.diff
