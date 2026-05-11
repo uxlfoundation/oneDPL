@@ -103,6 +103,26 @@ __size(_Range&& __rng)
 }
 #endif
 
+// Returns begin and end of the range
+template <typename _Range>
+auto /*std::tuple*/
+__bounds_and_size(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+    return std::make_tuple(__first, __first + __n);
+}
+
+// Returns begin, end and size of the range
+template <typename _Range>
+auto /*std::tuple*/
+__bounds_and_size_n(_Range&& __rng)
+{
+    const auto __n = __size(__rng);
+    auto __first = __begin(__rng);
+    return std::make_tuple(__first, __first + __n, __n);
+}
+
 #if _ONEDPL_CPP20_RANGES_PRESENT
 template <typename _Range>
 bool
@@ -845,30 +865,6 @@ __get_subscription_view(_View&& __view)
     // If the view doesn't support operator[], wrap it with __subscription_impl_view_simple
     // to provide operator[] access and extend lifetime if necessary (for temporary ranges).
     return __subscription_impl_view_simple<_ViewInstance>(__view);
-}
-
-// Returns begin and end of the range
-template <typename _Range>
-    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>> &&
-             std::ranges::sized_range<std::remove_cvref_t<_Range>>
-auto
-__get_range_bounds(_Range&& __rng)
-{
-    const auto __size = oneapi::dpl::__ranges::__size(__rng);
-    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
-    return std::make_tuple(__begin, __begin + __size);
-}
-
-// Returns begin, end and size of the range
-template <typename _Range>
-    requires std::ranges::random_access_range<std::remove_cvref_t<_Range>> &&
-             std::ranges::sized_range<std::remove_cvref_t<_Range>>
-auto
-__get_range_bounds_n(_Range&& __rng)
-{
-    const auto __size = oneapi::dpl::__ranges::__size(__rng);
-    auto __begin = oneapi::dpl::__ranges::__begin(__rng);
-    return std::make_tuple(__begin, __begin + __size, __size);
 }
 #endif // _ONEDPL_CPP20_RANGES_PRESENT
 
