@@ -27,7 +27,7 @@ struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 #else
     static constexpr bool RunTestForHeteroPolicy = true;
 #endif
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
+    static constexpr TestDataMode res_mode = TestDataMode::data_in_in_out;
 };
 
 template<>
