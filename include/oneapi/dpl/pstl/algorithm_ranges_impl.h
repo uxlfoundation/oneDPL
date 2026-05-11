@@ -841,9 +841,9 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
 {
     using _DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__r_out)>;
 
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds_and_size(__r_out);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__r_out);
 
     // 1. Main set_union operation
     while (__it1 != __end1 && __it2 != __end2 && __out_it != __out_end)
@@ -916,9 +916,9 @@ __set_union_return_t<_R1, _R2, _OutRange>
 __pattern_set_union(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                     _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size_n(__r1);
-    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size_n(__r2);
-    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)
@@ -950,9 +950,9 @@ template <typename _R1, typename _R2, typename _OutRange, typename _Comp, typena
 __set_intersection_return_t<_R1, _R2, _OutRange>
 __serial_set_intersection(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     while (__it1 != __end1 && __it2 != __end2)
     {
@@ -1024,9 +1024,9 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size_n(__r1);
-    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size_n(__r2);
-    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // intersection is empty
     if (__n1 == 0 || __n2 == 0)
@@ -1128,9 +1128,9 @@ __serial_set_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _Comp __com
 {
     using _DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__out_r)>;
 
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // 1. Main set_difference operation
     while (__it1 != __end1 && __it2 != __end2)
@@ -1210,9 +1210,9 @@ __pattern_set_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __e
     using _DifferenceType2 = typename std::iterator_traits<_RandomAccessIterator2>::difference_type;
     using _DifferenceType = std::common_type_t<_DifferenceType1, _DifferenceType2>;
 
-    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size_n(__r1);
-    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size_n(__r2);
-    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // {} \ {2}: the difference is empty
     if (__n1 == 0)
@@ -1299,9 +1299,9 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
 {
     using _DifferenceType = oneapi::dpl::__ranges::__common_size_t<decltype(__r1), decltype(__r2), decltype(__out_r)>;
 
-    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
-    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
-    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__it1, __end1] = oneapi::dpl::__ranges::__bounds(__r1);
+    auto [__it2, __end2] = oneapi::dpl::__ranges::__bounds(__r2);
+    auto [__out_it, __out_end] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // 1. Main set_symmetric_difference operation
     while (__it1 != __end1 && __it2 != __end2)
@@ -1386,9 +1386,9 @@ __set_symmetric_difference_return_t<_R1, _R2, _OutRange>
 __pattern_set_symmetric_difference(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R1&& __r1, _R2&& __r2,
                                    _OutRange&& __out_r, _Comp __comp, _Proj1 __proj1, _Proj2 __proj2)
 {
-    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size_n(__r1);
-    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size_n(__r2);
-    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds_and_size(__out_r);
+    auto [__first1, __last1, __n1] = oneapi::dpl::__ranges::__bounds_and_size(__r1);
+    auto [__first2, __last2, __n2] = oneapi::dpl::__ranges::__bounds_and_size(__r2);
+    auto [__result1, __result2] = oneapi::dpl::__ranges::__bounds(__out_r);
 
     // use serial algorithm
     if (__n1 + __n2 <= oneapi::dpl::__internal::__set_algo_cut_off)

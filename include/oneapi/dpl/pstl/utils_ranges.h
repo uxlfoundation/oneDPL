@@ -106,7 +106,7 @@ __size(_Range&& __rng)
 // Returns begin and end of the range
 template <typename _Range>
 auto /*std::tuple*/
-__bounds_and_size(_Range&& __rng)
+__bounds(_Range&& __rng)
 {
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
@@ -116,7 +116,7 @@ __bounds_and_size(_Range&& __rng)
 // Returns begin, end and size of the range
 template <typename _Range>
 auto /*std::tuple*/
-__bounds_and_size_n(_Range&& __rng)
+__bounds_and_size(_Range&& __rng)
 {
     const auto __n = __size(__rng);
     auto __first = __begin(__rng);
