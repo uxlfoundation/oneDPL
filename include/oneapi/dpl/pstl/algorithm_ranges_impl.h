@@ -868,14 +868,13 @@ __serial_set_union(_R1&& __r1, _R2&& __r2, _OutRange&& __r_out, _Comp __comp, _P
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
-    const _DifferenceType __remaining_capacity1 = __out_end - __out_it;
+    _DifferenceType __remaining_capacity = __out_end - __out_it;
     _DifferenceType __copy_n = __end1 - __it1;
-    auto __copy1 = std::ranges::copy_n(__it1, std::min(__copy_n, __remaining_capacity1), __out_it);
+    auto __copy1 = std::ranges::copy_n(__it1, std::min(__copy_n, __remaining_capacity), __out_it);
 
-    const _DifferenceType __remaining_capacity2 = __out_end - __copy1.out;
+    __remaining_capacity = __out_end - __copy1.out;
     __copy_n = __end2 - __it2;
-    auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity2), __copy1.out);
-
+    auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity), __copy1.out);
     return {__copy1.in, __copy2.in, __copy2.out};
 }
 
@@ -1331,13 +1330,13 @@ __serial_set_symmetric_difference(_R1&& __r1, _R2&& __r2, _OutRange&& __out_r, _
     }
 
     // 2. Copying the residual elements if one of the input sequences is exhausted
-    const _DifferenceType __remaining_capacity1 = __out_end - __out_it;
+    _DifferenceType __remaining_capacity = __out_end - __out_it;
     _DifferenceType __copy_n = __end1 - __it1;
-    auto __copy1 = std::ranges::copy_n(__it1, std::min(__copy_n, __remaining_capacity1), __out_it);
+    auto __copy1 = std::ranges::copy_n(__it1, std::min(__copy_n, __remaining_capacity), __out_it);
 
-    const _DifferenceType __remaining_capacity2 = __out_end - __copy1.out;
+    __remaining_capacity = __out_end - __copy1.out;
     __copy_n = __end2 - __it2;
-    auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity2), __copy1.out);
+    auto __copy2 = std::ranges::copy_n(__it2, std::min(__copy_n, __remaining_capacity), __copy1.out);
     return {__copy1.in, __copy2.in, __copy2.out};
 }
 
