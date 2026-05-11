@@ -3648,7 +3648,7 @@ struct _SetOpReachedPosEvaluator
                 __set_union_op(
                     __first1 + __offset1, __first1 + __offset1 + __size1, // First input range bounds
                     __first2 + __offset2, __first2 + __offset2 + __size2, // Second input range bounds
-                    oneapi::dpl::__utils::_SetOpDiscardIterator{}, // No real output buffer, so using discard iterator
+                    oneapi::dpl::discard_iterator{}, // No real output buffer, so using discard iterator
                     __comp, __proj1, __proj2, __mask_bufs.data());
             assert(__mask_buffer_reached - __mask_bufs.data() <= static_cast<std::ptrdiff_t>(__mask_bufs.size()));
 
