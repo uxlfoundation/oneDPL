@@ -8,6 +8,36 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.13.0
+================
+
+New Features
+------------
+- Added more parallel range algorithms in ``namespace oneapi::dpl::ranges``: ``replace_copy``, ``replace_copy_if``,
+  ``remove_copy``, ``remove_copy_if``, ``find_last``, ``find_last_if``, ``find_last_if_not``, ``starts_with``,
+  ``ends_with``, ``contains``, ``contains_subrange``, ``lexicographical_compare``.
+
+Known Issues and Limitations
+----------------------------
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``ranges::copy_if`` and ``ranges::unique_copy`` with the output size smaller than the input size
+  may lose performance on GPU devices.
+- ``set_union``, ``set_intersection``, ``set_difference``, ``set_symmetric_difference`` range algorithms require the
+  output range to have sufficient size to hold all resulting elements.
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+
 New in 2022.12.0
 ================
 

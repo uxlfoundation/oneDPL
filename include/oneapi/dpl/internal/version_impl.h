@@ -47,7 +47,7 @@
 // -- Define oneDPL feature macros --
 #define ONEDPL_HAS_RANDOM_NUMBERS         202603L
 #if _ONEDPL_CPP20_RANGES_PRESENT
-#    define ONEDPL_HAS_RANGE_ALGORITHMS   202604L
+#    define ONEDPL_HAS_RANGE_ALGORITHMS   202605L
 #endif
 
 #endif // _ONEDPL_VERSION_IMPL_H

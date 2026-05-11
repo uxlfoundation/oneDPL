@@ -172,7 +172,7 @@ main()
     test_mixed_types_host();
 #if TEST_DPCPP_BACKEND_PRESENT
     test_mixed_types_device();
-#endif // TEST_DPCPP_BACKEND_PRESENT
+#endif
 
     bProcessed = true;
 #endif //_ENABLE_STD_RANGES_TESTING
