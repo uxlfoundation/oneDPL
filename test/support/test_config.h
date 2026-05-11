@@ -338,5 +338,5 @@
 // TODO remove after implementation of range-based set operations with hetero policies
 #define STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY 1
 #define STD_RANGES_SET_DIFFERENCE_BROKEN_FOR_HETERO_POLICY 1
-
+#define STD_RANGES_SET_SYMMETRIC_DIFFERENCE_BROKEN_FOR_HETERO_POLICY 1
 #endif // _TEST_CONFIG_H
