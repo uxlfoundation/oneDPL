@@ -577,20 +577,13 @@ struct __set_operations_result
     _RandomAccessIterator2 __in2;
     _RandomAccessOutputIterator __it_out;
 
-    // Get reached input1, input2 and output iterators
-    template <typename TResult>
-    TResult
-    __get_reached_in1_in2_out() const
+#if _ONEDPL_CPP20_RANGES_PRESENT
+    operator std::ranges::in_in_out_result<_RandomAccessIterator1, _RandomAccessIterator2,
+                                           _RandomAccessOutputIterator>() const
     {
         return {__in1, __in2, __it_out};
     }
-
-    // Get reached output iterator
-    _RandomAccessOutputIterator
-    __get_reached_out() const
-    {
-        return __it_out;
-    }
+#endif
 
     __set_operations_result<_RandomAccessIterator1, _RandomAccessIterator2, _RandomAccessOutputIterator>
     operator+(std::tuple<typename std::iterator_traits<_RandomAccessIterator1>::difference_type,
