@@ -20,18 +20,6 @@ namespace test_std_ranges
 {
 // TODO remove after implementation range-based set operations for bounded output range with hetero policies
 template <>
-struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_out_lim>
-{
-#if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
-    static constexpr bool RunTestForHeteroPolicy = false;
-#else
-    static constexpr bool RunTestForHeteroPolicy = true;
-#endif
-    static constexpr TestDataMode res_mode = TestDataMode::data_in_out;
-};
-
-// TODO remove after implementation range-based set operations for bounded output range with hetero policies
-template <>
 struct ResolveTestDataModeForHeteroPolicy<TestDataMode::data_in_in_out_lim>
 {
 #if STD_RANGES_SET_INTERSECTION_BROKEN_FOR_HETERO_POLICY
