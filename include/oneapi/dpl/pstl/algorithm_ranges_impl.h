@@ -1096,7 +1096,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
 // set_difference
 //---------------------------------------------------------------------------------------------------------------------
 
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
 template <typename _R1, typename _R2, typename _OutRange>
 using __set_difference_return_t =
     std::ranges::in_in_out_result<std::ranges::borrowed_iterator_t<_R1>, std::ranges::borrowed_iterator_t<_R2>,
@@ -1113,7 +1113,7 @@ template <typename _R1, typename _R2, typename _OutRange, typename _It1, typenam
 __set_difference_return_t<_R1, _R2, _OutRange>
 __create_set_difference_result(_It1 __it1, _It2 __it2, _ItOut __it_out)
 {
-#if ONEDPL_RANGES_SET_DIFFERENCE_CPP26_RESULT
+#if ONEDPL_RANGES_SET_ALGORITHMS_CPP26_ALIGNED
     return std::ranges::in_in_out_result<_It1, _It2, _ItOut>{__it1, __it2, __it_out};
 #else
     return std::ranges::in_out_result<_It1, _ItOut>{__it1, __it_out};
