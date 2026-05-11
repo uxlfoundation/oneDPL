@@ -2649,7 +2649,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
             _ProcessedInfo __processed_info{};
 
             // No real assignment is performed in this helper call, so we pass std::false_type specify that
-            // ans it's safe to pass __out_rng to all WIs without worrying about write conflicts.
+            // and it's safe to pass __out_rng to all WIs without worrying about write conflicts.
             __call_scan_through_elements_helper(
                 /*_ExecuteAssign*/ std::false_type{},
                 __sub_group, __out_rng, std::get<0>(__oob_replay_carry_tuple), std::get<1>(__oob_replay_carry_tuple),
