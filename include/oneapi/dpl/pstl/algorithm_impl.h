@@ -3412,10 +3412,7 @@ __parallel_set_op(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& __exec, _R
                   _OutputIterator __result, _SizeFunction __size_func, _SetOP __set_op, _Compare __comp, _Proj1 __proj1,
                   _Proj2 __proj2)
 {
-    const auto __n1 = __last1 - __first1;
-    const auto __n2 = __last2 - __first2;
-
-    if (__n1 >= __n2)
+    if (__last1 - __first1 >= __last2 - __first2)
     {
         return __parallel_set_op_impl(__tag, std::forward<_ExecutionPolicy>(__exec), __first1, __last1, __first2,
                                       __last2, __result, __size_func, __set_op, __comp, __proj1, __proj2);
@@ -3714,10 +3711,7 @@ __pattern_set_intersection(__parallel_tag<_IsVector> __tag, _ExecutionPolicy&& _
     if (__begin1 == __end1 || __begin2 == __end2)
         return __result;
 
-    __n1 = __end1 - __begin1;
-    __n2 = __end2 - __begin2;
-
-    const _DifferenceType __total_work = __n1 + __n2;
+    const _DifferenceType __total_work = (__end1 - __begin1) + (__end2 - __begin2);
     if (__total_work > __set_algo_cut_off)
     {
         return __internal::__parallel_set_op(
