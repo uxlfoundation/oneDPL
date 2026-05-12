@@ -192,8 +192,7 @@ struct __simple_write_to_id
         __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _ValueType, typename _TempData,
-              typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&,
                _ProcessInfo& __process_info) const
@@ -207,10 +206,7 @@ struct __simple_write_to_id
 
         return __write_if_in_bounds(
             oneapi::dpl::__ranges::__size(__out_rng), __id,
-            [&]() {
-                if constexpr (_ExecuteAssign)
-                    __out_rng[__id] = static_cast<_ConvertedTupleType>(__v);
-            },
+            [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(__v); },
             [&]() { __process_info.set_oob_reached(); });
     }
 };
@@ -235,8 +231,8 @@ struct __write_to_id_if
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[std::get<0>(__v) - 1 + __offset]);
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType,
-              typename _ValueType, typename _TempData, typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
                _ProcessInfo& __process_info) const
@@ -254,10 +250,7 @@ struct __write_to_id_if
 
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
-                [&]() {
-                    if constexpr (_ExecuteAssign)
-                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]);
-                },
+                [&]() { __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), __out_rng[__out_rng_idx]); },
                 [&]() {
                     __process_info.set_oob_reached();
 
@@ -295,8 +288,8 @@ struct __write_to_id_if_else
             __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__id - std::get<0>(__v)]));
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
-              typename _TempData, typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, _SizeType __id, const _ValueType& __v, _TempData& __temp_data,
                _ProcessInfo& __process_info) const
@@ -313,15 +306,10 @@ struct __write_to_id_if_else
         return __write_if_in_bounds(
             oneapi::dpl::__ranges::__size(__out_rng), __out_rng_idx,
             [&]() {
-                if constexpr (_ExecuteAssign)
-                {
-                    if (std::get<1>(__v))
-                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                                 std::get<0>(__out_rng[__out_rng_idx]));
-                    else
-                        __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)),
-                                 std::get<1>(__out_rng[__out_rng_idx]));
-                }
+                if (std::get<1>(__v))
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<0>(__out_rng[__out_rng_idx]));
+                else
+                    __assign(static_cast<_ConvertedTupleType>(std::get<2>(__v)), std::get<1>(__out_rng[__out_rng_idx]));
             },
             [&]() { __process_info.set_oob_reached(); });
     }
@@ -367,8 +355,7 @@ struct __write_red_by_seg
         }
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _Tup, typename _TempData,
-              typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _Tup, typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, std::size_t __id, const _Tup& __tup, _TempData&, _ProcessInfo& __process_info) const
     {
@@ -394,11 +381,7 @@ struct __write_red_by_seg
         // be the same (but satisfy the predicate). The last segment does not output a key as there are no future
         // segments process.
         if (__id == 0 && !__write_if_in_bounds(
-                             oneapi::dpl::__ranges::__size(__out_keys), 0,
-                             [&]() {
-                                 if constexpr (_ExecuteAssign)
-                                     __out_keys[0] = __current_key;
-                             },
+                             oneapi::dpl::__ranges::__size(__out_keys), 0, [&]() { __out_keys[0] = __current_key; },
                              __on_oob_reached))
             return false;
 
@@ -406,20 +389,12 @@ struct __write_red_by_seg
         {
             if (!__write_if_in_bounds(
                     oneapi::dpl::__ranges::__size(__out_values), __out_idx,
-                    [&]() {
-                        if constexpr (_ExecuteAssign)
-                            __out_values[__out_idx] = __current_value;
-                    },
-                    __on_oob_reached))
+                    [&]() { __out_values[__out_idx] = __current_value; }, __on_oob_reached))
                 return false;
 
             if (__id != __n - 1 && !__write_if_in_bounds(
                                        oneapi::dpl::__ranges::__size(__out_keys), __out_idx + 1,
-                                       [&]() {
-                                           if constexpr (_ExecuteAssign)
-                                               __out_keys[__out_idx + 1] = __next_key;
-                                       },
-                                       __on_oob_reached))
+                                       [&]() { __out_keys[__out_idx + 1] = __next_key; }, __on_oob_reached))
                 return false;
         }
 
@@ -465,8 +440,7 @@ struct __write_scan_by_seg
         }
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _ValueType, typename _TempData,
-              typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _ValueType, typename _TempData, typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, std::size_t __id, const _ValueType& __v, _TempData&,
                _ProcessInfo& __process_info) const
@@ -487,10 +461,7 @@ struct __write_scan_by_seg
 
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __id,
-                [&]() {
-                    if constexpr (_ExecuteAssign)
-                        __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v)));
-                },
+                [&]() { __out_rng[__id] = static_cast<_ConvertedTupleType>(get<1>(get<0>(__v))); },
                 [&]() { __process_info.set_oob_reached(); });
         }
         else
@@ -502,10 +473,10 @@ struct __write_scan_by_seg
             return __write_if_in_bounds(
                 oneapi::dpl::__ranges::__size(__out_rng), __id,
                 [&]() {
-                    if constexpr (_ExecuteAssign)
-                        __out_rng[__id] = get<1>(__v) ? static_cast<_ConvertedTupleType>(__init_value.__value)
-                                                      : static_cast<_ConvertedTupleType>(
-                                                            __binary_op(__init_value.__value, get<1>(get<0>(__v))));
+                    __out_rng[__id] =
+                        get<1>(__v)
+                            ? static_cast<_ConvertedTupleType>(__init_value.__value)
+                            : static_cast<_ConvertedTupleType>(__binary_op(__init_value.__value, get<1>(get<0>(__v))));
                 },
                 [&]() { __process_info.set_oob_reached(); });
         }
@@ -537,8 +508,8 @@ struct __write_multiple_to_id
         }
     }
 
-    template <bool _Bounded, bool _ExecuteAssign, typename _OutRng, typename _SizeType, typename _ValueType,
-              typename _TempData, typename _ProcessInfo>
+    template <bool _Bounded, typename _OutRng, typename _SizeType, typename _ValueType, typename _TempData,
+              typename _ProcessInfo>
     std::enable_if_t<_Bounded, bool>
     operator()(_OutRng& __out_rng, const _SizeType, const _ValueType& __v, _TempData& __temp_data,
                _ProcessInfo& __process_info) const
@@ -564,16 +535,15 @@ struct __write_multiple_to_id
         {
             auto&& __current_val = __temp_data.get_and_destroy(__i);
 
-            __all_writes_succeeded = __all_writes_succeeded &&
-                                     __write_if_in_bounds(
-                                         __out_rng_size, __out_rng_idx_base + __i,
-                                         [&]() {
-                                             if constexpr (_ExecuteAssign)
-                                                 __assign(static_cast<_ConvertedTupleType>(
-                                                              std::forward<decltype(__current_val)>(__current_val)),
-                                                          __out_rng[__out_rng_idx_base + __i]);
-                                         },
-                                         [&]() { __process_info.set_oob_reached(); });
+            __all_writes_succeeded =
+                __all_writes_succeeded &&
+                __write_if_in_bounds(
+                    __out_rng_size, __out_rng_idx_base + __i,
+                    [&]() {
+                        __assign(static_cast<_ConvertedTupleType>(std::forward<decltype(__current_val)>(__current_val)),
+                                 __out_rng[__out_rng_idx_base + __i]);
+                    },
+                    [&]() { __process_info.set_oob_reached(); });
         }
 
         return __all_writes_succeeded;
@@ -1712,7 +1682,7 @@ __sub_group_scan_partial(const __dpl_sycl::__sub_group& __sub_group, _ValueType&
         __sub_group, __mask_fn, __init_broadcast_id, __value, __binary_op, __init_and_carry);
 }
 
-template <bool _Bounded, bool _ExecuteAssign, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
+template <bool _Bounded, std::uint8_t __sub_group_size, bool __is_inclusive, bool __init_present,
           bool __capture_output, std::uint16_t __max_inputs_per_item, typename _GenInput, typename _ScanInputTransform,
           typename _BinaryOp, typename _WriteOp, typename _LazyValueType, typename _InRng, typename _OutRng,
           typename _TempData, typename _ProcessedInfo>
@@ -1742,8 +1712,8 @@ __scan_through_elements_helper(const __dpl_sycl::__sub_group& __sub_group, _GenI
             }
             else
             {
-                return __write_op.template operator()<_Bounded, _ExecuteAssign>(__out_rng, __id, __args..., __temp_out,
-                                                                                __processed_info);
+                return __write_op.template operator()<_Bounded>(__out_rng, __id, __args..., __temp_out,
+                                                                __processed_info);
             }
         }
         else
@@ -1980,8 +1950,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_i
 
                     // adjust for lane-id
                     // compute sub-group local prefix on T0..63, K samples/T, send to accumulator kernel
-                    __scan_through_elements_helper</*_Bounded*/ false, /*_ExecuteAssign*/ true, __sub_group_size,
-                                                   __is_inclusive,
+                    __scan_through_elements_helper</*_Bounded*/ false, __sub_group_size, __is_inclusive,
                                                    /*__init_present=*/false,
                                                    /*__capture_output=*/false, __max_inputs_per_item>(
                         __sub_group, __gen_reduce_input, oneapi::dpl::identity{}, __reduce_op, nullptr,
@@ -2608,14 +2577,11 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                 const std::size_t __start_id = __subgroup_start_id + __sub_group_local_id;
 
                 auto __call_scan_through_elements_helper =
-                    [&](auto __execute_assign_tag, const auto& __sub_group, auto&& __out_rng_arg,
-                        bool __sub_group_carry_initialized_arg, auto& __sub_group_carry_arg, auto&& __temp_out_arg,
-                        auto& __processed_info_arg) {
-                        constexpr bool _ExecuteAssign = decltype(__execute_assign_tag)::value;
-
+                    [&](const auto& __sub_group, auto&& __out_rng_arg, bool __sub_group_carry_initialized_arg,
+                        auto& __sub_group_carry_arg, auto&& __temp_out_arg, auto& __processed_info_arg) {
                         if (__sub_group_carry_initialized_arg)
                         {
-                            __scan_through_elements_helper<_Bounded, _ExecuteAssign, __sub_group_size, __is_inclusive,
+                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                            /*__init_present=*/true,
                                                            /*__capture_output=*/true, __max_inputs_per_item>(
                                 __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
@@ -2625,7 +2591,7 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                         }
                         else // first group first block, no subgroup carry
                         {
-                            __scan_through_elements_helper<_Bounded, _ExecuteAssign, __sub_group_size, __is_inclusive,
+                            __scan_through_elements_helper<_Bounded, __sub_group_size, __is_inclusive,
                                                            /*__init_present=*/false,
                                                            /*__capture_output=*/true, __max_inputs_per_item>(
                                 __sub_group, __gen_scan_input, __scan_input_transform, __reduce_op, __write_op,
@@ -2645,9 +2611,8 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     _ProcessedInfo __processed_info{};
 
                     // The first normal call of __scan_through_elements_helper
-                    __call_scan_through_elements_helper(/*_ExecuteAssign*/ std::true_type{}, __sub_group, __out_rng,
-                                                        __sub_group_carry_initialized, __sub_group_carry,
-                                                        __temp_out, __processed_info);
+                    __call_scan_through_elements_helper(__sub_group, __out_rng, __sub_group_carry_initialized,
+                                                        __sub_group_carry, __temp_out, __processed_info);
                     if constexpr (_Bounded)
                     {
                         if ( __processed_info.get_oob_reached())
