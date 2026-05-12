@@ -2052,9 +2052,9 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // the work-group size appropriately. The actual sub-group size used by each kernel is determined
     // at runtime via sub_group::get_max_local_range().
     const auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    const std::uint16_t __min_sub_group_size =
+    const std::uint8_t __min_sub_group_size =
         *std::min_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
-    const std::uint16_t __max_sub_group_size =
+    const std::uint8_t __max_sub_group_size =
         *std::max_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
     // Empirically determined maximum. May be less for non-full blocks.
     constexpr std::uint16_t __max_inputs_per_item =
