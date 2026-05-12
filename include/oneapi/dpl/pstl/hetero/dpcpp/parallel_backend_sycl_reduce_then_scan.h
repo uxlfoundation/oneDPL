@@ -1495,24 +1495,25 @@ struct __reduce_then_scan_sub_group_params
 template <typename... _Name>
 class __reduce_then_scan_partition_kernel;
 
-template <typename... _Name>
+template <typename _UseSubgroupOps, typename... _Name>
 class __reduce_then_scan_reduce_kernel;
 
-template <typename... _Name>
+template <typename _UseSubgroupOps, typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
-          typename _InitType, typename _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
-          typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
-                                                    _InitType, __internal::__optional_kernel_name<_KernelName...>>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename... _KernelName>
+struct __parallel_reduce_then_scan_reduce_submitter<__use_subgroup_ops, __is_inclusive, __is_unique_pattern_v,
+                                                    _GenReduceInput, _ReduceOp, _InitType,
+                                                    __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
 
-    template <bool __use_subgroup_ops, typename _TmpAcc, typename _InRng>
+    template <typename _TmpAcc, typename _InRng>
     void
     __reduce_kernel_body(sycl::nd_item<1> __ndi, __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials,
                          __dpl_sycl::__local_accessor<_InitValueType> __comm_slm, _TmpAcc __tmp_acc, _InRng __in_rng,
@@ -1637,13 +1638,8 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
             __cgh.parallel_for<_KernelName...>(
                 __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE_IF_SUPPORTED(32)]] {
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
-
-                    if (__use_subgroup_ops)
-                        __reduce_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __in_rng,
-                                                   __inputs_remaining, __block_num);
-                    else
-                        __reduce_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __in_rng,
-                                                    __inputs_remaining, __block_num);
+                    __reduce_kernel_body(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __in_rng,
+                                         __inputs_remaining, __block_num);
                 });
         });
     }
@@ -1654,21 +1650,22 @@ struct __parallel_reduce_then_scan_reduce_submitter<__is_inclusive, __is_unique_
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::size_t __n;
-    const bool __use_subgroup_ops;
 
     const _GenReduceInput __gen_reduce_input;
     const _ReduceOp __reduce_op;
     _InitType __init;
 };
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename... _KernelName>
-struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
-                                                  _ScanInputTransform, _WriteOp, _InitType,
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename... _KernelName>
+struct __parallel_reduce_then_scan_scan_submitter<__use_subgroup_ops, __is_inclusive, __is_unique_pattern_v, _ReduceOp,
+                                                  _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
                                                   __internal::__optional_kernel_name<_KernelName...>>
 {
     using _InitValueType = typename _InitType::__value_type;
@@ -1689,7 +1686,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pa
         __tmp_acc[__num_sub_groups_global + 1 - (__block_num % 2)] = __block_carry_out;
     }
 
-    template <bool __use_subgroup_ops, typename _TmpAcc, typename _ResAcc, typename _InRng, typename _OutRng>
+    template <typename _TmpAcc, typename _ResAcc, typename _InRng, typename _OutRng>
     void
     __scan_kernel_body(sycl::nd_item<1> __ndi, __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials,
                        __dpl_sycl::__local_accessor<_InitValueType> __comm_slm, _TmpAcc __tmp_acc, _ResAcc __res_acc,
@@ -1990,15 +1987,8 @@ struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pa
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
                     _InitValueType* __res_ptr =
                         _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
-
-                    if (__use_subgroup_ops)
-                        __scan_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __res_ptr,
-                                                 __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
-                                                 __block_num);
-                    else
-                        __scan_kernel_body<false>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __res_ptr,
-                                                  __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
-                                                  __block_num);
+                    __scan_kernel_body(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __res_ptr, __in_rng,
+                                       __out_rng, __inputs_in_block, __inputs_remaining, __block_num);
                 });
         });
     }
@@ -2010,7 +2000,6 @@ struct __parallel_reduce_then_scan_scan_submitter<__is_inclusive, __is_unique_pa
     const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __num_blocks;
     const std::size_t __n;
-    const bool __use_subgroup_ops;
 
     const _ReduceOp __reduce_op;
     const _GenScanInput __gen_scan_input;
@@ -2039,10 +2028,6 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                       _WriteOp __write_op, _InitType __init, _Inclusive, _IsUniquePattern,
                                       sycl::event __prior_event = {})
 {
-    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_reduce_kernel<_CustomName>>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
 
     // Query the device's supported sub-group sizes to allocate storage conservatively and round
@@ -2100,63 +2085,74 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // Native sycl sub-group operations can only be used on trivially copyable types.
     const bool __use_subgroup_ops = std::is_trivially_copyable_v<_ValueType> && __q.get_device().is_gpu();
 
-    // Reduce and scan step implementations
-    using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<__inclusive, __is_unique_pattern_v, _GenReduceInput, _ReduceOp,
-                                                     _InitType, _ReduceKernel>;
-    using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__inclusive, __is_unique_pattern_v, _ReduceOp, _GenScanInput,
-                                                   _ScanInputTransform, _WriteOp, _InitType, _ScanKernel>;
-    _ReduceSubmitter __reduce_submitter{__num_work_groups,
+    // Dispatch to a specialization templated on the subgroup-ops bool so JIT only compiles the path actually used.
+    auto __dispatch = [&](auto __use_sg_ops_ic) {
+        using _UseSgOps = decltype(__use_sg_ops_ic);
+        constexpr bool __use_sg_ops = _UseSgOps::value;
+        using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __reduce_then_scan_reduce_kernel<_UseSgOps, _CustomName>>;
+        using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+            __reduce_then_scan_scan_kernel<_UseSgOps, _CustomName>>;
+        using _ReduceSubmitter =
+            __parallel_reduce_then_scan_reduce_submitter<__use_sg_ops, __inclusive, __is_unique_pattern_v,
+                                                         _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
+        using _ScanSubmitter =
+            __parallel_reduce_then_scan_scan_submitter<__use_sg_ops, __inclusive, __is_unique_pattern_v, _ReduceOp,
+                                                       _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+                                                       _ScanKernel>;
+        _ReduceSubmitter __reduce_submitter{__num_work_groups,
+                                            __work_group_size,
+                                            __max_inputs_per_block,
+                                            __max_num_sub_groups_local,
+                                            __n,
+                                            __gen_reduce_input,
+                                            __reduce_op,
+                                            __init};
+        _ScanSubmitter __scan_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
+                                        __max_num_sub_groups_global,
+                                        __num_blocks,
                                         __n,
-                                        __use_subgroup_ops,
-                                        __gen_reduce_input,
                                         __reduce_op,
+                                        __gen_scan_input,
+                                        __scan_input_transform,
+                                        __write_op,
                                         __init};
-    _ScanSubmitter __scan_submitter{__num_work_groups,
-                                    __work_group_size,
-                                    __max_inputs_per_block,
-                                    __max_num_sub_groups_local,
-                                    __max_num_sub_groups_global,
-                                    __num_blocks,
-                                    __n,
-                                    __use_subgroup_ops,
-                                    __reduce_op,
-                                    __gen_scan_input,
-                                    __scan_input_transform,
-                                    __write_op,
-                                    __init};
 
-    // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first and second kernel for accelerators
-    // with sufficiently large L2 / L3 caches.
-    for (std::size_t __b = 0; __b < __num_blocks; ++__b)
-    {
-        std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
-            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
-        std::uint32_t __workitems_in_block_round_up_workgroup =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
-        auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
-        auto __local_range = sycl::range<1>(__work_group_size);
-        auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
-        // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b);
-        // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                         __prior_event, __inputs_remaining, __b);
-        __inputs_remaining -= std::min(__inputs_remaining, __block_size);
-        if (__b + 2 == __num_blocks)
+        // Data is processed in 2-kernel blocks to allow contiguous input segment to persist in LLC between the first
+        // and second kernel for accelerators with sufficiently large L2 / L3 caches.
+        std::size_t __inputs_remaining_local = __inputs_remaining;
+        std::uint32_t __inputs_per_item_local = __inputs_per_item;
+        for (std::size_t __b = 0; __b < __num_blocks; ++__b)
         {
-            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
-                                    ? __max_inputs_per_item
-                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
-                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                          __num_work_groups * __work_group_size);
+            std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
+                std::min(__inputs_remaining_local, std::size_t{__max_inputs_per_block}), __inputs_per_item_local);
+            std::uint32_t __workitems_in_block_round_up_workgroup =
+                oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
+            auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
+            auto __local_range = sycl::range<1>(__work_group_size);
+            auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
+            __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
+                                               __inputs_remaining_local, __b);
+            __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+                                             __prior_event, __inputs_remaining_local, __b);
+            __inputs_remaining_local -= std::min(__inputs_remaining_local, __block_size);
+            if (__b + 2 == __num_blocks)
+            {
+                __inputs_per_item_local = __inputs_remaining_local >= __max_inputs_per_block
+                                              ? __max_inputs_per_item
+                                              : oneapi::dpl::__internal::__dpl_ceiling_div(
+                                                    oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining_local),
+                                                    __num_work_groups * __work_group_size);
+            }
         }
-    }
+    };
+    if (__use_subgroup_ops)
+        __dispatch(std::integral_constant<bool, true>{});
+    else
+        __dispatch(std::integral_constant<bool, false>{});
     return __future{std::move(__prior_event), std::move(__result_and_scratch)};
 }
 

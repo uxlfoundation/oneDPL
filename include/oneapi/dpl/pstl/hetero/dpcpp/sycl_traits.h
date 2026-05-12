@@ -488,12 +488,13 @@ template <typename _SetOpCount, typename _TempData, typename _RetType, typename 
           typename _Proj2>
 struct __gen_set_op_from_known_balanced_path;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
-          typename _InitType, typename _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename _KernelName>
 struct __parallel_reduce_then_scan_scan_submitter;
 
 template <typename _GenInput, typename _KernelName>
@@ -643,19 +644,20 @@ struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
 
 // Submitters that capture member variables via *this into the kernel lambda must have device copyable specializations
 // if their members may not be trivially copyable.
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput, typename _ReduceOp,
-          typename _InitType, typename... _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _GenReduceInput,
+          typename _ReduceOp, typename _InitType, typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, __is_inclusive,
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_reduce_submitter, __use_subgroup_ops, __is_inclusive,
     __is_unique_pattern_v, _GenReduceInput, _ReduceOp, _InitType, _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_GenReduceInput, _ReduceOp, _InitType>
 {
 };
 
-template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp, typename _GenScanInput,
-          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename... _KernelName>
+template <bool __use_subgroup_ops, bool __is_inclusive, bool __is_unique_pattern_v, typename _ReduceOp,
+          typename _GenScanInput, typename _ScanInputTransform, typename _WriteOp, typename _InitType,
+          typename... _KernelName>
 struct sycl::is_device_copyable<_ONEDPL_SPECIALIZE_FOR(
-    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, __is_inclusive,
+    oneapi::dpl::__par_backend_hetero::__parallel_reduce_then_scan_scan_submitter, __use_subgroup_ops, __is_inclusive,
     __is_unique_pattern_v, _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType, _KernelName...)>
     : oneapi::dpl::__internal::__are_all_device_copyable<_ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp,
                                                          _InitType>
