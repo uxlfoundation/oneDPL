@@ -1997,6 +1997,23 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
             oneapi::dpl::__internal::__supports_sub_group_size(__q, __get_reduce_then_scan_reqd_sg_sz_host()));
 }
 
+// Calculate optimal number of inputs per work-item for load balancing.
+// For full blocks, returns the maximum to maintain optimal throughput.
+// For partial blocks, distributes remaining inputs evenly across available work-items,
+// rounding up to the nearest power-of-2 for alignment.
+constexpr inline std::uint32_t
+__calculate_inputs_per_item(const std::size_t __inputs_remaining, const std::uint32_t __max_inputs_per_block,
+                            const std::uint16_t __max_inputs_per_item, const std::uint32_t __num_work_groups,
+                            const std::uint32_t __work_group_size)
+{
+    using namespace oneapi::dpl::__internal;
+
+    return __inputs_remaining >= __max_inputs_per_block
+               ? __max_inputs_per_item
+               : __dpl_ceiling_div(__dpl_bit_ceil(__inputs_remaining),
+                                   __num_work_groups * __work_group_size);
+}
+
 // General scan-like algorithm helpers
 // _GenReduceInput - a function which accepts the input range and index to generate the data needed by the main output
 //                   used in the reduction operation (to calculate the global carries)
@@ -2007,10 +2024,11 @@ __is_gpu_with_reduce_then_scan_sg_sz(const sycl::queue& __q)
 // _ReduceOp - a binary function which is used in the reduction and scan operations
 // _WriteOp - a function which accepts output range, index, and output of `_GenScanInput` applied to the input range
 //            and performs the final write to output operation
-template <std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng, typename _OutRng,
-          typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput, typename _ScanInputTransform,
-          typename _WriteOp, typename _InitType, typename _Inclusive, typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<typename _InitType::__value_type>>
+template <bool _Bounded, std::uint32_t __bytes_per_work_item_iter, typename _CustomName, typename _InRng,
+          typename _OutRng, typename _GenReduceInput, typename _ReduceOp, typename _GenScanInput,
+          typename _ScanInputTransform, typename _WriteOp, typename _InitType, typename _Inclusive,
+          typename _IsUniquePattern>
+__scan_block_return_t<_Bounded, typename _InitType::__value_type, _InRng>
 __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _InRng&& __in_rng, _OutRng&& __out_rng,
                                       _GenReduceInput __gen_reduce_input, _ReduceOp __reduce_op,
                                       _GenScanInput __gen_scan_input, _ScanInputTransform __scan_input_transform,
@@ -2019,6 +2037,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
 {
     using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_reduce_kernel<_CustomName>>;
+    using _ScanKernelInit = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
+        __reduce_then_scan_scan_kernel_init<_CustomName>>;
     using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __reduce_then_scan_scan_kernel<_CustomName>>;
     using _ValueType = typename _InitType::__value_type;
@@ -2053,27 +2073,29 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // reduce_then_scan kernel is not built to handle "empty" scans which includes `__n == 1` for unique patterns.
     // These trivial end cases should be handled at a higher level.
     assert(__inputs_remaining > 0);
-    std::uint32_t __inputs_per_item =
-        __inputs_remaining >= __max_inputs_per_block
-            ? __max_inputs_per_item
-            : oneapi::dpl::__internal::__dpl_ceiling_div(oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                                         __num_work_groups * __work_group_size);
+    std::uint32_t __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
+                                                                   __max_inputs_per_item, __num_work_groups,
+                                                                   __work_group_size);
     const std::size_t __block_size = std::min(__inputs_remaining, std::size_t{__max_inputs_per_block});
     const std::size_t __num_blocks = __inputs_remaining / __block_size + (__inputs_remaining % __block_size != 0);
 
     // We need temporary storage for reductions of each sub-group (__num_sub_groups_global).
     // Additionally, we need two elements for the block carry-out to prevent a race condition
     // between reading and writing the block carry-out within a single kernel.
-    __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
+    __combined_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2, 1};
+
+    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
+    auto __stop_pos_payloads_container =
+        __stop_pos_payloads_tools<_Bounded>::template __create_container<__stop_pos_t>(__num_blocks);
 
     // Reduce and scan step implementations
-    using _ReduceSubmitter =
-        __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v,
-                                                     _GenReduceInput, _ReduceOp, _InitType, _ReduceKernel>;
+    using _ReduceSubmitter = __parallel_reduce_then_scan_reduce_submitter<_Bounded, __max_inputs_per_item, __inclusive,
+                                                                          __is_unique_pattern_v, _GenReduceInput,
+                                                                          _ReduceOp, _InitType, _ReduceKernel>;
     using _ScanSubmitter =
-        __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __inclusive, __is_unique_pattern_v, _ReduceOp,
-                                                   _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
-                                                   _ScanKernel>;
+        __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_item, __inclusive, __is_unique_pattern_v,
+                                                   _ReduceOp, _GenScanInput, _ScanInputTransform, _WriteOp, _InitType,
+                                                   _ScanKernelInit, _ScanKernel>;
     _ReduceSubmitter __reduce_submitter{__num_work_groups,
                                         __work_group_size,
                                         __max_inputs_per_block,
@@ -2099,30 +2121,44 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // with sufficiently large L2 / L3 caches.
     for (std::size_t __b = 0; __b < __num_blocks; ++__b)
     {
-        std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(
-            std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
-        std::uint32_t __workitems_in_block_round_up_workgroup =
-            oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
-        auto __global_range = sycl::range<1>(__workitems_in_block_round_up_workgroup);
-        auto __local_range = sycl::range<1>(__work_group_size);
-        auto __kernel_nd_range = sycl::nd_range<1>(__global_range, __local_range);
+        const std::uint32_t __workitems_in_block = oneapi::dpl::__internal::__dpl_ceiling_div(std::min(__inputs_remaining, std::size_t{__max_inputs_per_block}), __inputs_per_item);
+
+        const std::uint32_t __workitems_in_block_round_up_workgroup = oneapi::dpl::__internal::__dpl_ceiling_div(__workitems_in_block, __work_group_size) * __work_group_size;
+
+        const sycl::range<1> __global_range(__workitems_in_block_round_up_workgroup);
+        const sycl::range<1> __local_range(__work_group_size);
+        const sycl::nd_range<1> __kernel_nd_range(__global_range, __local_range);
+
         // 1. Reduce step - Reduce assigned input per sub-group, compute and apply intra-wg carries, and write to global memory.
-        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event,
-                                           __inputs_remaining, __b);
+        __prior_event = __reduce_submitter(__q, __kernel_nd_range, __in_rng, __result_and_scratch, __prior_event, __inputs_remaining, __b);
+
         // 2. Scan step - Compute intra-wg carries, determine sub-group carry-ins, and perform full input block scan.
-        __prior_event = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
-                                         __prior_event, __inputs_remaining, __b);
+        auto&& __scan_res = __scan_submitter(__q, __kernel_nd_range, __in_rng, __out_rng, __result_and_scratch,
+                                             __prior_event, __inputs_remaining, __b);
+        if constexpr (_Bounded)
+        {
+            auto [__event, __stop_pos_payload] = std::forward<decltype(__scan_res)>(__scan_res);            
+            __prior_event = __event;
+            __stop_pos_payloads_container.push_back(std::move(__stop_pos_payload));
+        }
+        else
+        {
+            std::tie(__prior_event) = std::forward<decltype(__scan_res)>(__scan_res);
+        }
+
         __inputs_remaining -= std::min(__inputs_remaining, __block_size);
         if (__b + 2 == __num_blocks)
         {
-            __inputs_per_item = __inputs_remaining >= __max_inputs_per_block
-                                    ? __max_inputs_per_item
-                                    : oneapi::dpl::__internal::__dpl_ceiling_div(
-                                          oneapi::dpl::__internal::__dpl_bit_ceil(__inputs_remaining),
-                                          __num_work_groups * __work_group_size);
+            __inputs_per_item = __calculate_inputs_per_item(__inputs_remaining, __max_inputs_per_block,
+                                                             __max_inputs_per_item, __num_work_groups,
+                                                             __work_group_size);
         }
     }
-    return __future{std::move(__prior_event), std::move(__result_and_scratch)};
+
+    if constexpr (_Bounded)
+        return {std::move(__prior_event), std::move(__result_and_scratch), std::move(__stop_pos_payloads_container)};
+    else
+        return {std::move(__prior_event), std::move(__result_and_scratch)};
 }
 
 template <typename _CustomName, typename _InInOutRng, typename _GenReduceInput>
