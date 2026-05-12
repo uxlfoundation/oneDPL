@@ -892,9 +892,11 @@ struct __result_storage : public __device_storage<_T>
     }
 };
 
-template <typename _T>
+template <typename _T, bool _CanUseUSMHostMemory = true>
 struct __combined_storage : public __device_storage<_T>
 {
+    using _ValueType = _T;
+
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
@@ -905,19 +907,25 @@ struct __combined_storage : public __device_storage<_T>
     __combined_storage(const sycl::queue& __q, std::size_t __scratch_n, std::size_t __result_n)
         : __sz(__scratch_n), __result_sz(__result_n)
     {
-        assert(__sz > 0 && __result_sz > 0);
-        _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
-        if (__ptr)
+        assert(__result_sz > 0);    //assert(__sz > 0 && __result_sz > 0);
+
+        if constexpr (_CanUseUSMHostMemory)
         {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
-            this->__initialize(__q, __sz); // a separate scratch buffer
-            __kind = sycl::usm::alloc::host;
+            _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
+            if (__ptr)
+            {
+                __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+
+                if (__sz > 0)
+                    this->__initialize(__q, __sz); // a separate scratch buffer
+
+                __kind = sycl::usm::alloc::host;
+                return;
+            }
         }
-        else
-        {
-            this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
-            __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
-        }
+
+        this->__initialize(__q, __sz + __result_sz); // a combined buffer, starting with scratch
+        __kind = (this->__usm_buf) ? sycl::usm::alloc::device : sycl::usm::alloc::unknown;
     }
 
     // Note: this function assumes a kernel has completed and the result can be transferred to host
