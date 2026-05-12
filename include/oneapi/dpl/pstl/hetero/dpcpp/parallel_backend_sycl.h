@@ -754,19 +754,25 @@ __parallel_transform_scan(oneapi::dpl::__internal::__device_backend_tag, _Execut
     return __future(std::move(__event), __result_and_scratch_storage<_Type>(__move_state_from(__payload)));
 }
 
-template <typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask, typename _WriteOp,
-          typename _IsUniquePattern>
-__future<sycl::event, __result_and_scratch_storage<_Size>>
+template <bool _Bounded, typename _CustomName, typename _InRng, typename _OutRng, typename _Size, typename _GenMask,
+          typename _WriteOp, typename _IsUniquePattern>
+__scan_block_return_t<_Bounded, _Size, _InRng>
 __parallel_reduce_then_scan_copy(sycl::queue& __q, _InRng&& __in_rng, _OutRng&& __out_rng, _Size,
                                  _GenMask __generate_mask, _WriteOp __write_op, _IsUniquePattern __is_unique_pattern)
 {
-    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask>;
+    using __stop_pos_t = __scan_stop_pos_t<_InRng>;
+
+    using _TempDataNoCaptureIndexes = __noop_temp_data;
+    using _TempDataCaptureIndexes = __noop_temp_data_capture_indexes<__stop_pos_t>;
+    using _ProcessedInfo = __processed_info<__stop_pos_t>;
+    using _GenReduceInput = oneapi::dpl::__par_backend_hetero::__gen_count_mask<_GenMask, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo>;
+
     using _ReduceOp = std::plus<_Size>;
-    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask>;
+    using _GenScanInput = oneapi::dpl::__par_backend_hetero::__gen_expand_count_mask<_GenMask, /*_RangeTransform*/ oneapi::dpl::identity, _TempDataNoCaptureIndexes, _TempDataCaptureIndexes, _ProcessedInfo>;
     using _ScanInputTransform = oneapi::dpl::__par_backend_hetero::__get_zeroth_element;
 
     const std::size_t __n = oneapi::dpl::__ranges::__size(__in_rng);
-    return __parallel_transform_reduce_then_scan<sizeof(_Size), _CustomName>(
+    return __parallel_transform_reduce_then_scan<_Bounded, sizeof(_Size), _CustomName>(
         __q, __n, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), _GenReduceInput{__generate_mask},
         _ReduceOp{}, _GenScanInput{__generate_mask}, _ScanInputTransform{}, __write_op,
         oneapi::dpl::unseq_backend::__no_init_value<_Size>{},
