@@ -2343,51 +2343,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
-    template <typename _TempData, typename _ProcessedInfo, typename _InRng, typename _NDItem, typename _OutRng,
-              typename _StopPosAcc, typename _OobReplayCarryTuple, typename _CallScanHelper>
-    void
-    __eval_oob_pos(const _NDItem& __ndi, _OutRng& __out_rng, _StopPosAcc& __stop_pos_acc,
-                              _OobReplayCarryTuple& __oob_replay_carry_tuple,
-                              _CallScanHelper& __call_scan_through_elements_helper,
-                              const bool __oob_reached_in_this_wi) const
-    {
-        using __result_pos_t = __scan_stop_pos_t<_InRng>;
-
-        using oneapi::dpl::__internal::__pos_operations_sycl;
-
-        __dpl_sycl::__sub_group __sub_group = __ndi.get_sub_group();
-
-        // OOB pos reached in any work-item in the sub-group: replay the scan with captured indexes in SLM
-        // to detect the exact source OOB position.
-        if (__dpl_sycl::__any_of_group(__sub_group, __oob_reached_in_this_wi))
-        {
-            _TempData __temp_out{};
-            _ProcessedInfo __processed_info{};
-
-            // No real assignment is performed in this helper call, so we pass std::false_type specify that
-            // and it's safe to pass __out_rng to all WIs without worrying about write conflicts.
-            __call_scan_through_elements_helper(
-                /*_ExecuteAssign*/ std::false_type{}, __sub_group, __out_rng, std::get<0>(__oob_replay_carry_tuple),
-                std::get<1>(__oob_replay_carry_tuple), __temp_out, __processed_info);
-
-            // OOB can be reached by at most one WI per kernel invocation - no atomic needed.
-            if (__oob_reached_in_this_wi)
-            {
-                typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
-                if (__processed_info.get_oob_source_pos(__oob_source_pos))
-                {
-                    // OOB can be reached by at most one work-item per kernel invocation:
-                    // output indices are monotonically increasing across all work-items,
-                    // so only the single work-item that first crosses the output boundary
-                    // can have get_oob_source_pos() return true.
-                    // Therefore, no atomic fetch_min is needed here - at most one writer.
-                    __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
-                        oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
-                }
-            }
-        }
-    }
-
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<_Bounded, std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
                        std::tuple<sycl::event>>
@@ -2686,27 +2641,31 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                     __create_scoped_destroyer_opt<_Bounded, _InitValueType>(__oob_replay_carry_tuple);
 
                 {
-                    bool __oob_reached_in_this_wi = false;
+                    _TempData __temp_out{};
+                    _ProcessedInfo __processed_info{};
 
-                    {
-                        _TempData __temp_out{};
-                        _ProcessedInfo __processed_info{};
-
-                        // The first normal call of __scan_through_elements_helper
-                        __call_scan_through_elements_helper(/*_ExecuteAssign*/ std::true_type{}, __sub_group, __out_rng,
-                                                            __sub_group_carry_initialized, __sub_group_carry,
-                                                            __temp_out, __processed_info);
-                        if constexpr (_Bounded)
-                        {
-                            __oob_reached_in_this_wi = __processed_info.get_oob_reached();
-                        }
-                    }
-
+                    // The first normal call of __scan_through_elements_helper
+                    __call_scan_through_elements_helper(/*_ExecuteAssign*/ std::true_type{}, __sub_group, __out_rng,
+                                                        __sub_group_carry_initialized, __sub_group_carry,
+                                                        __temp_out, __processed_info);
                     if constexpr (_Bounded)
                     {
-                        __eval_oob_pos<_TempData, _ProcessedInfo, _InRng>(
-                            __ndi, __out_rng, __stop_pos_acc, __oob_replay_carry_tuple,
-                            __call_scan_through_elements_helper, __oob_reached_in_this_wi);
+                        if ( __processed_info.get_oob_reached())
+                        {
+                            typename _ProcessedInfo::_TupleOfSizes __oob_source_pos{};
+                            if (__processed_info.get_oob_source_pos(__oob_source_pos))
+                            {
+                                using __result_pos_t = __scan_stop_pos_t<_InRng>;
+
+                                // OOB can be reached by at most one work-item per kernel invocation:
+                                // output indices are monotonically increasing across all work-items,
+                                // so only the single work-item that first crosses the output boundary
+                                // can have get_oob_source_pos() return true.
+                                // Therefore, no atomic fetch_min is needed here - at most one writer.
+                                __stop_pos_acc.__data()[(std::size_t)_StopPosPayloadIndexes::eOOBPos] =
+                                    oneapi::dpl::__internal::__convert_tuple_to<__result_pos_t>(__oob_source_pos);
+                            }
+                        }
                     }
                 }
 
