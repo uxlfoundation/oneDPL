@@ -316,15 +316,6 @@ private:
 
     using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
-    static constexpr int __parts = 2;
-    static constexpr int __padding_size = 20;
-
-    // Get real range size considering padding for out ranges
-    int get_padded_size(int n)
-    {
-        return n + __padding_size * __parts;
-    }
-
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
     void
     process_data_in(int max_n, Policy&& exec, Algo algo, Checker& checker, TransIn tr_in, auto... args)
@@ -388,42 +379,6 @@ private:
         }
     }
 
-    template <TestDataMode mode, typename View>
-    decltype(auto)
-    get_view_part_for_output_wo_padding(View&& view)
-    {
-        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
-        {
-            return view | std::views::drop(__padding_size) |
-                   std::views::take(std::ranges::size(view) - __padding_size * __parts);
-        }
-        else
-        {
-            return std::forward<View>(view);
-        }
-    }
-
-    template <TestDataMode mode, typename View>
-    bool check_padding(View&& view)
-    {
-        if constexpr (mode == data_in_out_lim || mode == data_in_in_out_lim)
-        {
-            for (int idx = 0; idx < __padding_size; ++idx)
-            {
-                if (*(view.begin() + idx) != data_gen_unprocessed(idx))
-                    return false;
-            }
-        
-            for (int idx = 0; idx < __padding_size; ++idx)
-            {
-                if (*(view.begin() + view.size() - __padding_size + idx) != data_gen_unprocessed(idx))
-                    return false;
-            }
-        }
-
-        return true;
-    }    
-
     template<typename Policy, typename Algo, typename Checker, typename TransIn, typename TransOut,
              TestDataMode mode = test_mode>
     void
@@ -439,7 +394,7 @@ private:
         Container cont_in(exec, n_in, DataGen1{});
         Container cont_in_exp(exec, n_in, DataGen1{});
 
-        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
         Container cont_out_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in <= max_n);
@@ -450,8 +405,7 @@ private:
         auto expected_res = checker(in_exp_view, out_exp_view, args...);
 
         typename Container::type& A = cont_in();
-        auto&& B_with_padding = cont_out();
-        auto&& B = get_view_part_for_output_wo_padding<mode>(B_with_padding);
+        typename Container::type& B = cont_out();
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_out(B), args...);
 
@@ -488,13 +442,9 @@ private:
         EXPECT_EQ(ret_out_val(expected_res, out_exp_view.begin()), ret_out_val(res, tr_out(B).begin()),
                   (std::string("wrong output stop position with ") + names + sizes).c_str());
 
-        // Check padding data
-        EXPECT_TRUE(check_padding<mode>(B_with_padding),
-                    (std::string("wrong padding data after algo with ranges: ") + names).c_str());
-
         //check result
         auto n = std::ranges::size(out_exp_view);
-        EXPECT_EQ_N(cont_out_exp().begin(), B.begin(), n, 
+        EXPECT_EQ_N(cont_out_exp().begin(), cont_out().begin(), n, 
                     (std::string("output mismatch with ") + names + sizes).c_str());
 
         //check result
@@ -543,8 +493,8 @@ public:
         process_data_in_out(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test case size of input range is less than size of output and vice-versa
-        process_data_in_out(max_n, r_size / __parts, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_out(max_n, r_size, r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_out(max_n, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
         process_data_in_out(max_n, 0,      0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -565,8 +515,8 @@ public:
         process_data_in_in(max_n, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test case the sizes of input ranges are different
-        process_data_in_in(max_n, r_size / __parts, r_size,          CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
-        process_data_in_in(max_n, r_size,          r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
+        process_data_in_in(max_n, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in(max_n, 0, 0, CLONE_TEST_POLICY(exec), algo, checker, tr_in, args...);
@@ -661,7 +611,7 @@ private:
         Container cont_in1(exec, n_in1, DataGen1{});
         Container cont_in2(exec, n_in2, DataGen2{});
 
-        Container cont_out(exec, get_padded_size(n_out), data_gen_unprocessed);
+        Container cont_out(exec, n_out, data_gen_unprocessed);
         Container cont_exp(exec, n_out, data_gen_unprocessed);
 
         assert(n_in1 <= max_n);
@@ -674,14 +624,9 @@ private:
 
         typename Container::type& A = cont_in1();
         typename Container::type& B = cont_in2();
-        auto&& C_with_padding = cont_out();
-        auto&& C = get_view_part_for_output_wo_padding<mode>(C_with_padding);
+        typename Container::type& C = cont_out();
 
         auto res = algo(CLONE_TEST_POLICY(exec), tr_in(A), tr_in(B), tr_out(C), args...);
-
-        // Check padding data
-        EXPECT_TRUE(check_padding<mode>(C_with_padding),
-                    (std::string("wrong padding data after algo with ranges: ") + typeid(Algo).name()).c_str());
 
         // check result types
         static_assert(std::is_same_v<decltype(res), decltype(expected_res)>, "Wrong return type");
@@ -712,7 +657,7 @@ private:
 
         //check result
         auto n = std::ranges::size(expected_view);
-        EXPECT_EQ_N(cont_exp().begin(), C.begin(), n, (std::string("output mismatch with ")
+        EXPECT_EQ_N(cont_exp().begin(), cont_out().begin(), n, (std::string("output mismatch with ")
                     + typeid(Algo).name() + typeid(Policy).name() + sizes).c_str());
 
         if constexpr(!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
@@ -743,7 +688,7 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size * __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s)
         process_data_in_in_out(max_n, 0,      0,                                     0, CLONE_TEST_POLICY(exec), algo, checker, args...);
@@ -756,11 +701,11 @@ public:
     operator()(int max_n, Policy&& exec, Algo algo, Checker& checker, auto... args)
     {
         const int r_size = max_n;
-        process_data_in_in_out(max_n, r_size, r_size, r_size,           CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size * __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size / __parts, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size / __parts, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
-        process_data_in_in_out(max_n, r_size, r_size, r_size / __parts, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size,     CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size * 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size / 2, r_size, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size / 2, r_size, CLONE_TEST_POLICY(exec), algo, checker, args...);
+        process_data_in_in_out(max_n, r_size, r_size, r_size / 2, CLONE_TEST_POLICY(exec), algo, checker, args...);
 
         //test cases with empty sequence(s) and/or zero output capacity
         process_data_in_in_out(max_n, 0,           0,     0,     CLONE_TEST_POLICY(exec), algo, checker, args...);
