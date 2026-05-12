@@ -2295,23 +2295,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
         }
     }
 
-    template <bool _Create, typename _InitValueType, typename _OOBReplayCarryTuple>
-    std::conditional_t<_Create,
-                       oneapi::dpl::__internal::__scoped_destroyer<_InitValueType, /*_CallDestroyOptional*/ true>,
-                       std::monostate>
-    __create_scoped_destroyer_opt(_OOBReplayCarryTuple& __oob_replay_carry_tuple) const
-    {
-        if constexpr (_Create)
-        {
-            return oneapi::dpl::__internal::__scoped_destroyer<_InitValueType, /*_CallDestroyOptional*/ true>{
-                std::get<1>(__oob_replay_carry_tuple), std::get<0>(__oob_replay_carry_tuple)};
-        }
-        else
-        {
-            return std::monostate{};
-        }
-    }
-
     template <typename _InRng, typename _OutRng, typename _TmpStorageAcc>
     std::conditional_t<_Bounded, std::tuple<sycl::event, __scan_stop_pos_storage_t<__scan_stop_pos_t<_InRng>>>,
                        std::tuple<sycl::event>>
@@ -2600,11 +2583,6 @@ struct __parallel_reduce_then_scan_scan_submitter<_Bounded, __max_inputs_per_ite
                                 __sub_group_id, __active_subgroups, __temp_out_arg, __processed_info_arg);
                         }
                     };
-
-                auto __oob_replay_carry_tuple = __save_carry_for_oob_replay_opt<_Bounded>(
-                    __sub_group_carry_initialized, __sub_group_carry);
-                [[maybe_unused]] auto __oob_replay_carry_tuple_destroyer =
-                    __create_scoped_destroyer_opt<_Bounded, _InitValueType>(__oob_replay_carry_tuple);
 
                 {
                     _TempData __temp_out{};
