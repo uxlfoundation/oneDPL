@@ -1197,11 +1197,11 @@ struct __scan_by_seg_op
 // *** Main reduce then scan infrastructure ***
 
 // Sub-group communication wrappers with SLM fallback.
-// When __comm_slm is nullptr, native SYCL sub-group operations are used (trivially copyable types only).
-// When __comm_slm is non-null, SLM-based communication is used. This path is required for
+// When __use_subgroup_ops is true, native SYCL sub-group operations are used (trivially copyable types only).
+// When __use_subgroup_ops is false, SLM-based communication is used. This path is required for
 // non-trivially-copyable types and preferred for CPU targets where sub-group ops are slow.
 // The __comm_slm parameter points to a work-group-sized SLM buffer; each sub-group uses its own
-// slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size).
+// slice at offset [sub_group_id * sub_group_size, (sub_group_id + 1) * sub_group_size].
 
 template <bool __use_subgroup_ops, typename _ValueType>
 _ValueType
@@ -1689,7 +1689,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0 : __work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::write>(
@@ -1698,7 +1698,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
                 __nd_range, [=, *this](sycl::nd_item<1> __ndi) [[sycl::reqd_sub_group_size(__sub_group_size)]] {
                     _InitValueType* __tmp_acc = _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__temp_acc);
 
-                    if (!__use_slm_for_comm)
+                    if (__use_subgroup_ops)
                         __reduce_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __in_rng,
                                                    __inputs_remaining, __block_num);
                     else
@@ -1714,7 +1714,7 @@ struct __parallel_reduce_then_scan_reduce_submitter<__max_inputs_per_item, __is_
     const std::uint32_t __max_block_size;
     const std::uint32_t __max_num_sub_groups_local;
     const std::size_t __n;
-    const bool __use_slm_for_comm;
+    const bool __use_subgroup_ops;
 
     const _GenReduceInput __gen_reduce_input;
     const _ReduceOp __reduce_op;
@@ -2042,7 +2042,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
             __dpl_sycl::__local_accessor<_InitValueType> __sub_group_partials(__max_num_sub_groups_local + 1, __cgh);
             // SLM for sub-group communication (shift_group_right / group_broadcast).
             // Used for non-trivially-copyable types or when SLM communication is preferred (e.g., CPU targets).
-            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_slm_for_comm ? __work_group_size : 0, __cgh);
+            __dpl_sycl::__local_accessor<_InitValueType> __comm_slm(__use_subgroup_ops ? 0: __work_group_size, __cgh);
             __cgh.depends_on(__prior_event);
             oneapi::dpl::__ranges::__require_access(__cgh, __in_rng, __out_rng);
             auto __temp_acc = __scratch_container.template __get_scratch_acc<sycl::access_mode::read_write>(__cgh);
@@ -2055,7 +2055,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
                     _InitValueType* __res_ptr =
                         _TmpStorageAcc::__get_usm_or_buffer_accessor_ptr(__res_acc, __max_num_sub_groups_global + 2);
 
-                    if (!__use_slm_for_comm)
+                    if (__use_subgroup_ops)
                         __scan_kernel_body<true>(__ndi, __sub_group_partials, __comm_slm, __tmp_acc, __res_ptr,
                                                  __in_rng, __out_rng, __inputs_in_block, __inputs_remaining,
                                                  __block_num);
@@ -2074,7 +2074,7 @@ struct __parallel_reduce_then_scan_scan_submitter<__max_inputs_per_item, __is_in
     const std::uint32_t __max_num_sub_groups_global;
     const std::size_t __num_blocks;
     const std::size_t __n;
-    const bool __use_slm_for_comm;
+    const bool __use_subgroup_ops;
 
     const _ReduceOp __reduce_op;
     const _GenScanInput __gen_scan_input;
@@ -2162,9 +2162,8 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
     // between reading and writing the block carry-out within a single kernel.
     __result_and_scratch_storage<_ValueType> __result_and_scratch{__q, __max_num_sub_groups_global + 2};
 
-    // Use SLM-based sub-group communication for non-trivially-copyable types or CPU targets
-    // (where native sub-group operations are slow).
-    const bool __use_slm_for_comm = !std::is_trivially_copyable_v<_ValueType>;
+    // Native sycl sub-group operations can only be used on trivially copyable types.
+    const bool __use_subgroup_ops = std::is_trivially_copyable_v<_ValueType>;
 
     // Reduce and scan step implementations
     using _ReduceSubmitter =
@@ -2179,7 +2178,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                         __max_inputs_per_block,
                                         __max_num_sub_groups_local,
                                         __n,
-                                        __use_slm_for_comm,
+                                        __use_subgroup_ops,
                                         __gen_reduce_input,
                                         __reduce_op,
                                         __init};
@@ -2190,7 +2189,7 @@ __parallel_transform_reduce_then_scan(sycl::queue& __q, const std::size_t __n, _
                                     __max_num_sub_groups_global,
                                     __num_blocks,
                                     __n,
-                                    __use_slm_for_comm,
+                                    __use_subgroup_ops,
                                     __reduce_op,
                                     __gen_scan_input,
                                     __scan_input_transform,
