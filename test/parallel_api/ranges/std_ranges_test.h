@@ -316,9 +316,6 @@ private:
 
     using rvalue_container_t = std::array<typename Container::value_type, 0>;
 
-    template <typename T>
-    using TmpContainerType = std::array<T,0>;
-
     static constexpr int kParts = 2;
 
     static constexpr int kPaddingSize = 20;
@@ -327,96 +324,6 @@ private:
     int get_padded_size(int n)
     {
         return n + kPaddingSize * kParts;
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_arg_1(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_args_2(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers_args_3(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        // Check dangling iterators in return types for call with temporary data
-        if constexpr (!supress_dangling_iterators_check<std::remove_cvref_t<decltype(algo)>>)
-        {
-            using T = typename Container::value_type;
-
-            // Check dangling with temporary containers in implementation
-            using res_ret_t = decltype(algo(CLONE_TEST_POLICY_IDX(exec, idx),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            std::declval<TmpContainerType<T>>(),
-                                            args...));
-
-            if constexpr (!std::is_fundamental_v<res_ret_t>)
-            {
-                if constexpr (!all_dangling_in_result_v<res_ret_t>)
-                    static_assert(!std::is_same_v<res_ret_t, res_ret_t>, "res_ret_t is expected to be or consist of std::ranges::dangling");
-            }
-        }
-    }
-
-    // Test dangling iterators in return types for call with temporary data
-    template <std::size_t ArgsSize, int idx, typename Policy, typename Algo, typename ...Args>
-    constexpr void
-    test_dangling_pointers(Policy&& exec, Algo&& algo, Args&& ...args)
-    {
-        static_assert(ArgsSize == 1 || ArgsSize == 2 || ArgsSize == 3,
-                      "The test for dangling pointers is not implemented for this number of algorithm arguments");
-
-        if constexpr (ArgsSize == 1)
-            test_dangling_pointers_arg_1<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-
-        else if constexpr (ArgsSize == 2)
-            test_dangling_pointers_args_2<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
-
-        else if constexpr (ArgsSize == 3)
-            test_dangling_pointers_args_3<idx>(std::forward<Policy>(exec), std::forward<Algo>(algo), std::forward<decltype(args)>(args)...);
     }
 
     template<typename Policy, typename Algo, typename Checker, typename TransIn>
