@@ -49,15 +49,10 @@ struct SetDataItem
 struct SetDataItemProj
 {
     template <typename T>
-    decltype(auto)
+    const T&
     operator()(const SetDataItem<T>& item) const
     {
-        // Parentheses are required for correct decltype(auto) deduction:
-        // - without them: decltype(item.value) => T (copy, declared member type)
-        // - with them:    decltype((item.value)) => const T& (lvalue expression)
-        // This ensures the projection returns a reference, not a copy,
-        // to test that algorithms work correctly with reference-returning projections.
-        return (item.value);
+        return item.value;
     }
 };
 
